@@ -25,16 +25,36 @@ class TokenStorage {
 
   final _secureStorage = const FlutterSecureStorage();
   AuthCredentials? _cachedCredentials;
+  bool _cleanupBlocked = false;
+  int _credentialGeneration = 0;
+  Future<void> _writeTail = Future<void>.value();
+  static const _logoutPendingKey = 'auth-logout-pending';
+  bool get cleanupPending =>
+      _cleanupBlocked || MMKVStorage().getString(_logoutPendingKey) == 'true';
+
+  /// Fail closed even across restart until durable credential deletion succeeds.
+  Future<void> beginLogout() async {
+    _credentialGeneration++;
+    _cleanupBlocked = true;
+    _cachedCredentials = null;
+    await MMKVStorage().setStringDurable(_logoutPendingKey, 'true');
+  }
 
   /// Get credentials from secure storage
   Future<AuthCredentials?> getCredentials() async {
+    if (_cleanupBlocked || MMKVStorage().getString(_logoutPendingKey) == 'true')
+      return null;
     if (_cachedCredentials != null) {
       return _cachedCredentials;
     }
 
+    final generation = _credentialGeneration;
     try {
       final stored = await _secureStorage.read(key: _authKey);
-      if (stored == null) return null;
+      if (generation != _credentialGeneration ||
+          stored == null ||
+          cleanupPending)
+        return null;
 
       final credentials = AuthCredentials.fromJson(
         jsonDecode(stored) as Map<String, dynamic>,
@@ -42,15 +62,21 @@ class TokenStorage {
       _cachedCredentials = credentials;
       return credentials;
     } catch (e, stack) {
+      if (generation != _credentialGeneration) return null;
       if (_isSecureStorageReadCorruption(e)) {
-        await _deleteCorruptSecureValue(
-          storage: _secureStorage,
-          key: _authKey,
-          label: 'credentials',
-          error: e,
-          stack: stack,
-        );
-        _cachedCredentials = null;
+        final cleanup = _writeTail.then((_) async {
+          if (generation != _credentialGeneration) return;
+          await _deleteCorruptSecureValue(
+            storage: _secureStorage,
+            key: _authKey,
+            label: 'credentials',
+            error: e,
+            stack: stack,
+          );
+          if (generation == _credentialGeneration) _cachedCredentials = null;
+        });
+        _writeTail = cleanup;
+        await cleanup;
         return null;
       }
       logger.error('Error getting credentials', e, stack);
@@ -60,27 +86,56 @@ class TokenStorage {
 
   /// Store credentials securely
   Future<bool> setCredentials(AuthCredentials credentials) async {
-    try {
-      final json = jsonEncode(credentials.toJson());
-      await _secureStorage.write(key: _authKey, value: json);
-      _cachedCredentials = credentials;
-      return true;
-    } catch (e, stack) {
-      logger.error('Error setting credentials', e, stack);
+    if (_cleanupBlocked || MMKVStorage().getString(_logoutPendingKey) == 'true')
       return false;
-    }
+    final generation = ++_credentialGeneration;
+    final write = _writeTail.then((_) async {
+      if (generation != _credentialGeneration || cleanupPending) return false;
+      try {
+        final json = jsonEncode(credentials.toJson());
+        await _secureStorage.write(key: _authKey, value: json);
+        if (generation != _credentialGeneration || cleanupPending) return false;
+        _cachedCredentials = credentials;
+        return true;
+      } catch (e, stack) {
+        logger.error('Error setting credentials', e, stack);
+        return false;
+      }
+    });
+    _writeTail = write.then<void>((_) {});
+    return write;
   }
 
   /// Remove credentials
-  Future<bool> removeCredentials() async {
+  Future<bool> removeCredentials({bool keepLogoutPending = false}) async {
+    var markerWritten = false;
     try {
+      await beginLogout();
+      markerWritten = true;
+    } catch (e, stack) {
+      logger.error('Error persisting logout intent', e, stack);
+    }
+    try {
+      // Drain earlier writes before deletion so they cannot restore credentials.
+      await _writeTail;
+      // Attempt secure deletion even if the non-secret tombstone failed.
       await _secureStorage.delete(key: _authKey);
-      _cachedCredentials = null;
+      if (!markerWritten) return false;
+      if (!keepLogoutPending) await finishLogout();
       return true;
     } catch (e, stack) {
       logger.error('Error removing credentials', e, stack);
       return false;
     }
+  }
+
+  Future<void> finishLogout() async {
+    final generation = _credentialGeneration;
+    await MMKVStorage().removeKeyDurable(_logoutPendingKey);
+    if (generation != _credentialGeneration) {
+      throw StateError('Credential cleanup changed');
+    }
+    _cleanupBlocked = false;
   }
 
   /// Check if authenticated
@@ -140,6 +195,8 @@ class SettingsStorage {
 
   final _storage = MMKVStorage();
   final _apiKeyStorage = APIKeyStorage();
+  @visibleForTesting
+  Future<void> Function(String key, String value)? testJournalWrite;
   bool _migrationChecked = false;
   Settings? _cachedSettings;
 
@@ -157,14 +214,217 @@ class SettingsStorage {
   static const Duration _debounceDelay = Duration(milliseconds: 500);
   Future<void> _operationTail = Future<void>.value();
 
-  Future<T> _enqueueOperation<T>(Future<T> Function() action) {
-    final next = _operationTail.then((_) => action());
+  int _accountGeneration = 0;
+  bool _accountBlocked = false;
+  String? _accountScope;
+  final Map<String, dynamic> _pendingSettings = {};
+  int _settingsVersion = 0;
+  int get accountGeneration => _accountGeneration;
+  Map<String, dynamic> get pendingSettings =>
+      Map<String, dynamic>.of(_pendingSettings);
+
+  /// Synchronous fence used before runtime teardown yields.
+  void fenceAccountOperations() {
+    _accountGeneration++;
+    _accountBlocked = true;
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _cachedSettings = null;
+    _hydratedProfileIds.clear();
+    _inferenceKeyHydrated = false;
+  }
+
+  Future<T> _enqueueOperation<T>(
+    Future<T> Function() action, {
+    bool allowBlocked = false,
+  }) {
+    final generation = _accountGeneration;
+    final next = _operationTail.then((_) async {
+      if (generation != _accountGeneration ||
+          (_accountBlocked && !allowBlocked)) {
+        throw StateError('Settings account changed');
+      }
+      final result = await action();
+      if (generation != _accountGeneration) {
+        _cachedSettings = null;
+        _hydratedProfileIds.clear();
+        _inferenceKeyHydrated = false;
+        throw StateError('Settings account changed');
+      }
+      return result;
+    });
     // Keep the queue usable after a failed write while returning the error
     // to the caller that owns that write.
     _operationTail = next.then<void>(
       (_) {},
       onError: (Object _, StackTrace _) {},
     );
+    return next;
+  }
+
+  String _journalKey(String scope) => 'settings-journal-v1-$scope';
+
+  /// One encrypted, account/server-scoped document owns snapshot and dirty keys.
+  Future<({Settings settings, Map<String, dynamic> pending, int version})>
+  activateAccount(String scope) => _enqueueOperation(() async {
+    final generation = _accountGeneration;
+    if (_accountScope != scope) {
+      _cachedSettings = null;
+      _hydratedProfileIds.clear();
+      _inferenceKeyHydrated = false;
+      _pendingSettings.clear();
+      _settingsVersion = 0;
+    }
+    final protector = AtRestEncryptionService();
+    await protector.initialize();
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
+    final key = _journalKey(scope);
+    final stored = _storage.getString(key);
+    Settings? settings;
+    if (stored != null) {
+      final plaintext = protector.unprotectString(stored, associatedData: key);
+      if (plaintext == null) throw StateError('Unreadable settings journal');
+      final document = jsonDecode(plaintext) as Map<String, dynamic>;
+      settings = Settings.fromJson(
+        document['settings'] as Map<String, dynamic>,
+      );
+      _pendingSettings
+        ..clear()
+        ..addAll(document['pending'] as Map<String, dynamic>);
+      _settingsVersion = document['version'] as int;
+    }
+    // Unowned legacy settings are usable once; never import another account's
+    // cached document when switching owners.
+    final previousOwner = _storage.getString('settings-account-owner');
+    settings ??= previousOwner == null || previousOwner == scope
+        ? await _getSettings()
+        : Settings();
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
+    _accountScope = scope;
+    _cacheSettings(settings);
+    await _storage.setStringDurable('settings-account-owner', scope);
+    await _storage.saveSettings(settings);
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
+    _accountBlocked = false;
+    return (
+      settings: _cloneSettings(settings),
+      pending: Map<String, dynamic>.of(_pendingSettings),
+      version: _settingsVersion,
+    );
+  }, allowBlocked: true);
+
+  Future<void> _persistJournal(Settings settings) async {
+    final scope = _accountScope;
+    if (scope == null) return;
+    final key = _journalKey(scope);
+    final protected = AtRestEncryptionService().protectString(
+      jsonEncode({
+        'settings': settings.toJson(),
+        'pending': _pendingSettings,
+        'version': _settingsVersion,
+      }),
+      associatedData: key,
+    );
+    if (protected == null) throw StateError('Settings protection unavailable');
+    final writer = testJournalWrite ?? _storage.setStringDurable;
+    await writer(key, protected);
+  }
+
+  /// Accept server state through the same queue as local edits. Acknowledgment
+  /// removes only submitted values; edits made during HTTP remain dirty.
+  Future<Settings> commitSyncedSettings(
+    Settings settings, {
+    required Map<String, dynamic> pending,
+    required int version,
+    Map<String, dynamic> acknowledged = const {},
+    int? expectedGeneration,
+    bool localEdit = false,
+    bool Function()? isCurrent,
+  }) {
+    final snapshot = _cloneSettings(settings);
+    final dirty = Map<String, dynamic>.of(pending);
+    return _enqueueOperation(() async {
+      if (isCurrent != null && !isCurrent()) {
+        throw StateError('Settings manager changed');
+      }
+      if (expectedGeneration != null &&
+          expectedGeneration != _accountGeneration) {
+        throw StateError('Settings account changed');
+      }
+      final generation = _accountGeneration;
+      final current = await _getSettings();
+      if (generation != _accountGeneration ||
+          (isCurrent != null && !isCurrent())) {
+        throw StateError('Settings account changed');
+      }
+      final previousPending = Map<String, dynamic>.of(_pendingSettings);
+      final previousVersion = _settingsVersion;
+      _pendingSettings.removeWhere(
+        (key, value) =>
+            acknowledged.containsKey(key) &&
+            jsonEncode(acknowledged[key]) == jsonEncode(value),
+      );
+      for (final entry in dirty.entries) {
+        if (localEdit || !_pendingSettings.containsKey(entry.key)) {
+          _pendingSettings[entry.key] = entry.value;
+        }
+      }
+      final merged = Settings.fromJson({
+        ...snapshot.toJson(),
+        ..._pendingSettings,
+      });
+      merged.developerModeEnabled = current.developerModeEnabled;
+      merged.inferenceOpenAIKey = current.inferenceOpenAIKey;
+      merged.profiles = [
+        for (final profile in merged.profiles)
+          _copyProfileKeys(
+            profile,
+            current.profiles.where((p) => p.id == profile.id).firstOrNull,
+          ),
+      ];
+      _settingsVersion = version;
+      try {
+        await _persistJournal(merged);
+      } catch (_) {
+        _pendingSettings
+          ..clear()
+          ..addAll(previousPending);
+        _settingsVersion = previousVersion;
+        rethrow;
+      }
+      if (generation != _accountGeneration ||
+          (isCurrent != null && !isCurrent())) {
+        throw StateError('Settings account changed');
+      }
+      _cacheSettings(merged);
+      await _storage.saveSettings(merged);
+      return _cloneSettings(merged);
+    });
+  }
+
+  /// Drain old writes before secure keys are deleted. Keep scoped journals for
+  /// a later return to that account, but clear the shared hot snapshot.
+  Future<void> clearAccountSettings() {
+    fenceAccountOperations();
+    final next = _operationTail.then((_) async {
+      final local = await _storage.getSettings();
+      final deviceSettings = Settings()
+        ..developerModeEnabled = local.developerModeEnabled;
+      _cachedSettings = null;
+      _hydratedProfileIds.clear();
+      _inferenceKeyHydrated = false;
+      _accountScope = null;
+      _pendingSettings.clear();
+      _settingsVersion = 0;
+      await _storage.saveSettings(deviceSettings);
+    });
+    _operationTail = next.catchError((Object _, StackTrace _) {});
     return next;
   }
 
@@ -186,12 +446,19 @@ class SettingsStorage {
       return _cloneSettings(cachedSettings);
     }
 
+    final generation = _accountGeneration;
     final settings = await _storage.getSettings();
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
 
     // Perform one-time migration if needed
     if (!_migrationChecked) {
       await _performMigrationIfNeeded(settings);
       await _normalizeStaleBuiltInProfileDefaults(settings);
+      if (generation != _accountGeneration) {
+        throw StateError('Settings account changed');
+      }
       _migrationChecked = true;
     }
 
@@ -217,8 +484,12 @@ class SettingsStorage {
       _enqueueOperation(_getSettingsWithApiKeys);
 
   Future<Settings> _getSettingsWithApiKeys() async {
+    final generation = _accountGeneration;
     final settings = await _getSettings();
     await _loadAPIKeysIntoSettings(settings);
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
     _cacheSettings(settings);
     for (final p in settings.profiles) {
       _hydratedProfileIds.add(p.id);
@@ -239,6 +510,42 @@ class SettingsStorage {
   /// is used.
   Future<AIBackendProfile?> hydrateProfileApiKeys(String profileId) =>
       _enqueueOperation(() => _hydrateProfileApiKeys(profileId));
+
+  /// Add only secure keys to the caller's live profile, never cached metadata.
+  Future<AIBackendProfile> hydrateKeysForProfile(AIBackendProfile profile) =>
+      _enqueueOperation(() => _profileWithApiKeys(profile));
+
+  AIBackendProfile _copyProfileKeys(
+    AIBackendProfile profile,
+    AIBackendProfile? source,
+  ) => profile.copyWith(
+    openaiConfig: profile.openaiConfig == null
+        ? null
+        : OpenAIConfig(
+            apiKey:
+                source?.openaiConfig?.apiKey ?? profile.openaiConfig!.apiKey,
+            baseUrl: profile.openaiConfig!.baseUrl,
+            model: profile.openaiConfig!.model,
+          ),
+    azureOpenAIConfig: profile.azureOpenAIConfig == null
+        ? null
+        : AzureOpenAIConfig(
+            apiKey:
+                source?.azureOpenAIConfig?.apiKey ??
+                profile.azureOpenAIConfig!.apiKey,
+            endpoint: profile.azureOpenAIConfig!.endpoint,
+            apiVersion: profile.azureOpenAIConfig!.apiVersion,
+            deploymentName: profile.azureOpenAIConfig!.deploymentName,
+          ),
+    togetherAIConfig: profile.togetherAIConfig == null
+        ? null
+        : TogetherAIConfig(
+            apiKey:
+                source?.togetherAIConfig?.apiKey ??
+                profile.togetherAIConfig!.apiKey,
+            model: profile.togetherAIConfig!.model,
+          ),
+  );
 
   Future<AIBackendProfile?> _hydrateProfileApiKeys(String profileId) async {
     if (_hydratedProfileIds.contains(profileId)) {
@@ -269,7 +576,11 @@ class SettingsStorage {
     }
     if (target == null) return null;
 
+    final generation = _accountGeneration;
     final hydrated = await _profileWithApiKeys(target);
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
     // Replace the cached profile in-place so subsequent reads pick up
     // the populated keys.
     cached.profiles = [
@@ -290,7 +601,11 @@ class SettingsStorage {
     if (_inferenceKeyHydrated) {
       return _cachedSettings?.inferenceOpenAIKey;
     }
+    final generation = _accountGeneration;
     final key = await _apiKeyStorage.getInferenceOpenAIKey();
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
     final cached = _cachedSettings;
     if (cached != null) {
       cached.inferenceOpenAIKey = key;
@@ -451,29 +766,13 @@ class SettingsStorage {
     final azureKey = results[1];
     final togetherAIKey = results[2];
 
-    return profile.copyWith(
-      openaiConfig: profile.openaiConfig != null && openAIKey != null
-          ? OpenAIConfig(
-              apiKey: openAIKey,
-              baseUrl: profile.openaiConfig!.baseUrl,
-              model: profile.openaiConfig!.model,
-            )
-          : null,
-      azureOpenAIConfig: profile.azureOpenAIConfig != null && azureKey != null
-          ? AzureOpenAIConfig(
-              apiKey: azureKey,
-              endpoint: profile.azureOpenAIConfig!.endpoint,
-              apiVersion: profile.azureOpenAIConfig!.apiVersion,
-              deploymentName: profile.azureOpenAIConfig!.deploymentName,
-            )
-          : null,
-      togetherAIConfig:
-          profile.togetherAIConfig != null && togetherAIKey != null
-          ? TogetherAIConfig(
-              apiKey: togetherAIKey,
-              model: profile.togetherAIConfig!.model,
-            )
-          : null,
+    return _copyProfileKeys(
+      profile,
+      profile.copyWith(
+        openaiConfig: OpenAIConfig(apiKey: openAIKey),
+        azureOpenAIConfig: AzureOpenAIConfig(apiKey: azureKey),
+        togetherAIConfig: TogetherAIConfig(apiKey: togetherAIKey),
+      ),
     );
   }
 
@@ -520,17 +819,26 @@ class SettingsStorage {
   }
 
   Future<void> _saveSettings(Settings settings) async {
+    final generation = _accountGeneration;
     // Save API keys to secure storage first
     await _saveAPIKeysFromSettings(settings);
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
 
     // Create a copy without API keys for MMKV storage
     final settingsForStorage = _createSettingsCopyWithoutApiKeys(settings);
+    await _persistJournal(settings);
     await _storage.saveSettings(settingsForStorage);
+    if (generation != _accountGeneration) {
+      throw StateError('Settings account changed');
+    }
     _cacheSettings(settings);
   }
 
   /// Save API keys from settings to secure storage
   Future<void> _saveAPIKeysFromSettings(Settings settings) async {
+    final generation = _accountGeneration;
     // Save inference OpenAI key
     if (settings.inferenceOpenAIKey != null) {
       await _apiKeyStorage.setInferenceOpenAIKey(settings.inferenceOpenAIKey);
@@ -538,6 +846,9 @@ class SettingsStorage {
 
     // Save profile-specific API keys
     for (final profile in settings.profiles) {
+      if (generation != _accountGeneration) {
+        throw StateError('Settings account changed');
+      }
       if (profile.openaiConfig?.apiKey != null) {
         await _apiKeyStorage.setOpenAIConfigKey(
           profile.id,
@@ -580,7 +891,11 @@ class SettingsStorage {
 
     // Handle API key fields specially
     if (key == 'inferenceOpenAIKey') {
+      final generation = _accountGeneration;
       await _apiKeyStorage.setInferenceOpenAIKey(value as String?);
+      if (generation != _accountGeneration) {
+        throw StateError('Settings account changed');
+      }
       // Update in-memory settings but don't save to MMKV
       current.inferenceOpenAIKey = value as String?;
       _cacheSettings(current);
@@ -613,6 +928,11 @@ class SettingsStorage {
       return;
     }
     final updated = current;
+    if (key != 'developerModeEnabled') {
+      // toJson strips secure-storage key fields before entering the journal.
+      _pendingSettings[key] = updated.toJson()[key];
+      await _persistJournal(updated);
+    }
 
     // Cancel existing debounce timer and start a new one
     _debounceTimer?.cancel();
@@ -654,6 +974,12 @@ class SettingsStorage {
     _inferenceKeyHydrated = false;
     _cachedSettings = null;
     _migrationChecked = false;
+    testJournalWrite = null;
+    _accountScope = null;
+    _pendingSettings.clear();
+    _settingsVersion = 0;
+    _accountBlocked = false;
+    _accountGeneration++;
   }
 
   /// Flush pending changes before the app can be terminated in background.

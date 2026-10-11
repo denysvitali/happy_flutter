@@ -60,7 +60,13 @@ The cap is 3 retries (in the current production config). The backoff is `1s → 
 
 ### Persistence
 
-The outbox lives in MMKV under a single key (`'message-outbox'` or similar). The payload is a list of `OutboxEntry { localId, sessionId, payload, attempt, nextRetryAt }`. The list is loaded into memory on `restoreAndFlush()` and rewritten on every change.
+The outbox uses the encrypted `outbox-entries` MMKV value. A versioned envelope
+retains separate account/server buckets. Only the authenticated owner's bucket
+is restored. Persistence serializes shared-envelope read/modify/write operations,
+and browser enqueue requires a committed IndexedDB transaction. Failed writes
+leave the message failed, not falsely queued. Legacy ownerless entries remain
+encrypted in the `unowned` bucket and are counted, but never auto-bound or retried;
+safe account-confirmed recovery is still required for those entries.
 
 The SQLite variant (`message_outbox_sqlite.dart`) uses a real table for the same data. It's newer and may be the future default; for now, both implementations are present.
 
@@ -68,12 +74,16 @@ The SQLite variant (`message_outbox_sqlite.dart`) uses a real table for the same
 
 - It does **not** re-decrypt the message before sending. The payload is the original POST body.
 - It does **not** update the in-memory `Message` state. The state update happens when the server echoes the message back (or the user retries and it succeeds).
-- It does **not** dedupe. If you `enqueue` the same `localId` twice, you get two outbox entries. Callers must dedupe before enqueue.
+- Message text is never identity. Entries use canonical `localId`; repeated text
+  with distinct IDs remains distinct. Re-enqueueing an ID replaces that entry.
 
 ### What the outbox DOES guarantee
 
 - The `localId` is preserved across retries. The server sees the same `localId` and acks with the same server message. The optimistic row in the UI is unchanged.
-- After 3 failed retries, the entry is removed and the message is marked `Failed` (exhausted). The user sees "Failed — tap to retry"; tapping "retry" re-enqueues with `attempt = 0`.
+- Pending heads retain per-session FIFO priority across backoff. A terminal
+  dead-letter failure releases that head and retains its payload for manual retry.
+- Confirmed `sent` rows cannot be downgraded by stale retry callbacks or restored
+  pending/dead entries, including accepted rows still using their local ID.
 
 ### The contract test
 
@@ -171,10 +181,16 @@ The user **always** sees their optimistic messages (via cache) and **always** ge
 ## Gotchas
 
 - The outbox and the cache are **separate**. If you call `MessageOutbox.enqueue` but forget `MessageCacheService.scheduleSave`, the message is in the outbox but not in the cache — and a force-kill before the next fetch loses the optimistic display.
-- The outbox does **not** retry indefinitely. After 3 attempts, the message is marked Failed (exhausted). The user must tap "retry" to re-enqueue. This is intentional — silent infinite retries can mask real bugs.
-- The cache write is debounced 5s (15s ceiling) and flushed synchronously on suspend. A force-kill inside the window without a lifecycle callback loses that save. The outbox is the source of truth for the *send*; the cache is the source of truth for the *display*.
+- Retry budgets depend on failure class. Permanent failures dead-letter promptly;
+  transient failures retain the longer configured budget. See production constants
+  in `message_outbox.dart`, not historical three-attempt examples.
+- The cache write is debounced 5s (15s ceiling); suspend starts an async worker
+  flush and shutdown waits for it. A force-kill inside the window without a lifecycle callback loses that save. The outbox is the source of truth for the *send*; the cache is the source of truth for the *display*.
 - On Linux, one delayed startup worker checks MMKV's mapped size against its live payload and compacts only materially sparse files; compaction never runs in the hot write path.
-- The cache is **not encrypted at rest in the same way the messages are encrypted in transit**. MMKV values are stored as bytes; the messages inside are stored in their post-decrypt shape. This is a deliberate trade-off — the cache is for display, not for at-rest security.
-- The outbox is **per-user, not per-device**. If the user has two devices, each has its own outbox. A message sent from device A and queued in A's outbox will not be retried by device B.
+- Cache and outbox payloads use device-key at-rest encryption, separate from
+  session transport encryption. This does not turn the display cache into a send
+  queue or provide cross-device recovery.
+- Each device has its own account/server-scoped outbox. If the user has two
+  devices, each has its own queue. A message sent from device A and queued in A's outbox will not be retried by device B.
 - `MessageOutboxSqlite` is newer. If you're writing new code, prefer it. The MMKV version is still the default at the time of this writing.
 - The 200-message cap is per-session. If a user scrolls back into a session that was previously cached but has now grown, the older messages are gone — they have to be refetched from the server.

@@ -14,7 +14,64 @@ extension _ChatInputDictationActions on _ChatInputState {
     await _startDictation();
   }
 
+  bool get _ownsDictation => identical(
+    _ChatInputState._dictationOwners[_dictationService],
+    _dictationOwner,
+  );
+
+  Future<void> _cancelOwnedDictation() {
+    final pending = _dictationCancelFuture;
+    if (pending != null) return pending;
+    final cancellation = _cancelOwnedDictationNow();
+    _dictationCancelFuture = cancellation;
+    unawaited(
+      cancellation.then((_) {
+        _dictationCancelFuture = null;
+        _dictationStartFuture = null;
+      }),
+    );
+    return cancellation;
+  }
+
+  Future<void> _cancelOwnedDictationNow() async {
+    if (!_ownsDictation) return;
+    final start = _dictationStartFuture;
+    final transcription = _dictationTranscriptionFuture;
+    try {
+      await _dictationService.cancel();
+      // Keep ownership until a pending download/start has settled. A late
+      // completion must not cancel a different composer's new recording.
+      if (start != null) {
+        try {
+          await start;
+        } catch (_) {
+          // The start path reports errors while it still owns the UI.
+        }
+        await _dictationService.cancel();
+      }
+      if (transcription != null) {
+        try {
+          await transcription;
+        } catch (_) {
+          // A canceled transcription must settle before another owner starts.
+        }
+      }
+    } catch (error, stack) {
+      logger.warning('Failed to cancel owned dictation', error, stack);
+    } finally {
+      if (_ownsDictation) {
+        _ChatInputState._dictationOwners[_dictationService] = null;
+      }
+    }
+  }
+
   Future<void> _startDictation() async {
+    if (_dictationCancelFuture != null ||
+        _ChatInputState._dictationOwners[_dictationService] != null) {
+      _showDictationError('Dictation is already active in another composer');
+      return;
+    }
+    _ChatInputState._dictationOwners[_dictationService] = _dictationOwner;
     final sessionId = ++_dictationSessionId;
     // Surface model download progress before opening the microphone.
     final selected = _dictationService.selectedModel;
@@ -35,18 +92,21 @@ extension _ChatInputDictationActions on _ChatInputState {
     }
     try {
       _prepareDictationPreview();
-      await _dictationService.start(
+      final start = _dictationService.start(
+        shouldContinue: () =>
+            mounted && _dictationSessionId == sessionId && _ownsDictation,
         onTranscript: (text) {
-          if (_dictationSessionId == sessionId) {
+          if (_dictationSessionId == sessionId && _ownsDictation) {
             _replaceDictationPreview(text);
           }
         },
       );
-      if (_dictationSessionId != sessionId) {
-        await _dictationService.cancel();
-        return;
+      _dictationStartFuture = start;
+      await start;
+      if (_dictationSessionId != sessionId || !mounted) {
+        return; // The owner-safe cancellation path waits for this start.
       }
-      if (!mounted) return;
+      _dictationStartFuture = null;
       unawaited(HapticFeedback.mediumImpact());
       _setComposerState(() {
         _isDownloadingModel = false;
@@ -58,6 +118,8 @@ extension _ChatInputDictationActions on _ChatInputState {
     } on OfflineDictationException catch (error) {
       if (_dictationSessionId != sessionId) return;
       _dictationSessionId++;
+      _dictationStartFuture = null;
+      unawaited(_cancelOwnedDictation());
       if (mounted) {
         _setComposerState(() => _isDownloadingModel = false);
       }
@@ -65,6 +127,8 @@ extension _ChatInputDictationActions on _ChatInputState {
     } catch (error) {
       if (_dictationSessionId != sessionId) return;
       _dictationSessionId++;
+      _dictationStartFuture = null;
+      unawaited(_cancelOwnedDictation());
       if (mounted) {
         _setComposerState(() => _isDownloadingModel = false);
       }
@@ -85,6 +149,7 @@ extension _ChatInputDictationActions on _ChatInputState {
     _stopDictationWatchers();
     if (!mounted) {
       _isStoppingDictation = false;
+      await _cancelOwnedDictation();
       return;
     }
     _setComposerState(() {
@@ -93,41 +158,42 @@ extension _ChatInputDictationActions on _ChatInputState {
     });
 
     try {
-      final text = await _dictationService.stopAndTranscribe();
+      final transcription = _dictationService.stopAndTranscribe();
+      _dictationTranscriptionFuture = transcription;
+      final text = await transcription;
       if (!mounted || _dictationSessionId != sessionId) return;
       _replaceDictationPreview(text);
       unawaited(HapticFeedback.lightImpact());
       _focusNode.requestFocus();
     } on OfflineDictationException catch (error) {
-      _showDictationError(error.message);
+      if (_dictationSessionId == sessionId) {
+        _showDictationError(error.message);
+      }
     } catch (error) {
-      _showDictationError('Transcription failed');
+      if (_dictationSessionId == sessionId) {
+        _showDictationError('Transcription failed');
+      }
     } finally {
-      _isStoppingDictation = false;
-      if (mounted) {
-        _setComposerState(() => _isTranscribing = false);
+      _dictationTranscriptionFuture = null;
+      if (_dictationSessionId == sessionId) {
+        _isStoppingDictation = false;
+        if (_ownsDictation) {
+          _ChatInputState._dictationOwners[_dictationService] = null;
+        }
+        if (mounted) {
+          _setComposerState(() => _isTranscribing = false);
+        }
       }
     }
   }
 
   void _cancelDictationForSend() {
     _dictationSessionId++;
-    if (!_isRecording &&
-        !_isTranscribing &&
-        !_isDownloadingModel &&
-        !_isStoppingDictation) {
-      return;
-    }
-
     _stopDictationWatchers();
     _dictationPreviewStart = null;
     _dictationPreviewEnd = null;
     _dictationPreviewText = '';
-    unawaited(
-      _dictationService.cancel().catchError((Object error, StackTrace stack) {
-        logger.warning('Failed to cancel dictation after send', error, stack);
-      }),
-    );
+    unawaited(_cancelOwnedDictation());
     if (mounted) {
       _setComposerState(() {
         _isRecording = false;

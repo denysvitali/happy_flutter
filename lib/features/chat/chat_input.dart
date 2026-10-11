@@ -212,6 +212,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
   late final OfflineDictationService _dictationService;
+  static final _dictationOwners = Expando<Object>();
+  final Object _dictationOwner = Object();
+  Future<void>? _dictationStartFuture;
+  Future<void>? _dictationCancelFuture;
+  Future<String>? _dictationTranscriptionFuture;
+
   static const _dictationSilenceThresholdDb = -45.0;
   static const _dictationSilenceDuration = Duration(milliseconds: 1200);
   static const _dictationInitialGrace = Duration(seconds: 2);
@@ -293,6 +299,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void didUpdateWidget(ChatInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     final controllerChanged = oldWidget.controller != widget.controller;
+    if (controllerChanged || oldWidget.sessionId != widget.sessionId) {
+      _cancelDictationForSend();
+    }
     if (controllerChanged) {
       oldWidget.controller.removeListener(_onTextChanged);
       _draftAutoSave.saveNow();
@@ -331,7 +340,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _draftAutoSave
       ..saveNow()
       ..dispose();
+    _dictationSessionId++;
     _stopDictationWatchers();
+    unawaited(_cancelOwnedDictation());
     _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
     _focusNode

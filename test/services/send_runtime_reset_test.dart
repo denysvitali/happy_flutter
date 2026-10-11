@@ -8,10 +8,22 @@ import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 import '../helpers/test_helpers.dart';
+
+class _OutboxStorage extends MMKVStorage {
+  _OutboxStorage() : super.testConstructor();
+  String? data;
+  @override
+  Future<String?> getOutboxEntries() async => data;
+  @override
+  Future<void> saveOutboxEntries(String value) async {
+    data = value;
+  }
+}
 
 class _PausedEncryption implements SessionEncryption {
   final firstStarted = Completer<void>();
@@ -69,6 +81,7 @@ void main() {
     instance = createTestSync();
     resetTestSync(instance);
     messageOutbox.dispose();
+    messageOutbox.testStorage = _OutboxStorage();
     InvalidateSync.isBackgrounded = false;
     encryption = _PausedEncryption();
     deliveryOrder = [];
@@ -146,6 +159,36 @@ void main() {
     InvalidateSync.isBackgrounded = false;
   });
 
+  test('stale pending and dead outbox cannot regress confirmed sent rows', () {
+    for (final id in ['server-id', 'local']) {
+      instance.testSetSessionMessages('fifo', [
+        {'id': id, 'localId': 'local', 'role': 'user', 'sendStatus': 'sent'},
+      ]);
+      final entry = OutboxEntry(
+        localId: 'local',
+        sessionId: 'fifo',
+        text: 'continue',
+        encryptedContent: 'ciphertext',
+        rawRecord: const {},
+        queuedAt: 1,
+      );
+      messageOutbox.testInsertPending(entry);
+      expect(instance.reconcileOutboxStatuses('fifo'), 0);
+      expect(
+        instance.testSessionMessages('fifo')!.single['sendStatus'],
+        'sent',
+      );
+      messageOutbox.dispose();
+      messageOutbox.testInsertDead(entry);
+      expect(instance.reconcileOutboxStatuses('fifo'), 0);
+      expect(
+        instance.testSessionMessages('fifo')!.single['sendStatus'],
+        'sent',
+      );
+      messageOutbox.dispose();
+    }
+  });
+
   test('runtime reset during preparation fences the old send', () async {
     final send = instance.sendMessage('fifo', 'continue');
     final rejected = expectLater(
@@ -211,6 +254,117 @@ void main() {
     expect(failed['sendStatus'], 'failed');
     expect(sent['sendStatus'], 'sent');
   });
+
+  test(
+    'failed foreground head cannot be overtaken by a rapid follow-up',
+    () async {
+      final attempts = <String>[];
+      ApiClient().testDio!.interceptors.insert(
+        0,
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path.endsWith('/messages')) {
+              final body = options.data as Map<String, dynamic>;
+              final message =
+                  (body['messages'] as List<dynamic>).single
+                      as Map<String, dynamic>;
+              final localId = message['localId'] as String;
+              attempts.add(localId);
+              if (localId == 'local-1') {
+                handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    error: StateError('synthetic transport failure'),
+                  ),
+                );
+                return;
+              }
+            }
+            handler.next(options);
+          },
+        ),
+      );
+      final successes = <String>[];
+      messageOutbox.configure(
+        deliver: (entry) async {
+          successes.add(entry.localId);
+          return null;
+        },
+      );
+      final first = instance.sendMessage('fifo', 'continue');
+      await encryption.firstStarted.future;
+      final firstDelivery = instance.lastCompleteSendFuture!;
+      final second = instance.sendMessage('fifo', 'continue');
+      final secondDelivery = instance.lastCompleteSendFuture!;
+      await second;
+      encryption.releaseFirst.complete();
+      await Future.wait([first, firstDelivery, secondDelivery]);
+      expect(attempts, ['local-1']);
+      expect(deliveryOrder, isEmpty);
+      expect(messageOutbox.entries.map((entry) => entry.localId), [
+        'local-1',
+        'local-2',
+      ]);
+      await messageOutbox.testAttemptNow('local-2');
+      expect(successes, isEmpty);
+      await messageOutbox.testAttemptNow('local-1');
+      await messageOutbox.testAttemptNow('local-2');
+      expect(successes, ['local-1', 'local-2']);
+      expect(instance.testSessionMessages('fifo'), hasLength(2));
+    },
+  );
+
+  test(
+    'pending head queues foreground follow-up and completes its Future',
+    () async {
+      final storedIds = <String>[];
+      var headAttempts = 0;
+      messageOutbox.configure(
+        deliver: (entry) async {
+          if (entry.localId == 'head' && ++headAttempts == 1) {
+            return OutboxDeliveryFailure.transient;
+          }
+          storedIds.add(entry.localId);
+          return null;
+        },
+        onStatusChanged: (_, localId, status) {
+          for (final row in instance.testSessionMessages('fifo') ?? []) {
+            if (row['localId'] == localId) row['sendStatus'] = status;
+          }
+        },
+      );
+      await messageOutbox.add(
+        OutboxEntry(
+          localId: 'head',
+          sessionId: 'fifo',
+          text: 'continue',
+          encryptedContent: 'head-ciphertext',
+          rawRecord: const {},
+          queuedAt: 1,
+        ),
+      );
+      await messageOutbox.testAttemptNow('head');
+      final followUp = instance.sendMessage('fifo', 'continue');
+      await encryption.firstStarted.future;
+      encryption.releaseFirst.complete();
+      await followUp;
+      await instance.lastCompleteSendFuture!;
+      expect(deliveryOrder, isEmpty);
+      expect(messageOutbox.entries.map((e) => e.localId), ['head', 'local-1']);
+      expect(
+        instance.testSessionMessages('fifo')!.single['localId'],
+        'local-1',
+      );
+      expect(
+        instance.testSessionMessages('fifo')!.single['sendStatus'],
+        'pending',
+      );
+      await messageOutbox.testAttemptNow('head');
+      await messageOutbox.testAttemptNow('local-1');
+      expect(storedIds, ['head', 'local-1']);
+      expect(messageOutbox.entries, isEmpty);
+    },
+  );
 
   test('FIFO send reservation survives out-of-order preparation', () async {
     final first = instance.sendMessage('fifo', 'continue');

@@ -306,6 +306,12 @@ extension SyncLoops on Sync {
 
   // ── RPC wrappers ───────────────────────────────────────────────────────
 
+  void _checkLoopRuntime(int generation) {
+    if (generation != _runtimeGeneration) {
+      throw StateError('Loop operation runtime changed');
+    }
+  }
+
   /// Create a new loop on the daemon for [sessionId].
   ///
   /// Returns the created [Loop]. Throws [StateError] when the daemon
@@ -322,14 +328,17 @@ extension SyncLoops on Sync {
     required String prompt,
     required bool recurring,
   }) async {
-    if (testSessionRPCOverride == null) {
+    final generation = _runtimeGeneration;
+    if (testSessionRPCOverride == null || testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-create');
+      _checkLoopRuntime(generation);
     }
     final raw = await sessionRPC(sessionId, 'loop-create', <String, dynamic>{
       'expression': expression,
       'prompt': prompt,
       'recurring': recurring,
     });
+    _checkLoopRuntime(generation);
     if (raw is! Map) {
       throw StateError(
         'loop-create returned unexpected type: ${raw.runtimeType}',
@@ -364,8 +373,10 @@ extension SyncLoops on Sync {
     required String sessionId,
     required String loopId,
   }) async {
-    if (testSessionRPCOverride == null) {
+    final generation = _runtimeGeneration;
+    if (testSessionRPCOverride == null || testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-delete');
+      _checkLoopRuntime(generation);
     }
     // Optimistic: remove from local state immediately so the UI updates
     // without waiting for the RPC round-trip.
@@ -377,6 +388,7 @@ extension SyncLoops on Sync {
         'loopId': loopId,
       });
     } catch (e) {
+      _checkLoopRuntime(generation);
       if (_retainOptimisticLoopChange(
         error: e,
         operation: 'deleteLoop',
@@ -388,6 +400,7 @@ extension SyncLoops on Sync {
       }
       rethrow;
     }
+    _checkLoopRuntime(generation);
 
     if (raw is! Map) {
       throw StateError(
@@ -407,6 +420,7 @@ extension SyncLoops on Sync {
       // We can't reconstruct the single loop, so we refresh the whole
       // session's loops. This is rare (daemon rejection with live session).
       await listLoops(sessionId: sessionId);
+      _checkLoopRuntime(generation);
       throw StateError('loop-delete failed: $err');
     }
     // RPC confirmed — optimistic state is already correct.
@@ -421,8 +435,10 @@ extension SyncLoops on Sync {
     required String loopId,
     required bool paused,
   }) async {
-    if (testSessionRPCOverride == null) {
+    final generation = _runtimeGeneration;
+    if (testSessionRPCOverride == null || testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-pause');
+      _checkLoopRuntime(generation);
     }
     // Optimistic: toggle the paused flag locally so the UI updates
     // immediately without waiting for the RPC round-trip.
@@ -440,6 +456,7 @@ extension SyncLoops on Sync {
         'paused': paused,
       });
     } catch (e) {
+      _checkLoopRuntime(generation);
       if (_retainOptimisticLoopChange(
         error: e,
         operation: 'pauseLoop',
@@ -451,6 +468,7 @@ extension SyncLoops on Sync {
       }
       rethrow;
     }
+    _checkLoopRuntime(generation);
 
     if (raw is! Map) {
       throw StateError(
@@ -466,6 +484,7 @@ extension SyncLoops on Sync {
         'rolling back optimistic pause',
       );
       await listLoops(sessionId: sessionId);
+      _checkLoopRuntime(generation);
       throw StateError('loop-pause failed: $err');
     }
   }
@@ -476,14 +495,17 @@ extension SyncLoops on Sync {
   /// `loops-updated` event in response; callers that want fresh state
   /// should also subscribe to [onLoopsChanged].
   Future<List<Loop>> listLoops({required String sessionId}) async {
+    final generation = _runtimeGeneration;
     if (testSessionRPCOverride == null || testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-list');
+      _checkLoopRuntime(generation);
     }
     final raw = await sessionRPC(
       sessionId,
       'loop-list',
       const <String, dynamic>{},
     );
+    _checkLoopRuntime(generation);
     if (raw is! Map) {
       throw StateError(
         'loop-list returned unexpected type: ${raw.runtimeType}',
@@ -576,6 +598,7 @@ extension SyncLoops on Sync {
   static const Duration _refreshAllLoopsDeadline = Duration(seconds: 10);
 
   Future<void> refreshAllLoops() async {
+    final generation = _runtimeGeneration;
     if (!isInitialized) return;
     if (!_isSocketConnected()) {
       // No point waiting 10 s per session for emitWithAck to time out; the
@@ -600,6 +623,7 @@ extension SyncLoops on Sync {
     final deadline = testRefreshAllLoopsDeadline ?? _refreshAllLoopsDeadline;
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
+      if (generation != _runtimeGeneration) return;
       if (_isLoopListCapabilityBlocked(sessionId)) {
         logger.debug(
           '[loops] listLoops($sessionId) skipped — daemon marked as '
@@ -640,10 +664,12 @@ extension SyncLoops on Sync {
             );
           },
         );
+        if (generation != _runtimeGeneration) return;
       } on TimeoutException {
         // Hit the total deadline — stop admitting more RPCs.
         break;
       } on RpcException catch (e, st) {
+        if (generation != _runtimeGeneration) return;
         if (e.code == RpcErrorCode.methodUnsupported ||
             e.code == RpcErrorCode.protocolUnsupported) {
           // Capability preflight and the RPC itself can both report a
@@ -667,6 +693,7 @@ extension SyncLoops on Sync {
         }
         logger.warning('[loops] listLoops($sessionId) failed: $e', e, st);
       } on StateError catch (e) {
+        if (generation != _runtimeGeneration) return;
         if (_isDeadLoopSessionError(e)) {
           logger.debug(
             '[loops] listLoops($sessionId) skipped - session dead: $e',
@@ -695,6 +722,7 @@ extension SyncLoops on Sync {
         }
         logger.warning('[loops] listLoops($sessionId) failed: $e', e);
       } catch (e, st) {
+        if (generation != _runtimeGeneration) return;
         if (Sync._isTransientConnectionError(e)) {
           // Local socket dropped mid-iteration. Stop the loop so we don't
           // issue N more doomed emits (each one waits for emitWithAck

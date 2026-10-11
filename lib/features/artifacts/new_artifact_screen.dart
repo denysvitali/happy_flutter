@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -12,8 +13,7 @@ import '../../core/utils/snack.dart';
 
 /// Screen for creating a new artifact.
 ///
-/// Shows a form with title and content fields. Actual encryption
-/// and API submission are out of scope for this screen — see TODO below.
+/// Keeps unsaved input guarded until creation or explicit discard.
 class NewArtifactScreen extends ConsumerStatefulWidget {
   const NewArtifactScreen({
     this.embedded = false,
@@ -36,14 +36,67 @@ class NewArtifactScreen extends ConsumerStatefulWidget {
   final void Function(String artifactId)? onCreated;
 
   @override
-  ConsumerState<NewArtifactScreen> createState() => _NewArtifactScreenState();
+  NewArtifactScreenState createState() => NewArtifactScreenState();
 }
 
-class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
+class NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   bool _isBusy = false;
+  bool _allowPop = false;
+  bool _confirmingDiscard = false;
+
+  bool get _isDirty =>
+      _titleController.text.isNotEmpty || _contentController.text.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_onEdited);
+    _contentController.addListener(_onEdited);
+  }
+
+  void _onEdited() => setState(() => _allowPop = false);
+
+  /// The master-detail host must ask before replacing this form.
+  Future<bool> confirmDiscard() async {
+    if (_isBusy || _confirmingDiscard) return false;
+    if (!_isDirty) return true;
+    _confirmingDiscard = true;
+    try {
+      final l10n = context.l10n;
+      return await showConfirmDialog(
+        context,
+        title: l10n.commonUnsavedChangesTitle,
+        content: l10n.commonUnsavedChangesContent,
+        cancelLabel: l10n.chatStay,
+        confirmLabel: l10n.chatLeave,
+        isDestructive: true,
+      );
+    } finally {
+      _confirmingDiscard = false;
+    }
+  }
+
+  Future<void> _handleClose() async {
+    if (!await confirmDiscard() || !mounted) return;
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Widget _guardPop(Widget child) => PopScope(
+    canPop: _allowPop || (!_isBusy && !_isDirty),
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _handleClose();
+    },
+    child: child,
+  );
 
   @override
   void dispose() {
@@ -77,6 +130,9 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
       if (widget.embedded) {
         widget.onCreated?.call(artifactId);
       } else {
+        setState(() => _allowPop = true);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
         context.go('/artifacts/$artifactId');
       }
     } catch (e, st) {
@@ -104,6 +160,7 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
             ArtifactSectionLabel(label: l10n.artifactsTitleLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
+              enabled: !_isBusy,
               controller: _titleController,
               decoration: artifactFieldDecoration(
                 context,
@@ -118,6 +175,7 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
             ArtifactSectionLabel(label: l10n.artifactsContentLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
+              enabled: !_isBusy,
               controller: _contentController,
               decoration: artifactFieldDecoration(
                 context,
@@ -156,48 +214,52 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
     );
 
     if (widget.embedded) {
-      return Column(
-        children: [
-          ArtifactPaneHeader(
-            title: l10n.artifactsNew,
-            onClose: widget.onClose,
-            actions: [
-              ArtifactBusyTextButton(
-                label: l10n.commonCreate,
-                isBusy: _isBusy,
-                onPressed: _handleCreate,
-              ),
-            ],
-          ),
-          Expanded(child: form),
-        ],
+      return _guardPop(
+        Column(
+          children: [
+            ArtifactPaneHeader(
+              title: l10n.artifactsNew,
+              onClose: _handleClose,
+              actions: [
+                ArtifactBusyTextButton(
+                  label: l10n.commonCreate,
+                  isBusy: _isBusy,
+                  onPressed: _handleCreate,
+                ),
+              ],
+            ),
+            Expanded(child: form),
+          ],
+        ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.artifactsNew),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: TextButton(
-              onPressed: _isBusy ? null : _handleCreate,
-              child: _isBusy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: AppCircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      l10n.commonCreate,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+    return _guardPop(
+      Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.artifactsNew),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: TextButton(
+                onPressed: _isBusy ? null : _handleCreate,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: AppCircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        l10n.commonCreate,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+        body: form,
       ),
-      body: form,
     );
   }
 }

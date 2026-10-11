@@ -56,10 +56,12 @@ extension _ChatScreenBuilders on _ChatScreenState {
         (!hasServerMore && allLocalVisible && totalCount > 0);
 
     final metadataJson = _metadataJson;
+    final gapBeforeId = sync.scrollbackGapBeforeMessageId(widget.sessionId);
 
     if (!identical(visibleMessages, _cachedListItemsSource) ||
         _visibleCount != _cachedListItemsVisibleCount ||
         _cachedListItems == null ||
+        _cachedScrollbackGapBeforeId != gapBeforeId ||
         _cachedKeyToListIndex == null ||
         _cachedListItemsOrphansExpanded != _sidechainOrphansExpanded ||
         _cachedListItemsHideToolCalls != hideToolCalls) {
@@ -68,28 +70,39 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // but only the newest few — the rest sit behind a "show N more" row
       // so a session that accumulated 100+ of them still shows its
       // conversation.
+      final gapBoundary = gapBeforeId == null
+          ? -1
+          : visibleMessages.indexWhere(
+              (message) => message['id'] == gapBeforeId,
+            );
+      List<Map<String, dynamic>?> buildItems(
+        List<Map<String, dynamic>> messages,
+      ) => buildChatListItems(
+        visibleMessages: messages,
+        hideToolCalls: hideToolCalls,
+        sidechainOrphanInlineCap: _sidechainOrphansExpanded
+            ? null
+            : kSidechainOrphanInlineCap,
+        shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
+        shouldHideToolCall: _shouldHideToolCall,
+        onMessageError: (msg, e, st) {
+          logger.warning(
+            '[chat] skipped malformed message id='
+            '${msg['id']} seq=${msg['seq']}: $e',
+            e,
+            st,
+          );
+        },
+      );
       final items = MainIsolateStallTracker.instance.track(
         'chat.build_list_items',
-        () => buildChatListItems(
-          visibleMessages: visibleMessages,
-          hideToolCalls: hideToolCalls,
-          sidechainOrphanInlineCap: _sidechainOrphansExpanded
-              ? null
-              : kSidechainOrphanInlineCap,
-          shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
-          shouldHideToolCall: _shouldHideToolCall,
-          onMessageError: (msg, e, st) {
-            // Never let a single malformed message abort the whole list —
-            // otherwise rendering halts at the offending item and every
-            // message after it disappears from the UI.
-            logger.warning(
-              '[chat] skipped malformed message id='
-              '${msg['id']} seq=${msg['seq']}: $e',
-              e,
-              st,
-            );
-          },
-        ),
+        () => gapBoundary < 0
+            ? buildItems(visibleMessages)
+            : <Map<String, dynamic>?>[
+                ...buildItems(visibleMessages.sublist(0, gapBoundary)),
+                {'id': 'scrollback-gap-$gapBeforeId', 'kind': 'scrollback-gap'},
+                ...buildItems(visibleMessages.sublist(gapBoundary)),
+              ],
       );
 
       final keys = [
@@ -115,6 +128,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedListItemsHideToolCalls = hideToolCalls;
       _cachedListItemsOrphansExpanded = _sidechainOrphansExpanded;
       _cachedListItems = items;
+      _cachedScrollbackGapBeforeId = gapBeforeId;
       _cachedKeyToListIndex = keyToListIndex;
     }
 
@@ -255,9 +269,6 @@ extension _ChatScreenBuilders on _ChatScreenState {
     }
 
     final reversedIndex = items.length - 1 - adjusted;
-    if (_pendingRevealKey != null) {
-      _revealRowContexts[reversedIndex] = context;
-    }
     final item = items[reversedIndex];
 
     if (item == null) {
@@ -265,6 +276,26 @@ extension _ChatScreenBuilders on _ChatScreenState {
     }
 
     final message = item;
+
+    if (message['kind'] == 'scrollback-gap') {
+      return Padding(
+        key: const ValueKey('chat-scrollback-gap'),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Older messages are not loaded here',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            TextButton(
+              onPressed: _returnToLatestMessages,
+              child: const Text('Return to latest'),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (message['kind'] == 'sidechain-orphan-more') {
       final rowId =
@@ -357,7 +388,9 @@ extension _ChatScreenBuilders on _ChatScreenState {
       Localizations.localeOf(context),
     );
     final cached = _cachedRowWidgets[messageKey];
-    if (cached != null && cached.signature == signature) return cached.widget;
+    if (cached != null && cached.signature == signature) {
+      return _registerMessageRow(messageKey, index, cached.widget);
+    }
 
     Widget row = Padding(
       padding: EdgeInsets.only(bottom: bottomPad),
@@ -395,13 +428,27 @@ extension _ChatScreenBuilders on _ChatScreenState {
       );
     }
 
-    final result = RepaintBoundary(key: ValueKey(messageKey), child: row);
+    final result = RepaintBoundary(child: row);
     // Bound retained widgets independently of scroll-back depth.
     if (_cachedRowWidgets.length >= 256) {
       _cachedRowWidgets.remove(_cachedRowWidgets.keys.first);
     }
     _cachedRowWidgets[messageKey] = (signature: signature, widget: result);
-    return result;
+    return _registerMessageRow(messageKey, index, result);
+  }
+
+  Widget _registerMessageRow(String key, int index, Widget row) {
+    return Builder(
+      key: ValueKey(key),
+      builder: (rowContext) {
+        _messageRowContexts.removeWhere((_, context) => !context.mounted);
+        _messageRowContexts[key] = rowContext;
+        if (_pendingRevealKey != null) {
+          _revealRowContexts[index] = rowContext;
+        }
+        return row;
+      },
+    );
   }
 
   bool _shouldHideToolCall(

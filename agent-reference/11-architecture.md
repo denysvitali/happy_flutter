@@ -232,7 +232,7 @@ behavior when changing these boundaries.
 
 | Class | Backend | Purpose |
 |-------|---------|---------|
-| `MMKVStorage` | MMKV / SharedPreferences (web) | Settings, drafts, sessions cache |
+| `MMKVStorage` | MMKV / IndexedDB (web) | Settings, drafts, sessions cache |
 | `ServerConfigStorage` | MMKV `'server-config'` | Custom server URL (persists across logouts) |
 | `TokenStorage` | FlutterSecureStorage | JWT and auth keys |
 | `APIKeyStorage` | FlutterSecureStorage | Per-profile API keys |
@@ -247,3 +247,12 @@ cleared on sign-out so they cannot cross account boundaries.
 Settings hydration markers describe the current cached snapshot, not the fact
 that a profile was saved. Lazy snapshots still require secure-key reads.
 Suspension flushes pending settings writes before background termination.
+Account-scoped encrypted journals retain unsent settings deltas. Generic durable
+write/remove APIs wait for native flush or browser transaction completion; failure
+is surfaced. Logout fences operations synchronously, drains them, then deletes
+credentials. Its durable cleanup marker remains until every deletion succeeds.
+
+Message runtime guards fence publication after async work, including cache repair.
+Explicit user scrollback has a separate bounded older window and live tail, with
+an unloaded-history gap and return-to-latest. Persist only the latest contiguous
+tail and its cursor; never persist the older split head as a cache boundary.

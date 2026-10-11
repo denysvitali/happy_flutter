@@ -115,9 +115,16 @@ failures and measures response bytes at the transport boundary instead of
 guessing from decoded JSON collection sizes.
 
 Message merges deduplicate complete incoming batches and preserve timeline
-order. Outbox retries remain paused in the background, and retired runtimes
-cannot restore their old queue into the current session. Unsent drafts are
-saved when leaving chat; pending settings changes are flushed on suspension.
+order. Pending outbox heads keep per-session FIFO priority across retry backoff;
+queues are scoped to the account and server. Legacy ownerless queues remain
+protected but do not auto-retry until ownership can be safely confirmed.
+Browser persistence failures leave sends failed rather than claiming durable
+enqueue. Retired runtimes cannot
+publish stale fetches, cache restores, or socket decryptions into a new login.
+Unsent drafts are saved when leaving chat. Outbox retries pause in the background.
+Explicit older-history loads remain visible within bounded scrollback windows;
+an unloaded middle section is marked, with a return-to-latest action. Artifact
+forms require approval before discarding edits and survive phone/tablet resizing.
 
 ## Technology Stack
 
@@ -160,7 +167,9 @@ arguments.
 
 Editing or duplicating a profile preserves its structured provider settings
 and session defaults. API keys load lazily from secure storage, with hydration
-and settings writes ordered to preserve concurrent edits.
+and settings writes ordered to preserve concurrent edits. Logout and account
+replacement fence pending operations and clear hydrated keys; credential deletion
+errors are surfaced rather than silently restoring the previous account.
 
 The Codex model picker reloads the machine catalog when opened and offers
 **Refresh models** without closing the sheet. Catalogs are scoped to the
@@ -360,6 +369,10 @@ can be filtered by agent.
 - **End-to-end encryption**: NaCl/libsodium for session/machine data, AES-256-GCM for artifacts
 - **Authentication**: Ed25519 signatures for device linking
 - **Credentials**: Stored in `flutter_secure_storage`
+- **Device linking**: Scanner, typed URLs, and deep links stage a request;
+  only explicit fingerprint confirmation releases account key material.
+- **Diagnostics**: Crypto failures use a digest fingerprint, not raw key bytes;
+  speech diagnostics omit recognized text and plugin-provided payloads.
 - **App data**: Stored in MMKV (separate instance for server config that persists across logouts)
 - **Certificate pinning**: Currently relies on platform CA store via NativeAdapter
 - **Custom server URLs**: HTTPS is required, with HTTP allowed for Tailscale

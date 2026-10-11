@@ -1562,27 +1562,253 @@ extension SyncMessagingMerge on Sync {
     return true;
   }
 
+  /// User pagination has a separate cursor from the orphan coverage walk.
+  int? _userHistoryBoundary(String sessionId) {
+    final state = _userScrollback;
+    if (state == null ||
+        state.sessionId != sessionId ||
+        state.runtimeGeneration != _runtimeGeneration ||
+        sessionId != _visibleSessionId) {
+      return null;
+    }
+    return state.boundary;
+  }
+
+  int _olderHistoryBoundary(String sessionId, {required bool userInitiated}) {
+    if (!userInitiated) return _sessionFirstLoadedSeq[sessionId] ?? 0;
+    if (sessionId != _visibleSessionId) return 0;
+    final active = _userHistoryBoundary(sessionId);
+    if (active != null) return active;
+    final boundary = _minLoadedSeq(sessionId) ?? 0;
+    _olderFetchNoProgress.remove(sessionId);
+    _userScrollback = (
+      sessionId: sessionId,
+      runtimeGeneration: _runtimeGeneration,
+      boundary: boundary,
+      gapBeforeSeq: null,
+    );
+    return boundary;
+  }
+
+  void _completeUserHistoryPage(
+    String sessionId,
+    int startSeq, [
+    List<Map<String, dynamic>> incoming = const [],
+  ]) {
+    if (_userHistoryBoundary(sessionId) == null) return;
+    final state = _userScrollback!;
+    var boundary = startSeq == 0 ? 0 : startSeq + 1;
+    final residentMin = _minLoadedSeq(sessionId);
+    if (residentMin != null &&
+        incoming.any((row) {
+          final seq = row['seq'] as int?;
+          return seq != null && seq > 0 && seq < residentMin;
+        })) {
+      // Expanded envelopes omitted from the front were not made visible.
+      // Keep them fetchable, even when the raw request reached seq zero.
+      boundary = residentMin;
+    }
+    _userScrollback = (
+      sessionId: sessionId,
+      runtimeGeneration: state.runtimeGeneration,
+      boundary: boundary,
+      gapBeforeSeq: state.gapBeforeSeq,
+    );
+    _sessionFirstLoadedSeq[sessionId] = boundary;
+  }
+
+  /// The first live-tail row after a deliberately unloaded middle range.
+  /// This is not a server seq gap: non-message events also consume seqs.
+  String? scrollbackGapBeforeMessageId(String sessionId) {
+    if (_userHistoryBoundary(sessionId) == null) return null;
+    final gap = _userScrollback?.gapBeforeSeq;
+    if (gap == null) return null;
+    for (final row
+        in _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[]) {
+      final seq = row['seq'] as int?;
+      if (seq != null && seq >= gap) return row['id'] as String?;
+    }
+    return null;
+  }
+
+  bool _isUnsettledMessage(Map<String, dynamic> row) {
+    final status = row['sendStatus'];
+    return status == 'sending' || status == 'pending' || status == 'failed';
+  }
+
+  /// History is bounded independently of unsettled sends, whose canonical
+  /// identity must remain available for retries and server replacement.
+  List<Map<String, dynamic>> _retainMessageWindow(
+    String sessionId,
+    List<Map<String, dynamic>> sorted, {
+    int? anchorSeq,
+  }) {
+    final cap = _sessionTrimCap(sessionId);
+    final scrollback = _userHistoryBoundary(sessionId) != null;
+    final history = sorted.where((row) => !_isUnsettledMessage(row)).toList();
+    final gap = scrollback ? _userScrollback?.gapBeforeSeq : null;
+    final older = gap == null
+        ? history
+        : history.where((row) => (row['seq'] as int? ?? 0) < gap).toList();
+    final tail = gap == null
+        ? history
+        : history.where((row) => (row['seq'] as int? ?? 0) >= gap).toList();
+    final limit = scrollback ? 2 * cap : cap;
+    if (gap == null && history.length <= limit) return sorted;
+    if (gap != null && older.length <= cap && tail.length <= cap) {
+      return sorted;
+    }
+
+    final retainedTail = tail.skip(max(0, tail.length - cap)).toList();
+    var olderEnd = min(cap, older.length);
+    if (anchorSeq != null) {
+      final anchorEnd = older.lastIndexWhere((row) => row['seq'] == anchorSeq);
+      if (anchorEnd >= olderEnd) olderEnd = anchorEnd + 1;
+    }
+    var olderStart = max(0, olderEnd - cap);
+    // Never admit part of the earliest raw envelope and then advance past
+    // its omitted blocks. Move to the next complete seq group instead.
+    if (olderStart > 0) {
+      final boundarySeq = older[olderStart]['seq'];
+      if (boundarySeq == older[olderStart - 1]['seq']) {
+        while (olderStart < olderEnd &&
+            older[olderStart]['seq'] == boundarySeq) {
+          olderStart++;
+        }
+      }
+    }
+    final retained = <Map<String, dynamic>>{
+      ...retainedTail,
+      if (scrollback) ...older.sublist(olderStart, olderEnd),
+    };
+    final result = sorted
+        .where((row) => _isUnsettledMessage(row) || retained.contains(row))
+        .toList();
+    _sessionsHistoryTrimmed.add(sessionId);
+    if (scrollback) {
+      final state = _userScrollback!;
+      _userScrollback = (
+        sessionId: sessionId,
+        runtimeGeneration: state.runtimeGeneration,
+        boundary: state.boundary,
+        gapBeforeSeq: retainedTail.isEmpty
+            ? state.gapBeforeSeq
+            : retainedTail.first['seq'] as int?,
+      );
+    }
+    return result;
+  }
+
+  /// Recenter to a contiguous latest window. The UI also probes the live
+  /// tail and scrolls to the bottom, so omitted middle rows are not presented
+  /// as a continuous transcript.
+  void returnToLatestMessages(String sessionId) {
+    if (_userHistoryBoundary(sessionId) == null) return;
+    final rows = _latestResidentMessages(sessionId);
+    _userScrollback = null;
+    if (rows != null) {
+      _sessionMessages[sessionId] = _retainMessageWindow(sessionId, rows);
+    }
+    _sessionsHistoryFullyLoaded.remove(sessionId);
+    _sessionFirstLoadedSeq[sessionId] = _minLoadedSeq(sessionId) ?? 0;
+    _olderFetchNoProgress.remove(sessionId);
+    _rebuildSessionContentSignatures(sessionId);
+    _invalidateMessageCaches(sessionId);
+    _scheduleSaveFirstLoadedSeq();
+    _notifySessionMessagesChanged(sessionId);
+    _notifyDataChanged({SyncDomain.messages});
+  }
+
+  /// Cache and recenter callers must never flatten a split history window.
+  List<Map<String, dynamic>>? _latestResidentMessages(String sessionId) {
+    final rows = _sessionMessages[sessionId];
+    if (rows == null) return null;
+    final state = _userScrollback;
+    // Shutdown advances the generation before flushing. The retained state
+    // still describes these rows until the runtime clears both together.
+    final gap = state != null && state.sessionId == sessionId
+        ? state.gapBeforeSeq
+        : null;
+    if (gap == null) return rows;
+    return rows
+        .where(
+          (row) => _isUnsettledMessage(row) || (row['seq'] as int? ?? 0) >= gap,
+        )
+        .toList();
+  }
+
+  /// Persistence restores only the newest cache rows, never the split
+  /// scrollback window. Its older cursor must therefore describe that tail.
+  int? _latestResidentHistoryBoundary(String sessionId) {
+    final rows = _latestResidentMessages(sessionId);
+    if (rows == null) return null;
+    int? minimum;
+    // initialLoad never exceeds the tail cache size. A smaller web window
+    // may repeat some cached rows on scrollback, but cannot skip history.
+    final start = rows.length > Sync.initialLoad
+        ? rows.length - Sync.initialLoad
+        : 0;
+    for (final row in rows.skip(start)) {
+      final seq = row['seq'] as int?;
+      if (seq != null && seq > 0 && (minimum == null || seq < minimum)) {
+        minimum = seq;
+      }
+    }
+    return minimum;
+  }
+
+  @visibleForTesting
+  Map<String, int> testFirstLoadedSeqForPersistence() =>
+      _firstLoadedSeqForPersistence();
+
+  @visibleForTesting
+  List<Map<String, dynamic>>? testLatestResidentMessages(String sessionId) =>
+      _latestResidentMessages(sessionId);
+
   /// @visibleForTesting
   void testUpsertSessionMessages(
     String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) {
-    _upsertSessionMessages(sessionId, messages);
+    List<Map<String, dynamic>> messages, {
+    bool retainOlder = false,
+  }) {
+    _upsertSessionMessages(sessionId, messages, retainOlder: retainOlder);
     _notifySessionMessagesChangedUiOnly(sessionId);
   }
 
   void _upsertSessionMessages(
     String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) => MainIsolateStallTracker.instance.track(
+    List<Map<String, dynamic>> messages, {
+    bool retainOlder = false,
+  }) => MainIsolateStallTracker.instance.track(
     'messages.upsert',
-    () => _upsertSessionMessagesUntracked(sessionId, messages),
+    () => _upsertSessionMessagesUntracked(
+      sessionId,
+      messages,
+      retainOlder: retainOlder,
+    ),
   );
 
   void _upsertSessionMessagesUntracked(
     String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) {
+    List<Map<String, dynamic>> messages, {
+    bool retainOlder = false,
+  }) {
+    if (retainOlder) {
+      final cap = _sessionTrimCap(sessionId);
+      final groupSizes = <int, int>{};
+      for (final row in messages) {
+        final seq = row['seq'] as int?;
+        if (seq == null || seq <= 0) continue;
+        final size = (groupSizes[seq] ?? 0) + 1;
+        groupSizes[seq] = size;
+        if (size >= cap) {
+          // One indivisible envelope cannot fit beside the resident anchor.
+          // Fail before publishing any rows, results, usage or cursor state.
+          throw StateError('Older message exceeds the scrollback row limit');
+        }
+      }
+      _olderHistoryBoundary(sessionId, userInitiated: true);
+    }
     // Audit 2026-08-03: localIds minted in an earlier process lifetime
     // arrive via fetch/socket rows. Seeding them into the invariant
     // monitor keeps restart-time acks from reading as false
@@ -1604,7 +1830,12 @@ extension SyncMessagingMerge on Sync {
     _liftOrphanGiveUpIfNewParentArrived(sessionId, existing, messages);
     final maxMessages = _sessionTrimCap(sessionId);
 
-    if (_canAppendMessagesFastPath(existing, messages)) {
+    final hasScrollback = _userHistoryBoundary(sessionId) != null;
+    final hasUnsettled =
+        existing.any(_isUnsettledMessage) || messages.any(_isUnsettledMessage);
+    if (!hasScrollback &&
+        !hasUnsettled &&
+        _canAppendMessagesFastPath(existing, messages)) {
       final appended = <Map<String, dynamic>>[...existing, ...messages];
       final trimmed = appended.length > maxMessages
           ? appended.sublist(appended.length - maxMessages)
@@ -1795,14 +2026,11 @@ extension SyncMessagingMerge on Sync {
       });
     }
 
-    if (sorted.length > maxMessages) {
-      // Rows fell off the head — full-history residency can no longer be
-      // claimed for this session. See the pin guard in fetchOlderMessages.
-      _sessionsHistoryTrimmed.add(sessionId);
-      _sessionMessages[sessionId] = sorted.sublist(sorted.length - maxMessages);
-    } else {
-      _sessionMessages[sessionId] = sorted;
-    }
+    _sessionMessages[sessionId] = _retainMessageWindow(
+      sessionId,
+      sorted,
+      anchorSeq: retainOlder ? _minLoadedSeq(sessionId) : null,
+    );
     _applySessionContentSignatureDelta(sessionId, messages);
     if (sessionId == _visibleSessionId &&
         messages.isNotEmpty &&

@@ -17,8 +17,8 @@ import 'package:happy_flutter/core/native/native_core.dart';
 /// identical to the pure-Dart path's, row for row. Failures keep their exact
 /// class, and a broken row never aborts the batch.
 ///
-/// Tests that need the real FFI skip themselves when the library is absent
-/// (a platform without it is an expected configuration).
+/// Native availability is required in CI's native contract lane. Other
+/// platforms may still use the Dart fallback when the library is absent.
 void main() {
   final key = Uint8List.fromList(List<int>.generate(32, (i) => (i * 11) % 256));
   late AES256Encryption encryptor;
@@ -26,6 +26,13 @@ void main() {
   setUp(() async {
     NativeCore.instance.debugReset();
     await NativeCore.instance.ensureInitialized();
+    if (const bool.fromEnvironment('HAPPY_REQUIRE_NATIVE')) {
+      expect(
+        NativeCore.instance.isAvailable,
+        isTrue,
+        reason: 'The required native contract lane must load happy_core',
+      );
+    }
     encryptor = AES256Encryption(key);
   });
 
@@ -128,6 +135,7 @@ void main() {
       ).decryptAndProcessMessages(page, 's');
 
       final native = await run();
+      expect(NativeCore.instance.isAvailable, isTrue);
       NativeCore.instance.debugSetAvailable(available: false);
       final dart = await run();
 

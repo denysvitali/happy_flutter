@@ -2,6 +2,33 @@ part of 'sync_service.dart';
 
 /// Apply pending provider/model intent before choosing a delivery target.
 extension SyncSendTargetResolution on Sync {
+  /// Reject attempts to resume conversations owned by a single process.
+  void _checkProcessScopedSendTarget(String sessionId, Session session) {
+    final flavor = session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId];
+    if (flavor != 'prime-agent' && flavor != 'har') return;
+    final health = SyncHealth(
+      session: session,
+      sessionSpawnedAt: _sessionSpawnedAt,
+      lastEphemeralAt: _lastEphemeralAt,
+    );
+    if (session.archived ||
+        session.hasLifecycleError ||
+        const {
+          'exited',
+          'stopped',
+          'failed',
+          'error',
+          'archived',
+        }.contains(session.effectiveLifecycleState) ||
+        !(health.looksReady || health.wasRecentlySpawned)) {
+      final agent = flavor == 'prime-agent' ? 'Prime Agent' : 'Har';
+      throw StateError(
+        '$agent cannot resume a stopped conversation. '
+        'Start a new $agent session; your message has not been sent.',
+      );
+    }
+  }
+
   Future<
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
@@ -135,9 +162,8 @@ extension SyncSendTargetResolution on Sync {
     // `meta.model`, and its process-local conversation cannot be resumed.
     // A replacement would end the conversation instead of switching model,
     // so a running session always keeps its process.
-    if (isPrimeAgentSession &&
-        !session.hasLifecycleError &&
-        (health.looksReady || recentlySpawned)) {
+    if (isPrimeAgentSession) {
+      _checkProcessScopedSendTarget(sessionId, session);
       return (
         sessionId: sessionId,
         session: session,
@@ -163,21 +189,7 @@ extension SyncSendTargetResolution on Sync {
           'your message has not been sent.',
         );
       }
-      if (session.archived ||
-          session.hasLifecycleError ||
-          const {
-            'exited',
-            'stopped',
-            'failed',
-            'error',
-            'archived',
-          }.contains(session.effectiveLifecycleState) ||
-          !(health.looksReady || recentlySpawned)) {
-        throw StateError(
-          'Har cannot resume a stopped conversation. '
-          'Start a new Har session; your message has not been sent.',
-        );
-      }
+      _checkProcessScopedSendTarget(sessionId, session);
       return (
         sessionId: sessionId,
         session: session,

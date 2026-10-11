@@ -20,6 +20,13 @@ void main() {
   setUp(() async {
     NativeCore.instance.debugReset();
     await NativeCore.instance.ensureInitialized();
+    if (const bool.fromEnvironment('HAPPY_REQUIRE_NATIVE')) {
+      expect(
+        NativeCore.instance.isAvailable,
+        isTrue,
+        reason: 'The required native contract lane must load happy_core',
+      );
+    }
   });
 
   Uint8List sealWithDart(String plaintext, String aad) {

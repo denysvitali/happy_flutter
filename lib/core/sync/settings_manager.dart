@@ -1,4 +1,5 @@
-import 'dart:async' show Timer, TimeoutException, unawaited;
+import 'dart:async' show Timer, TimeoutException;
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,7 +13,7 @@ import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/settings.dart';
 import '../services/logger_service.dart' show logger;
-import '../services/mmkv_storage.dart';
+import '../services/storage_service.dart';
 import '../sync/invalidate_sync.dart';
 import '../sync/sync_domain.dart';
 import '../wire/wire_parsers.dart';
@@ -50,6 +51,8 @@ class SettingsManager {
 
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
+  final _storage = SettingsStorage();
+  int? _storageGeneration;
   final Map<String, dynamic> _pendingSettings = {};
   int? _lastSettingsPostAtMs;
   Future<void>? _settingsOpQueue;
@@ -102,6 +105,56 @@ class SettingsManager {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  Future<void> restoreSettings(String scope) async {
+    final generation = _generation;
+    final restored = await _storage.activateAccount(scope);
+    if (generation != _generation) return;
+    _storageGeneration = _storage.accountGeneration;
+    _settingsSnapshot = restored.settings;
+    _settingsVersion = restored.version;
+    _pendingSettings
+      ..clear()
+      ..addAll(restored.pending);
+  }
+
+  Future<void> _persistSnapshot(
+    int generation, {
+    Map<String, dynamic> acknowledged = const {},
+    bool localEdit = false,
+  }) async {
+    if (generation != _generation) return;
+    final before = Map<String, dynamic>.of(_pendingSettings);
+    final remaining = Map<String, dynamic>.of(before)
+      ..removeWhere(
+        (key, value) =>
+            acknowledged.containsKey(key) &&
+            jsonEncode(acknowledged[key]) == jsonEncode(value),
+      );
+    final stored = await _storage.commitSyncedSettings(
+      _settingsSnapshot,
+      pending: remaining,
+      version: _settingsVersion,
+      acknowledged: acknowledged,
+      expectedGeneration: _storageGeneration,
+      localEdit: localEdit,
+      isCurrent: () => generation == _generation,
+    );
+    if (generation != _generation) return;
+    final newerEdits = <String, dynamic>{
+      for (final entry in _pendingSettings.entries)
+        if (jsonEncode(before[entry.key]) != jsonEncode(entry.value))
+          entry.key: entry.value,
+    };
+    _pendingSettings
+      ..clear()
+      ..addAll(_storage.pendingSettings)
+      ..addAll(newerEdits);
+    _settingsSnapshot = Settings.fromJson({
+      ...stored.toJson(),
+      ..._pendingSettings,
+    });
   }
 
   /// Sync settings with the server: POST pending deltas, then GET latest.
@@ -159,10 +212,6 @@ class SettingsManager {
         if (apiClient.isSuccess(updateResponse) && updateSuccess) {
           // A response acknowledges only the submitted values. Edits made
           // during encryption/HTTP remain pending and visible.
-          _pendingSettings.removeWhere(
-            (key, value) =>
-                postedDelta.containsKey(key) && postedDelta[key] == value,
-          );
           _settingsSnapshot = Settings.fromJson({
             ...mergedJson,
             ..._pendingSettings,
@@ -173,8 +222,9 @@ class SettingsManager {
           }
           postedSuccessfully = true;
           _lastSettingsPostAtMs = DateTime.now().millisecondsSinceEpoch;
+          await _persistSnapshot(generation, acknowledged: postedDelta);
+          if (generation != _generation) return;
           _onDataChanged({SyncDomain.settings});
-          unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
         } else if (updateData?['error'] == 'version-mismatch') {
           final currentSettingsEncrypted =
               updateData?['currentSettings'] as String?;
@@ -196,6 +246,8 @@ class SettingsManager {
             ..._pendingSettings,
           });
           _settingsVersion = currentVersion;
+          await _persistSnapshot(generation);
+          if (generation != _generation) return;
           _onDataChanged({SyncDomain.settings});
           // Re-enter through InvalidateSync's bounded retry/backoff. A GET
           // here would overwrite the optimistic snapshot and finish without
@@ -234,8 +286,9 @@ class SettingsManager {
                 });
                 _settingsVersion =
                     _asInt(data?['settingsVersion']) ?? _settingsVersion;
+                await _persistSnapshot(generation);
+                if (generation != _generation) return;
                 _onDataChanged({SyncDomain.settings});
-                unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
               }
             } else {
               _settingsVersion =
@@ -268,13 +321,19 @@ class SettingsManager {
   /// Apply a settings delta. The delta is merged into pending settings and
   /// the settings sync is invalidated so the next cycle posts it.
   Future<void> applySettings(Map<String, dynamic> delta) async {
+    final generation = _generation;
     _settingsSnapshot = Settings.fromJson({
       ..._settingsSnapshot.toJson(),
       ...delta,
     });
-    for (final entry in delta.entries) {
-      _pendingSettings[entry.key] = entry.value;
+    final serializable = _settingsSnapshot.toJson();
+    for (final key in delta.keys) {
+      if (serializable.containsKey(key) && key != 'developerModeEnabled') {
+        _pendingSettings[key] = serializable[key];
+      }
     }
+    await _persistSnapshot(generation, localEdit: true);
+    if (generation != _generation) return;
     // Several UI edits often arrive through separate provider persistence
     // operations. Keep the local snapshot immediate but send their merged
     // document once. A fixed ceiling prevents continuous edits from
@@ -498,6 +557,7 @@ class SettingsManager {
     _settingsOpQueue = null;
     _settingsSnapshot = Settings();
     _settingsVersion = 0;
+    _storageGeneration = null;
     _pendingSettings.clear();
     _lastSettingsPostAtMs = null;
     _profile = null;

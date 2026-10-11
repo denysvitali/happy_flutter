@@ -26,7 +26,7 @@ mise exec -- flutter gen-l10n
 # hand-rolled generator, not build_runner)
 mise exec -- dart run tools/fsm_codegen.dart
 
-# Rust hot-path core (rust/happy_core; optional — app falls back to Dart when absent)
+# Rust hot-path core (app falls back to Dart outside required native CI lane)
 scripts/build_rust.sh android|linux
 
 # Build APK (flavors: development, preview, production)
@@ -36,6 +36,12 @@ mise exec -- flutter build apk --release --flavor production
 # Run on device/emulator
 mise exec -- flutter run
 ```
+
+Required contract CI lanes set `HAPPY_REQUIRE_NATIVE=true` or
+`HAPPY_REQUIRE_CLI_GO=true`; absent native builds or pinned Go checkout fail,
+not skip. The Go checkout needs a read-only `HAPPY_CLI_GO_READ_TOKEN` scoped to
+`happy-cli-go`. Chrome runs `test/browser/mmkv_storage_web_test.dart` under its
+nested browser-safe test config. Run these tests in CI only.
 
 **Generated-code drift is a CI failure.** CI regenerates `*.g.dart`,
 `*.freezed.dart`, `*.mocks.dart`, `lib/l10n_generated/**`,

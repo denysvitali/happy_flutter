@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -129,6 +130,69 @@ void main() {
   });
 
   group('targeted updates', () {
+    test(
+      'publication compares state identity without visiting the catalog',
+      () {
+        container.dispose();
+        final notifier = _PublishingSessionUiStateNotifier();
+        container = ProviderContainer(
+          overrides: [
+            sessionUiStateNotifierProvider.overrideWith(() => notifier),
+          ],
+        );
+        var publications = 0;
+        final subscription = container.listen(
+          sessionUiStateNotifierProvider,
+          (_, _) => publications++,
+        );
+        addTearDown(subscription.close);
+        final previousMap = _CountingSessionMap({
+          'first': SessionUiEntry.empty,
+          'last': SessionUiEntry.empty,
+        });
+        final nextMap = _CountingSessionMap({
+          'first': SessionUiEntry.empty,
+          'last': const SessionUiEntry(unreadCount: 1),
+        });
+        final previous = SessionUiState(bySessionId: previousMap);
+        final next = SessionUiState(bySessionId: nextMap);
+
+        notifier.publish(previous);
+        notifier.publish(previous);
+        notifier.publish(next);
+
+        expect(publications, 2);
+        expect(previousMap.catalogReads, 0);
+        expect(nextMap.catalogReads, 0);
+        expect(container.read(sessionUiStateNotifierProvider), same(next));
+      },
+    );
+
+    test('unchanged targeted, full and catalog reloads never publish', () {
+      seed('a');
+      seed('b');
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+      var publications = 0;
+      final subscription = container.listen(
+        sessionUiStateNotifierProvider,
+        (_, _) => publications++,
+      );
+      addTearDown(subscription.close);
+
+      notifier.loadSessionFromSync('a');
+      sync.testNotifyDomains({SyncDomain.messages, SyncDomain.sessions});
+      notifier.loadCatalogFromSync();
+      sync.testNotifyDataChanged();
+      notifier.loadFromSync();
+      sync.testNotifyDomains({SyncDomain.sessions});
+      notifier.loadCatalogFromSync();
+      notifier.loadFromSync();
+
+      expect(publications, 0);
+      expect(container.read(sessionUiStateNotifierProvider), same(before));
+    });
+
     test('loadSessionFromSync touches only the target entry', () {
       for (var i = 0; i < 5; i++) {
         seed('s$i');
@@ -429,4 +493,44 @@ void main() {
       expect(identical(same, projection), isTrue);
     });
   });
+}
+
+class _PublishingSessionUiStateNotifier extends SessionUiStateNotifier {
+  @override
+  SessionUiState build() => SessionUiState.empty;
+
+  void publish(SessionUiState next) => state = next;
+}
+
+class _CountingSessionMap extends MapBase<String, SessionUiEntry> {
+  _CountingSessionMap(this._entries);
+
+  final Map<String, SessionUiEntry> _entries;
+  int catalogReads = 0;
+
+  @override
+  int get length => _entries.length;
+
+  @override
+  Iterable<String> get keys {
+    catalogReads++;
+    return _entries.keys;
+  }
+
+  @override
+  SessionUiEntry? operator [](Object? key) {
+    catalogReads++;
+    return _entries[key];
+  }
+
+  @override
+  void operator []=(String key, SessionUiEntry value) =>
+      throw UnsupportedError('Immutable test map');
+
+  @override
+  void clear() => throw UnsupportedError('Immutable test map');
+
+  @override
+  SessionUiEntry? remove(Object? key) =>
+      throw UnsupportedError('Immutable test map');
 }

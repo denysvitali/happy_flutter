@@ -62,7 +62,7 @@ class MMKVStorage {
 
   /// Named constructor for test fakes that need to extend MMKVStorage.
   @visibleForTesting
-  MMKVStorage.testConstructor();
+  MMKVStorage.testConstructor({Database? database}) : _db = database;
 
   static final MMKVStorage _instance = MMKVStorage._();
 
@@ -744,6 +744,26 @@ class MMKVStorage {
     _persist(key, value);
   }
 
+  /// Commit a raw value before reporting durability to the caller.
+  Future<void> setStringDurable(String key, String value) async {
+    final txn = _db!.transaction(_storeName, idbModeReadWrite);
+    await Future.wait<Object?>([
+      txn.objectStore(_storeName).put(value, key),
+      txn.completed,
+    ]);
+    _cache[key] = value;
+  }
+
+  /// Keep the committed cache value until deletion has actually committed.
+  Future<void> removeKeyDurable(String key) async {
+    final txn = _db!.transaction(_storeName, idbModeReadWrite);
+    await Future.wait<void>([
+      txn.objectStore(_storeName).delete(key),
+      txn.completed.then<void>((_) {}),
+    ]);
+    _cache.remove(key);
+  }
+
   /// Read a raw bool for an arbitrary key.
   bool? getBool(String key) {
     final value = _cache[key];
@@ -782,7 +802,7 @@ class MMKVStorage {
   }
 
   Future<void> saveOutboxEntries(String jsonStr) async {
-    await _persistAsync('outbox-entries', jsonStr);
+    await setStringDurable('outbox-entries', jsonStr);
   }
 }
 

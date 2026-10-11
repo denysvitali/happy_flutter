@@ -5,12 +5,19 @@ import 'package:happy_flutter/core/services/sidechain_grouper.dart';
 
 /// Contract coverage for the optional Rust sidechain planner.
 ///
-/// The native assertions are guarded because platforms without the shared
-/// library must continue to use the existing Dart grouper.
+/// CI's native contract lane requires the shared library. Other platforms
+/// without it must continue to use the existing Dart grouper.
 void main() {
   setUp(() async {
     NativeCore.instance.debugReset();
     await NativeCore.instance.ensureInitialized();
+    if (const bool.fromEnvironment('HAPPY_REQUIRE_NATIVE')) {
+      expect(
+        NativeCore.instance.isAvailable,
+        isTrue,
+        reason: 'The required native contract lane must load happy_core',
+      );
+    }
   });
 
   tearDown(NativeCore.instance.debugReset);
@@ -119,6 +126,7 @@ void main() {
     ];
 
     final result = SidechainGrouper().groupMessages(messages);
+    expect(NativeCore.instance.isAvailable, isTrue);
 
     expect(result, isNotNull);
     expect(result!.messages.map((message) => message['id']), ['task-1']);

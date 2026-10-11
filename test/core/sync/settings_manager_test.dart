@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
+import 'package:happy_flutter/core/services/storage_service.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:happy_flutter/core/sync/settings_manager.dart';
 
 class _Encryption implements Encryption {
@@ -57,7 +60,11 @@ void main() {
   late SettingsManager manager;
   late InvalidateSync idle;
 
-  setUp(() {
+  setUp(() async {
+    FlutterSecureStorage.setMockInitialValues({});
+    await MMKVStorage.initialize();
+    await MMKVStorage().clearAll();
+    SettingsStorage().resetForTests();
     api = _Api();
     idle = InvalidateSync(() async {});
     manager = SettingsManager(
@@ -72,7 +79,52 @@ void main() {
     );
   });
 
-  tearDown(() => idle.dispose());
+  tearDown(() {
+    manager.clear();
+    SettingsStorage().resetForTests();
+    idle.dispose();
+  });
+
+  test(
+    'restart restores scoped pending delta before old server settings',
+    () async {
+      final storage = SettingsStorage();
+      await storage.activateAccount('account-a');
+      await manager.restoreSettings('account-a');
+      await storage.updateSetting('themeMode', 'dark');
+      await manager.applySettings({'themeMode': 'dark'});
+      manager.suspendPendingSync();
+      await storage.suspend();
+      manager.clear();
+      storage.resetForTests();
+      await manager.restoreSettings('account-b');
+      expect(manager.pendingSettings, isEmpty);
+      manager.clear();
+      storage.resetForTests();
+      await manager.restoreSettings('account-a');
+      expect(manager.pendingSettings['themeMode'], 'dark');
+      api.respond = () async => _response({
+        'error': 'version-mismatch',
+        'currentVersion': 9,
+        'currentSettings': jsonEncode({
+          'themeMode': 'light',
+          'viewInline': true,
+        }),
+      });
+      await expectLater(manager.syncSettings(), throwsStateError);
+      expect(manager.settingsSnapshot.themeMode, 'dark');
+      expect(manager.settingsSnapshot.viewInline, isTrue);
+      api.respond = () async =>
+          _response({'success': true, 'settingsVersion': 10});
+      await manager.syncSettings();
+      manager.clear();
+      storage.resetForTests();
+      await manager.restoreSettings('account-a');
+      expect(manager.pendingSettings, isEmpty);
+      expect(manager.settingsSnapshot.themeMode, 'dark');
+      expect(manager.settingsVersion, 10);
+    },
+  );
 
   testWidgets('write can finish after the old 10 second wrapper deadline', (
     tester,
@@ -187,6 +239,24 @@ void main() {
       expect(manager.pendingSettings, isEmpty);
     },
   );
+
+  test('GET keeps a storage edit not yet forwarded by the provider', () async {
+    await manager.restoreSettings('account-a');
+    final response = Completer<Response<dynamic>>();
+    api.respond = () => response.future;
+    final read = manager.syncSettings();
+    await SettingsStorage().updateSetting('themeMode', 'dark');
+    response.complete(
+      _response({
+        'settings': jsonEncode({'themeMode': 'light', 'viewInline': true}),
+        'settingsVersion': 3,
+      }),
+    );
+    await read;
+    expect(manager.settingsSnapshot.themeMode, 'dark');
+    expect(manager.settingsSnapshot.viewInline, isTrue);
+    expect(manager.pendingSettings['themeMode'], 'dark');
+  });
 
   test('GET completion overlays edits made during the fetch', () async {
     final response = Completer<Response<dynamic>>();

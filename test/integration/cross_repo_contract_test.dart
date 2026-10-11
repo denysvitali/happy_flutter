@@ -10,14 +10,17 @@ void main() {
     test('Flutter and Go agree on session message protocol', () {
       final cliRoot = _cliRoot();
       if (cliRoot == null) {
-        markTestSkipped(_missingCliMessage);
+        _skipOrFail(_missingCliMessage);
         return;
       }
       final goFiles = _requireGoFiles(cliRoot, [
         'proto/server/v1/sessions.proto',
         'internal/server/db/migrations/000001_initial_schema.up.sql',
         'internal/server/ws/session_handlers.go',
-        'internal/server/compat_handlers.go',
+        'internal/server/compat_handlers_sessions.go',
+        'internal/server/ws/server.go',
+        'internal/server/service/session_message_store.go',
+        'internal/server/server.go',
       ]);
       if (goFiles == null) return; // already skipped
 
@@ -28,6 +31,9 @@ void main() {
       final goSchema = goFiles[1];
       final goSessionHandlers = goFiles[2];
       final goCompatHandlers = goFiles[3];
+      final goMessageIngest = goFiles[4];
+      final goMessageStore = goFiles[5];
+      final goServer = goFiles[6];
 
       expect(messagesApi, contains(r'/v3/sessions/$sessionId/messages'));
       expect(messagesApi, contains("'localId': ?localId"));
@@ -47,8 +53,26 @@ void main() {
       expect(goSessionsProto, contains('string local_id = 3;'));
       expect(goSchema, contains('UNIQUE(session_id, local_id)'));
       expect(goSessionHandlers, contains('localIDRaw := data["localId"]'));
-      expect(goSessionHandlers, contains('GetMessageByLocalID'));
-      expect(goSessionHandlers, contains('"localId":   msg.LocalID'));
+      expect(
+        goMessageIngest,
+        contains('msg, created, err = s.sessionMessageStore('),
+      );
+      expect(goMessageIngest, contains('ctx, sid, localID, msgContent'));
+      expect(goMessageIngest, contains('if !created {'));
+      expect(goMessageIngest, contains('"localId":   msg.LocalID'));
+      expect(
+        goServer,
+        contains(
+          's.socketSrv.SetSessionMessageStore('
+          'sessionSvc.StoreWebSocketMessage)',
+        ),
+      );
+      expect(goMessageStore, contains('LocalID: *localID'));
+      expect(
+        goMessageStore,
+        contains('ON CONFLICT (session_id, local_id) DO UPDATE'),
+      );
+      expect(goMessageStore, contains('id = candidate_id AS created'));
       expect(
         sendSync,
         contains('localId'),
@@ -70,7 +94,7 @@ void main() {
     test('Flutter and Go agree on machine spawn and socket surfaces', () {
       final cliRoot = _cliRoot();
       if (cliRoot == null) {
-        markTestSkipped(_missingCliMessage);
+        _skipOrFail(_missingCliMessage);
         return;
       }
       final goFiles = _requireGoFiles(cliRoot, [
@@ -109,7 +133,7 @@ void main() {
     test('daemon cannot hijack provider choice via its own shell env', () {
       final cliRoot = _cliRoot();
       if (cliRoot == null) {
-        markTestSkipped(_missingCliMessage);
+        _skipOrFail(_missingCliMessage);
         return;
       }
       final goFiles = _requireGoFiles(cliRoot, [
@@ -166,17 +190,27 @@ void main() {
     test('canonical message fixtures round-trip through Flutter processor', () {
       final cliRoot = _cliRoot();
       if (cliRoot == null) {
-        markTestSkipped(_missingCliMessage);
+        _skipOrFail(_missingCliMessage);
         return;
       }
 
       final fixturesDir = Directory('${cliRoot.path}/test/fixtures/messages');
       if (!fixturesDir.existsSync()) {
-        markTestSkipped(
+        _skipOrFail(
           'Fixture directory not found: ${fixturesDir.path}. '
           'Run UPDATE_FIXTURES=1 in happy-cli-go to generate.',
         );
         return;
+      }
+
+      if (_requireCliGo) {
+        for (final name in _requiredFixtures) {
+          expect(
+            File('${fixturesDir.path}/$name').existsSync(),
+            isTrue,
+            reason: 'Required happy-cli-go fixture missing: $name',
+          );
+        }
       }
 
       final fixtures = fixturesDir
@@ -243,6 +277,21 @@ void main() {
   });
 }
 
+const _requireCliGo = bool.fromEnvironment('HAPPY_REQUIRE_CLI_GO');
+const _requiredFixtures = [
+  'event_v1.json',
+  'sidechain_v1.json',
+  'text_v1.json',
+  'tool_call_v1.json',
+  'tool_result_v1.json',
+  'user_text_v1.json',
+];
+
+void _skipOrFail(String reason) {
+  if (_requireCliGo) fail(reason);
+  markTestSkipped(reason);
+}
+
 const _missingCliMessage =
     'Set HAPPY_CLI_GO_PATH to a happy-cli-go checkout to run this '
     'cross-repo contract.';
@@ -256,13 +305,13 @@ Directory? _cliRoot() {
   return root;
 }
 
-/// Reads multiple Go files, skipping the test if any are missing.
+/// Missing Go files fail required CI contracts, but skip optional checkouts.
 List<String>? _requireGoFiles(Directory root, List<String> paths) {
   final contents = <String>[];
   for (final path in paths) {
     final file = File('${root.path}/$path');
     if (!file.existsSync()) {
-      markTestSkipped(
+      _skipOrFail(
         'Cross-repo file not found: $path. '
         'Update your happy-cli-go checkout.',
       );

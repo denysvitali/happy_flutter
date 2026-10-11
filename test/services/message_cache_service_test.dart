@@ -102,6 +102,31 @@ class _InMemoryMMKVStorage extends MMKVStorage {
   }
 }
 
+class _DelayedCacheReadStorage extends _InMemoryMMKVStorage {
+  _DelayedCacheReadStorage({required this.encodedRead});
+
+  final bool encodedRead;
+  final started = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<String?> getSessionMessagesEncodedAsync(String sessionId) async {
+    if (!encodedRead) return null;
+    started.complete();
+    await release.future;
+    return rawEncoded(sessionId);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSessionMessagesAsync(
+    String sessionId,
+  ) async {
+    started.complete();
+    await release.future;
+    return getSessionMessages(sessionId);
+  }
+}
+
 Map<String, dynamic> _orphanRecoveryTask({
   required String id,
   required List<Map<String, dynamic>> children,
@@ -249,6 +274,291 @@ void main() {
       expect(migrated, contains(AtRestEncryptionService.envelopePrefix));
       expect(migrated, isNot(contains('legacy plaintext')));
     });
+  });
+
+  group('MessageCacheService — runtime-scoped reads', () {
+    for (final encodedRead in [false, true]) {
+      test(
+        'stale ${encodedRead ? 'encoded' : 'fallback'} read cannot rewrite',
+        () async {
+          const sessionId = 'stale-read';
+          final storage = _DelayedCacheReadStorage(encodedRead: encodedRead);
+          final cache = MessageCacheService()..debugSetStorage = storage;
+          cache.clearMessages(sessionId);
+          storage.rawSeed(sessionId, [
+            {'id': 'old', 'localId': 'old-local', 'content': 'private'},
+          ]);
+          addTearDown(cache.debugResetStorage);
+          addTearDown(() => cache.clearMessages(sessionId));
+          var current = true;
+          final read = cache.getMessagesAsync(
+            sessionId,
+            isCurrent: () => current,
+          );
+          await storage.started.future;
+          current = false;
+          storage.release.complete();
+
+          expect(await read, isEmpty);
+          expect(storage.writeCount, 0);
+          expect(storage.rawStored(sessionId).single['localId'], 'old-local');
+        },
+      );
+    }
+
+    test(
+      'current scoped repairs commit without a native write await',
+      () async {
+        const sessionId = 'current-read-repair';
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        cache.clearMessages(sessionId);
+        addTearDown(cache.debugResetStorage);
+        addTearDown(() => cache.clearMessages(sessionId));
+        var nativeWrites = 0;
+        MessageCacheService.debugNativeWorkerWrite = (_, _) async {
+          nativeWrites++;
+          return true;
+        };
+        addTearDown(() => MessageCacheService.debugNativeWorkerWrite = null);
+        final rows = <Map<String, dynamic>>[
+          {'id': 'current', 'localId': 'current-local', 'content': 'private'},
+        ];
+
+        await cache.saveMessagesAsync(sessionId, rows, isCurrent: () => true);
+
+        expect(nativeWrites, 0);
+        expect(storage.writeCount, 1);
+        expect(cache.getMessages(sessionId), rows);
+      },
+    );
+
+    test('read-repair worker cannot commit after runtime reset', () async {
+      const sessionId = 'stale-read-repair';
+      final storage = _InMemoryMMKVStorage();
+      final cache = MessageCacheService()..debugSetStorage = storage;
+      cache.clearMessages(sessionId);
+      storage.rawSeed(sessionId, [
+        {'id': 'old', 'localId': 'old-local', 'content': 'private'},
+      ]);
+      addTearDown(cache.debugResetStorage);
+      addTearDown(() => cache.clearMessages(sessionId));
+      var current = true;
+      MessageCacheService.debugWorkerInputSink = (_, _) => current = false;
+      addTearDown(() => MessageCacheService.debugWorkerInputSink = null);
+
+      await cache.saveMessagesAsync(
+        sessionId,
+        storage.rawStored(sessionId),
+        isCurrent: () => current,
+      );
+
+      expect(storage.writeCount, 0);
+      expect(storage.rawEncoded(sessionId), isNot(contains('happy-at-rest:')));
+    });
+  });
+
+  group('MessageCacheService — complete persisted snapshots', () {
+    final original = <String, dynamic>{
+      'id': 'task-1',
+      'seq': 1,
+      'content': 'unchanged',
+      'state': 'completed',
+      'localId': 'local-1',
+      'result': 'old result',
+      'permission': {'status': 'pending'},
+      'completedAt': 10,
+      'children': [
+        {'id': 'child-1', 'content': 'old child', 'result': 'old'},
+      ],
+    };
+    final changes = <String, Map<String, dynamic>>{
+      'appended child': {
+        'children': [
+          {'id': 'child-1', 'content': 'old child', 'result': 'old'},
+          {'id': 'child-2', 'content': 'new child'},
+        ],
+      },
+      'nested result': {
+        'children': [
+          {'id': 'child-1', 'content': 'old child', 'result': 'new'},
+        ],
+      },
+      'completed result': {'result': 'new result'},
+      'permission': {
+        'permission': {'status': 'approved'},
+      },
+      'canonical localId': {'localId': 'canonical-1'},
+      'completion time': {'completedAt': 20},
+      'middle text': {'content': '${'x' * 200}new${'x' * 200}'},
+      'middle list': {
+        'content': [for (var i = 0; i < 20; i++) i == 10 ? 'new' : 'same'],
+      },
+      'late map entry': {
+        'content': {
+          for (var i = 0; i < 20; i++) '$i': i == 19 ? 'new' : 'same',
+        },
+      },
+    };
+
+    for (final asyncWrite in [false, true]) {
+      for (final withRevision in [false, true]) {
+        for (final change in changes.entries) {
+          test(
+            '${change.key}, async=$asyncWrite revision=$withRevision',
+            () async {
+              final storage = _InMemoryMMKVStorage();
+              final cache = MessageCacheService()..debugSetStorage = storage;
+              const sessionId = 'complete-snapshot';
+              cache.clearMessages(sessionId);
+              addTearDown(cache.debugResetStorage);
+              addTearDown(() => cache.clearMessages(sessionId));
+              final before = <String, dynamic>{...original};
+              if (change.key == 'middle text') {
+                before['content'] = '${'x' * 200}old${'x' * 200}';
+              } else if (change.key == 'middle list') {
+                before['content'] = List<String>.filled(20, 'same');
+              } else if (change.key == 'late map entry') {
+                before['content'] = {for (var i = 0; i < 20; i++) '$i': 'same'};
+              }
+              final after = <String, dynamic>{...before, ...change.value};
+              Future<void> save(Map<String, dynamic> row, int revision) async {
+                if (asyncWrite) {
+                  await cache.saveMessagesAsync(sessionId, [
+                    row,
+                  ], revision: withRevision ? revision : null);
+                } else {
+                  cache.saveMessages(sessionId, [
+                    row,
+                  ], revision: withRevision ? revision : null);
+                }
+              }
+
+              await save(before, 1);
+              await save(after, 2);
+
+              expect(storage.writeCount, 2);
+              expect(cache.getMessages(sessionId), [after]);
+              expect(await cache.getMessagesAsync(sessionId), [after]);
+            },
+          );
+        }
+      }
+    }
+
+    for (final asyncWrite in [false, true]) {
+      test('nested changes still sanitize images, async=$asyncWrite', () async {
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        const sessionId = 'nested-sanitized-change';
+        cache.clearMessages(sessionId);
+        addTearDown(cache.debugResetStorage);
+        addTearDown(() => cache.clearMessages(sessionId));
+        final after = <String, dynamic>{
+          ...original,
+          'children': [
+            {
+              'id': 'child-1',
+              'content': 'new child',
+              'raw': {
+                'content': [
+                  {
+                    'type': 'image',
+                    'source': {'type': 'base64', 'data': 'private-image-bytes'},
+                  },
+                ],
+              },
+            },
+          ],
+        };
+        cache.saveMessages(sessionId, [original]);
+        if (asyncWrite) {
+          await cache.saveMessagesAsync(sessionId, [after]);
+        } else {
+          cache.saveMessages(sessionId, [after]);
+        }
+
+        final restored = cache.getMessages(sessionId);
+        final child =
+            (restored.single['children'] as List<dynamic>).single
+                as Map<String, dynamic>;
+        expect(child['content'], 'new child');
+        final raw = child['raw'] as Map<String, dynamic>;
+        final image =
+            (raw['content'] as List<dynamic>).single as Map<String, dynamic>;
+        final source = image['source'] as Map<String, dynamic>;
+        expect(source['data'], isEmpty);
+        expect(source['omitted'], isTrue);
+        expect(storage.writeCount, 2);
+        final unchanged = storage.writeCount;
+        await cache.saveMessagesAsync(sessionId, [after]);
+        expect(storage.writeCount, unchanged);
+        expect(jsonEncode(after), contains('private-image-bytes'));
+      });
+    }
+
+    test('new revisions commit even when the sanitized bytes match', () async {
+      final storage = _InMemoryMMKVStorage();
+      final cache = MessageCacheService()..debugSetStorage = storage;
+      const sessionId = 'revision-authority';
+      cache.clearMessages(sessionId);
+      addTearDown(cache.debugResetStorage);
+      addTearDown(() => cache.clearMessages(sessionId));
+
+      await cache.saveMessagesAsync(sessionId, [original], revision: 1);
+      await cache.saveMessagesAsync(sessionId, [original], revision: 2);
+      cache.saveMessages(sessionId, [original], revision: 3);
+      expect(storage.writeCount, 3);
+      await cache.saveMessagesAsync(sessionId, [original], revision: 3);
+      expect(storage.writeCount, 3);
+    });
+
+    test(
+      'repeated sends retain identities through retry and reordered echoes',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        const sessionId = 'snapshot-local-id-contract';
+        cache.clearMessages(sessionId);
+        addTearDown(cache.debugResetStorage);
+        addTearDown(() => cache.clearMessages(sessionId));
+        Map<String, dynamic> row(String id, String localId, String status) => {
+          'id': id,
+          'localId': localId,
+          'content': 'continue',
+          'sendStatus': status,
+        };
+        final first = row('optimistic-a', 'local-a', 'failed');
+        final second = row('optimistic-b', 'local-b', 'sending');
+        cache.saveMessages(sessionId, [first, second], revision: 1);
+        final retry = row('optimistic-a', 'local-a', 'sending');
+        await cache.saveMessagesAsync(sessionId, [retry, second], revision: 2);
+        expect(cache.getMessages(sessionId).first['localId'], 'local-a');
+
+        // Upstream merge has replaced each exact optimistic identity, with the
+        // second echo delivered first. Persistence must preserve that snapshot.
+        final echoedSecond = row('server-b', 'local-b', 'sent');
+        await cache.saveMessagesAsync(sessionId, [
+          retry,
+          echoedSecond,
+        ], revision: 3);
+        final echoedFirst = row('server-a', 'local-a', 'sent');
+        await cache.saveMessagesAsync(sessionId, [
+          echoedFirst,
+          echoedSecond,
+        ], revision: 4);
+        final restored = cache.getMessages(sessionId);
+        expect(restored, [echoedFirst, echoedSecond]);
+        expect(restored.map((m) => m['localId']).toSet(), {
+          'local-a',
+          'local-b',
+        });
+        expect(
+          restored.where((m) => '${m['id']}'.startsWith('optimistic-')),
+          isEmpty,
+        );
+      },
+    );
   });
 
   group('MessageCacheService — async write queue', () {

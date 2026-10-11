@@ -68,6 +68,10 @@ class EncryptionCache {
         total += n.length * 2;
         return total >= limit;
       }
+      if (n is JsonText) {
+        total += n.length * 2;
+        return total >= limit;
+      }
       if (n is List) {
         total += 16;
         for (final element in n) {

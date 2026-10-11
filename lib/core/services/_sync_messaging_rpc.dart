@@ -443,9 +443,18 @@ extension SyncMessagingRpc on Sync {
     Map<String, dynamic> params, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
+    final generation = _runtimeGeneration;
+    void checkRuntime() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Session RPC runtime changed');
+      }
+    }
+
     final override = testSessionRPCOverride;
     if (override != null) {
-      return override(sessionId, method, params);
+      final result = await override(sessionId, method, params);
+      checkRuntime();
+      return result;
     }
 
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -463,11 +472,13 @@ extension SyncMessagingRpc on Sync {
       );
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
+      checkRuntime();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
         // Force a full fetch in case changedSince race skipped the session.
         _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
+        checkRuntime();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
@@ -477,6 +488,7 @@ extension SyncMessagingRpc on Sync {
 
     final requestId = _createRpcRequestId('srpc');
     final encrypted = await sessionEncryption.encryptRaw(params);
+    checkRuntime();
     // emitWithAck now throws SocketNotConnectedException or
     // SocketAckTimeoutException instead of returning null.
     final result = await socketIoClient.emitWithAck('rpc-call', {
@@ -484,11 +496,13 @@ extension SyncMessagingRpc on Sync {
       'params': encrypted,
       'requestId': requestId,
     }, timeout: timeout);
+    checkRuntime();
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
       if (encryptedResult == null) return null;
       final decrypted = await sessionEncryption.decryptRaw(encryptedResult);
+      checkRuntime();
       _throwIfRpcError(decrypted, fallbackMethod: method);
       return decrypted;
     }
@@ -621,8 +635,16 @@ extension SyncMessagingRpc on Sync {
   /// Returns `false` when no restore was attempted (session was
   /// already ready, or metadata was missing).
   Future<bool> _ensureSessionProcess(String sessionId) async {
+    final generation = _runtimeGeneration;
+    void checkRuntime() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Permission runtime changed');
+      }
+    }
+
     final session = _sessions[sessionId];
     if (session == null) return false;
+    _checkProcessScopedSendTarget(sessionId, session);
 
     final lifecycleState = session.effectiveLifecycleState;
     // Guard against stale lifecycleState
@@ -650,6 +672,15 @@ extension SyncMessagingRpc on Sync {
 
     if (looksReady || (recentlySpawned && !hasLifecycleError)) return false;
 
+    final sessionAgent =
+        session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId] ?? 'claude';
+    if (sessionAgent == 'prime-agent' || sessionAgent == 'har') {
+      throw StateError(
+        'This session has stopped. Start a new session; '
+        'the permission from its old process has expired.',
+      );
+    }
+
     final machineId = session.metadata?.machineId;
     final path = session.metadata?.path;
     if (machineId == null ||
@@ -669,10 +700,7 @@ extension SyncMessagingRpc on Sync {
     try {
       // Resolve profile env vars for this session before spawning.
       final spawnResult = await _getSpawnEnvVarsForSession(sessionId);
-      final sessionAgent =
-          session.metadata?.flavor ??
-          _sessionSpawnedAgent[sessionId] ??
-          'claude';
+      checkRuntime();
       final normalizedModelMode = _normalizeModelModeForAgent(
         session.modelMode,
         sessionAgent,
@@ -727,6 +755,7 @@ extension SyncMessagingRpc on Sync {
         req,
         timeout: const Duration(seconds: 60),
       );
+      checkRuntime();
       if (result.type == 'success') {
         final restoredSession = _sessions[sessionId];
         final restoredMetadata = restoredSession?.metadata;
@@ -753,6 +782,7 @@ extension SyncMessagingRpc on Sync {
         'error=${result.errorMessage ?? 'unknown'}',
       );
     } catch (error, stack) {
+      checkRuntime();
       if (Sync._isTransientRpcError(error) ||
           Sync._isRpcMethodNotAvailable(error)) {
         final reason = Sync._isRpcMethodNotAvailable(error)
@@ -887,7 +917,15 @@ extension SyncMessagingRpc on Sync {
     String? decision,
     Map<String, dynamic>? updatedInput,
   }) async {
+    final generation = _runtimeGeneration;
+    void checkRuntime() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Permission runtime changed');
+      }
+    }
+
     final restored = await _ensureSessionProcess(sessionId);
+    checkRuntime();
     if (restored) {
       _clearStalePermissionRequests(sessionId);
       sessionsSync.invalidate();
@@ -898,8 +936,10 @@ extension SyncMessagingRpc on Sync {
       );
     }
     try {
-      if (testSessionRPCOverride == null) {
+      if (testSessionRPCOverride == null ||
+          testRpcCapabilitiesOverride != null) {
         await ensureSessionRPCSupported(sessionId, 'permission');
+        checkRuntime();
       }
       final response = await sessionRPC(
         sessionId,
@@ -913,18 +953,22 @@ extension SyncMessagingRpc on Sync {
           updatedInput: updatedInput,
         ).toJson(),
       );
+      checkRuntime();
       _throwIfPermissionRpcFailed(response, 'allow');
       return response is Map
           ? PermissionResponse.fromJson(Map<String, dynamic>.from(response))
           : const PermissionResponse(success: true);
     } on StateError {
+      checkRuntime();
       // Permission was rejected by the server — clear stale local
       // state so the UI unlocks.
       _clearStalePermissionRequests(sessionId);
       rethrow;
     } finally {
-      sessionsSync.invalidate();
-      messagesSync[sessionId]?.invalidate();
+      if (generation == _runtimeGeneration) {
+        sessionsSync.invalidate();
+        messagesSync[sessionId]?.invalidate();
+      }
     }
   }
 
@@ -936,7 +980,15 @@ extension SyncMessagingRpc on Sync {
     String permissionId, {
     String? decision,
   }) async {
+    final generation = _runtimeGeneration;
+    void checkRuntime() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Permission runtime changed');
+      }
+    }
+
     final restored = await _ensureSessionProcess(sessionId);
+    checkRuntime();
     if (restored) {
       _clearStalePermissionRequests(sessionId);
       sessionsSync.invalidate();
@@ -947,8 +999,10 @@ extension SyncMessagingRpc on Sync {
       );
     }
     try {
-      if (testSessionRPCOverride == null) {
+      if (testSessionRPCOverride == null ||
+          testRpcCapabilitiesOverride != null) {
         await ensureSessionRPCSupported(sessionId, 'permission');
+        checkRuntime();
       }
       final response = await sessionRPC(
         sessionId,
@@ -959,16 +1013,20 @@ extension SyncMessagingRpc on Sync {
           decision: decision,
         ).toJson(),
       );
+      checkRuntime();
       _throwIfPermissionRpcFailed(response, 'deny');
       return response is Map
           ? PermissionResponse.fromJson(Map<String, dynamic>.from(response))
           : const PermissionResponse(success: true);
     } on StateError {
+      checkRuntime();
       _clearStalePermissionRequests(sessionId);
       rethrow;
     } finally {
-      sessionsSync.invalidate();
-      messagesSync[sessionId]?.invalidate();
+      if (generation == _runtimeGeneration) {
+        sessionsSync.invalidate();
+        messagesSync[sessionId]?.invalidate();
+      }
     }
   }
 
@@ -1098,7 +1156,13 @@ extension SyncMessagingRpc on Sync {
   /// network work.
   void prepareSessionVisibility(String sessionId) {
     final previousVisibleSessionId = _visibleSessionId;
-    if (previousVisibleSessionId != sessionId) _clearMessageStreams();
+    if (previousVisibleSessionId != sessionId) {
+      if (previousVisibleSessionId != null) {
+        returnToLatestMessages(previousVisibleSessionId);
+      }
+      _clearMessageStreams();
+      _userScrollback = null;
+    }
     _visibleSessionId = sessionId;
     // Both ends of a chat switch count as activity for the idle-window
     // shrink sweep — the session just left keeps its full window for
@@ -1131,12 +1195,17 @@ extension SyncMessagingRpc on Sync {
 
   /// On session visible handler
   Future<void> onSessionVisible(String sessionId) async {
+    final runtimeGeneration = _runtimeGeneration;
+    bool stale() =>
+        runtimeGeneration != _runtimeGeneration ||
+        !isInitialized ||
+        _visibleSessionId != sessionId;
     prepareSessionVisibility(sessionId);
 
     // Non-widget callers still receive an asynchronous boundary. ChatScreen
     // provides the stronger end-of-frame barrier before invoking this method.
     await Future<void>.delayed(Duration.zero);
-    if (!isInitialized || _visibleSessionId != sessionId) return;
+    if (stale()) return;
 
     _sessionUnreadCounts.remove(sessionId);
     _sessionUnreadLastIncrementMs.remove(sessionId);
@@ -1153,6 +1222,7 @@ extension SyncMessagingRpc on Sync {
     if (!_sessionSpawnedProfile.containsKey(sessionId)) {
       unawaited(
         MMKVStorage().getSessionProfile(sessionId).then((storedProfileId) {
+          if (stale()) return;
           if (!_sessionSpawnedProfile.containsKey(sessionId)) {
             _sessionSpawnedProfile[sessionId] = storedProfileId;
           }
@@ -1282,7 +1352,14 @@ extension SyncMessagingRpc on Sync {
       // of a loading spinner for 5-15s while the server fetch runs.
       // The incremental delta fetch will fill in any missing messages.
       try {
-        final cached = await MessageCacheService().getMessagesAsync(sessionId);
+        final cached = await MessageCacheService().getMessagesAsync(
+          sessionId,
+          isCurrent: () => !stale(),
+        );
+        if (stale()) return;
+        // A socket reply or optimistic send may have populated the transcript
+        // while storage was reading. Prefer those rows over the older cache.
+        hasMessages = _sessionMessages[sessionId]?.isNotEmpty ?? false;
         if (logger.shouldLog(LogLevel.debug)) {
           logger.debug(
             '[onSessionVisible] cacheRestore: ${cached.length} '
@@ -1290,7 +1367,7 @@ extension SyncMessagingRpc on Sync {
             '(hasPendingSocket=$hasPendingSocketMessages)',
           );
         }
-        if (cached.isNotEmpty) {
+        if (!hasMessages && cached.isNotEmpty) {
           _sessionMessages[sessionId] = cached;
           _sessionsRestoredFromMessageCache.add(sessionId);
           // Seed the content signatures for the restored window, exactly as
@@ -1320,13 +1397,14 @@ extension SyncMessagingRpc on Sync {
           _ensureFirstLoadedSeq(sessionId);
         }
       } catch (error, stack) {
+        if (stale()) return;
         logger.warning(
           'Failed to restore cached messages for session $sessionId '
           'in onSessionVisible — falling back to server fetch',
           error,
           stack,
         );
-        hasMessages = false;
+        hasMessages = _sessionMessages[sessionId]?.isNotEmpty ?? false;
       }
       // Only request a tail refresh when there are NO messages to show.
       // When cache was restored, the incremental delta path (afterSeq =
@@ -1400,7 +1478,7 @@ extension SyncMessagingRpc on Sync {
     if (shouldProbeAfterSessionsRefresh) {
       unawaited(
         sessionsSync.awaitQueue().then((_) {
-          if (!isInitialized || _visibleSessionId != sessionId) return;
+          if (stale()) return;
           _requestMessageFetchProbe(sessionId, intent: deferredProbeIntent);
           messagesSync[sessionId]?.invalidate();
         }),
@@ -1421,6 +1499,10 @@ extension SyncMessagingRpc on Sync {
     if (claimIndex >= 0) _sessionVisibilityClaims.removeAt(claimIndex);
     // Another surface still shows this session; it keeps the slot and queue.
     if (_sessionVisibilityClaims.contains(sessionId)) return;
+    if (_userScrollback?.sessionId == sessionId) {
+      returnToLatestMessages(sessionId);
+      _userScrollback = null;
+    }
 
     final wasVisible = _visibleSessionId == sessionId;
     if (wasVisible) {

@@ -106,10 +106,11 @@ extension SyncSocket on Sync {
       ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
     // Restore sessions and settings in parallel — they are independent
     // MMKV reads and running them sequentially adds ~200ms to cold start.
-    late final Settings restoredSettings;
     await Future.wait([
       _restoreSessionsCache(),
-      MMKVStorage().getSettings().then((s) => restoredSettings = s),
+      settingsManager!.restoreSettings(
+        MessageOutbox.ownerScope(accountId: anonID, serverUrl: getServerUrl()),
+      ),
     ]);
     if (runtimeGeneration != _runtimeGeneration) return;
 
@@ -119,7 +120,7 @@ extension SyncSocket on Sync {
     // (which calls loadFromSync → reads _settingsSnapshot) and
     // _initializeTheme() (which loads from MMKV).  If checkAuth wins,
     // the Riverpod state briefly reverts to Settings() defaults.
-    settingsManager?.settingsSnapshot = restoredSettings;
+    // SettingsManager restored the scoped snapshot and unsent delta together.
 
     // Warm cached messages only for the most recent sessions.  Restoring all
     // 200 cached sessions does synchronous MMKV reads/jsonDecode work on the
@@ -211,6 +212,10 @@ extension SyncSocket on Sync {
     // Configure and restore the message outbox after sync is ready so
     // the encryption context is available for re-sends.
     messageOutbox.configure(
+      ownerScope: MessageOutbox.ownerScope(
+        accountId: anonID,
+        serverUrl: serverUrl,
+      ),
       deliver: _deliverOutboxEntry,
       onStatusChanged: (sessionId, localId, status) {
         _updateMessageSendStatus(sessionId, localId, status);
@@ -219,6 +224,7 @@ extension SyncSocket on Sync {
     );
     unawaited(
       messageOutbox.restoreAndFlush().then((_) {
+        if (runtimeGeneration != _runtimeGeneration) return;
         // The encrypted outbox can survive even when an Android MMKV cache
         // worker write did not. Its localIds were still minted by this client
         // in an earlier process lifetime, so seed them before an async status
@@ -581,6 +587,20 @@ extension SyncSocket on Sync {
   /// 20 back-to-back isolate spawns on the UI isolate. Coalescing to one
   /// write per 500 ms window matches [_scheduleSaveSeq]; `shutdown()` still
   /// flushes the cursor map synchronously, so nothing is lost.
+  Map<String, int> _firstLoadedSeqForPersistence() {
+    final cursors = Map<String, int>.of(_sessionFirstLoadedSeq);
+    final scrollback = _userScrollback;
+    if (scrollback != null) {
+      final boundary = _latestResidentHistoryBoundary(scrollback.sessionId);
+      if (boundary == null) {
+        cursors.remove(scrollback.sessionId);
+      } else {
+        cursors[scrollback.sessionId] = boundary;
+      }
+    }
+    return cursors;
+  }
+
   void _scheduleSaveFirstLoadedSeq() {
     if (_saveFirstLoadedSeqQueued) return;
     _saveFirstLoadedSeqQueued = true;
@@ -594,7 +614,7 @@ extension SyncSocket on Sync {
       _saveFirstLoadedSeqQueued = false;
       unawaited(
         MMKVStorage().saveSessionFirstLoadedSeqAsync(
-          Map.unmodifiable(_sessionFirstLoadedSeq),
+          Map.unmodifiable(_firstLoadedSeqForPersistence()),
         ),
       );
     });
@@ -629,7 +649,7 @@ extension SyncSocket on Sync {
       () {
         _saveMsgsDebounceTimers.remove(sessionId);
         _saveMsgsFirstScheduledAtMs.remove(sessionId);
-        final msgs = _sessionMessages[sessionId];
+        final msgs = _latestResidentMessages(sessionId);
         if (msgs != null) {
           // Persist all messages including sidechain entries.  The
           // sidechain grouper runs on restore
@@ -686,8 +706,16 @@ extension SyncSocket on Sync {
     }
     _saveMsgsDebounceTimers.clear();
     _saveMsgsFirstScheduledAtMs.clear();
-    return MessageCacheService().flushPendingMessagesInBackground(
+    final snapshots = Map<String, List<Map<String, dynamic>>>.of(
       _sessionMessages,
+    );
+    final scrollback = _userScrollback;
+    if (scrollback != null) {
+      final latest = _latestResidentMessages(scrollback.sessionId);
+      if (latest != null) snapshots[scrollback.sessionId] = latest;
+    }
+    return MessageCacheService().flushPendingMessagesInBackground(
+      snapshots,
       additionalSessionIds: timerSessionIds,
       latestRevisions: _sessionMessagesRevision,
     );
@@ -1232,7 +1260,11 @@ extension SyncSocket on Sync {
         continue;
       }
       try {
-        final cached = await MessageCacheService().getMessagesAsync(sessionId);
+        final cached = await MessageCacheService().getMessagesAsync(
+          sessionId,
+          isCurrent: () =>
+              runtimeGeneration == _runtimeGeneration && isInitialized,
+        );
         // Fence the cache continuation: the runtime may have been reset
         // while the cache read was in flight. Applying the stale snapshot
         // now would overwrite the new runtime's live message rows and

@@ -837,6 +837,25 @@ extension SyncMessagingSend on Sync {
     var outcome = 'unknown';
     var ready = false;
     try {
+      await messageOutbox.prepareDelivery();
+      if (runtimeIsStale()) return;
+      if (messageOutbox.hasPendingHead(
+        targetSessionId,
+        excludingLocalId: localId,
+      )) {
+        // Finish this foreground Future at the durable enqueue boundary.
+        // The existing head owns all network attempts until sent/dead-lettered.
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
+        );
+        outcome = 'queued_behind_head';
+        await transaction.finish(status: const SpanStatus.cancelled());
+        return;
+      }
       if (InvalidateSync.isBackgrounded) {
         logger.info(
           '[sendMessage] app backgrounded before delivery; '
@@ -1612,6 +1631,16 @@ extension SyncMessagingSend on Sync {
     }
 
     final session = _sessions[entry.sessionId];
+    if (session != null) {
+      try {
+        _checkProcessScopedSendTarget(entry.sessionId, session);
+      } on StateError {
+        return const OutboxDeliveryFailure(
+          OutboxFailureClass.permanent,
+          'session_gone',
+        );
+      }
+    }
     final lifecycle = session?.effectiveLifecycleState?.toLowerCase();
     if (lifecycle == 'starting' || lifecycle == 'connecting') {
       logger.info(
@@ -1823,10 +1852,7 @@ extension SyncMessagingSend on Sync {
       final currentStatus = msgs[firstIdx]['sendStatus'] as String?;
       // Server acknowledgement is terminal. A delayed retry timer or outbox
       // status callback must never regress a confirmed row to pending/failed.
-      final serverId = msgs[firstIdx]['id'];
-      final persisted =
-          serverId is String && serverId.isNotEmpty && serverId != localId;
-      if (currentStatus == 'sent' && status != 'sent' && persisted) return;
+      if (currentStatus == 'sent' && status != 'sent') return;
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }
@@ -1920,9 +1946,10 @@ extension SyncMessagingSend on Sync {
     void apply(String localId, String status) {
       final idx = msgs.indexWhere((m) => _matchesLocalId(m, localId));
       if (idx == -1) return;
-      if (msgs[idx]['sendStatus'] == status) return;
-      msgs[idx] = {...msgs[idx], 'sendStatus': status};
-      changed++;
+      final previous = msgs[idx]['sendStatus'];
+      if (previous == status) return;
+      _updateMessageSendStatus(sessionId, localId, status);
+      if (msgs[idx]['sendStatus'] != previous) changed++;
     }
 
     for (final entry in messageOutbox.entries) {
@@ -1977,8 +2004,20 @@ extension SyncMessagingSend on Sync {
   Future<MessageRetryResult> retryFailedMessage(
     String sessionId,
     String localId,
-  ) async {
+  ) {
     final runtimeGeneration = _runtimeGeneration;
+    return messageOutbox.serialize(
+      sessionId,
+      () =>
+          _retryFailedMessageSerialized(sessionId, localId, runtimeGeneration),
+    );
+  }
+
+  Future<MessageRetryResult> _retryFailedMessageSerialized(
+    String sessionId,
+    String localId,
+    int runtimeGeneration,
+  ) async {
     void checkRuntime() {
       if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
         throw StateError('Retry cancelled by runtime reset');
@@ -1986,6 +2025,8 @@ extension SyncMessagingSend on Sync {
     }
 
     checkRuntime();
+    final session = _sessions[sessionId];
+    if (session != null) _checkProcessScopedSendTarget(sessionId, session);
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
       if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {

@@ -1,5 +1,12 @@
 ## Testing
 
+Run tests only in CI. Required quality lanes exercise native hot paths with
+`HAPPY_REQUIRE_NATIVE=true`, the pinned Go checkout with
+`HAPPY_REQUIRE_CLI_GO=true`, and browser durability contracts in Chrome.
+Missing prerequisites fail these lanes; fallback-only runs are not substitutes.
+The private Go checkout needs `HAPPY_CLI_GO_READ_TOKEN` with read-only contents
+access. Update the immutable pin only after reviewing source and fixtures.
+
 **Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (29 files, 22 of them `*_e2e_test.dart`). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers, plus replay fixtures under `test/integration/jsonl_replay/`.
 
 **Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, loads the app's Inter font, and registers the MMKV test fake.

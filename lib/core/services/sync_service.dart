@@ -586,6 +586,12 @@ what you have, you must use the options mode.
   /// session is deleted.
   final Set<String> _sessionsHistoryFullyLoaded = {};
 
+  /// Only the visible chat retains a bounded user-requested older window.
+  /// Its cursor is independent of automatic/orphan history coverage. The
+  /// optional gap marks middle rows evicted between scrollback and live tail.
+  ({String sessionId, int runtimeGeneration, int boundary, int? gapBeforeSeq})?
+  _userScrollback;
+
   /// Sessions whose in-memory message window has ever dropped rows to the
   /// newest-N trim in `_upsertSessionMessages`.
   ///
@@ -1875,7 +1881,8 @@ what you have, you must use the options mode.
   /// Returns true when there are older messages available for [sessionId]
   /// that have not yet been loaded.
   bool hasOlderMessages(String sessionId) {
-    final firstLoaded = _sessionFirstLoadedSeq[sessionId];
+    final firstLoaded =
+        _userHistoryBoundary(sessionId) ?? _sessionFirstLoadedSeq[sessionId];
     return firstLoaded != null && firstLoaded > 1;
   }
 
@@ -2268,13 +2275,22 @@ what you have, you must use the options mode.
   /// previously drifted apart, leaving three of them with `maxRetries: 0`
   /// — i.e. no recovery layer at all, since the page requests also opt out
   /// of the HTTP retry interceptor. See [_messagesSyncMaxRetries].
-  InvalidateSync _createMessagesSync(String sessionId) => InvalidateSync(
-    () => fetchMessages(sessionId),
-    minInterval: _messagesSyncMinInterval,
-    name: 'fetchMessages',
-    onRunningChanged: _onSyncRunningChanged,
-    maxRetries: _messagesSyncMaxRetries,
-  );
+  InvalidateSync _createMessagesSync(String sessionId) {
+    final generation = _runtimeGeneration;
+    return InvalidateSync(
+      () async {
+        if (generation != _runtimeGeneration) return;
+        await fetchMessages(sessionId);
+      },
+      minInterval: _messagesSyncMinInterval,
+      name: 'fetchMessages',
+      onRunningChanged: (name, isRunning) {
+        if (generation != _runtimeGeneration) return;
+        _onSyncRunningChanged(name, isRunning);
+      },
+      maxRetries: _messagesSyncMaxRetries,
+    );
+  }
 
   /// Extra cooldown for visible no-embed probes when the cursor has not
   /// advanced since the previous probe.

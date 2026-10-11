@@ -16,7 +16,8 @@ suppressing the per-commit Android release.
 | Build iOS | Compile an unsigned release-mode iOS app |
 | Test | 10 main / 15 other duration-balanced test shards |
 | Upload Coverage | Merge shard coverage and upload it to Codecov |
-| Quality Gate | Combine analyze, codegen, iOS, test, and Rust results |
+| Native / Go / Browser Contracts | Require native hot paths, pinned Go contracts, and Chrome durability |
+| Quality Gate | Combine analysis, codegen, iOS, tests, Rust, and contract results |
 | Build Debug APK | Build non-main and manually requested debug artifacts |
 | Build Release APK | Build and immediately publish the signed production APK |
 | Build Linux x64 + arm64 | Build both Linux desktop bundles on native x64 and ARM64 runners |
@@ -29,8 +30,9 @@ suppressing the per-commit Android release.
 Every push to `main`, including documentation-only pushes, starts a release.
 The APK and Linux jobs start immediately. The release-mode APK creates a
 release named `v<pubspec-version>-<run-number * 100>` as soon as it builds; the
-Linux job attaches its archive afterward. Each push uses a unique workflow
-concurrency group, so GitHub cannot replace an older pending main run when new
+Linux jobs attach each successful architecture/package independently afterward;
+a failed optional archive or peer Flatpak does not suppress available assets.
+Each push uses a unique workflow concurrency group, so GitHub cannot replace an older pending main run when new
 commits arrive. Pull requests still cancel superseded runs, and Pages deploys
 are latest-wins.
 
@@ -79,7 +81,13 @@ bounded to 8,000 characters. Logged
 If the process exits without an error event, inspect the step log for
 compilation errors or termination. Reporter regression checks run in CI.
 
-Full Flutter test runs must run in CI, not locally.
+Full Flutter test runs must run in CI, not locally. Native contract tests require
+the release Rust library; fallback-only success cannot satisfy that lane. Go
+contracts require the pinned private checkout and `HAPPY_CLI_GO_READ_TOKEN`.
+Missing credentials fail the lane explicitly, including unprovisioned fork PRs.
+Browser durability contracts run with `--platform chrome` and a browser-safe
+nested test configuration. Missing Chrome fails the required lane.
+These contract lanes do not change the independent signed APK release policy.
 
 ## Caching
 
@@ -103,6 +111,7 @@ SHA/build-number APK cache without recompiling.
 | `KEYSTORE_KEY_ALIAS` | Signing key alias |
 | `SENTRY_AUTH_TOKEN` | Native symbols and web source maps |
 | `CODECOV_TOKEN` | Coverage upload |
+| `HAPPY_CLI_GO_READ_TOKEN` | Read-only `contents:read` access to private `happy-cli-go` contract checkout |
 
 ## Manual operations
 

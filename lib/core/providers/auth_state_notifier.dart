@@ -66,6 +66,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
   bool _reauthCheckInFlight = false;
   final _transitionEpoch = AuthTransitionEpoch();
   Future<void> _transitionTail = Future<void>.value();
+  int _confirmationGeneration = 0;
+  int get authTransitionGeneration => _confirmationGeneration;
 
   @override
   AuthState build() {
@@ -107,6 +109,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
   /// screen and throws away the composer's staged input. The state only
   /// changes once the verification has a verdict.
   Future<void> _verifyAfterRejection() {
+    _confirmationGeneration++;
     final transition = _transitionEpoch.begin();
     return _enqueueAuthTransition(
       () => _runVerificationAfterRejection(transition),
@@ -139,6 +142,12 @@ class AuthStateNotifier extends Notifier<AuthState> {
     } catch (e, stack) {
       if (!_transitionEpoch.isCurrent(transition)) return;
       logger.error('AuthStateNotifier: re-auth verification failed', e, stack);
+      if (_authService.cleanupPending) {
+        await syncShutdown();
+        if (!_transitionEpoch.isCurrent(transition)) return;
+        AppLifecycleService.clearAll(ref);
+        state = AuthState.error;
+      }
       unawaited(Sentry.captureException(e, stackTrace: stack));
     } finally {
       _reauthCheckInFlight = false;
@@ -161,6 +170,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
   /// whatever screen the user is on. The state then only changes once the
   /// check has a verdict.
   Future<void> checkAuth({bool showProgress = true}) {
+    _confirmationGeneration++;
     final transition = _transitionEpoch.begin();
     if (showProgress) {
       state = AuthState.authenticating;
@@ -172,6 +182,10 @@ class AuthStateNotifier extends Notifier<AuthState> {
     if (!_transitionEpoch.isCurrent(transition)) return;
     try {
       logger.info('AuthStateNotifier: checking stored credentials');
+      if (_authService.cleanupPending) {
+        state = AuthState.error;
+        return;
+      }
       final credentials = await TokenStorage().getCredentials();
       if (!_transitionEpoch.isCurrent(transition)) return;
       final isAuth = credentials != null;
@@ -310,14 +324,22 @@ class AuthStateNotifier extends Notifier<AuthState> {
   }
 
   Future<void> signOut() {
+    _authService.invalidateLinkingApprovals();
+    _confirmationGeneration++;
     _transitionEpoch.invalidate();
     return _enqueueAuthTransition(() async {
       await syncShutdown();
-      await _authService.signOut();
-      ref.read(pendingLinkRequestProvider.notifier).clear();
-      AppLifecycleService.clearAll(ref);
-      state = AuthState.unauthenticated;
-      Sentry.configureScope((scope) => scope.setUser(null));
+      try {
+        await _authService.signOut();
+        state = AuthState.unauthenticated;
+      } catch (_) {
+        state = AuthState.error;
+        rethrow;
+      } finally {
+        ref.read(pendingLinkRequestProvider.notifier).clear();
+        AppLifecycleService.clearAll(ref);
+        Sentry.configureScope((scope) => scope.setUser(null));
+      }
     });
   }
 }

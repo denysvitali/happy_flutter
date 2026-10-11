@@ -199,7 +199,7 @@ extension SyncLifecycle on Sync {
     _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     MMKVStorage().saveSessionFirstLoadedSeq(
-      Map.unmodifiable(_sessionFirstLoadedSeq),
+      Map.unmodifiable(_firstLoadedSeqForPersistence()),
     );
     _persistSessionsCache(durable: true);
 
@@ -1015,6 +1015,7 @@ extension SyncLifecycle on Sync {
     // from the old account observes a stale generation and cannot resurrect
     // sessions, machines, or readiness after logout.
     _runtimeGeneration++;
+    SettingsStorage().fenceAccountOperations();
     _clearCodexModelsCache();
     _clearMessageStreams();
     _deferredResumeInvalidationTimer?.cancel();
@@ -1100,7 +1101,7 @@ extension SyncLifecycle on Sync {
     _saveFirstLoadedSeqQueued = false;
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     MMKVStorage().saveSessionFirstLoadedSeq(
-      Map.unmodifiable(_sessionFirstLoadedSeq),
+      Map.unmodifiable(_firstLoadedSeqForPersistence()),
     );
     _persistSessionsCache(durable: true);
 
@@ -1120,6 +1121,9 @@ extension SyncLifecycle on Sync {
     _sessionLastSeq.clear();
     MMKVStorage().clearSessionLastSeq();
     _sessionFirstLoadedSeq.clear();
+    _userScrollback = null;
+    _sessionsHistoryFullyLoaded.clear();
+    _sessionsHistoryTrimmed.clear();
     _olderHistoryPageSizeLimits.clear();
     _olderFetchNoProgress.clear();
     MMKVStorage().clearSessionFirstLoadedSeq();

@@ -51,7 +51,9 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   models the running agent publishes in `metadata.primeagentModels`. A pick
   travels in the next message's `meta.model`; a running session is never
   respawned for a model or profile change, because its conversation cannot be
-  resumed. New sessions do not inherit the global last-used model.
+  resumed. Stopped, archived, or errored sessions require a new conversation;
+  sends and retries must never restore them. New sessions do not inherit the
+  global last-used model.
 
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
@@ -108,7 +110,14 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   Failed switches preserve a failed row and its `localId`; Retry must apply
   the pending configuration before queuing delivery to the session.
 - **Per-session sends are FIFO** — foreground sends and outbox retries share
-  one serialized delivery lane; confirmed `sent` state is monotonic.
+  one serialized delivery lane; pending heads retain priority across backoff.
+  Confirmed `sent` state is monotonic. Account/server buckets never auto-adopt
+  legacy ownerless entries; retain and count them pending explicit recovery.
+- **Explicit scrollback stays bounded** — retain the older window and live tail
+  with a visible unloaded-history gap. Persist only the contiguous latest tail
+  and its cursor, including retired-runtime shutdown flushes. Preserve full
+  wire-sequence display groups; an indivisible oversize envelope fails pagination
+  explicitly without cursor advancement or automatic refetch.
 - **Merge fast paths validate the whole batch** — incoming IDs must be unique
   across the resident window and batch; ordering checks use final replacements.
 - **Suspended outboxes stay suspended** — late retry failures must not rearm

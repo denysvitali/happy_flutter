@@ -73,12 +73,24 @@ the global sync status bar reports that app data may be stale. The failure is
 suppressed while retries are pending and clears only after a later successful
 refresh. Do not infer a successful empty catalog from a failed refresh.
 
+Account/server-scoped encrypted settings journals retain the local snapshot and
+unsent deltas. Only acknowledged values are cleared; newer edits remain pending. Credential hydration adds only secure
+keys to live profiles, never replaces current profile configuration.
+
 Settings edits update local state immediately. `SettingsManager` merges edits
 for 2.5 seconds before the server write, with a 6-second maximum wait; an
 explicit sync sends pending values immediately. Suspension cancels those
 timers and resume's settings invalidation sends any retained edits. A sparse
 chat's first tail load may automatically fetch one older page; later older
-pages are requested when the user scrolls.
+pages are requested when the user scrolls. Explicit scrollback has its own
+cursor, separate from orphan-repair coverage. It retains a bounded older window
+and live tail, marks any unloaded middle range, and offers return-to-latest.
+Cache snapshots and persisted cursors describe only the contiguous latest tail;
+leaving the visible chat recenters before clearing scrollback ownership.
+Retain complete display-row groups for each wire sequence and preserve the viewed
+anchor. If a single envelope cannot fit the bounded history window, show an
+explicit pagination failure without advancing the cursor or truncating that
+envelope. Omitted older groups keep the cursor at the first retained sequence.
 
 ## Reconnect Watchdog
 

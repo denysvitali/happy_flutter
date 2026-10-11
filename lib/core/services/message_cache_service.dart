@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter/foundation.dart'
     show compute, kIsWeb, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -51,12 +52,14 @@ class _PreparedCacheWindow {
     required this.messages,
     required this.originalCount,
     required this.hash,
+    required this.encodedJson,
     required this.prepareMs,
   });
 
   final List<Map<String, dynamic>> messages;
   final int originalCount;
-  final int hash;
+  final String hash;
+  final String encodedJson;
   final int prepareMs;
 }
 
@@ -67,16 +70,18 @@ _PreparedCacheWindow _prepareMessageCacheWindow(
   final withoutSynthetics = MessageCacheService.stripOrphanSynthetics(messages);
   final trimmed = MessageCacheService._trimToCacheWindow(withoutSynthetics);
   final sanitized = trimmed.map(_sanitizeCacheMessageTree).toList();
+  final encodedJson = jsonEncode(sanitized);
   return _PreparedCacheWindow(
     messages: sanitized,
     originalCount: messages.length,
-    hash: MessageCacheService._computeCacheWindowHash(sanitized),
+    hash: MessageCacheService._hashEncodedCacheWindow(encodedJson),
+    encodedJson: encodedJson,
     prepareMs: prepareWatch.elapsedMilliseconds,
   );
 }
 
 /// Chunked twin of [_prepareMessageCacheWindow] for the web workers:
-/// identical output, but the sanitize and hash loops yield to the event
+/// identical output, but the sanitize and encode loop yields to the event
 /// loop every [_cacheWorkerChunkMessages] rows.
 Future<_PreparedCacheWindow> _prepareMessageCacheWindowAsync(
   List<Map<String, dynamic>> messages,
@@ -85,17 +90,20 @@ Future<_PreparedCacheWindow> _prepareMessageCacheWindowAsync(
   final withoutSynthetics = MessageCacheService.stripOrphanSynthetics(messages);
   final trimmed = MessageCacheService._trimToCacheWindow(withoutSynthetics);
   final sanitized = <Map<String, dynamic>>[];
+  final encodedRows = <String>[];
   for (var i = 0; i < trimmed.length; i++) {
-    sanitized.add(_sanitizeCacheMessageTree(trimmed[i]));
+    final row = _sanitizeCacheMessageTree(trimmed[i]);
+    sanitized.add(row);
+    encodedRows.add(jsonEncode(row));
     await _yieldAfterChunk(i + 1);
   }
-  final hash = await MessageCacheService._computeCacheWindowHashAsync(
-    sanitized,
-  );
+  final encodedJson = '[${encodedRows.join(',')}]';
+  final hash = MessageCacheService._hashEncodedCacheWindow(encodedJson);
   return _PreparedCacheWindow(
     messages: sanitized,
     originalCount: messages.length,
     hash: hash,
+    encodedJson: encodedJson,
     prepareMs: prepareWatch.elapsedMilliseconds,
   );
 }
@@ -158,15 +166,8 @@ Future<Map<String, dynamic>> _prepareAndProtectMessageCacheJson(
         .cast<Map<String, dynamic>>();
     final associatedData = request['associatedData'] as String;
     final prepared = await _prepareMessageCacheWindowAsync(messages);
-    // Encoding row by row and joining is byte-identical to encoding the
-    // whole list at once, but lets the UI breathe between rows on web.
-    final encodedRows = <String>[];
-    for (var i = 0; i < prepared.messages.length; i++) {
-      encodedRows.add(jsonEncode(prepared.messages[i]));
-      await _yieldAfterChunk(i + 1);
-    }
     final protected = protectAtRestPayloadForWorker(
-      '[${encodedRows.join(',')}]',
+      prepared.encodedJson,
       associatedData: associatedData,
       key: protectionKey,
     );
@@ -263,9 +264,9 @@ Future<Map<String, dynamic>> _decodeAndPrepareMessageCacheJson(
       decoded = outerMessages;
     }
 
-    final decodedHash = await MessageCacheService._computeCacheWindowHashAsync(
-      decoded,
-    );
+    final decodedHash = writtenByCurrentPipeline
+        ? null
+        : await MessageCacheService._computeCacheWindowHashAsync(decoded);
     final prepared = await _prepareMessageCacheWindowAsync(decoded);
     return <String, dynamic>{
       'status': 'ok',
@@ -305,6 +306,7 @@ class _PendingCacheSave {
     required this.messages,
     required this.seq,
     required this.revision,
+    this.isCurrent,
   });
 
   final List<Map<String, dynamic>> messages;
@@ -314,6 +316,7 @@ class _PendingCacheSave {
   /// fresher data (e.g. the synchronous suspend flush).
   final int seq;
   final int? revision;
+  final bool Function()? isCurrent;
   final Completer<void> completer = Completer<void>();
   final Stopwatch queueWatch = Stopwatch()..start();
 
@@ -435,7 +438,7 @@ class MessageCacheService {
 
   /// Per-session content hash of the last persisted tail. Used to skip
   /// redundant MMKV writes when the message list hasn't changed.
-  final Map<String, int> _lastSavedHash = {};
+  final Map<String, String> _lastSavedHash = {};
 
   /// Latest queued snapshot per session, awaiting background encode.
   final Map<String, _PendingCacheSave> _pendingSaves = {};
@@ -488,7 +491,11 @@ class MessageCacheService {
   /// MMKV returns the raw encoded string, then JSON parsing, base64, AES-GCM,
   /// nested cleanup, trimming, and hashing run together in one worker. The
   /// returned bounded message graph is the only large object copied back.
-  Future<List<Map<String, dynamic>>> getMessagesAsync(String sessionId) async {
+  /// [isCurrent] fences read repairs as well as results after runtime reset.
+  Future<List<Map<String, dynamic>>> getMessagesAsync(
+    String sessionId, {
+    bool Function()? isCurrent,
+  }) async {
     final stopwatch = Stopwatch()..start();
     final span = OpenTelemetryService().startTrace(
       'cache.messages.read',
@@ -496,7 +503,14 @@ class MessageCacheService {
     );
     var outcome = 'miss';
     var messages = <Map<String, dynamic>>[];
+    bool stale() {
+      if (isCurrent?.call() != false) return false;
+      outcome = 'stale_runtime';
+      return true;
+    }
+
     try {
+      if (stale()) return messages;
       final nativeWorkerRootDir = !kIsWeb && identical(_storage, MMKVStorage())
           ? _storage.nativeWorkerRootDir
           : null;
@@ -504,11 +518,13 @@ class MessageCacheService {
       String? raw;
       if (!useNativeWorkerStorage) {
         raw = await _storage.getSessionMessagesEncodedAsync(sessionId);
+        if (stale()) return messages;
       }
       if (!useNativeWorkerStorage && raw == null) {
         // Test fakes and legacy storage adapters may only implement the
         // decoded API. Production native/web implementations provide raw.
         final fallback = await _storage.getSessionMessagesAsync(sessionId);
+        if (stale()) return messages;
         if (fallback.isNotEmpty) {
           messages = _processCachedMessages(
             sessionId,
@@ -524,6 +540,7 @@ class MessageCacheService {
       if (!_protection.isReady) {
         try {
           await _protection.initialize();
+          if (stale()) return messages;
         } catch (_) {
           outcome = 'key_unavailable';
           return messages;
@@ -537,6 +554,7 @@ class MessageCacheService {
         'associatedData': _cacheAssociatedData(sessionId),
         'protectionKey': _protection.copyKeyForWorker(),
       });
+      if (stale()) return messages;
       outcome = result['status'] as String? ?? 'malformed';
       if (outcome != 'ok') {
         if (outcome == 'malformed' || outcome == 'authentication_failed') {
@@ -547,7 +565,7 @@ class MessageCacheService {
 
       messages = (result['messages'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
-      final hash = result['hash'] as int;
+      final hash = result['hash'] as String;
       final storedWasProtected = result['storedWasProtected'] as bool;
       final needsRewrite = result['needsRewrite'] as bool;
       if (messages.isNotEmpty && kIsWeb) {
@@ -555,7 +573,7 @@ class MessageCacheService {
       }
       if (needsRewrite || !storedWasProtected) {
         _lastSavedHash.remove(sessionId);
-        unawaited(saveMessagesAsync(sessionId, messages));
+        unawaited(saveMessagesAsync(sessionId, messages, isCurrent: isCurrent));
       } else if (messages.isNotEmpty) {
         _lastSavedHash[sessionId] = hash;
       }
@@ -799,6 +817,7 @@ class MessageCacheService {
     // synchronous snapshot must establish its own repair marker in that race;
     // reading storage instead could read the worker's stale value.
     if (_lastSavedHash[sessionId] == prepared.hash &&
+        (revision == null || _committedRevision[sessionId] == revision) &&
         !_inFlightSaves.containsKey(sessionId)) {
       _committedSeq[sessionId] = seq;
       if (revision != null) _committedRevision[sessionId] = revision;
@@ -810,7 +829,13 @@ class MessageCacheService {
 
     final writeWatch = Stopwatch()..start();
     try {
-      if (!_writeProtectedCache(sessionId, prepared.messages)) return;
+      if (!_writeProtectedCache(
+        sessionId,
+        prepared.messages,
+        encodedJson: prepared.encodedJson,
+      )) {
+        return;
+      }
       _commitWrite(
         sessionId,
         hash: prepared.hash,
@@ -835,7 +860,9 @@ class MessageCacheService {
     String sessionId,
     List<Map<String, dynamic>> messages, {
     int? revision,
+    bool Function()? isCurrent,
   }) {
+    if (isCurrent?.call() == false) return Future<void>.value();
     if (revision != null && _committedRevision[sessionId] == revision) {
       OpenTelemetryService().recordCount(
         'app.cache.messages.skipped',
@@ -857,6 +884,7 @@ class MessageCacheService {
       messages: boundedMessages,
       seq: ++_saveSeq,
       revision: revision,
+      isCurrent: isCurrent,
     );
 
     // Latest snapshot wins: the superseded one is resolved immediately
@@ -953,6 +981,7 @@ class MessageCacheService {
     final queueMs = save.queueWatch.elapsedMilliseconds;
     final workerWatch = Stopwatch()..start();
     try {
+      if (save.isCurrent?.call() == false) return;
       if (!_protection.isReady) {
         try {
           await _protection.initialize();
@@ -964,6 +993,7 @@ class MessageCacheService {
           return;
         }
       }
+      if (save.isCurrent?.call() == false) return;
       final protectionKey = _protection.copyKeyForWorker();
       if (protectionKey == null) {
         logger.warning(
@@ -988,14 +1018,15 @@ class MessageCacheService {
       // A newer snapshot arrived, or a synchronous flush / clear already
       // wrote fresher state while we were encoding — drop the stale
       // write instead of clobbering it.
-      if (_pendingSaves.containsKey(sessionId) ||
+      if (save.isCurrent?.call() == false ||
+          _pendingSaves.containsKey(sessionId) ||
           (_committedSeq[sessionId] ?? 0) > save.seq) {
         return;
       }
-      final hash = result['hash'] as int;
+      final hash = result['hash'] as String;
       final prepareMs = result['prepareMs'] as int;
       final encodeMs = workerMs > prepareMs ? workerMs - prepareMs : 0;
-      if (_lastSavedHash[sessionId] == hash) {
+      if (save.revision == null && _lastSavedHash[sessionId] == hash) {
         _commitWrite(
           sessionId,
           hash: hash,
@@ -1016,12 +1047,17 @@ class MessageCacheService {
       var writeMs = 0;
       var nativeWorkerWriteSucceeded = false;
       final workerWriteOverride = debugNativeWorkerWrite;
+      // Runtime-scoped read repairs commit through the main handle, where
+      // the callback check and write cannot be separated by an await. The
+      // preparation/encryption still runs off-isolate; a native write could
+      // otherwise finish after logout with no way to revoke its payload.
       final useNativeWorkerStorage =
-          workerWriteOverride != null ||
-          (!kIsWeb &&
-              identical(_storage, MMKVStorage()) &&
-              _storage.nativeWorkerRootDir != null &&
-              !_workerStorageUnavailable);
+          save.isCurrent == null &&
+          (workerWriteOverride != null ||
+              (!kIsWeb &&
+                  identical(_storage, MMKVStorage()) &&
+                  _storage.nativeWorkerRootDir != null &&
+                  !_workerStorageUnavailable));
       if (useNativeWorkerStorage) {
         final writeSucceeded = workerWriteOverride != null
             ? await workerWriteOverride(sessionId, marker)
@@ -1104,7 +1140,7 @@ class MessageCacheService {
 
   void _commitWrite(
     String sessionId, {
-    required int hash,
+    required String hash,
     required int seq,
     int? revision,
   }) {
@@ -1331,17 +1367,26 @@ class MessageCacheService {
 
   bool _writeProtectedCache(
     String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) => MainIsolateStallTracker.instance.track(
+    List<Map<String, dynamic>> messages, {
+    String? encodedJson,
+  }) => MainIsolateStallTracker.instance.track(
     'message_cache.sync_write',
-    () => _writeProtectedCacheUntracked(sessionId, messages),
+    () => _writeProtectedCacheUntracked(
+      sessionId,
+      messages,
+      encodedJson: encodedJson,
+    ),
   );
 
   bool _writeProtectedCacheUntracked(
     String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) {
-    final marker = _protectedCacheMarker(sessionId, jsonEncode(messages));
+    List<Map<String, dynamic>> messages, {
+    String? encodedJson,
+  }) {
+    final marker = _protectedCacheMarker(
+      sessionId,
+      encodedJson ?? jsonEncode(messages),
+    );
     if (marker == null) {
       logger.warning(
         '[MessageCache] Device protection key unavailable; '
@@ -1378,104 +1423,26 @@ class MessageCacheService {
     _committedSeq[sessionId] = ++_saveSeq;
   }
 
-  /// Compute a lightweight hash of the persisted cache window.
-  static int _computeCacheWindowHash(List<Map<String, dynamic>> messages) {
-    var hash = messages.length;
-    for (final m in messages) {
-      hash = _hashCacheWindowRow(hash, m);
-    }
-    return hash;
-  }
+  /// Fingerprint every byte of the serialized persisted shape. Reuse the
+  /// prepared JSON for encryption so worker saves encode each row only once.
+  static String _hashEncodedCacheWindow(String encodedJson) =>
+      sha256.convert(utf8.encode(encodedJson)).toString();
 
-  /// Chunked twin of [_computeCacheWindowHash] for the web workers.
-  static Future<int> _computeCacheWindowHashAsync(
+  static String _computeCacheWindowHash(List<Map<String, dynamic>> messages) =>
+      _hashEncodedCacheWindow(jsonEncode(messages));
+
+  /// Row-wise encoding is byte-identical to encoding the whole list, but
+  /// yields between chunks on web just like cache preparation.
+  static Future<String> _computeCacheWindowHashAsync(
     List<Map<String, dynamic>> messages,
   ) async {
-    var hash = messages.length;
+    final encodedRows = <String>[];
     for (var i = 0; i < messages.length; i++) {
-      hash = _hashCacheWindowRow(hash, messages[i]);
+      encodedRows.add(jsonEncode(messages[i]));
       await _yieldAfterChunk(i + 1);
     }
-    return hash;
+    return _hashEncodedCacheWindow('[${encodedRows.join(',')}]');
   }
-
-  static int _hashCacheWindowRow(int hash, Map<String, dynamic> m) {
-    var combined = hash;
-    combined = _combineHash(combined, _contentFingerprint(m['id']));
-    combined = _combineHash(combined, _contentFingerprint(m['seq']));
-    combined = _combineHash(combined, _contentFingerprint(m['state']));
-    combined = _combineHash(combined, _contentFingerprint(m['sendStatus']));
-    return _combineHash(combined, _contentFingerprint(m['content']));
-  }
-
-  /// Bounded fingerprint for message content.
-  ///
-  /// Tool outputs and large assistant responses can be megabytes; hashing
-  /// the full value on every save would dominate the CPU budget.
-  static int _contentFingerprint(Object? content) {
-    return switch (content) {
-      final String text =>
-        text.length <= _cacheContentThreshold
-            ? _hashString(text)
-            : _combineHashes(<int>[
-                text.length,
-                _hashString(text.substring(0, _cacheContentSample)),
-                _hashString(text.substring(text.length - _cacheContentSample)),
-              ]),
-      final List<dynamic> list =>
-        list.length > _cacheCollectionThreshold
-            ? _combineHashes(<int>[
-                list.length,
-                _contentFingerprint(list.firstOrNull),
-                _contentFingerprint(list.lastOrNull),
-              ])
-            : _combineHashes(<int>[
-                list.length,
-                ...list.map(_contentFingerprint),
-              ]),
-      final Map<dynamic, dynamic> map => _fingerprintMap(map),
-      final num number => number.hashCode,
-      final bool value => value ? 1 : 2,
-      null => 0,
-      _ => _hashString(content.toString()),
-    };
-  }
-
-  static int _fingerprintMap(Map<dynamic, dynamic> map) {
-    var hash = map.length;
-    var visited = 0;
-    for (final entry in map.entries) {
-      if (visited >= _cacheCollectionThreshold) break;
-      hash = _combineHash(hash, _contentFingerprint(entry.key));
-      hash = _combineHash(hash, _contentFingerprint(entry.value));
-      visited++;
-    }
-    return hash;
-  }
-
-  static int _hashString(String value) {
-    var hash = value.length;
-    for (final codeUnit in value.codeUnits) {
-      hash = _combineHash(hash, codeUnit);
-    }
-    return hash;
-  }
-
-  static int _combineHashes(Iterable<int> values) {
-    var hash = 0;
-    for (final value in values) {
-      hash = _combineHash(hash, value);
-    }
-    return hash;
-  }
-
-  // Stay within 29 bits so the result is identical on native Dart and web.
-  static int _combineHash(int hash, int value) =>
-      0x1fffffff & (hash * 31 + value);
-
-  static const int _cacheContentThreshold = 256;
-  static const int _cacheContentSample = 128;
-  static const int _cacheCollectionThreshold = 16;
 
   /// Clear cached messages for a session.
   ///

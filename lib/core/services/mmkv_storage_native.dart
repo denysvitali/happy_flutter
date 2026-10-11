@@ -1083,8 +1083,7 @@ class MMKVStorage {
   }
 
   Future<void> saveOutboxEntries(String jsonStr) async {
-    await _ensureInitialized();
-    _mmkv?.encodeString('outbox-entries', jsonStr);
+    await setStringDurable('outbox-entries', jsonStr);
   }
 
   // ─── Generic key-value access ────────────────────────────────────
@@ -1094,6 +1093,27 @@ class MMKVStorage {
 
   /// Write a raw string for an arbitrary key.
   void setString(String key, String value) => _mmkv?.encodeString(key, value);
+
+  /// Awaitable write; encoding errors propagate before synchronous flushing.
+  /// MMKV exposes no result for the flush itself.
+  Future<void> setStringDurable(String key, String value) async {
+    await _ensureInitialized();
+    final mmkv = _mmkv;
+    if (mmkv == null || !mmkv.encodeString(key, value)) {
+      throw StateError('MMKV durable write failed');
+    }
+    mmkv.sync(true);
+  }
+
+  /// Awaitable deletion, synchronously flushed before the caller proceeds.
+  Future<void> removeKeyDurable(String key) async {
+    await _ensureInitialized();
+    final mmkv = _mmkv;
+    if (mmkv == null) throw StateError('MMKV unavailable');
+    mmkv.removeValue(key);
+    mmkv.sync(true);
+    if (mmkv.containsKey(key)) throw StateError('MMKV durable deletion failed');
+  }
 
   /// Read a raw bool for an arbitrary key.
   bool? getBool(String key) => _mmkv?.decodeBool(key);

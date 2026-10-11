@@ -223,7 +223,10 @@ class OfflineDictationService {
 
   Future<void> deleteModel(String modelId) async {}
 
-  Future<void> start({void Function(String text)? onTranscript}) async {
+  Future<void> start({
+    void Function(String text)? onTranscript,
+    bool Function()? shouldContinue,
+  }) async {
     throw const OfflineDictationException(
       'Offline dictation is not supported on this platform',
     );

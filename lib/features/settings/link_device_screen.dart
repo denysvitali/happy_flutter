@@ -105,31 +105,23 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     }
   }
 
-  Future<void> _approveUrl(String url) async {
+  void _stageUrl(String url) {
     if (_isLoading) return;
+    if (AuthService.parseAuthUrl(url) == null) {
+      setState(() {
+        _error = 'Invalid linking URL. Please check the request and try again.';
+        _scanned = false;
+      });
+      return;
+    }
     setState(() {
       _isLoading = true;
       _error = null;
     });
-    try {
-      await AuthService().approveLinkingRequest(url);
-      if (mounted) {
-        context.showSnack(context.l10n.authDeviceLinkedSuccess);
-        if (mounted) safePop<void>(context);
-      }
-    } catch (e, st) {
-      logger.warning('Failed to approve linking request: $e', e, st);
-      if (mounted) {
-        setState(() {
-          _error = _formatError(e);
-          _isLoading = false;
-          _scanned = false;
-        });
-        if (_mode == _LinkMode.scan) {
-          unawaited(_scanController.start());
-        }
-      }
-    }
+    // AuthGate owns the fingerprint review and explicit approval. A scan or
+    // typed URL is only a request, never permission to release key material.
+    ref.read(pendingLinkRequestProvider.notifier).stage(url);
+    safePop<void>(context);
   }
 
   void _onBarcodeDetected(BarcodeCapture capture) {
@@ -138,8 +130,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       final url = barcode.rawValue;
       if (url != null && url.startsWith('happy://')) {
         _scanned = true;
-        unawaited(_scanController.stop());
-        unawaited(_approveUrl(url));
+        _stageUrl(url);
         return;
       }
     }
@@ -153,7 +144,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       });
       return;
     }
-    await _approveUrl(url);
+    _stageUrl(url);
   }
 
   String _formatError(dynamic e) {

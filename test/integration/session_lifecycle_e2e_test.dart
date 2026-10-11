@@ -701,6 +701,89 @@ void main() {
       );
     });
 
+    test(
+      'archived Prime blocks stale online presence and spawn grace',
+      () async {
+        const sessionId = 'archived-prime-process';
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          presence: 'online',
+          machineId: 'machine-1',
+          path: '/project',
+          lifecycleState: 'running',
+          lifecycleStateSince: now,
+        ).copyWith(archived: true);
+        // Launch tracking identifies Prime even before flavor hydration.
+        sync.testRegisterSpawn(sessionId, agent: 'prime-agent');
+        sync.testSetLastEphemeralAt(sessionId, now);
+        var rpcCalled = false;
+        sync.testMachineRPCOverride = (_, __, ___) async {
+          rpcCalled = true;
+          return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+        };
+
+        const localId = 'archived-prime-local-id';
+        await expectLater(
+          sync.sendMessage(sessionId, 'continue', clientLocalId: localId),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('Start a new Prime Agent session'),
+            ),
+          ),
+        );
+        await sync.lastCompleteSendFuture;
+        expect(rpcCalled, isFalse);
+        expect(sync.testAutoRestoreInFlight, isEmpty);
+        final rows = sync.testSessionMessages(sessionId)!;
+        expect(rows, hasLength(1));
+        expect(rows.single['localId'], localId);
+        expect(rows.single['sendStatus'], 'failed');
+      },
+    );
+
+    test('Prime cleartext stopped state overrides healthy metadata', () async {
+      const sessionId = 'cleartext-stopped-prime';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        presence: 'online',
+        machineId: 'machine-1',
+        path: '/project',
+        flavor: 'prime-agent',
+        lifecycleState: 'running',
+        lifecycleStateSince: now,
+      ).copyWith(lifecycleStateCleartext: 'stopped');
+      sync.testSetLastEphemeralAt(sessionId, now);
+      var rpcCalled = false;
+      sync.testMachineRPCOverride = (_, __, ___) async {
+        rpcCalled = true;
+        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+      };
+      await expectLater(
+        sync.sendMessage(sessionId, 'continue', clientLocalId: 'prime-stopped'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Start a new Prime Agent session'),
+          ),
+        ),
+      );
+      await sync.lastCompleteSendFuture;
+      expect(rpcCalled, isFalse);
+      expect(
+        sync.testSessionMessages(sessionId)!.single['localId'],
+        'prime-stopped',
+      );
+      expect(
+        sync.testSessionMessages(sessionId)!.single['sendStatus'],
+        'failed',
+      );
+    });
+
     test('errored session without restore target fails before send', () async {
       const sessionId = 'errored-no-restore-target';
       sync.testSessions[sessionId] = _makeSession(

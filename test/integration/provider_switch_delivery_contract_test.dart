@@ -172,8 +172,142 @@ void main() {
       expect(spawns, isEmpty);
       expect(selections.read(sessionId), isNull);
       expect(http.capturedLocalIds, ['prime-switch', 'prime-default']);
+      // Late echoes may arrive newest first and be repeated. Replace only
+      // their matching localIds; identical text is not message identity.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final echoes = <Map<String, dynamic>>[
+        for (final (localId, seq) in [
+          ('prime-default', 2),
+          ('prime-switch', 1),
+        ])
+          {
+            'id': 'srv-$seq',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': now,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'continue',
+          },
+      ];
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      final rows = sync.testSessionMessages(sessionId)!;
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row['localId']).toSet(), {
+        'prime-switch',
+        'prime-default',
+      });
+      expect(rows.every((row) => row['id'] != row['localId']), isTrue);
     },
   );
+
+  test(
+    'recently launched Prime keeps its process while presence catches up',
+    () async {
+      final session = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = session.copyWith(
+        presence: 'offline',
+        metadata: session.metadata!.copyWith(
+          flavor: 'prime-agent',
+          lifecycleState: 'starting',
+          lifecycleStateSince: 0,
+        ),
+      );
+      sync.testLastEphemeralAt.remove(sessionId);
+      sync.testRegisterSpawn(sessionId, agent: 'prime-agent');
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'prime-starting',
+        modelMode: 'openai-codex/gpt-6-sol',
+      );
+      await sync.lastCompleteSendFuture;
+      expect(spawns, isEmpty);
+      expect(
+        sync.testSessionMessages(sessionId)!.single['localId'],
+        'prime-starting',
+      );
+    },
+  );
+
+  for (final state in [
+    'exited',
+    'stopped',
+    'failed',
+    'error',
+    'archived',
+    'errored',
+    null,
+  ]) {
+    test(
+      'stopped Prime ($state) keeps failed send and retry identity',
+      () async {
+        final session = sync.testSessions[sessionId]!;
+        sync.testSessions[sessionId] = session.copyWith(
+          presence: state == null ? 'offline' : 'online',
+          metadata: session.metadata!.copyWith(
+            flavor: 'prime-agent',
+            lifecycleState: state,
+            lifecycleStateSince: 0,
+          ),
+        );
+        if (state == null) sync.testLastEphemeralAt.remove(sessionId);
+        if (state != null) {
+          // A terminal update must win over both stale online presence and
+          // the grace period for a process that was just launched.
+          sync.testRegisterSpawn(sessionId, agent: 'prime-agent');
+        }
+        if (state == 'errored') {
+          selections.save(
+            sessionId,
+            profileId: 'default',
+            modelMode: 'default',
+          );
+        }
+        final cannotResume = isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Start a new Prime Agent session'),
+        );
+        for (final localId in ['prime-first', 'prime-second']) {
+          await expectLater(
+            sync.sendMessage(sessionId, 'continue', clientLocalId: localId),
+            throwsA(cannotResume),
+          );
+        }
+        await sync.lastCompleteSendFuture;
+        final rows = sync.testSessionMessages(sessionId)!;
+        expect(rows.map((row) => row['localId']), [
+          'prime-first',
+          'prime-second',
+        ]);
+        expect(rows.every((row) => row['sendStatus'] == 'failed'), isTrue);
+        expect(rows.every((row) => row['raw'] is Map<String, dynamic>), isTrue);
+        expect(spawns, isEmpty);
+        expect(http.capturedLocalIds, isEmpty);
+
+        await expectLater(
+          sync.retryFailedMessage(sessionId, 'prime-first'),
+          throwsA(cannotResume),
+        );
+        final afterRetry = sync.testSessionMessages(sessionId)!;
+        expect(afterRetry, hasLength(2));
+        expect(afterRetry.map((row) => row['localId']), [
+          'prime-first',
+          'prime-second',
+        ]);
+        expect(
+          afterRetry.every((row) => row['sendStatus'] == 'failed'),
+          isTrue,
+        );
+        expect(messageOutbox.entries, isEmpty);
+        expect(spawns, isEmpty);
+        expect(http.capturedLocalIds, isEmpty);
+        if (state == 'errored') expect(selections.read(sessionId), isNotNull);
+      },
+    );
+  }
 
   test(
     'Codex speed applies on retry and accepted choices do not respawn',

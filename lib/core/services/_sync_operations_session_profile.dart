@@ -28,11 +28,7 @@ extension SyncSpawnProfileResolution on Sync {
   Future<AIBackendProfile> _hydrateProfileForSpawn(
     AIBackendProfile profile,
   ) async {
-    // Built-in profiles do not have API keys in secure storage and
-    // [hydrateProfileApiKeys] would return null for them. Short-circuit
-    // so we always return a usable profile.
-    final hydrated = await SettingsStorage().hydrateProfileApiKeys(profile.id);
-    return hydrated ?? profile;
+    return SettingsStorage().hydrateKeysForProfile(profile);
   }
 
   Map<String, String> _profileEnvironmentVariables(AIBackendProfile profile) {

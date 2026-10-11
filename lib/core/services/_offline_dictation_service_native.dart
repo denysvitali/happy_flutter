@@ -517,12 +517,20 @@ class OfflineDictationService {
     _setStatusFor(modelId, OfflineSttStatus.notDownloaded);
   }
 
-  Future<void> start({void Function(String text)? onTranscript}) async {
-    if (await _recorder.isRecording()) {
-      return;
-    }
+  int _captureGeneration = 0;
+
+  Future<void> start({
+    void Function(String text)? onTranscript,
+    bool Function()? shouldContinue,
+  }) async {
+    final generation = ++_captureGeneration;
+    bool isCurrent() =>
+        generation == _captureGeneration && (shouldContinue?.call() ?? true);
+    final recording = await _recorder.isRecording();
+    if (!isCurrent() || recording) return;
 
     final hasPermission = await _recorder.hasPermission();
+    if (!isCurrent()) return;
     if (!hasPermission) {
       throw const OfflineDictationException(
         'Microphone permission is required',
@@ -530,7 +538,9 @@ class OfflineDictationService {
     }
 
     const encoder = AudioEncoder.pcm16bits;
-    if (!await _recorder.isEncoderSupported(encoder)) {
+    final supported = await _recorder.isEncoderSupported(encoder);
+    if (!isCurrent()) return;
+    if (!supported) {
       throw const OfflineDictationException(
         'Offline dictation requires PCM recording support',
       );
@@ -544,6 +554,7 @@ class OfflineDictationService {
     // show a "Downloading model…" state while this awaits so the user
     // never records into a model that isn't ready yet.
     await ensureReady();
+    if (!isCurrent()) return;
 
     final stream = await _recorder.startStream(
       const RecordConfig(
@@ -552,6 +563,10 @@ class OfflineDictationService {
         numChannels: 1,
       ),
     );
+    if (!isCurrent()) {
+      await _recorder.cancel();
+      return;
+    }
     _audioSub = stream.listen(
       _handleAudioChunk,
       onError: (Object error, StackTrace stack) {
@@ -596,6 +611,8 @@ class OfflineDictationService {
   }
 
   Future<void> cancel() async {
+    _captureGeneration++;
+    _onTranscript = null;
     _stopLiveTranscription();
     if (await _recorder.isRecording()) {
       await _recorder.cancel();
@@ -629,6 +646,8 @@ class OfflineDictationService {
   }
 
   Future<void> dispose() async {
+    _captureGeneration++;
+    _onTranscript = null;
     _stopLiveTranscription();
     await _audioSub?.cancel();
     await _recorder.dispose();
@@ -690,9 +709,10 @@ class OfflineDictationService {
     }
 
     _isTranscribingLive = true;
+    final generation = _captureGeneration;
     try {
       final text = await _transcribeSamples(_capturedSamples(), _sampleRate);
-      if (_liveTranscriptionTimer == null) {
+      if (generation != _captureGeneration || _liveTranscriptionTimer == null) {
         return;
       }
       if (text.isNotEmpty && text != _lastTranscript) {

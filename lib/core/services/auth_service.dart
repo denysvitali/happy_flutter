@@ -81,6 +81,14 @@ class AuthService {
   final DateTime Function() _now;
   final Future<void> Function(Duration) _delay;
   final Duration _approvalTimeout;
+  bool _cleanupPending = false;
+  int _credentialGeneration = 0;
+
+  void invalidateLinkingApprovals() => _credentialGeneration++;
+
+  bool get cleanupPending =>
+      _cleanupPending ||
+      (_credentials is _TokenCredentialStore && TokenStorage().cleanupPending);
 
   // Pending secret keys for in-progress auth flows (NaCl box, X25519)
   Object? _pendingQRSecretKey;
@@ -289,6 +297,7 @@ class AuthService {
 
   /// Check if user is authenticated.
   Future<bool> isAuthenticated() async {
+    if (cleanupPending) return false;
     return _credentials.isAuthenticated();
   }
 
@@ -302,6 +311,7 @@ class AuthService {
 
   /// Get current authentication state.
   Future<AuthState> getAuthState() async {
+    if (cleanupPending) return AuthState.error;
     final credentials = await _credentials.getCredentials();
     if (credentials == null) {
       _lastAuthFailure = null;
@@ -376,9 +386,46 @@ class AuthService {
     _pendingQRSecretKey = null;
     _disposeKey(_pendingLinkingSecretKey);
     _pendingLinkingSecretKey = null;
+    await _clearAccountCredentials();
+  }
+
+  Future<void> _clearAccountCredentials() async {
+    _credentialGeneration++;
+    _cleanupPending = true;
     _apiClient.clearToken();
-    await _clearApiKeys();
-    await _credentials.removeCredentials();
+    Object? failure;
+    if (_credentials is _TokenCredentialStore) {
+      try {
+        await TokenStorage().beginLogout();
+      } catch (error) {
+        failure = error;
+      }
+    }
+    try {
+      if (_credentials is _TokenCredentialStore) {
+        await SettingsStorage().clearAccountSettings();
+      }
+      await _clearApiKeys();
+    } catch (error) {
+      failure = error;
+    }
+    if (!await _credentials.removeCredentials()) {
+      failure ??= StateError('Credentials could not be deleted');
+    }
+    if (failure != null) {
+      if (_credentials is _TokenCredentialStore) {
+        await TokenStorage().beginLogout();
+      }
+      throw AuthException('Sign-out cleanup failed; retry sign out: $failure');
+    }
+    if (_credentials is _TokenCredentialStore) {
+      try {
+        await TokenStorage().finishLogout();
+      } catch (error) {
+        throw AuthException('Sign-out cleanup failed; retry sign out: $error');
+      }
+    }
+    _cleanupPending = false;
   }
 
   /// Restore account from backup key.
@@ -667,21 +714,21 @@ Timestamp: ${DateTime.now().toIso8601String()}
   }
 
   Future<void> _persistCredentials(AuthCredentials credentials) async {
+    _credentialGeneration++;
     final previous = await _credentials.getCredentials();
     final changedAccountContext =
-        previous != null &&
-        (previous.token != credentials.token ||
-            previous.secret != credentials.secret);
+        previous != null && previous.secret != credentials.secret;
 
-    if (changedAccountContext && sync.isInitialized) {
-      logger.info(
-        'Auth credentials changed; shutting down sync and clearing cached '
-        'encrypted state before reinitialization.',
-      );
-      await syncShutdown();
+    if (cleanupPending) {
+      throw AuthException('Sign-out cleanup is incomplete; retry sign out');
     }
-
-    await _credentials.setCredentials(credentials);
+    if (changedAccountContext) {
+      if (sync.isInitialized) await syncShutdown();
+      await _clearAccountCredentials();
+    }
+    if (!await _credentials.setCredentials(credentials)) {
+      throw AuthException('Unable to store account credentials');
+    }
   }
 
   /// Sign a challenge using Ed25519 detached signature.
@@ -765,7 +812,16 @@ Timestamp: ${DateTime.now().toIso8601String()}
     Uint8List requesterPublicKey, {
     bool isTerminalLink = false,
   }) async {
+    final generation = _credentialGeneration;
+    void requireCurrentAccount() {
+      if (generation != _credentialGeneration || cleanupPending) {
+        throw AuthException('Account changed during linking approval');
+      }
+    }
+
+    requireCurrentAccount();
     final credentials = await _credentials.getCredentials();
+    requireCurrentAccount();
     if (credentials == null) {
       throw AuthException('Not authenticated');
     }
@@ -783,6 +839,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
         '/v1/auth/request/status',
         queryParameters: {'publicKey': publicKeyB64},
       );
+      requireCurrentAccount();
       if (statusResponse.statusCode != 200 ||
           statusResponse.data is! Map<String, dynamic>) {
         throw AuthException('Linking request is missing or expired');
@@ -810,6 +867,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
         responsePayload = await _crypto.encrypt(secret, requesterPublicKey);
       }
 
+      requireCurrentAccount();
       final response = await _apiClient.post(
         '/v1/auth/response',
         data: {
@@ -825,6 +883,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
         requesterPublicKey,
       );
 
+      requireCurrentAccount();
       final response = await _apiClient.post(
         '/v1/auth/account/response',
         data: {
@@ -878,7 +937,8 @@ class _TokenCredentialStore implements AuthCredentialStore {
   @override
   Future<bool> isAuthenticated() => TokenStorage().isAuthenticated();
   @override
-  Future<bool> removeCredentials() => TokenStorage().removeCredentials();
+  Future<bool> removeCredentials() =>
+      TokenStorage().removeCredentials(keepLogoutPending: true);
   @override
   Future<bool> setCredentials(AuthCredentials value) =>
       TokenStorage().setCredentials(value);
@@ -945,5 +1005,10 @@ class _SodiumAuthCrypto implements AuthCrypto {
   }
 }
 
-Future<void> _clearStoredApiKeys() => APIKeyStorage().clearAllAPIKeys();
+Future<void> _clearStoredApiKeys() async {
+  if (!await APIKeyStorage().clearAllAPIKeys()) {
+    throw StateError('Provider keys could not be deleted');
+  }
+}
+
 Future<void> _noopClearApiKeys() async {}

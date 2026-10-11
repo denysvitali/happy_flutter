@@ -307,6 +307,12 @@ class SessionUiState {
 /// screens that already subscribe to `sync.onDataChanged` via
 /// `SyncSubscriptionMixin`).
 class SessionUiStateNotifier extends Notifier<SessionUiState> {
+  // Reload paths suppress equal states before assignment; targeted updates
+  // already prove that an entry changed. Publication must not scan the catalog.
+  @override
+  bool updateShouldNotify(SessionUiState previous, SessionUiState next) =>
+      !identical(previous, next);
+
   int _lastDataChangeCounter = -1;
   int _lastSessionsDomainCounter = -1;
   int _lastMessagesDomainCounter = -1;

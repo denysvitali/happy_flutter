@@ -93,6 +93,12 @@ jobs:
           python3 .github/scripts/select_test_shard.py --check --total-shards 10
           python3 .github/scripts/select_test_shard.py --check --total-shards 15
 
+      - name: Check workflow contracts
+        run: |
+          python3 -m venv /tmp/workflow-contracts
+          /tmp/workflow-contracts/bin/pip install PyYAML==6.0.2
+          /tmp/workflow-contracts/bin/python .github/scripts/check_workflow_contracts.py
+
   codegen:
     name: Verify Generated Code
     runs-on: ubuntu-latest
@@ -276,6 +282,112 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  native-contract:
+    name: Native/Dart compatibility contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
+        with:
+          cache-write: 'false'
+
+      - name: Get dependencies
+        run: mise exec -- flutter pub get
+
+      - name: Build locked native core
+        working-directory: rust/happy_core
+        run: cargo build --release --locked
+
+      - name: Require native compatibility assertions
+        run: |
+          mise exec -- flutter test --no-pub --concurrency=1 \
+            --dart-define=HAPPY_REQUIRE_NATIVE=true \
+            test/encryption/native_at_rest_compat_test.dart \
+            test/encryption/native_json_batch_test.dart \
+            test/services/native_sidechain_planner_test.dart
+
+  cross-repo-contract:
+    name: Pinned happy-cli-go contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAPPY_CLI_GO_PATH: ${{ github.workspace }}/.contract/happy-cli-go
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Require read-only cross-repo credential
+        env:
+          HAPPY_CLI_GO_READ_TOKEN: ${{ secrets.HAPPY_CLI_GO_READ_TOKEN }}
+        run: |
+          if [ -z "$HAPPY_CLI_GO_READ_TOKEN" ]; then
+            echo "::error::Set HAPPY_CLI_GO_READ_TOKEN with contents:read access to happy-cli-go for required contracts."
+            exit 1
+          fi
+
+      # Read source/fixtures only; no Go code or hooks are executed. Keep the
+      # credential out of checkout config and all subsequent Dart test steps.
+      - name: Checkout compatible happy-cli-go revision
+        uses: actions/checkout@v6
+        with:
+          repository: denysvitali/happy-cli-go
+          token: ${{ secrets.HAPPY_CLI_GO_READ_TOKEN }}
+          ref: 307b8f8ae95bc92da8d84088546908f673423587
+          path: .contract/happy-cli-go
+          persist-credentials: false
+
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
+        with:
+          cache-write: 'false'
+
+      - name: Get dependencies
+        run: mise exec -- flutter pub get
+
+      - name: Require cross-repository contracts and fixtures
+        run: |
+          mise exec -- flutter test --no-pub --concurrency=1 \
+            --dart-define=HAPPY_REQUIRE_CLI_GO=true \
+            test/integration/cross_repo_contract_test.dart
+
+  browser-contract:
+    name: Browser durable outbox contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
+        with:
+          platform: web
+          cache-write: 'false'
+
+      - name: Require hosted Chrome
+        run: |
+          CHROME_EXECUTABLE=$(command -v google-chrome)
+          test -x "$CHROME_EXECUTABLE"
+          echo "CHROME_EXECUTABLE=$CHROME_EXECUTABLE" >> "$GITHUB_ENV"
+
+      - name: Get dependencies
+        run: mise exec -- flutter pub get
+
+      - name: Run browser durable outbox contracts
+        run: |
+          mise exec -- flutter test --no-pub --platform chrome \
+            --concurrency=1 test/browser/mmkv_storage_web_test.dart
+
   coverage:
     name: Upload Coverage
     needs: test
@@ -426,7 +538,8 @@ jobs:
 
   quality-gate:
     name: Quality Gate
-    needs: [analyze, build-ios, codegen, test, rust]
+    needs: [analyze, build-ios, codegen, test, rust,
+            native-contract, cross-repo-contract, browser-contract]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -437,12 +550,18 @@ jobs:
           IOS: ${{ needs.build-ios.result }}
           TEST: ${{ needs.test.result }}
           RUST: ${{ needs.rust.result }}
+          NATIVE: ${{ needs.native-contract.result }}
+          CROSS_REPO: ${{ needs.cross-repo-contract.result }}
+          BROWSER: ${{ needs.browser-contract.result }}
         run: |
           test "$RUST" = success
           test "$ANALYZE" = success
           test "$CODEGEN" = success
           test "$IOS" = success
           test "$TEST" = success
+          test "$NATIVE" = success
+          test "$CROSS_REPO" = success
+          test "$BROWSER" = success
 
   build-debug:
     name: Build Debug APK
@@ -983,54 +1102,73 @@ jobs:
           retention-days: 14
 
   attach-linux:
-    name: Attach Linux to GitHub Release
+    name: Publish Linux ${{ matrix.package }} ${{ matrix.architecture }}
     needs: [build-release, build-linux, build-flatpak]
     permissions:
+      actions: read
       contents: write
     runs-on: ubuntu-latest
+    # Aggregate matrix failures must not hide successful peer artifacts.
     if: |
       always() &&
       needs.build-release.result == 'success' &&
-      needs.build-linux.result == 'success' &&
-      needs.build-flatpak.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
        startsWith(github.ref, 'refs/tags/v') ||
        github.ref == 'refs/heads/main')
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: linux
+            architecture: x64
+            extension: tar.gz
+          - package: linux
+            architecture: arm64
+            extension: tar.gz
+          - package: flatpak
+            architecture: x64
+            extension: flatpak
+          - package: flatpak
+            architecture: arm64
+            extension: flatpak
     steps:
-      - name: Download Linux bundles
-        uses: actions/download-artifact@v8
-        with:
-          pattern: >-
-            happy-flutter-linux-*-b${{
-            needs.build-release.outputs.build_number }}
-          path: release-assets
-          merge-multiple: true
-
-      - name: Download Flatpak bundles
-        uses: actions/download-artifact@v8
-        with:
-          pattern: >-
-            happy-flutter-flatpak-*-b${{
-            needs.build-release.outputs.build_number }}
-          path: release-assets
-          merge-multiple: true
-
-      - name: Attach Linux bundles
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.build-release.outputs.release_tag }}
-          name: Happy Flutter ${{ needs.build-release.outputs.release_tag }}
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          files: |
-            release-assets/happy-flutter-linux-x64.tar.gz
-            release-assets/happy-flutter-linux-arm64.tar.gz
-            release-assets/happy-flutter-linux-x64.flatpak
-            release-assets/happy-flutter-linux-arm64.flatpak
+      - name: Find this successful package artifact
+        id: artifact
+        uses: actions/github-script@v8
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME: >-
+            happy-flutter-${{ matrix.package }}-${{ matrix.architecture
+            }}-b${{ needs.build-release.outputs.build_number }}
+        with:
+          script: |
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              {owner: context.repo.owner, repo: context.repo.repo,
+               run_id: context.runId, per_page: 100});
+            const found = artifacts.some(artifact =>
+              artifact.name === process.env.ARTIFACT_NAME && !artifact.expired);
+            core.setOutput('available', String(found));
+            if (!found) core.notice('No successful package artifact to publish');
+
+      - name: Download this package
+        if: steps.artifact.outputs.available == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: >-
+            happy-flutter-${{ matrix.package }}-${{ matrix.architecture
+            }}-b${{ needs.build-release.outputs.build_number }}
+          path: release-assets
+
+      - name: Attach this package to the existing APK release
+        if: steps.artifact.outputs.available == 'true'
+        run: gh release upload "$RELEASE_TAG" "$ASSET_PATH" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-release.outputs.release_tag }}
+          ASSET_PATH: >-
+            release-assets/happy-flutter-linux-${{ matrix.architecture
+            }}.${{ matrix.extension }}
 
   build-web:
     name: Build Web

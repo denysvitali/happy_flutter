@@ -141,10 +141,13 @@ class ArtifactManager {
     required Encryption encryption,
     required InvalidateSync Function() artifactsSyncGetter,
     required void Function(Set<SyncDomain>) onDataChanged,
-  }) : _encryption = encryption,
+    ApiClient? client,
+  }) : _api = client ?? ApiClient(),
+       _encryption = encryption,
        _artifactsSyncGetter = artifactsSyncGetter,
        _onDataChanged = onDataChanged;
 
+  final ApiClient _api;
   final Encryption _encryption;
   final InvalidateSync Function() _artifactsSyncGetter;
   final void Function(Set<SyncDomain>) _onDataChanged;
@@ -152,6 +155,10 @@ class ArtifactManager {
   int _generation = 0;
   final List<DecryptedArtifact> _artifacts = [];
   final Map<String, Uint8List> _artifactDataKeys = {};
+  // Keep the complete header paired with its CAS version, including fields
+  // not exposed by the UI model.
+  final Map<String, ({int version, Map<String, dynamic> header})>
+  _artifactHeaders = {};
 
   /// All artifacts currently held in memory.
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
@@ -164,6 +171,7 @@ class ArtifactManager {
     _generation++;
     _artifacts.clear();
     _artifactDataKeys.clear();
+    _artifactHeaders.clear();
   }
 
   /// Fetch artifacts list from server.
@@ -171,7 +179,7 @@ class ArtifactManager {
     final generation = _generation;
     logger.info('Fetching artifacts...');
     try {
-      final api = ApiClient();
+      final api = _api;
       final response = await api.get('/v1/artifacts');
       if (generation != _generation) return;
       if (!api.isSuccess(response)) {
@@ -184,6 +192,7 @@ class ArtifactManager {
           ? data['artifacts']
           : data;
       if (rawArtifacts is! List) {
+        _artifactHeaders.clear();
         _artifacts.clear();
         return;
       }
@@ -191,6 +200,7 @@ class ArtifactManager {
       // Phase 1: Decrypt artifact data keys on the main thread.
       final keyedArtifacts = <({Artifact artifact, Uint8List key})>[];
       final decryptedArtifacts = <DecryptedArtifact>[];
+      final headers = <String, ({int version, Map<String, dynamic> header})>{};
       for (final raw in rawArtifacts) {
         await Future<void>.delayed(Duration.zero);
         if (generation != _generation) return;
@@ -253,6 +263,12 @@ class ArtifactManager {
           final result = artifactResultById[artifact.id];
           final header = result?.header;
           final body = result?.body;
+          if (header != null) {
+            headers[artifact.id] = (
+              version: artifact.headerVersion,
+              header: header,
+            );
+          }
           decryptedArtifacts.add(
             DecryptedArtifact(
               id: artifact.id,
@@ -273,6 +289,9 @@ class ArtifactManager {
         }
       }
 
+      _artifactHeaders
+        ..clear()
+        ..addAll(headers);
       _artifacts
         ..clear()
         ..addAll(decryptedArtifacts);
@@ -289,7 +308,7 @@ class ArtifactManager {
   Future<DecryptedArtifact?> fetchArtifactWithBody(String id) async {
     final generation = _generation;
     try {
-      final api = ApiClient();
+      final api = _api;
       final response = await api.get('/v1/artifacts/$id');
       if (generation != _generation) return null;
       if (!api.isSuccess(response)) {
@@ -315,6 +334,10 @@ class ArtifactManager {
       return DecryptedArtifact(
         id: artifact.id,
         title: header?['title'] as String?,
+        sessions: (header?['sessions'] as List<dynamic>?)
+            ?.whereType<String>()
+            .toList(),
+        draft: header?['draft'] as bool?,
         body: body?['body'] as String?,
         headerVersion: artifact.headerVersion,
         bodyVersion: artifact.bodyVersion,
@@ -356,7 +379,7 @@ class ArtifactManager {
       body: encryptedBody,
       dataEncryptionKey: encryptedDekB64,
     );
-    final api = ApiClient();
+    final api = _api;
     final response = await api.post('/v1/artifacts', data: request.toJson());
     if (generation != _generation)
       throw StateError('Artifact operation cancelled by runtime reset');
@@ -380,28 +403,47 @@ class ArtifactManager {
       (a) => a.id == id,
       orElse: () => throw StateError('Artifact $id not found in cache'),
     );
+    final cachedHeader = _artifactHeaders[id];
+    if (cachedHeader == null ||
+        cachedHeader.version != existing.headerVersion) {
+      throw StateError('No matching decrypted header for artifact $id');
+    }
     final encryptedHeader = await artifactEncryption.encryptHeader({
+      ...cachedHeader.header,
       'title': title,
     });
-    if (generation != _generation) return;
+    if (generation != _generation) {
+      throw StateError('Artifact operation cancelled by runtime reset');
+    }
     final encryptedBody = await artifactEncryption.encryptBody({
       'body': body ?? '',
     });
-    if (generation != _generation) return;
+    if (generation != _generation) {
+      throw StateError('Artifact operation cancelled by runtime reset');
+    }
     final request = ArtifactUpdateRequest(
       header: encryptedHeader,
       expectedHeaderVersion: existing.headerVersion,
       body: encryptedBody,
       expectedBodyVersion: existing.bodyVersion,
     );
-    final api = ApiClient();
+    final api = _api;
     final response = await api.post(
       '/v1/artifacts/$id',
       data: request.toJson(),
     );
-    if (generation != _generation) return;
+    if (generation != _generation) {
+      throw StateError('Artifact operation cancelled by runtime reset');
+    }
     if (!api.isSuccess(response)) {
       throw StateError('Failed to update artifact: ${response.statusCode}');
+    }
+    final data = response.data;
+    if (data is Map<String, dynamic> &&
+        (data['success'] == false ||
+            (data['error'] is String &&
+                (data['error'] as String).isNotEmpty))) {
+      throw StateError('Artifact update was rejected');
     }
     _artifactsSyncGetter().invalidate();
   }
@@ -409,13 +451,14 @@ class ArtifactManager {
   /// Delete an artifact by ID.
   Future<void> deleteArtifact(String id) async {
     final generation = _generation;
-    final api = ApiClient();
+    final api = _api;
     final response = await api.delete('/v1/artifacts/$id');
     if (generation != _generation) return;
     if (!api.isSuccess(response)) {
       throw StateError('Failed to delete artifact: ${response.statusCode}');
     }
     _artifactDataKeys.remove(id);
+    _artifactHeaders.remove(id);
     _artifacts.removeWhere((a) => a.id == id);
     _onDataChanged({SyncDomain.artifacts});
   }

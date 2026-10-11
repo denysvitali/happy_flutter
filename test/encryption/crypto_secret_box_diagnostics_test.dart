@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/crypto_secret_box.dart';
 
@@ -48,12 +50,11 @@ void main() {
         expect(captured.envelope, DecryptEnvelope.naclSecretBox);
         expect(captured.stage, 'sodium');
         expect(captured.cipherLen, 40);
-        // The fingerprint must not be a substring of the key itself.
         expect(
           captured.keyFp,
-          isNot(contains('A')),
-          reason: 'fingerprint must not contain raw key bytes',
+          base64Encode(sha256.convert(keyB).bytes.sublist(0, 6)),
         );
+        expect(captured.keyFp, isNot(base64Encode(keyB.sublist(0, 6))));
         // First failure for this scope is allowed through.
         expect(outcome.wouldSentry, isTrue);
       },
@@ -160,6 +161,20 @@ void main() {
       );
     });
 
+    test('fingerprints include key bytes beyond the old raw prefix', () {
+      final changedTail = Uint8List.fromList(keyA);
+      changedTail[31] ^= 1;
+      String fingerprint(Uint8List key) =>
+          CryptoSecretBox.simulateDecryptFailureForTest(
+            secretKey: key,
+            cipher: ciphertextEncryptedWithA,
+            stage: 'sodium',
+            reason: 'SodiumException',
+          ).diagnostic.keyFp;
+
+      expect(fingerprint(changedTail), isNot(fingerprint(keyA)));
+    });
+
     test(
       'envelope detection prefers aes-v0 for short, 0x00-prefixed bundles',
       () {
@@ -200,6 +215,7 @@ void main() {
       final encoded = payload.toString();
       // The raw key bytes encoded as a comma list — must not appear.
       final rawKey = keyA.toString();
+      expect(encoded, isNot(contains(base64Encode(keyA.sublist(0, 6)))));
       expect(
         encoded.contains(rawKey),
         isFalse,

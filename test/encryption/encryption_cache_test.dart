@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/json_text.dart';
 
 void main() {
   group('EncryptionCache', () {
@@ -299,6 +300,40 @@ void main() {
               'residency stays at the ceiling (small overshoot allowed '
               'for a single oversized newest entry)',
         );
+      });
+
+      test('lazy JSON bodies count toward the aggregate message budget', () {
+        const bodyChars = 46000;
+        const entries = 95;
+        for (var i = 1; i <= entries; i++) {
+          final body = JsonText('"${'y' * (bodyChars - 2)}"');
+          cache.setCachedMessage('lazy-$i', _msg(body));
+          if (i == 1) {
+            expect(cache.getStats()['retainedBytes'], bodyChars * 2);
+            expect(cache.getCachedMessage('lazy-$i')!.content, same(body));
+          }
+        }
+
+        final stats = cache.getStats();
+        final expectedEntries =
+            EncryptionCache.messageByteBudget ~/ (bodyChars * 2);
+        expect(stats['messages'], expectedEntries);
+        expect(stats['retainedBytes'], expectedEntries * bodyChars * 2);
+        expect(
+          stats['retainedBytes'],
+          lessThanOrEqualTo(EncryptionCache.messageByteBudget),
+        );
+        expect(cache.getCachedMessage('lazy-1'), isNull);
+        expect(cache.getCachedMessage('lazy-$entries'), isNotNull);
+      });
+
+      test('lazy JSON sizing matches strings without materializing JSON', () {
+        const body = JsonText('{"value":"hello"}');
+        expect(
+          EncryptionCache.estimateJsonBytes(body),
+          EncryptionCache.estimateJsonBytes(body.text),
+        );
+        expect(EncryptionCache.estimateJsonBytes([body]), 16 + body.length * 2);
       });
 
       test('estimateJsonBytes bails out at the limit', () {

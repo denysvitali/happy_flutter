@@ -94,6 +94,21 @@ void main() {
       expect(session.effectiveLifecycleState, 'running');
     });
 
+    for (final flavor in ['har', 'prime-agent']) {
+      test('$flavor cannot restore even with a machine and path', () {
+        final session = sessionWith(
+          cleartext: 'errored',
+          extraMetadata: {
+            'flavor': flavor,
+            'machineId': 'm-1',
+            'path': '/work/repo',
+          },
+        );
+        expect(session.hasLifecycleError, isTrue);
+        expect(session.canAttemptLifecycleRestore, isFalse);
+      });
+    }
+
     test('restore requires error plus machineId and path', () {
       final session = sessionWith(
         cleartext: 'errored',

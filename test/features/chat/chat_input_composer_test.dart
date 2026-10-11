@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/outgoing_image.dart';
+import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/offline_dictation_service.dart';
 import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -25,6 +27,7 @@ Widget _buildComposer({
   ChatAttachmentController? attachmentController,
   FileSuggestionsLoader? onFileSuggestionsRequested,
   MediaQueryData? mediaQueryData,
+  OfflineDictationService? dictationService,
 }) {
   final composer = Scaffold(
     body: Align(
@@ -41,6 +44,10 @@ Widget _buildComposer({
   );
 
   return ProviderScope(
+    overrides: [
+      if (dictationService != null)
+        offlineDictationServiceProvider.overrideWithValue(dictationService),
+    ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -56,6 +63,159 @@ void main() {
 
   setUp(() async {
     await DraftStorage().removeDraft('composer-test');
+  });
+
+  for (final delayed in [false, true]) {
+    testWidgets(
+      'dictation disposal cancels ${delayed ? 'late start' : 'capture'}',
+      (tester) async {
+        final controller = TextEditingController();
+        final service = _FakeDictationService(delayed: delayed);
+        await tester.pumpWidget(
+          _buildComposer(
+            controller: controller,
+            onSend: () {},
+            dictationService: service,
+          ),
+        );
+        await tester.tap(find.byIcon(Icons.mic_none_rounded));
+        await tester.pump();
+        if (!delayed) expect(service.recording, isTrue);
+        await tester.pumpWidget(const SizedBox.shrink());
+        if (delayed) service.startBarrier.complete();
+        await tester.pump();
+        await tester.pump();
+        expect(service.recording, isFalse);
+        expect(service.cancels, greaterThanOrEqualTo(1));
+        service.transcript?.call('late transcript');
+        expect(controller.text, isEmpty);
+        expect(tester.takeException(), isNull);
+        controller.dispose();
+        await service.dispose();
+      },
+    );
+  }
+
+  testWidgets('disposing an idle composer cannot cancel another owner', (
+    tester,
+  ) async {
+    final first = TextEditingController();
+    final second = TextEditingController();
+    final service = _FakeDictationService();
+    Widget composers(bool showSecond) => ProviderScope(
+      overrides: [offlineDictationServiceProvider.overrideWithValue(service)],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Column(
+            children: [
+              ChatInput(
+                key: const ValueKey('owner'),
+                sessionId: 'composer-test',
+                controller: first,
+                onSend: () {},
+              ),
+              if (showSecond)
+                ChatInput(
+                  key: const ValueKey('idle'),
+                  sessionId: 'composer-other',
+                  controller: second,
+                  onSend: () {},
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(composers(true));
+    await tester.tap(find.byIcon(Icons.mic_none_rounded).first);
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.mic_none_rounded));
+    await tester.pump();
+    await tester.pumpWidget(composers(false));
+    await tester.pump();
+    expect(service.recording, isTrue);
+    expect(service.cancels, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(service.recording, isFalse);
+    first.dispose();
+    second.dispose();
+    await service.dispose();
+  });
+
+  testWidgets('dictation handoff waits for the canceled stop to settle', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final service = _FakeDictationService();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        dictationService: service,
+      ),
+    );
+    await tester.tap(find.byIcon(Icons.mic_none_rounded));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await tester.pump();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        sessionId: 'composer-next-session',
+        onSend: () {},
+        dictationService: service,
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.mic_none_rounded));
+    await tester.pump();
+    expect(service.starts, 1);
+    service.stopBarrier.complete('old transcript');
+    await tester.pump();
+    await tester.pump();
+    expect(controller.text, isEmpty);
+    await tester.tap(find.byIcon(Icons.mic_none_rounded));
+    await tester.pump();
+    expect(service.starts, 2);
+    expect(service.recording, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    controller.dispose();
+    await service.dispose();
+  });
+
+  testWidgets('dictation cancels when composer changes session', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final service = _FakeDictationService();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        dictationService: service,
+      ),
+    );
+    await tester.tap(find.byIcon(Icons.mic_none_rounded));
+    await tester.pump();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        sessionId: 'composer-next-session',
+        onSend: () {},
+        dictationService: service,
+      ),
+    );
+    await tester.pump();
+    expect(service.recording, isFalse);
+    service.transcript?.call('outgoing session transcript');
+    expect(controller.text, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+    await service.dispose();
   });
 
   testWidgets('persists the first edit without requiring another keystroke', (
@@ -576,4 +736,45 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });
+}
+
+class _FakeDictationService extends OfflineDictationService {
+  _FakeDictationService({this.delayed = false});
+  final bool delayed;
+  final startBarrier = Completer<void>();
+  bool recording = false;
+  int cancels = 0;
+  int starts = 0;
+  final stopBarrier = Completer<String>();
+  void Function(String)? transcript;
+
+  @override
+  OfflineSttStatus statusFor(String modelId) => OfflineSttStatus.ready;
+
+  @override
+  Future<void> start({
+    void Function(String)? onTranscript,
+    bool Function()? shouldContinue,
+  }) async {
+    starts++;
+    transcript = onTranscript;
+    if (delayed) await startBarrier.future;
+    // Deliberately ignore shouldContinue: cleanup must also handle an
+    // already-open recorder whose start completion arrived after disposal.
+    recording = true;
+  }
+
+  @override
+  Future<String> stopAndTranscribe() => stopBarrier.future;
+
+  @override
+  Future<void> cancel() async {
+    cancels++;
+    recording = false;
+  }
+
+  @override
+  Stream<double> levels({
+    Duration interval = const Duration(milliseconds: 200),
+  }) => const Stream.empty();
 }

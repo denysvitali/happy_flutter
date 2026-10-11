@@ -183,12 +183,14 @@ extension SyncTestHelpers on Sync {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
+    if (_userScrollback?.sessionId == sessionId) _userScrollback = null;
     _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
     _invalidateMessageCaches(sessionId);
   }
 
   @visibleForTesting
   void testClearSessionMessageState(String sessionId) {
+    if (_userScrollback?.sessionId == sessionId) _userScrollback = null;
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
     _saveMsgsFirstScheduledAtMs.remove(sessionId);
@@ -926,6 +928,7 @@ extension SyncTestHelpers on Sync {
   /// Mirrors the per-session fields cleared by `shutdown()`.
   @visibleForTesting
   void testClearAllSessionMessageState() {
+    _userScrollback = null;
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
     _saveSeqFirstScheduledAtMs = null;

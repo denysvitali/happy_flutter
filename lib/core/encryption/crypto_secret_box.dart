@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:meta/meta.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -141,15 +142,11 @@ class CryptoSecretBox {
     );
   }
 
-  /// Short fingerprint of a key — first 8 base64 chars of the leading
-  /// raw bytes — used as a grouping tag.  Does NOT expose the key
-  /// itself; only the first 6 bytes (48 bits) are mixed in, far below
-  /// the 256-bit key entropy.
+  /// Short one-way fingerprint for diagnostic grouping. Hash the whole
+  /// key before truncating so no raw key prefix leaves the process.
   static String _keyFingerprint(Uint8List secretKey) {
-    final prefix = base64.encode(
-      secretKey.length >= 6 ? secretKey.sublist(0, 6) : secretKey,
-    );
-    return prefix.substring(0, prefix.length.clamp(0, 8));
+    final digest = sha256.convert(secretKey);
+    return base64.encode(digest.bytes.sublist(0, 6));
   }
 
   /// Best-effort envelope detection from the leading bytes of a

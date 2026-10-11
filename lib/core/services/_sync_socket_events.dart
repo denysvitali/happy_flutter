@@ -460,6 +460,7 @@ extension SyncSocketEvents on Sync {
       .track('socket.new_message', () => _handleNewMessageUntracked(data));
 
   void _handleNewMessageUntracked(Map<String, dynamic> data) {
+    final runtimeGeneration = _runtimeGeneration;
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
     // Do NOT invalidate sessionsSync here — message events fire on every
     // streaming token and would cause dozens of sessions re-fetches per
@@ -491,10 +492,12 @@ extension SyncSocketEvents on Sync {
       // decrypt/merge work is deduplicated. Remove the durable retry now so a
       // restored timer cannot resend an already-stored logical message.
       unawaited(
-        messageOutbox.serialize(
-          sessionId,
-          () => messageOutbox.remove(authoritativeLocalId),
-        ),
+        messageOutbox.serialize(sessionId, () async {
+          if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+            return;
+          }
+          await messageOutbox.remove(authoritativeLocalId);
+        }),
       );
       _updateMessageSendStatus(sessionId, authoritativeLocalId, 'sent');
     }
@@ -572,6 +575,7 @@ extension SyncSocketEvents on Sync {
             metadata: <String, dynamic>{
               'mode': 'embedded',
               'dedupKey': inlineDedupKey,
+              'runtimeGeneration': runtimeGeneration,
             },
             isVisibleSession: true,
             notifySessionsDomain: false,
@@ -650,6 +654,7 @@ extension SyncSocketEvents on Sync {
             metadata: <String, dynamic>{
               'mode': 'embedded',
               'dedupKey': inlineDedupKey,
+              'runtimeGeneration': runtimeGeneration,
             },
             isVisibleSession: false,
             notifySessionsDomain: true,
@@ -738,6 +743,11 @@ extension SyncSocketEvents on Sync {
       messagesSync.remove(sessionId)?.dispose();
       _postSendCatchUpTimers.remove(sessionId)?.cancel();
       _loadingOlderMessages.remove(sessionId);
+      if (_userScrollback?.sessionId == sessionId) {
+        _userScrollback = null;
+      }
+      _sessionsHistoryFullyLoaded.remove(sessionId);
+      _sessionsHistoryTrimmed.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _invalidatePreviewCache(sessionId);
       _invalidateMessageCaches(sessionId);

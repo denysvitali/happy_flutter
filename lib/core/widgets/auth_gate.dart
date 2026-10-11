@@ -35,8 +35,16 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   String? _presentedLink;
 
   Future<void> _confirmLinkRequest(PendingLinkRequest request) async {
-    if (!mounted || _presentedLink != null) return;
+    if (!mounted ||
+        _presentedLink != null ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        ref.read(authStateNotifierProvider) != AuthState.authenticated ||
+        !identical(ref.read(pendingLinkRequestProvider), request)) {
+      return;
+    }
     _presentedLink = request.url;
+    final authNotifier = ref.read(authStateNotifierProvider.notifier);
+    final authGeneration = authNotifier.authTransitionGeneration;
     final l10n = context.l10n;
     final approved = await showDialog<bool>(
       context: context,
@@ -65,13 +73,36 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     );
     if (!mounted) return;
     if (approved != true) {
-      ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
-      _presentedLink = null;
+      if (identical(ref.read(pendingLinkRequestProvider), request)) {
+        ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
+      }
+      setState(() => _presentedLink = null);
+      return;
+    }
+    if (!identical(
+          ref.read(authStateNotifierProvider.notifier),
+          authNotifier,
+        ) ||
+        authNotifier.authTransitionGeneration != authGeneration ||
+        ref.read(authStateNotifierProvider) != AuthState.authenticated ||
+        !identical(ref.read(pendingLinkRequestProvider), request)) {
+      if (identical(ref.read(pendingLinkRequestProvider), request)) {
+        ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
+      }
+      setState(() => _presentedLink = null);
       return;
     }
     try {
       final success = await AuthService().approveLinkingRequest(request.url);
-      if (!mounted) return;
+      if (!mounted ||
+          !identical(
+            ref.read(authStateNotifierProvider.notifier),
+            authNotifier,
+          ) ||
+          authNotifier.authTransitionGeneration != authGeneration ||
+          !identical(ref.read(pendingLinkRequestProvider), request)) {
+        return;
+      }
       final message = success
           ? l10n.authDeviceLinkedSuccess
           : l10n.authFailedToLinkDevice;
@@ -89,7 +120,13 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         ).showSnackBar(SnackBar(content: Text(l10n.authFailedToLinkDevice)));
       }
     } finally {
-      _presentedLink = null;
+      if (mounted &&
+          ref.read(pendingLinkRequestProvider) != null &&
+          !identical(ref.read(pendingLinkRequestProvider), request)) {
+        setState(() => _presentedLink = null);
+      } else {
+        _presentedLink = null;
+      }
     }
   }
 
@@ -99,7 +136,11 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     final pendingLink = ref.watch(pendingLinkRequestProvider);
     if (authState == AuthState.authenticated && pendingLink != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_confirmLinkRequest(pendingLink));
+        if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+        final currentRequest = ref.read(pendingLinkRequestProvider);
+        if (currentRequest != null) {
+          unawaited(_confirmLinkRequest(currentRequest));
+        }
       });
     }
 

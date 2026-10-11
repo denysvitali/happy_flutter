@@ -21,6 +21,9 @@ import 'package:ffi/ffi.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 class FakeMmkvPlatform extends MMKVPluginPlatform {
+  @override
+  void Function(Pointer<Void>, int) mmkvSyncFunc() => (handle, sync) {};
+
   final Map<int, Map<String, Object>> _stores = <int, Map<String, Object>>{};
   final Map<String, int> _handles = <String, int>{};
   int _nextHandle = 2;

@@ -31,7 +31,9 @@ class SettingsNotifier extends Notifier<Settings> {
   SettingsRepository get _repository => ref.read(settingsRepositoryProvider);
 
   Future<void> loadSettings() async {
+    final generation = _persistenceGeneration;
     final settings = await _storage.getSettings();
+    if (!ref.mounted || generation != _persistenceGeneration) return;
     state = settings;
     // Sync developer mode to logger so DevLogsScreen captures all logs
     // even in release builds when developer mode was enabled previously.
@@ -39,13 +41,16 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 
   Future<void> loadLocalSettings() async {
+    final generation = _persistenceGeneration;
     final settings = await _storage.getLocalSettings();
+    if (!ref.mounted || generation != _persistenceGeneration) return;
     state = settings;
     logger.setDeveloperMode(settings.developerModeEnabled);
   }
 
   void clear() {
     _persistenceGeneration++;
+    _lastDataChangeCounter = -1;
     state = Settings();
   }
 

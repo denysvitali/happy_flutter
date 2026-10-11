@@ -58,6 +58,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
   final Map<int, TextEditingController> _notesControllers = {};
   bool _isSubmitting = false;
   bool _isSubmitted = false;
+  bool _submissionCanceled = false;
 
   /// Attention pulses played before the card settles into its static
   /// highlighted state. Repeating forever would repaint an animated
@@ -123,14 +124,39 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
       _notesControllers.putIfAbsent(i, TextEditingController.new);
     }
 
-    // Show submitted view if the user submitted locally OR if the
-    // server already resolved the permission (e.g. loaded from sync,
-    // widget rebuild after submit, or auto-approve).
     final existingPerm = WireParsers.asMap(widget.tool['permission']);
     final permStatus = existingPerm?['status'] as String?;
-    final alreadyResolved = permStatus != null && permStatus != 'pending';
-    if (_isSubmitted || alreadyResolved) {
-      return _buildSubmittedView(context, parsedQuestions);
+    // Terminal permission outcomes override even a successful local submit.
+    if (permStatus == 'denied' ||
+        permStatus == 'canceled' ||
+        _submissionCanceled) {
+      return _buildResolvedView(
+        context,
+        parsedQuestions,
+        label: permStatus == 'denied' ? 'Denied' : 'Canceled',
+      );
+    }
+
+    final input = WireParsers.asMap(widget.tool['input']);
+    final answers = WireParsers.asMap(input?['answers']);
+    final hasPersistedAnswers = parsedQuestions.any((question) {
+      final answer = answers?[question.question];
+      return answer is String && answer.trim().isNotEmpty;
+    });
+    if (_isSubmitted || hasPersistedAnswers) {
+      return _buildResolvedView(
+        context,
+        parsedQuestions,
+        label: 'Answered',
+        answered: true,
+      );
+    }
+    if (permStatus != null && permStatus != 'pending') {
+      return _buildResolvedView(
+        context,
+        parsedQuestions,
+        label: 'Resolved without an answer',
+      );
     }
 
     final canInteract = !_isSubmitting;
@@ -179,8 +205,21 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         .toList();
   }
 
-  Widget _buildSubmittedView(BuildContext context, List<Question> questions) {
+  Widget _buildResolvedView(
+    BuildContext context,
+    List<Question> questions, {
+    required String label,
+    bool answered = false,
+  }) {
     final theme = Theme.of(context);
+    final input = WireParsers.asMap(widget.tool['input']);
+    final answers = WireParsers.asMap(input?['answers']);
+    final annotations = WireParsers.asMap(input?['annotations']);
+    final statusColor = label == 'Denied'
+        ? theme.colorScheme.error
+        : answered
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
 
     return Container(
       width: double.infinity,
@@ -203,16 +242,18 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
           Row(
             children: [
               Icon(
-                Icons.check_circle_rounded,
-                size: 16,
-                color: theme.colorScheme.primary,
+                answered ? Icons.check_circle_rounded : Icons.cancel_outlined,
+                size: AppIconSize.md,
+                color: statusColor,
               ),
               const SizedBox(width: AppSpacing.xsm),
-              Text(
-                'Answered',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -221,8 +262,9 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
           ...questions.asMap().entries.map((entry) {
             final qIndex = entry.key;
             final q = entry.value;
-            final selected = _selections[qIndex];
-            final labels = selected != null
+            final selected = _isSubmitted ? _selections[qIndex] : null;
+            final persistedAnswer = answers?[q.question];
+            final localLabels = selected != null
                 ? selected
                       .map(
                         (i) => i < q.options.length ? q.options[i].label : '',
@@ -230,6 +272,20 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                       .where((l) => l.isNotEmpty)
                       .join(', ')
                 : '-';
+            final hasPersistedAnswer =
+                persistedAnswer is String && persistedAnswer.trim().isNotEmpty;
+            final labels = !answered
+                ? q.question
+                : hasPersistedAnswer
+                ? persistedAnswer as String
+                : localLabels;
+            final annotation = WireParsers.asMap(annotations?[q.question]);
+            final persistedNotes = annotation?['notes'];
+            final notes = persistedNotes is String
+                ? persistedNotes.trim()
+                : _isSubmitted
+                ? _notesControllers[qIndex]?.text.trim() ?? ''
+                : '';
 
             return Padding(
               padding: EdgeInsets.only(top: qIndex > 0 ? 6 : 0),
@@ -254,12 +310,10 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
-                        if (_notesControllers[qIndex]?.text.trim().isNotEmpty ??
-                            false) ...[
+                        if (answered && notes.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(
-                            'Notes: '
-                            '${_notesControllers[qIndex]!.text.trim()}',
+                            'Notes: $notes',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
@@ -467,7 +521,10 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
   }
 
   Future<void> _handleSubmit() async {
-    if (_isSubmitting || widget.sessionId == null) {
+    if (_isSubmitting ||
+        _isSubmitted ||
+        _submissionCanceled ||
+        widget.sessionId == null) {
       return;
     }
 
@@ -510,7 +567,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
       if (permId != null) {
         // Include answers in updatedInput so the CLI
         // receives them via the permission response.
-        await ref
+        final response = await ref
             .read(permissionsNotifierProvider.notifier)
             .allow(
               widget.sessionId!,
@@ -521,6 +578,9 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 if (annotations.isNotEmpty) 'annotations': annotations,
               },
             );
+        if (!response.success) {
+          throw StateError(response.error ?? 'Failed to submit answer');
+        }
       } else {
         // Fallback: send as a chat message if there
         // is no permission to approve.
@@ -553,11 +613,9 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
           msg.contains('expired');
       if (isExpectedRace) {
         logger.info('Submit answer skipped: $e');
-        // Permission already resolved — treat as
-        // submitted so the UI doesn't show stale
-        // interactive controls.
+        // An expired request did not deliver an answer.
         if (mounted) {
-          setState(() => _isSubmitted = true);
+          setState(() => _submissionCanceled = true);
         }
       } else {
         logger.warning('Failed to submit answer: $e', e, st);

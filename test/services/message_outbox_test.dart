@@ -53,12 +53,15 @@ class _BlockingMMKVStorage extends _FakeMMKVStorage {
 class _BlockingReadMMKVStorage extends _FakeMMKVStorage {
   final readStarted = Completer<void>();
   final allowRead = Completer<void>();
+  bool blockReads = false;
 
   @override
   Future<String?> getOutboxEntries() async {
     final snapshot = await super.getOutboxEntries();
-    readStarted.complete();
-    await allowRead.future;
+    if (blockReads) {
+      if (!readStarted.isCompleted) readStarted.complete();
+      await allowRead.future;
+    }
     return snapshot;
   }
 }
@@ -136,6 +139,23 @@ void _fakeAsyncTest(
 }
 
 void main() {
+  test(
+    'owner scope is stable, normalized and never stores URL credentials',
+    () {
+      final first = MessageOutbox.ownerScope(
+        accountId: 'derived-id',
+        serverUrl: 'https://user:password@EXAMPLE.com/',
+      );
+      final second = MessageOutbox.ownerScope(
+        accountId: 'derived-id',
+        serverUrl: 'https://example.com',
+      );
+      expect(first, second);
+      expect(first, matches(RegExp(r'^[a-f0-9]{64}$')));
+      expect(first, isNot(contains('password')));
+    },
+  );
+
   group('OutboxEntry', () {
     test('toJson / fromJson round-trip', () {
       final entry = _makeEntry(retryCount: 2);
@@ -244,7 +264,7 @@ void main() {
 
       outbox.notifySessionUnavailable('session-a');
 
-      expect(attempts, 3);
+      expect(attempts, 2);
       expect(outbox.readinessDeferredSessionIds, ['session-b']);
       expect(outbox.entries.map((entry) => entry.localId), ['other']);
       expect(outbox.deadEntries.map((entry) => entry.localId).toSet(), {
@@ -260,6 +280,258 @@ void main() {
       }
       expect(statuses['other'], 'pending');
     });
+
+    test(
+      'account and server switches retain foreign buckets without attempts',
+      () async {
+        final scopeA = MessageOutbox.ownerScope(
+          accountId: 'account-a',
+          serverUrl: 'https://one.example',
+        );
+        final scopeB = MessageOutbox.ownerScope(
+          accountId: 'account-b',
+          serverUrl: 'https://one.example',
+        );
+        final scopeOtherServer = MessageOutbox.ownerScope(
+          accountId: 'account-a',
+          serverUrl: 'https://two.example',
+        );
+        final attempts = <String>[];
+        Future<OutboxDeliveryFailure?> deliver(OutboxEntry entry) async {
+          attempts.add(entry.localId);
+          return OutboxDeliveryFailure.transient;
+        }
+
+        outbox.configure(ownerScope: scopeA, deliver: deliver);
+        await outbox.restoreAndFlush();
+        await outbox.add(_makeEntry(localId: 'a', retryCount: 7));
+        outbox.dispose();
+        for (final scope in [scopeB, scopeOtherServer]) {
+          outbox.configure(ownerScope: scope, deliver: deliver);
+          await outbox.restoreAndFlush();
+          expect(outbox.entries, isEmpty);
+          await outbox.add(_makeEntry(localId: scope));
+          await outbox.remove(scope);
+          outbox.dispose();
+        }
+        outbox.configure(ownerScope: scopeA, deliver: deliver);
+        await outbox.restoreAndFlush();
+        expect(attempts, isEmpty);
+        expect(outbox.entries.single.localId, 'a');
+        expect(outbox.entries.single.retryCount, 7);
+        expect(outbox.entries.single.encryptedContent, 'enc-abc');
+      },
+    );
+
+    test('scoped restart retains explicit retry reservation order', () async {
+      outbox.configure(ownerScope: 'a', deliver: (_) async => null);
+      final older = _makeEntry(localId: 'older');
+      outbox.testInsertDead(older);
+      await outbox.add(
+        OutboxEntry(
+          localId: 'newer',
+          sessionId: 'session-a',
+          text: 'continue',
+          encryptedContent: 'new-ciphertext',
+          rawRecord: const {},
+          queuedAt: 2000,
+        ),
+      );
+      await outbox.reviveDead('older');
+      outbox.dispose();
+      outbox.configure(ownerScope: 'a', deliver: (_) async => null);
+      await outbox.restoreAndFlush();
+      expect(outbox.entries.map((entry) => entry.localId), ['newer', 'older']);
+    });
+
+    test(
+      'scoped add waits for single-flight restore before replacing bucket',
+      () async {
+        final blocking = _BlockingReadMMKVStorage();
+        final seed = MessageOutbox(storage: blocking)
+          ..configure(ownerScope: 'a', deliver: (_) async => null);
+        await seed.add(_makeEntry(localId: 'first'));
+        seed.dispose();
+        final scoped = MessageOutbox(storage: blocking)
+          ..configure(ownerScope: 'a', deliver: (_) async => null);
+        blocking.blockReads = true;
+        final restore = scoped.restoreAndFlush();
+        await blocking.readStarted.future;
+        final sameRestore = scoped.restoreAndFlush();
+        expect(identical(restore, sameRestore), isTrue);
+        final add = scoped.add(_makeEntry(localId: 'second'));
+        blocking.allowRead.complete();
+        await Future.wait([restore, sameRestore, add]);
+        expect(scoped.entries.map((entry) => entry.localId), [
+          'first',
+          'second',
+        ]);
+        scoped.dispose();
+      },
+    );
+
+    test('account restore drains old in-flight durable writes', () async {
+      final blocking = _BlockingMMKVStorage();
+      final scoped = MessageOutbox(storage: blocking);
+      scoped.configure(ownerScope: 'a', deliver: (_) async => null);
+      final save = scoped.add(_makeEntry(localId: 'a-pending'));
+      await blocking.saveStarted.future;
+      scoped.dispose();
+      scoped.configure(ownerScope: 'b', deliver: (_) async => null);
+      final restore = scoped.restoreAndFlush();
+      blocking.allowSave.complete();
+      await Future.wait([save, restore]);
+      expect(scoped.entries, isEmpty);
+      await scoped.add(_makeEntry(localId: 'b-pending'));
+      scoped.dispose();
+      scoped.configure(ownerScope: 'a', deliver: (_) async => null);
+      await scoped.restoreAndFlush();
+      expect(scoped.entries.single.localId, 'a-pending');
+      scoped.dispose();
+    });
+
+    test('malformed foreign bucket does not prevent owned recovery', () async {
+      final protection = AtRestEncryptionService.memoryOnly(
+        Uint8List.fromList(List<int>.generate(32, (index) => 32 - index)),
+      );
+      storage._outboxData = protection.protectString(
+        jsonEncode({
+          'version': 2,
+          'buckets': {
+            'selected': [_makeEntry(localId: 'owned').toJson()],
+            'foreign': {'opaque': 'invalid bucket'},
+          },
+        }),
+        associatedData: 'message-outbox:v1',
+      );
+      outbox.configure(ownerScope: 'selected', deliver: (_) async => null);
+      await outbox.restoreAndFlush();
+      expect(outbox.entries.single.localId, 'owned');
+      await outbox.remove('owned');
+      final plaintext = protection.unprotectString(
+        storage._outboxData!,
+        associatedData: 'message-outbox:v1',
+      );
+      final envelope = jsonDecode(plaintext!) as Map<String, dynamic>;
+      expect((envelope['buckets'] as Map<String, dynamic>)['foreign'], {
+        'opaque': 'invalid bucket',
+      });
+    });
+
+    test('malformed selected bucket never deletes a foreign bucket', () async {
+      final protection = AtRestEncryptionService.memoryOnly(
+        Uint8List.fromList(List<int>.generate(32, (index) => 32 - index)),
+      );
+      storage._outboxData = protection.protectString(
+        jsonEncode({
+          'version': 2,
+          'buckets': {
+            'selected': [
+              {'localId': 'broken'},
+            ],
+            'foreign': [_makeEntry(localId: 'foreign').toJson()],
+          },
+        }),
+        associatedData: 'message-outbox:v1',
+      );
+      final before = storage._outboxData;
+      outbox.configure(ownerScope: 'selected', deliver: (_) async => null);
+      await outbox.restoreAndFlush();
+      expect(storage._outboxData, before);
+      expect(outbox.entries, isEmpty);
+    });
+
+    test('scoped restore never claims unowned legacy sends', () async {
+      storage._outboxData = jsonEncode([_makeEntry().toJson()]);
+      outbox.configure(
+        ownerScope: MessageOutbox.ownerScope(
+          accountId: 'account-b',
+          serverUrl: 'https://one.example',
+        ),
+        deliver: (_) async => fail('foreign send attempted'),
+      );
+      await outbox.restoreAndFlush();
+      expect(outbox.entries, isEmpty);
+      expect(outbox.unownedEntryCount, 1);
+      await outbox.add(_makeEntry(localId: 'owned'));
+      expect(outbox.entries.single.localId, 'owned');
+      expect(storage._outboxData, isNot(contains('hello')));
+    });
+
+    _fakeAsyncTest('failed head blocks follow-up until retry succeeds', (
+      async,
+    ) async {
+      final successes = <String>[];
+      var firstAttempts = 0;
+      outbox.configure(
+        deliver: (entry) async {
+          if (entry.localId == 'first' && ++firstAttempts == 1) {
+            return OutboxDeliveryFailure.transient;
+          }
+          successes.add(entry.localId);
+          return null;
+        },
+      );
+      await outbox.add(_makeEntry(localId: 'first', text: 'continue'));
+      await outbox.add(_makeEntry(localId: 'second', text: 'continue'));
+      await outbox.testAttemptNow('first');
+      await outbox.testAttemptNow('second');
+      expect(successes, isEmpty);
+      expect(outbox.entries.first.retryCount, 1);
+      await outbox.testAttemptNow('first');
+      async.elapse(Duration.zero);
+      expect(successes, ['first', 'second']);
+      expect(outbox.entries, isEmpty);
+    });
+
+    _fakeAsyncTest('follow-up timer cannot bypass repeated head backoff', (
+      async,
+    ) async {
+      final successes = <String>[];
+      var attempts = 0;
+      outbox.configure(
+        deliver: (entry) async {
+          if (entry.localId == 'first' && ++attempts <= 2) {
+            return OutboxDeliveryFailure.transient;
+          }
+          successes.add(entry.localId);
+          return null;
+        },
+      );
+      await outbox.add(_makeEntry(localId: 'first'));
+      await outbox.testAttemptNow('first');
+      await outbox.add(_makeEntry(localId: 'second'));
+      await outbox.testAttemptNow('first');
+      // Follow-up's shorter initial timer expires while head backs off.
+      async.elapse(const Duration(milliseconds: 1300));
+      expect(successes, isEmpty);
+      expect(attempts, 2);
+      await outbox.testAttemptNow('first');
+      async.elapse(Duration.zero);
+      expect(successes, ['first', 'second']);
+    });
+
+    _fakeAsyncTest(
+      'dead-lettered head releases follow-up without losing payload',
+      (async) async {
+        final successes = <String>[];
+        outbox.configure(
+          deliver: (entry) async {
+            if (entry.localId == 'first')
+              return OutboxDeliveryFailure.permanent;
+            successes.add(entry.localId);
+            return null;
+          },
+        );
+        await outbox.add(_makeEntry(localId: 'first', retryCount: 2));
+        await outbox.add(_makeEntry(localId: 'second'));
+        await outbox.testAttemptNow('first');
+        async.elapse(Duration.zero);
+        expect(successes, ['second']);
+        expect(outbox.deadEntries.single.localId, 'first');
+        expect(outbox.deadEntries.single.encryptedContent, 'enc-abc');
+      },
+    );
 
     // ── Basic add / remove ──────────────────────────────────────────────────
 
@@ -1045,6 +1317,7 @@ void main() {
       );
       await restoringOutbox.add(_makeEntry(localId: 'old-account-send'));
       await restoringOutbox.suspendAndFlush();
+      blockingStorage.blockReads = true;
       final restore = restoringOutbox.restoreAndFlush();
       await blockingStorage.readStarted.future;
 

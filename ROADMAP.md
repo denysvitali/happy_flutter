@@ -108,7 +108,7 @@ The current test count is not enough if this contract can break without failing 
 |--------|-------|--------|-------|
 | App cold start (`essential_ready`) | Oct-4 build 300500 mean 1.41s across 2 launches; build 300400 mean 1.51s across 1 | < 3s avg | Latest cumulative per-launch snapshots observed in the 24h range ending 14:13:41 UTC; use `last_over_time`, never sum repeated exports. These are small launch samples, not a fleet baseline. |
 | Successful send tap to ACK | Oct-4 build 300500 direct-send p95 estimates 99ms / 220ms across 23 / 24 observations; restore-path p95 4.25s / 450ms across 6 / 4 observations | < 1s p95 when runtime is ready | Keep `path` and `outcome` dimensions. Direct delivery is fast; one launch has a restore tail. These successful-send samples exclude the blocked provider-switch incident above. |
-| App RSS | Oct-4 per-launch p95 estimates: build 300500 1,257MB / 446MB (118 / 90 samples); build 300400 372MB (62 samples), all 101–250 sessions | < 768MB p95 | The outlier launch has mean 911 / p95 1,874 resident rows; image/encryption caches average 0.185MB / 1.53MB. Completed cache writes now release ciphertext repair snapshots; transient native-worker repairs retain only the necessary canonical value. Race contracts cover newer writes, unchanged writes and deletion. Profile retained/native memory after rollout before assigning causality. Heap/external metrics currently emit unavailable zeros, not measurements. Latest cumulative snapshots from two versus one launches cannot establish a build regression. |
+| App RSS | Oct-4 per-launch p95 estimates: build 300500 1,257MB / 446MB (118 / 90 samples); build 300400 372MB (62 samples), all 101–250 sessions | < 768MB p95 | The outlier launch has mean 911 / p95 1,874 resident rows; image/encryption caches average 0.185MB / 1.53MB. Completed cache writes now release ciphertext repair snapshots; transient native-worker repairs retain only the necessary canonical value. Race contracts cover newer writes, unchanged writes and deletion. Native lazy `JsonText` bodies now count against the existing 8 MiB encryption-cache budget; earlier byte telemetry omitted them. Profile retained/native memory after rollout before assigning causality. Heap/external metrics currently emit unavailable zeros, not measurements. Latest cumulative snapshots from two versus one launches cannot establish a build regression. |
 | Historical fetchMessages average (July 28) | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Historical baseline only; current post-resume header stalls are tracked above. |
 | Chat UI-isolate stalls (2026-10-04) | Build 300500: 22 launch-lifetime freezes across 2 launches, 11 untracked vsync (chat 8, message detail 3) and 11 post-resume | none untracked | Latest cumulative snapshots seen in the 24h range: per-launch p95 estimates 1.525s / 1.825s (13 / 9 freezes). Post-resume is a three-second classification heuristic, not causal attribution. Large decrypted payloads now choose the native processing worker even below the old 20-row threshold; small batches previously JSON-decoded large tool output on the UI isolate. These are not strict 24h event increments, and affected-device frame profiling remains required. Jaeger's 12.5s `chat.sync.await` example is background refresh with cached content, not a 12.5s initial render. |
 | Deferred init | Oct-4 build 300500 mean 1.33s across 2 launches; build 300400 mean 1.40s across 1 | < 1s | Lower priority than transport and frozen frames. GlitchTip transaction aggregates are stale (latest deferred-init transaction Aug-29; Sep-27–Oct-4 trend empty); use current Prometheus launch snapshots. |
@@ -147,7 +147,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Persist messages to MMKV | Done | `MessageCacheService` caches the last 200 messages per session in MMKV. Warm in-memory rows paint first; native cache read/decrypt/JSON and routine save preparation run in workers. Writes debounce for 5s with a 15s ceiling, skip unchanged revisions, and flush synchronously on suspend. Linux checks once after startup and compacts MMKV off-isolate when the mapped file is materially sparse. |
+| Persist messages to MMKV | Done | `MessageCacheService` caches the last 200 messages per session in MMKV. Warm in-memory rows paint first; native cache read/decrypt/JSON and routine save preparation run in workers. Writes debounce for 5s with a 15s ceiling, skip committed revisions, and flush on suspend. Changed revisions and complete sanitized-window fingerprints preserve nested results and canonical `localId`; async restores and read repairs are runtime-fenced. Linux checks once after startup and compacts MMKV off-isolate when the mapped file is materially sparse. |
 | Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03 found the flat ~40s budget dead-lettered sends during brownouts longer than a minute (4 messages permanently lost, zero signal); shipped in d8dba9ac: failure-class-aware budgets (transient retries ~4h, permanent dead-letters after 3), reconnect/foreground/cold-start re-arm of transient dead letters, and a `dead_lettered` counter + Sentry capture (see the audit section). |
 
 ### 4. Optimistic Mutations
@@ -210,6 +210,24 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | Native | Partial | TTS and audio recording implemented; video call and push stubs; biometric auth not started |
 
 ---
+
+## October 11 source-audit repairs — verification pending
+
+Runtime/account publication fences, account/server outbox buckets, durable browser
+writes, secure-key hydration, pending-settings journals, complete cache signatures,
+bounded explicit scrollback, stopped process-scoped send guards, linking approval,
+artifact edit preservation, and chat input/search repairs are implemented in source.
+New contract and widget regressions are added but have not been run locally.
+CI and affected-device acceptance remain required; no rollout or performance
+improvement is asserted from source inspection.
+
+Outstanding: provision read-only `HAPPY_CLI_GO_READ_TOKEN` for the required pinned
+Go lane; implement safe explicit recovery of encrypted legacy ownerless outbox
+entries (retained and counted, never auto-retried); verify bounded scrollback
+pixel anchoring, oversize-envelope pagination errors, and cache/native memory on
+devices. Existing retention/retry/cache
+budgets are unchanged. Explicit scrollback retains at most twice the settled-row
+cap while active; unresolved sends remain exempt to preserve retry identity.
 
 ## Next Steps
 

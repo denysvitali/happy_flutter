@@ -21,6 +21,19 @@
   response snapshots and formatting helpers. Vendor-specific precedence,
   timestamp, and utilization rules remain separate.
 
+## October 2026 reliability update
+
+- Async sync work captures account/runtime generation and rechecks it after
+  awaited work before publishing. Cache read/repair callbacks use the same fence.
+- Outbox envelopes retain encrypted account/server buckets. Browser writes await
+  committed transactions. Ownerless legacy entries remain quarantined; automatic
+  ownership guesses are forbidden and explicit recovery is still outstanding.
+- Explicit scrollback uses a bounded older window plus live tail. Unloaded middle
+  history is marked, not silently joined. Cache and cursor saves describe only
+  the latest contiguous tail, including shutdown after the runtime is retired.
+- Settings journals retain account-scoped pending deltas. Logout blocks storage
+  operations before draining them and retains a durable cleanup marker on failure.
+
 ## July 2026 implementation update
 
 - Repository boundaries now exist for sessions, machines, settings, artifacts,

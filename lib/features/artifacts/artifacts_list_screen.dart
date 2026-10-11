@@ -38,6 +38,8 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
 
   String? _selectedArtifactId;
   _InlineMode _inlineMode = _InlineMode.none;
+  final _editorKey = GlobalKey<EditArtifactScreenState>();
+  var _createKey = GlobalKey<NewArtifactScreenState>();
 
   @override
   void initState() {
@@ -70,7 +72,16 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     });
   }
 
-  void _selectInlineView(String id) {
+  Future<bool> _canReplaceEditor() async {
+    final editor = _editorKey.currentState;
+    if (editor != null) return editor.confirmDiscard();
+    final create = _createKey.currentState;
+    if (create != null) return create.confirmDiscard();
+    return true;
+  }
+
+  Future<void> _selectInlineView(String id) async {
+    if (!await _canReplaceEditor() || !mounted) return;
     setState(() {
       _selectedArtifactId = id;
       _inlineMode = _InlineMode.view;
@@ -82,8 +93,10 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     setState(() => _inlineMode = _InlineMode.edit);
   }
 
-  void _selectInlineCreate() {
+  Future<void> _selectInlineCreate() async {
+    if (!await _canReplaceEditor() || !mounted) return;
     setState(() {
+      _createKey = GlobalKey<NewArtifactScreenState>();
       _selectedArtifactId = null;
       _inlineMode = _InlineMode.create;
     });
@@ -110,7 +123,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
           return const SizedBox.shrink();
         }
         return EditArtifactScreen(
-          key: ValueKey('artifact-edit-$id'),
+          key: _editorKey,
           artifactId: id,
           embedded: true,
           onClose: () {
@@ -125,7 +138,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
         );
       case _InlineMode.create:
         return NewArtifactScreen(
-          key: const ValueKey('artifact-create'),
+          key: _createKey,
           embedded: true,
           onClose: _clearInline,
           onCreated: (artifactId) {
@@ -152,20 +165,6 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     final filtered = _filterAndSort(artifacts);
     final hasArtifacts = artifacts.isNotEmpty;
 
-    if (!isWide) {
-      // Phone layout: clear any inline selection so it doesn't reappear if
-      // the device rotates back to wide later. Use a post-frame callback to
-      // avoid mutating state during build.
-      if (_selectedArtifactId != null || _inlineMode != _InlineMode.none) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (_selectedArtifactId != null || _inlineMode != _InlineMode.none) {
-            _clearInline();
-          }
-        });
-      }
-    }
-
     final masterBody = _isLoading
         ? const _ArtifactsLoadingShimmer()
         : !hasArtifacts
@@ -183,33 +182,35 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     final hasSelection =
         _selectedArtifactId != null || _inlineMode == _InlineMode.create;
 
-    final scaffoldBody = isWide
-        ? MasterDetailScaffold(
-            master: masterBody,
-            detail: _resolveInlineDetail(),
-            hasSelection: hasSelection,
-            emptyDetail: const TabletDetailEmpty(
-              icon: Icons.description_outlined,
-              // TODO(i18n): localize side-pane empty placeholder.
-              message: 'Select an artifact',
-            ),
-          )
-        : masterBody;
+    // Keep the adaptive host mounted across breakpoints. Global keys carry
+    // the active form state when the detail moves between pane and phone.
+    final scaffoldBody = MasterDetailScaffold(
+      master: masterBody,
+      detail: _resolveInlineDetail(),
+      hasSelection: hasSelection,
+      emptyDetail: const TabletDetailEmpty(
+        icon: Icons.description_outlined,
+        // TODO(i18n): localize side-pane empty placeholder.
+        message: 'Select an artifact',
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.artifactsTitle)),
       body: scaffoldBody,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (isWide) {
-            _selectInlineCreate();
-          } else {
-            context.push('/artifacts/new');
-          }
-        },
-        tooltip: l10n.commonCreate,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: !isWide && hasSelection
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                if (isWide) {
+                  _selectInlineCreate();
+                } else {
+                  context.push('/artifacts/new');
+                }
+              },
+              tooltip: l10n.commonCreate,
+              child: const Icon(Icons.add),
+            ),
     );
   }
 

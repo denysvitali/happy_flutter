@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -16,6 +17,7 @@ import 'auth_service_test.mocks.dart';
 
 class _MemoryCredentials implements AuthCredentialStore {
   AuthCredentials? value;
+  bool deletionFails = false;
 
   @override
   Future<AuthCredentials?> getCredentials() async => value;
@@ -25,6 +27,7 @@ class _MemoryCredentials implements AuthCredentialStore {
 
   @override
   Future<bool> removeCredentials() async {
+    if (deletionFails) return false;
     value = null;
     return true;
   }
@@ -259,6 +262,110 @@ void main() {
       expect(result.secret, base64Encode(secret));
       expect(credentials.value, result);
     });
+
+    test(
+      'failed logout blocks auth recovery and account replacement',
+      () async {
+        credentials.value = AuthCredentials(token: 'old', secret: 'old-secret');
+        credentials.deletionFails = true;
+        await expectLater(service.signOut(), throwsA(isA<AuthException>()));
+        expect(await service.getAuthState(), AuthState.error);
+        expect(await service.isAuthenticated(), isFalse);
+        await expectLater(
+          service.completeAuth('new', Uint8List(32)),
+          throwsA(isA<AuthException>()),
+        );
+        expect(credentials.value!.token, 'old');
+        credentials.deletionFails = false;
+        await service.signOut();
+        expect(await service.getAuthState(), AuthState.unauthenticated);
+      },
+    );
+
+    test('API key cleanup failure is reported and blocks recovery', () async {
+      final failing = AuthService.test(
+        apiClient: api,
+        encryption: encryption,
+        credentials: credentials,
+        crypto: crypto,
+        clearApiKeys: () async => throw StateError('delete'),
+      );
+      credentials.value = AuthCredentials(token: 'old', secret: 'old-secret');
+      await expectLater(failing.signOut(), throwsA(isA<AuthException>()));
+      expect(await failing.getAuthState(), AuthState.error);
+      expect(await failing.isAuthenticated(), isFalse);
+    });
+
+    test('logout during pending link status prevents key release', () async {
+      credentials.value = AuthCredentials(
+        token: 'old',
+        secret: base64Encode(Uint8List(32)),
+      );
+      final pending = Completer<Response<dynamic>>();
+      when(
+        api.get(
+          '/v1/auth/request/status',
+          queryParameters: anyNamed('queryParameters'),
+        ),
+      ).thenAnswer((_) => pending.future);
+      final approval = service.approveLinkingWithPublicKey(
+        Uint8List(32),
+        isTerminalLink: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      await service.signOut();
+      pending.complete(
+        _response(200, {'status': 'pending', 'supportsV2': false}),
+      );
+      await expectLater(approval, throwsA(isA<AuthException>()));
+      verifyNever(api.post('/v1/auth/response', data: anyNamed('data')));
+    });
+
+    test('logout intent before cleanup fences an awaiting approval', () async {
+      credentials.value = AuthCredentials(
+        token: 'old',
+        secret: base64Encode(Uint8List(32)),
+      );
+      final pending = Completer<Response<dynamic>>();
+      when(
+        api.get(
+          '/v1/auth/request/status',
+          queryParameters: anyNamed('queryParameters'),
+        ),
+      ).thenAnswer((_) => pending.future);
+      final approval = service.approveLinkingWithPublicKey(
+        Uint8List(32),
+        isTerminalLink: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      service.invalidateLinkingApprovals();
+      pending.complete(
+        _response(200, {'status': 'pending', 'supportsV2': false}),
+      );
+      await expectLater(approval, throwsA(isA<AuthException>()));
+      verifyNever(api.post('/v1/auth/response', data: anyNamed('data')));
+      expect(credentials.value!.token, 'old');
+    });
+
+    test(
+      'account replacement cannot bypass failed provider-key cleanup',
+      () async {
+        credentials.value = AuthCredentials(token: 'old', secret: 'old-secret');
+        final replacement = AuthService.test(
+          apiClient: api,
+          encryption: encryption,
+          credentials: credentials,
+          crypto: crypto,
+          clearApiKeys: () async => throw StateError('delete'),
+        );
+        await expectLater(
+          replacement.completeAuth('new', Uint8List(32)),
+          throwsA(isA<AuthException>()),
+        );
+        expect(credentials.value, isNull);
+        expect(await replacement.getAuthState(), AuthState.error);
+      },
+    );
 
     test('completeAuth and signOut use injected stores', () async {
       await service.completeAuth('token', crypto.seed);

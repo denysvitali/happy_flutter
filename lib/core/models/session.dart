@@ -599,6 +599,7 @@ abstract class Session with _$Session {
   bool get canAttemptLifecycleRestore {
     if (!hasLifecycleError) return false;
     final meta = metadata;
+    if (meta?.flavor == 'har' || meta?.flavor == 'prime-agent') return false;
     return (meta?.machineId?.isNotEmpty ?? false) &&
         (meta?.path?.isNotEmpty ?? false);
   }

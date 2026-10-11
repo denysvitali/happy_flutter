@@ -302,21 +302,38 @@ extension SyncMessagePipeline on Sync {
   /// events notify the messages domain only, background events also
   /// notify sessions.
   Future<void> ingestFromSocketBatch(List<MessageIngressEvent> events) async {
+    final runtimeGeneration = _runtimeGeneration;
+    // Production socket events carry their generation before they enter the
+    // serialized queue. Direct callers capture it at this entrypoint.
+    final currentEvents = events.where((event) {
+      final captured = event.metadata['runtimeGeneration'];
+      return captured == null || captured == runtimeGeneration;
+    }).toList();
     var index = 0;
-    while (index < events.length) {
-      final lead = events[index];
+    while (index < currentEvents.length) {
+      if (runtimeGeneration != _runtimeGeneration) return;
+      final lead = currentEvents[index];
       var end = index + 1;
-      while (end < events.length &&
-          events[end].isVisibleSession == lead.isVisibleSession &&
-          events[end].notifySessionsDomain == lead.notifySessionsDomain) {
+      while (end < currentEvents.length &&
+          currentEvents[end].isVisibleSession == lead.isVisibleSession &&
+          currentEvents[end].notifySessionsDomain ==
+              lead.notifySessionsDomain) {
         end++;
       }
-      await _ingestSocketGroup(events.sublist(index, end));
+      await _ingestSocketGroup(
+        currentEvents.sublist(index, end),
+        runtimeGeneration,
+      );
+      if (runtimeGeneration != _runtimeGeneration) return;
       index = end;
     }
   }
 
-  Future<void> _ingestSocketGroup(List<MessageIngressEvent> events) async {
+  Future<void> _ingestSocketGroup(
+    List<MessageIngressEvent> events,
+    int runtimeGeneration,
+  ) async {
+    if (runtimeGeneration != _runtimeGeneration) return;
     final lead = events.first;
     final sessionId = lead.sessionId;
     final traceId = lead.traceId ?? _newTraceId(sessionId, 's');
@@ -366,7 +383,9 @@ extension SyncMessagePipeline on Sync {
       notifySessionsDomain: lead.notifySessionsDomain,
       emitSessionNotification: true,
       applyMutations: true,
+      runtimeGeneration: runtimeGeneration,
     );
+    if (runtimeGeneration != _runtimeGeneration) return;
     // Surface inner-pipeline failures as `notified=error` so Loki never
     // reports a successful notification when `errorMessage` is set.
     // Without this, `outcome=(error|dropped)` greps miss every failure
@@ -424,12 +443,27 @@ extension SyncMessagePipeline on Sync {
     required bool notifySessionsDomain,
     required bool emitSessionNotification,
     required bool applyMutations,
+    int? runtimeGeneration,
   }) async {
+    final generation = runtimeGeneration ?? _runtimeGeneration;
+    bool stale() => generation != _runtimeGeneration;
     final sessionId = normalized.sessionId;
     final traceId = normalized.traceId;
     final dedupKeys = _metadataDedupKeys(normalized.metadata);
+    ProcessedMessageBundle staleBundle() => ProcessedMessageBundle(
+      messages: const [],
+      toolResults: const [],
+      usageUpdates: const [],
+      maxSeq: 0,
+      droppedReasons: const [],
+      hasSidechain: false,
+      source: normalized.source,
+      traceId: traceId,
+      errorMessage: 'runtimeChanged',
+    );
 
     try {
+      if (stale()) return staleBundle();
       if (normalized.messages.isEmpty) {
         _releaseInlineDedupKeys(sessionId, dedupKeys);
         _logPipelineStage(
@@ -485,6 +519,7 @@ extension SyncMessagePipeline on Sync {
         // rate-limited per session to avoid hammering the server when key
         // material is permanently unavailable.
         await _recoverSessionEncryption(sessionId);
+        if (stale()) return staleBundle();
         sessionsSync.invalidate();
         messagesSync[sessionId]?.invalidate();
         if (emitSessionNotification) {
@@ -510,6 +545,7 @@ extension SyncMessagePipeline on Sync {
       if (!sessionEncryption.canDecryptAes &&
           _sessionEncryptedDataKeys.containsKey(sessionId)) {
         await _recoverSessionEncryption(sessionId);
+        if (stale()) return staleBundle();
       }
 
       final sessionEncryptionToUse =
@@ -519,6 +555,7 @@ extension SyncMessagePipeline on Sync {
         normalized.messages,
         sessionId,
       );
+      if (stale()) return staleBundle();
 
       _logPipelineStage(
         traceId,
@@ -562,6 +599,7 @@ extension SyncMessagePipeline on Sync {
 
       if (shouldYieldMutationPhases) {
         await _yieldPostDecryptMutationPhase();
+        if (stale()) return staleBundle();
       }
 
       var shouldNotify = false;
@@ -612,6 +650,7 @@ extension SyncMessagePipeline on Sync {
 
       if (shouldYieldMutationPhases) {
         await _yieldPostDecryptMutationPhase();
+        if (stale()) return staleBundle();
       }
 
       // Group sidechain children under their parent Task/Agent/Workflow
@@ -687,6 +726,8 @@ extension SyncMessagePipeline on Sync {
         traceId: traceId,
       );
     } catch (error, stack) {
+      // Old work must not release dedup keys claimed by the new runtime.
+      if (stale()) return staleBundle();
       _releaseInlineDedupKeys(sessionId, dedupKeys);
       messagesSync[sessionId]?.invalidate();
       // Emit the structured `[pipeline]` breadcrumb first so Loki greps

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/components.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
@@ -10,14 +11,12 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
 import '../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Screen for editing an existing artifact.
 ///
 /// Loads the artifact from [artifactsNotifierProvider] using [artifactId].
-/// Title and content fields are displayed for editing, but the actual
-/// encryption and API update are out of scope — see TODO below.
+/// Keeps unsaved changes guarded until a save or explicit discard.
 class EditArtifactScreen extends ConsumerStatefulWidget {
   const EditArtifactScreen({
     required this.artifactId,
@@ -37,15 +36,34 @@ class EditArtifactScreen extends ConsumerStatefulWidget {
   final VoidCallback? onClose;
 
   @override
-  ConsumerState<EditArtifactScreen> createState() => _EditArtifactScreenState();
+  EditArtifactScreenState createState() => EditArtifactScreenState();
 }
 
-class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
+class EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   bool _isBusy = false;
   bool _initialized = false;
+  String _originalTitle = '';
+  String _originalContent = '';
+  bool _allowPop = false;
+  bool _confirmingDiscard = false;
+
+  bool get _isDirty =>
+      _titleController.text != _originalTitle ||
+      _contentController.text != _originalContent;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_onEdited);
+    _contentController.addListener(_onEdited);
+  }
+
+  void _onEdited() {
+    if (_initialized) setState(() => _allowPop = false);
+  }
 
   /// Whether the embedded editor is expanded to full-screen (tablet+).
   /// Only applies when [EditArtifactScreen.embedded] is true.
@@ -53,9 +71,11 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
 
   void _initFromArtifact(DecryptedArtifact artifact) {
     if (_initialized) return;
+    _originalTitle = artifact.title ?? '';
+    _originalContent = artifact.body ?? '';
+    _titleController.text = _originalTitle;
+    _contentController.text = _originalContent;
     _initialized = true;
-    _titleController.text = artifact.title ?? '';
-    _contentController.text = artifact.body ?? '';
   }
 
   @override
@@ -88,11 +108,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             body: content.isNotEmpty ? content : null,
           );
       if (!mounted) return;
-      if (widget.embedded) {
-        widget.onClose?.call();
-      } else {
-        Navigator.of(context).pop();
-      }
+      await _leave();
     } catch (e, st) {
       logger.warning(
         '[EditArtifactScreen] updateArtifact failed: '
@@ -117,7 +133,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       ),
     );
 
-    if (artifact == null) {
+    if (artifact == null && !_initialized) {
       final emptyBody = AppEmptyState(
         icon: Icons.error_outline,
         title: l10n.errorNotFound,
@@ -144,7 +160,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                       setState(() => _isFullscreen = !_isFullscreen),
                 ),
               ],
-              onClose: widget.onClose,
+              onClose: _handleClose,
             ),
             Expanded(child: emptyBody),
           ],
@@ -157,7 +173,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     }
 
     // Populate fields once on first build after artifact loads.
-    _initFromArtifact(artifact);
+    if (artifact != null) _initFromArtifact(artifact);
 
     final form = Form(
       key: _formKey,
@@ -172,6 +188,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             ArtifactSectionLabel(label: l10n.artifactsTitleLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
+              enabled: !_isBusy,
               controller: _titleController,
               decoration: artifactFieldDecoration(
                 context,
@@ -186,6 +203,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             ArtifactSectionLabel(label: l10n.artifactsContentLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
+              enabled: !_isBusy,
               controller: _contentController,
               decoration: artifactFieldDecoration(
                 context,
@@ -242,16 +260,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
         ],
         onClose: () {
           if (_isFullscreen) {
-            // Exit full-screen first instead of closing.
             setState(() => _isFullscreen = false);
             return;
           }
-          if (_titleController.text.trim() != (artifact.title ?? '') ||
-              _contentController.text.trim() != (artifact.body ?? '')) {
-            _showUnsavedChangesDialog(context, embedded: true);
-            return;
-          }
-          widget.onClose?.call();
+          _handleClose();
         },
       );
 
@@ -265,39 +277,28 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       // In fullscreen mode use a Stack + Positioned.fill so the editor
       // overlays any surrounding pane/sidebar without needing a new route.
       if (_isFullscreen) {
-        return Stack(
-          children: [
-            // Placeholder to keep parent layout stable.
-            const SizedBox.shrink(),
-            Positioned.fill(
-              child: Material(
-                color: Theme.of(context).colorScheme.surface,
-                elevation: 0,
-                child: embeddedColumn,
+        return _guardPop(
+          Stack(
+            children: [
+              // Placeholder to keep parent layout stable.
+              const SizedBox.shrink(),
+              Positioned.fill(
+                child: Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  elevation: 0,
+                  child: embeddedColumn,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       }
 
-      return embeddedColumn;
+      return _guardPop(embeddedColumn);
     }
 
-    return PopScope(
-      // Read current text at pop-gesture time, not build time,
-      // to avoid stale state when text changes between canPop
-      // evaluation and the callback being invoked.
-      canPop:
-          _titleController.text.trim() == (artifact.title ?? '') &&
-          _contentController.text.trim() == (artifact.body ?? ''),
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop &&
-            (_titleController.text.trim() != (artifact.title ?? '') ||
-                _contentController.text.trim() != (artifact.body ?? ''))) {
-          _showUnsavedChangesDialog(context);
-        }
-      },
-      child: Scaffold(
+    return _guardPop(
+      Scaffold(
         appBar: AppBar(
           title: Text(l10n.artifactsEdit),
           actions: [
@@ -325,39 +326,49 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
   }
 
-  void _showUnsavedChangesDialog(
-    BuildContext screenContext, {
-    bool embedded = false,
-  }) {
-    final cs = Theme.of(screenContext).colorScheme;
-    showDialog(
-      context: screenContext,
-      builder: (dialogContext) {
-        final l10n = AppLocalizations.of(dialogContext);
-        return AlertDialog(
-          title: Text(l10n.commonUnsavedChangesTitle),
-          content: Text(l10n.commonUnsavedChangesContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.chatStay),
-            ),
-            TextButton(
-              style: AppButtonStyle.destructive(cs),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                if (embedded) {
-                  widget.onClose?.call();
-                } else {
-                  Navigator.of(screenContext).pop();
-                }
-              },
-              child: Text(l10n.chatLeave),
-            ),
-          ],
-        );
+  Widget _guardPop(Widget child) {
+    return PopScope(
+      canPop: _allowPop || (!_isBusy && !_isDirty),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleClose();
       },
+      child: child,
     );
+  }
+
+  Future<void> _handleClose() async {
+    if (await confirmDiscard() && mounted) await _leave();
+  }
+
+  Future<void> _leave() async {
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    setState(() => _allowPop = true);
+    // Publish the approved exit to PopScope before issuing the route pop.
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// The master-detail host must ask before replacing this editor.
+  Future<bool> confirmDiscard() async {
+    if (_isBusy || _confirmingDiscard) return false;
+    if (!_isDirty) return true;
+    _confirmingDiscard = true;
+    try {
+      final l10n = context.l10n;
+      return await showConfirmDialog(
+        context,
+        title: l10n.commonUnsavedChangesTitle,
+        content: l10n.commonUnsavedChangesContent,
+        cancelLabel: l10n.chatStay,
+        confirmLabel: l10n.chatLeave,
+        isDestructive: true,
+      );
+    } finally {
+      _confirmingDiscard = false;
+    }
   }
 }
 

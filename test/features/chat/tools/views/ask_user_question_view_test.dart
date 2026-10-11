@@ -8,6 +8,7 @@ import 'package:happy_flutter/features/chat/tools/views/ask_user_question_view.d
 
 class _RecordingPermissionsNotifier extends PermissionsNotifier {
   final List<Map<String, dynamic>> allowCalls = [];
+  String? failure;
 
   @override
   Future<PermissionResponse> allow(
@@ -23,6 +24,7 @@ class _RecordingPermissionsNotifier extends PermissionsNotifier {
       'permissionId': permissionId,
       'updatedInput': updatedInput,
     });
+    if (failure != null) throw StateError(failure!);
     return const PermissionResponse(success: true);
   }
 }
@@ -59,6 +61,140 @@ Map<String, dynamic> _tool({bool multiSelect = false}) => <String, dynamic>{
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final status in ['denied', 'canceled']) {
+    for (final initiallyPending in [false, true]) {
+      testWidgets('$status stays read-only and is not answered '
+          '(initially pending: $initiallyPending)', (tester) async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        Map<String, dynamic> tool(String state) => {
+          ..._tool(),
+          'permission': {'id': 'perm-1', 'status': state},
+        };
+        await tester.pumpWidget(
+          _wrap(
+            container,
+            AskUserQuestionView(
+              tool: tool(initiallyPending ? 'pending' : status),
+              sessionId: 's1',
+            ),
+          ),
+        );
+        if (initiallyPending) {
+          await tester.tap(find.text('Postgres'));
+          await tester.pumpWidget(
+            _wrap(
+              container,
+              AskUserQuestionView(tool: tool(status), sessionId: 's1'),
+            ),
+          );
+        }
+        await tester.pump();
+        expect(
+          find.text(status == 'denied' ? 'Denied' : 'Canceled'),
+          findsOneWidget,
+        );
+        expect(find.text('Answered'), findsNothing);
+        expect(find.text('Submit'), findsNothing);
+        expect(find.byType(TextField), findsNothing);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
+
+  for (final status in ['denied', 'canceled']) {
+    testWidgets('$status overrides a successful local answer', (tester) async {
+      final notifier = _RecordingPermissionsNotifier();
+      final container = ProviderContainer(
+        overrides: [permissionsNotifierProvider.overrideWith(() => notifier)],
+      );
+      addTearDown(container.dispose);
+      final tool = _tool();
+      await tester.pumpWidget(
+        _wrap(container, AskUserQuestionView(tool: tool, sessionId: 's1')),
+      );
+      await tester.tap(find.text('Postgres'));
+      await tester.pump();
+      await tester.tap(find.text('Submit'));
+      await tester.pump();
+      expect(find.text('Answered'), findsOneWidget);
+      (tool['permission'] as Map<String, dynamic>)['status'] = status;
+      await tester.pumpWidget(
+        _wrap(container, AskUserQuestionView(tool: tool, sessionId: 's1')),
+      );
+      await tester.pump();
+      expect(
+        find.text(status == 'denied' ? 'Denied' : 'Canceled'),
+        findsOneWidget,
+      );
+      expect(find.text('Answered'), findsNothing);
+      expect(find.text('Submit'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  testWidgets('an expired submission is canceled rather than answered', (
+    tester,
+  ) async {
+    final notifier = _RecordingPermissionsNotifier()..failure = 'expired';
+    final container = ProviderContainer(
+      overrides: [permissionsNotifierProvider.overrideWith(() => notifier)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      _wrap(container, AskUserQuestionView(tool: _tool(), sessionId: 's1')),
+    );
+    await tester.tap(find.text('Postgres'));
+    await tester.pump();
+    await tester.tap(find.text('Submit'));
+    await tester.pump();
+    expect(find.text('Canceled'), findsOneWidget);
+    expect(find.text('Answered'), findsNothing);
+    expect(find.text('Submit'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('approved without answers is not labeled answered', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      _wrap(
+        container,
+        AskUserQuestionView(
+          tool: {
+            ..._tool(),
+            'permission': {'status': 'approved'},
+          },
+          sessionId: 's1',
+        ),
+      ),
+    );
+    expect(find.text('Answered'), findsNothing);
+    expect(find.text('Resolved without an answer'), findsOneWidget);
+    expect(find.text('Submit'), findsNothing);
+  });
+
+  testWidgets('persisted answers render an answered summary', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final tool = _tool();
+    (tool['input'] as Map<String, dynamic>)['answers'] = {
+      'Which database?': 'SQLite',
+    };
+    (tool['input'] as Map<String, dynamic>)['annotations'] = {
+      'Which database?': {'notes': 'Persisted note'},
+    };
+    tool['permission'] = {'status': 'approved'};
+    await tester.pumpWidget(
+      _wrap(container, AskUserQuestionView(tool: tool, sessionId: 's1')),
+    );
+    expect(find.text('Answered'), findsOneWidget);
+    expect(find.text('SQLite'), findsOneWidget);
+    expect(find.text('Notes: Persisted note'), findsOneWidget);
+  });
 
   testWidgets('renders questions, options, and a notes field', (tester) async {
     final container = ProviderContainer(

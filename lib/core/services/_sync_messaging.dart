@@ -394,6 +394,8 @@ extension SyncMessaging on Sync {
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
+    final runtimeGeneration = _runtimeGeneration;
+    bool stale() => runtimeGeneration != _runtimeGeneration;
     final fetchStopwatch = Stopwatch()..start();
     var fetchOutcome = 'ok';
 
@@ -433,11 +435,13 @@ extension SyncMessaging on Sync {
         );
         // Encryption may not be initialized yet — wait for pending fetch.
         await sessionsSync.invalidateAndAwait();
+        if (stale()) return;
         sessionEncryption = encryption.getSessionEncryption(sessionId);
         if (sessionEncryption == null) {
           // Force a full fetch in case changedSince race skipped the session.
           _forceFullFetchNext = true;
           await sessionsSync.invalidateAndAwait();
+          if (stale()) return;
           sessionEncryption = encryption.getSessionEncryption(sessionId);
         }
         unawaited(encSpan.finish());
@@ -795,6 +799,7 @@ extension SyncMessaging on Sync {
               afterSeq,
               Sync._messageFetchPageSize,
             );
+            if (stale()) return;
             // Synthesize a minimal Response to satisfy the rest of the logic.
             response = Response(
               requestOptions: RequestOptions(path: ''),
@@ -819,12 +824,14 @@ extension SyncMessaging on Sync {
               ),
             );
           }
+          if (stale()) return;
           final fetchMs = fetchStart.elapsedMilliseconds;
           totalHttpMs += fetchMs;
           httpSpan
             ..setData('httpMs', fetchMs)
             ..setData('statusCode', response.statusCode ?? 0);
           await httpSpan.finish();
+          if (stale()) return;
 
           if (!apiClient.isSuccess(response)) {
             final statusCode = response.statusCode;
@@ -842,6 +849,7 @@ extension SyncMessaging on Sync {
                 'ERR_NETWORK_CHANGED — retrying same page in 500ms',
               );
               await Future<void>.delayed(const Duration(milliseconds: 500));
+              if (stale()) return;
               continue; // retry same page
             }
 
@@ -892,6 +900,7 @@ extension SyncMessaging on Sync {
             }
             _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
             await pageSpan.finish(status: const SpanStatus.internalError());
+            if (stale()) return;
             break;
           }
 
@@ -919,10 +928,10 @@ extension SyncMessaging on Sync {
             final localId = message['localId'] as String?;
             if (localId == null || localId.isEmpty) continue;
             unawaited(
-              messageOutbox.serialize(
-                sessionId,
-                () => messageOutbox.remove(localId),
-              ),
+              messageOutbox.serialize(sessionId, () async {
+                if (stale()) return;
+                await messageOutbox.remove(localId);
+              }),
             );
             messageInvariantMonitor.seedSentLocalId(localId);
           }
@@ -968,6 +977,7 @@ extension SyncMessaging on Sync {
             ..setData('newMessages', newMessages.length)
             ..setData('skippedMessages', messages.length - newMessages.length);
           await filterSpan.finish();
+          if (stale()) return;
 
           final decryptSpan = pageSpan.startChild(
             'sync.fetchMessages.decrypt',
@@ -988,6 +998,7 @@ extension SyncMessaging on Sync {
             applyMutations: false,
             emitSessionNotification: false,
           );
+          if (stale()) return;
           final decryptMs = decryptStart.elapsedMilliseconds;
           totalDecryptMs += decryptMs;
           final skippedCount = messages.length - newMessages.length;
@@ -1011,6 +1022,7 @@ extension SyncMessaging on Sync {
             ..setData('usageUpdates', processed.usageUpdates.length)
             ..setData('maxSeq', processed.maxSeq);
           await decryptSpan.finish();
+          if (stale()) return;
           var pageMessages = processed.messages;
           final jumpedWithoutUi =
               newMessages.isNotEmpty &&
@@ -1067,7 +1079,8 @@ extension SyncMessaging on Sync {
             description: 'Merge page into local state',
           );
           final mergeStart = Stopwatch()..start();
-          await Future<void>.delayed(Duration.zero);
+          await _yieldPostDecryptMutationPhase();
+          if (stale()) return;
 
           // ── Upsert messages ──
           // Explicit tail recovery merges new messages into the existing list.
@@ -1101,7 +1114,8 @@ extension SyncMessaging on Sync {
           }
 
           // ── Yield ──
-          await Future<void>.delayed(Duration.zero);
+          await _yieldPostDecryptMutationPhase();
+          if (stale()) return;
 
           // ── Incremental sidechain grouping (per-page, visible only) ──
           // Previously the full O(4n) grouper ran ONCE after all pages
@@ -1163,6 +1177,7 @@ extension SyncMessaging on Sync {
           }
           mergeSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
           await mergeSpan.finish();
+          if (stale()) return;
           pageSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
 
           if (rawMaxSeq != null && rawMaxSeq > afterSeq) {
@@ -1226,6 +1241,7 @@ extension SyncMessaging on Sync {
               }
             }
             await pageSpan.finish();
+            if (stale()) return;
             break;
           }
           page++;
@@ -1244,6 +1260,7 @@ extension SyncMessaging on Sync {
             continueCrawl();
             pageSpan.setData('hitMaxPages', true);
             await pageSpan.finish();
+            if (stale()) return;
             break;
           }
 
@@ -1266,12 +1283,15 @@ extension SyncMessaging on Sync {
             continueCrawl();
             pageSpan.setData('hitBudget', true);
             await pageSpan.finish();
+            if (stale()) return;
             break;
           }
 
           // ── Yield between pages ──
-          await Future<void>.delayed(Duration.zero);
+          await _yieldPostDecryptMutationPhase();
+          if (stale()) return;
           await pageSpan.finish();
+          if (stale()) return;
         }
         final isVisibleAtCompletion = _visibleSessionId == sessionId;
         // Final notification in case some pages had no messages
@@ -1327,6 +1347,7 @@ extension SyncMessaging on Sync {
             }
           }
           await finalizeSpan.finish();
+          if (stale()) return;
 
           // Cross-device backfill: when a session is opened for the
           // first time on this device and the tail-load only covered
@@ -1350,6 +1371,7 @@ extension SyncMessaging on Sync {
             _sessionsNeedingVisibleRegroup.add(sessionId);
           }
           await finalizeSpan.finish();
+          if (stale()) return;
         }
         fetchOutcome = hitBudget ? 'budget_deferred' : 'ok';
         logger.debug(
@@ -1407,6 +1429,7 @@ extension SyncMessaging on Sync {
           ),
         );
       } on DioException catch (e) {
+        if (stale()) return;
         // If the server returns 404, the session was deleted. Clean up
         // local state instead of retrying (which would produce 2 more
         // wasted 404 requests via InvalidateSync).
@@ -1485,6 +1508,7 @@ extension SyncMessaging on Sync {
         );
         rethrow;
       } on TypeError catch (typeError, stack) {
+        if (stale()) return;
         fetchOutcome = 'decode_error';
         // Defensive net for the 3EV/3EU cluster: a freshly-spawned
         // session's first fetch can hand a parser a Map whose values
@@ -1535,6 +1559,7 @@ extension SyncMessaging on Sync {
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       } catch (error, stack) {
+        if (stale()) return;
         if (Sync._isTransientConnectionError(error)) {
           fetchOutcome = 'transient_connection_error';
           fetchSpan
@@ -1577,6 +1602,10 @@ extension SyncMessaging on Sync {
       }
     } finally {
       fetchStopwatch.stop();
+      if (stale()) {
+        fetchOutcome = 'runtime_changed';
+        unawaited(fetchSpan.finish());
+      }
       OpenTelemetryService().recordDuration(
         'app.fetch_messages',
         fetchStopwatch.elapsed,
@@ -1665,9 +1694,16 @@ extension SyncMessaging on Sync {
   Future<void> fetchOlderMessages(
     String sessionId, {
     int pageSize = Sync._olderMessagePageSize,
+    bool userInitiated = false,
   }) async {
     if (isLoadingOlderMessages(sessionId)) return;
-    final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
+    if (userInitiated && _visibleSessionId != sessionId) return;
+    // Automatic parent recovery must not displace an explicit user window.
+    if (!userInitiated && _userHistoryBoundary(sessionId) != null) return;
+    final firstLoaded = _olderHistoryBoundary(
+      sessionId,
+      userInitiated: userInitiated,
+    );
     if (firstLoaded <= 1) return; // nothing older to fetch
 
     // A page that left the boundary where it was (trimmed away on arrival, or
@@ -1707,15 +1743,27 @@ extension SyncMessaging on Sync {
       final page = await _fetchOlderMessagePage(
         sessionId,
         firstLoaded,
-        pageSize,
+        userInitiated
+            ? min(pageSize, _sessionTrimCap(sessionId) - 1)
+            : pageSize,
         runtimeGeneration,
       );
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       final response = page.response;
       final startSeq = page.afterSeq;
       httpSpan.setData('statusCode', response.statusCode ?? 0);
       await httpSpan.finish();
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       if (!ApiClient().isSuccess(response)) {
         throw DioException(
           requestOptions: response.requestOptions,
@@ -1755,7 +1803,12 @@ extension SyncMessaging on Sync {
         applyMutations: false,
         emitSessionNotification: false,
       );
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       transaction
         ..setData('decryptMs', decryptStart.elapsedMilliseconds)
         ..setData('processedMessages', processed.messages.length)
@@ -1774,10 +1827,19 @@ extension SyncMessaging on Sync {
 
       // Yield before main-thread merge work
       await Future<void>.delayed(Duration.zero);
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
 
       if (processed.messages.isNotEmpty) {
-        _upsertSessionMessages(sessionId, processed.messages);
+        _upsertSessionMessages(
+          sessionId,
+          processed.messages,
+          retainOlder: userInitiated,
+        );
       }
       // Replay first, as on live ingestion, while keeping backfill results
       // out of the pending queue. Replay also prunes expired entries.
@@ -1843,7 +1905,9 @@ extension SyncMessaging on Sync {
       //   Observed in production 2026-08-03: a 13k-seq session reduced to
       //   its newest ~200 rows after a 2.5h orphan walk-back whose pages
       //   were trimmed as fast as they arrived.
-      if (startSeq == 0) {
+      if (userInitiated) {
+        _completeUserHistoryPage(sessionId, startSeq, processed.messages);
+      } else if (startSeq == 0) {
         final minSeqAfterUpsert = _minLoadedSeq(sessionId);
         final canPinHistoryComplete =
             minSeqAfterUpsert != null &&
@@ -1879,7 +1943,10 @@ extension SyncMessaging on Sync {
       } else {
         _sessionFirstLoadedSeq[sessionId] = startSeq + 1;
       }
-      if (_sessionFirstLoadedSeq[sessionId] == firstLoaded) {
+      final completedBoundary = userInitiated
+          ? _userHistoryBoundary(sessionId)
+          : _sessionFirstLoadedSeq[sessionId];
+      if (completedBoundary == firstLoaded) {
         _olderFetchNoProgress[sessionId] = (
           boundary: firstLoaded,
           atMs: DateTime.now().millisecondsSinceEpoch,
@@ -1887,13 +1954,18 @@ extension SyncMessaging on Sync {
       } else {
         _olderFetchNoProgress.remove(sessionId);
       }
-      _scheduleSaveFirstLoadedSeq();
+      if (!userInitiated) _scheduleSaveFirstLoadedSeq();
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
       await transaction.finish();
     } on DioException catch (e) {
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       if (e.response?.statusCode == 404) {
         logger.info(
           '[fetchOlderMessages] $sessionId returned 404 — '
@@ -1906,16 +1978,31 @@ extension SyncMessaging on Sync {
           ..setData('error', e.toString())
           ..setData('currentRoute', PerformanceContextService().currentRoute);
         await transaction.finish(status: const SpanStatus.internalError());
-        if (runtimeGeneration != _runtimeGeneration) return;
+        if (runtimeGeneration != _runtimeGeneration ||
+            (userInitiated &&
+                (_visibleSessionId != sessionId ||
+                    _userHistoryBoundary(sessionId) != firstLoaded))) {
+          return;
+        }
         _paginationErrorController.add(sessionId);
       }
     } catch (error, stack) {
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       transaction
         ..setData('error', error.toString())
         ..setData('currentRoute', PerformanceContextService().currentRoute);
       await transaction.finish(status: const SpanStatus.internalError());
-      if (runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration ||
+          (userInitiated &&
+              (_visibleSessionId != sessionId ||
+                  _userHistoryBoundary(sessionId) != firstLoaded))) {
+        return;
+      }
       logger.error('Error fetching older messages', error, stack);
       _paginationErrorController.add(sessionId);
     } finally {

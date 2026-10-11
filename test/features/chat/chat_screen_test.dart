@@ -164,6 +164,62 @@ void main() {
     await TtsService().dispose();
   });
 
+  for (final state in [
+    'errored',
+    'stopped',
+    'exited',
+    'failed',
+    'error',
+    'archived',
+  ]) {
+    testWidgets(
+      'terminal Prime $state blocks restore and keeps failed identity',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {
+            'id': 'local-prime',
+            'localId': 'local-prime',
+            'role': 'user',
+            'kind': 'text',
+            'content': 'continue',
+            'sendStatus': 'failed',
+          },
+        ]);
+        sync.testSessions['session_1'] = _makeSession(flavor: 'prime-agent')
+            .copyWith(
+              lifecycleStateCleartext: state,
+              metadata: const Metadata(
+                host: '',
+                flavor: 'prime-agent',
+                machineId: 'machine-1',
+                path: '/work/repo',
+              ),
+            );
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(find.text('Prime Agent conversation stopped'), findsOneWidget);
+        expect(
+          find.textContaining('Start a new Prime Agent session'),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+          isTrue,
+        );
+        final row = sync.messagesForSession('session_1').single;
+        expect(row['localId'], 'local-prime');
+        expect(row['sendStatus'], 'failed');
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+      },
+    );
+  }
+
   testWidgets('stopped Har explains daemon loss without exposing diagnostics', (
     tester,
   ) async {
@@ -1947,6 +2003,14 @@ void main() {
       expect(find.text('Message number 1'), findsNothing);
 
       await tester.drag(find.byType(ListView), const Offset(0, 5000));
+      for (var i = 0; i < 30 && requestedAfterSeqs.isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(requestedAfterSeqs, <int>[100]);
+      // Paging preserves the viewed row rather than jumping past the newly
+      // loaded page. Another explicit scroll reaches the next history edge.
+      await tester.drag(find.byType(ListView), const Offset(0, 12000));
       for (var i = 0; i < 30 && requestedAfterSeqs.length < 2; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -2087,6 +2151,239 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('chat-search-bar')), findsNothing);
       expect(find.byType(HiddenToolSummary), findsOneWidget);
+    });
+
+    testWidgets(
+      'bounded older-page rollover and live tail preserve visible row y',
+      (tester) async {
+        const cap = Sync.maxVisibleSessionMessagesForTesting;
+        const first = 10000;
+        final page = Completer<Map<String, dynamic>>();
+        var fetches = 0;
+        Map<String, dynamic> row(int seq) => <String, dynamic>{
+          'id': 'anchor-$seq',
+          'seq': seq,
+          'createdAt': 1700000000000 + seq * 1000,
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'Equal height row $seq',
+        };
+        sync.isInitialized = true;
+        sync.encryption = _FakeEncryption();
+        sync.testEncryptionInitialized = true;
+        sync.sessionsSync = InvalidateSync(() async {});
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSessions['session_1'] = _makeSession();
+        sync.testSetSessionMessages('session_1', const []);
+        sync.testClearHistoryFullyLoaded('session_1');
+        sync.testFetchOlderMessagesOverride = (_, afterSeq, limit) {
+          fetches++;
+          expect(afterSeq + limit, first - 1);
+          return page.future;
+        };
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        sync.testSetSessionMessages('session_1', [
+          for (var seq = first; seq < first + 3 * cap; seq++) row(seq),
+        ]);
+        sync.testUpsertSessionMessages(
+          'session_1',
+          const [],
+          retainOlder: true,
+        );
+        sync.testSetSessionFirstLoadedSeq('session_1', first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(sync.messagesForSession('session_1').length, 2 * cap);
+        expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
+
+        // Search expands local presentation to all resident rows, then close it.
+        await tester.tap(find.byIcon(Icons.search_rounded));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('chat-search-field')),
+          'Equal height row $first',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('chat-search-close')));
+        await tester.pumpAndSettle();
+        final list = find.byType(ListView);
+        final controller = tester.widget<ListView>(list).controller!;
+        controller.jumpTo(controller.position.maxScrollExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Real inline Retry callback enters _loadMore and captures the row at rest.
+        sync.testEmitPaginationError('session_1');
+        await tester.pump();
+        final oldest = find.byKey(const ValueKey('anchor-10000'));
+        expect(oldest, findsOneWidget);
+        final before = tester.getTopLeft(oldest).dy;
+        final viewport = tester.getRect(list);
+        expect(tester.getRect(oldest).overlaps(viewport), isTrue);
+        expect(fetches, 0);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(PaginationFailureRetry),
+            matching: find.byType(TextButton),
+          ),
+        );
+        await tester.pump();
+        expect(fetches, 1);
+        page.complete(<String, dynamic>{
+          'messages': [
+            for (var seq = first - 100; seq < first; seq++)
+              _makeEncryptedMessage(
+                'anchor-$seq',
+                seq: seq,
+                content: 'Equal height row $seq',
+              ),
+          ],
+          'hasMore': true,
+        });
+        // Bounded frame pumps; periodic app timers need not settle.
+        for (var frame = 0; frame < 24; frame++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        final resident = sync.messagesForSession('session_1');
+        expect(resident.length, 2 * cap);
+        expect(resident.first['id'], 'anchor-${first - 100}');
+        expect(
+          resident.any((message) => message['id'] == 'anchor-$first'),
+          isTrue,
+        );
+        expect(oldest, findsOneWidget);
+        expect(tester.getTopLeft(oldest).dy, closeTo(before, 1));
+        expect(tester.getRect(oldest).overlaps(tester.getRect(list)), isTrue);
+
+        // Replacing the bounded live tail must not displace older viewport rows.
+        final afterPage = tester.getTopLeft(oldest).dy;
+        sync.testUpsertSessionMessages('session_1', [
+          for (var seq = first + 3 * cap; seq < first + 4 * cap; seq++)
+            row(seq),
+        ]);
+        for (var frame = 0; frame < 12; frame++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(sync.messagesForSession('session_1').length, 2 * cap);
+        expect(
+          sync.messagesForSession('session_1').last['seq'],
+          first + 4 * cap - 1,
+        );
+        expect(oldest, findsOneWidget);
+        expect(tester.getTopLeft(oldest).dy, closeTo(afterPage, 1));
+        expect(
+          fetches,
+          1,
+          reason: 'anchor restore must not auto-walk more pages',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+        sync.testFlushPendingMessageSaves();
+      },
+    );
+
+    testWidgets('split scrollback shows a gap and returns to latest', (
+      tester,
+    ) async {
+      const cap = Sync.maxVisibleSessionMessagesForTesting;
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      sync.testUpsertSessionMessages('session_1', [
+        for (var i = 1; i <= 3 * cap; i++)
+          {
+            'id': 'gap-$i',
+            'seq': i,
+            'createdAt': i,
+            'role': 'agent',
+            'kind': 'text',
+            'content': i == 2 * cap + 1 ? 'gap boundary' : 'row $i',
+          },
+      ], retainOlder: true);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-search-field')),
+        'gap boundary',
+      );
+      await tester.pumpAndSettle();
+      expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
+      final gap = find.byKey(const ValueKey('chat-scrollback-gap'));
+      expect(gap, findsOneWidget);
+      await tester.ensureVisible(find.text('Return to latest'));
+      await tester.tap(find.text('Return to latest'));
+      await tester.pumpAndSettle();
+      expect(sync.scrollbackGapBeforeMessageId('session_1'), isNull);
+      expect(find.byKey(const ValueKey('chat-scrollback-gap')), findsNothing);
+      final rows = sync.messagesForSession('session_1');
+      expect(rows.length, lessThanOrEqualTo(cap));
+      expect(rows.last['id'], 'gap-${3 * cap}');
+    });
+
+    testWidgets('distant search matches enter the reverse-list viewport', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        for (var i = 0; i < 48; i++)
+          {
+            'id': 'long-$i',
+            'seq': i + 1,
+            'createdAt': i + 1,
+            'role': i.isEven ? 'user' : 'agent',
+            'kind': 'text',
+            'content': i == 0 || i == 47
+                ? 'viewport needle $i'
+                : List.filled(1 + i % 5, 'variable height row $i').join('\n'),
+          },
+      ]);
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-search-field')),
+        'viewport needle',
+      );
+      await tester.pumpAndSettle();
+
+      void expectInViewport(String id) {
+        final row = find.byKey(ValueKey(id));
+        expect(_tintOn(id), findsOneWidget);
+        final viewport = find.ancestor(
+          of: row,
+          matching: find.byType(ListView),
+        );
+        final rowRect = tester.getRect(row);
+        final viewportRect = tester.getRect(viewport);
+        expect(rowRect.top, greaterThanOrEqualTo(viewportRect.top - 1));
+        expect(rowRect.bottom, lessThanOrEqualTo(viewportRect.bottom + 1));
+      }
+
+      expect(find.text('1 of 2'), findsOneWidget);
+      expectInViewport('long-0');
+      await tester.tap(find.byKey(const ValueKey('chat-search-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('2 of 2'), findsOneWidget);
+      expectInViewport('long-47');
+      await tester.tap(find.byKey(const ValueKey('chat-search-previous')));
+      await tester.pumpAndSettle();
+      expectInViewport('long-0');
     });
 
     testWidgets('counts matches, highlights one and pages between them', (

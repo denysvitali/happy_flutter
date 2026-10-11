@@ -308,6 +308,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _canTriggerHistoryLoad = true;
   bool _isAdjustingHistoryScroll = false;
   bool _continueHistoryLoadAfterServerPage = false;
+  final Map<String, BuildContext> _messageRowContexts = {};
+  ({String key, double top})? _historyAnchor;
+  bool _restoringHistoryAnchor = false;
 
   double? _lastScrollMaxExtent;
   double? _lastScrollPixels;
@@ -336,6 +339,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _cachedMessagesLength = -1;
   int _cachedVisibleCount = -1;
   List<Map<String, dynamic>?>? _cachedListItems;
+  String? _cachedScrollbackGapBeforeId;
   List<Map<String, dynamic>>? _cachedListItemsSource;
   int _cachedListItemsVisibleCount = -1;
   bool? _cachedListItemsHideToolCalls;
@@ -618,6 +622,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (mounted) {
             _isLoadingMore = false;
             _paginationLoadFailed = true;
+            _historyAnchor = null;
             _continueHistoryLoadAfterServerPage = false;
             _canTriggerHistoryLoad = true;
             _bumpMessagePaneRevision();
@@ -733,6 +738,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (!mounted) return;
+
+    if (messagesChanged &&
+        !_isLoadingMore &&
+        !_autoScroll &&
+        !_isUserDragging &&
+        !_searchOpen &&
+        _historyAnchor == null &&
+        sync.scrollbackGapBeforeMessageId(widget.sessionId) != null) {
+      _captureHistoryAnchor();
+    }
+    if (messagesChanged && _historyAnchor != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_restoreHistoryAnchor());
+      });
+    }
 
     if (messagesChanged) {
       // Keep immutable snapshots to reuse unchanged visible projections.
@@ -876,7 +896,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final continueHistoryLoadAfterServerPage =
         messagesChanged && _continueHistoryLoadAfterServerPage;
-    if (continueHistoryLoadAfterServerPage) {
+    if (continueHistoryLoadAfterServerPage && _historyAnchor == null) {
       _continueHistoryLoadAfterServerPage = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _continueHistoryLoadIfStillAtEdge(alignToHistoryEdge: true);
@@ -1020,6 +1040,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String _messageKey(Map<String, dynamic> m) => canonicalMessageIdentityKey(m);
 
+  void _returnToLatestMessages() {
+    _historyAnchor = null;
+    _pendingRevealKey = null;
+    sync.returnToLatestMessages(widget.sessionId);
+    _refreshFromSync();
+    _scrollToBottom();
+    sync.messagesSync[widget.sessionId]?.invalidate();
+  }
+
   void _scrollToBottom() {
     if (_scrollToBottomScheduled) return;
     _scrollToBottomScheduled = true;
@@ -1052,9 +1081,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _onScrollNotification(ScrollNotification notification) {
     if (notification.depth != 0) return false;
     if (notification is ScrollStartNotification) {
-      if (notification.dragDetails != null) _isUserDragging = true;
+      if (notification.dragDetails != null) {
+        _isUserDragging = true;
+        _historyAnchor = null;
+      }
+    } else if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null) {
+      _historyAnchor = null;
     } else if (notification is ScrollEndNotification) {
       _isUserDragging = false;
+      if (!_isLoadingMore && _historyAnchor != null) {
+        unawaited(_restoreHistoryAnchor());
+      }
     }
     return false;
   }
@@ -1086,6 +1124,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (atHistoryEdge &&
         _canTriggerHistoryLoad &&
+        !_isAdjustingHistoryScroll &&
+        !_restoringHistoryAnchor &&
         pos.isScrollingNotifier.value) {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastLoadMoreMs >= 200) {
@@ -1099,7 +1139,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _preserveHistoryEdgeOnExtentGrowth(ScrollPosition pos) {
-    if (_isAdjustingHistoryScroll || _isLoadingMore) return;
+    if (_isAdjustingHistoryScroll ||
+        _isLoadingMore ||
+        _historyAnchor != null ||
+        _restoringHistoryAnchor)
+      return;
     // `jumpTo` goes idle first, which disposes an in-flight drag. In a
     // reverse list the new (older) rows are laid out beyond the current
     // offset anyway, so the visible content does not move — re-anchoring
@@ -1145,7 +1189,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _continueHistoryLoadIfStillAtEdge({bool alignToHistoryEdge = false}) {
-    if (!mounted || _isLoadingMore || !_scrollController.hasClients) return;
+    if (!mounted ||
+        _isLoadingMore ||
+        !_scrollController.hasClients ||
+        _historyAnchor != null ||
+        _restoringHistoryAnchor)
+      return;
     final pos = _scrollController.position;
     final previousMax = _lastScrollMaxExtent;
     final atCurrentHistoryEdge =
@@ -1166,6 +1215,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     _canTriggerHistoryLoad = true;
     _loadMore();
+  }
+
+  void _captureHistoryAnchor() {
+    if (!_scrollController.hasClients) return;
+    final scrollable = _scrollController.position.context.notificationContext;
+    final viewport = scrollable?.findRenderObject();
+    if (viewport is! RenderBox || !viewport.hasSize) return;
+    final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
+    _messageRowContexts.removeWhere((_, context) => !context.mounted);
+    ({String key, double top})? anchor;
+    for (final entry in _messageRowContexts.entries) {
+      final render = entry.value.findRenderObject();
+      if (render is! RenderBox || !render.hasSize) continue;
+      final rect = render.localToGlobal(Offset.zero) & render.size;
+      if (!rect.overlaps(bounds)) continue;
+      if (anchor == null || rect.top < anchor.top) {
+        anchor = (key: entry.key, top: rect.top);
+      }
+    }
+    _historyAnchor = anchor;
+  }
+
+  Future<void> _restoreHistoryAnchor() async {
+    if (!mounted || _isUserDragging || _restoringHistoryAnchor) return;
+    final anchor = _historyAnchor;
+    if (anchor == null) return;
+    _restoringHistoryAnchor = true;
+    try {
+      await _revealSearchMatch(
+        anchor.key,
+        requireSearch: false,
+        savedTop: anchor.top,
+      );
+    } finally {
+      _historyAnchor = null;
+      _restoringHistoryAnchor = false;
+      if (mounted && _scrollController.hasClients) {
+        _rememberScrollMetrics(_scrollController.position);
+      }
+    }
   }
 
   void _loadMore() {
@@ -1206,16 +1295,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _paginationLoadFailed = false;
       _bumpMessagePaneRevision();
       final revisionBeforeLoad = sync.messagesRevision(widget.sessionId);
-      _continueHistoryLoadAfterServerPage = true;
-      sync.fetchOlderMessages(widget.sessionId).whenComplete(() {
-        if (mounted) {
-          _isLoadingMore = false;
-          _bumpMessagePaneRevision();
-          if (sync.messagesRevision(widget.sessionId) == revisionBeforeLoad) {
-            _continueHistoryLoadAfterServerPage = false;
-          }
-        }
-      });
+      _captureHistoryAnchor();
+      _continueHistoryLoadAfterServerPage = _historyAnchor == null;
+      sync
+          .fetchOlderMessages(widget.sessionId, userInitiated: true)
+          .whenComplete(() {
+            if (mounted) {
+              _isLoadingMore = false;
+              _bumpMessagePaneRevision();
+              if (sync.messagesRevision(widget.sessionId) ==
+                  revisionBeforeLoad) {
+                _continueHistoryLoadAfterServerPage = false;
+                _historyAnchor = null;
+              } else if (_historyAnchor != null) {
+                _refreshFromSync();
+                unawaited(_restoreHistoryAnchor());
+              }
+            }
+          });
     }
   }
 
@@ -1230,6 +1327,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ── In-conversation search ──────────────────────────────────────────────
 
   void _openSearch() {
+    _historyAnchor = null;
     HapticFeedback.lightImpact();
     setState(() {
       _searchOpen = true;
@@ -1355,7 +1453,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           await Future<void>.delayed(const Duration(milliseconds: 120));
           continue;
         }
-        await sync.fetchOlderMessages(sessionId);
+        await sync.fetchOlderMessages(sessionId, userInitiated: true);
         if (!mounted || !_searchOpen) return;
         if (_searchController.text.trim() != query) return;
         // The window grew — rebuild the index over the wider transcript.
@@ -1408,23 +1506,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// reverse-list indices of the rows that actually got built around the
   /// target; that converges in a handful of frames regardless of how uneven
   /// the row heights are.
-  Future<void> _revealSearchMatch(String key) async {
-    if (!mounted || !_searchOpen) return;
+  Future<void> _revealSearchMatch(
+    String key, {
+    bool requireSearch = true,
+    double? savedTop,
+  }) async {
+    if (!mounted || (requireSearch && !_searchOpen)) return;
     _pendingRevealKey = key;
     _revealRowContexts.clear();
     var lo = 0.0;
     var hi = 1.0;
     var ratio = -1.0;
     try {
+      _bumpMessagePaneRevision();
       for (var attempt = 0; attempt < 8; attempt++) {
-        if (!mounted || !_searchOpen) return;
+        if (!mounted || (requireSearch && !_searchOpen)) return;
         await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || !_searchOpen) return;
+        if (!mounted ||
+            (requireSearch && !_searchOpen) ||
+            _pendingRevealKey != key ||
+            (!requireSearch && (_isUserDragging || _historyAnchor?.key != key)))
+          return;
         if (!_scrollController.hasClients) return;
         final target = _cachedKeyToListIndex?[key];
         if (target == null) continue; // list has not rebuilt yet
         final rowContext = _revealRowContexts[target];
         if (rowContext != null && rowContext.mounted) {
+          if (savedTop != null) {
+            final row = rowContext.findRenderObject();
+            if (row is RenderBox && row.hasSize) {
+              final delta = savedTop - row.localToGlobal(Offset.zero).dy;
+              final position = _scrollController.position;
+              _jumpToRevealOffset(
+                (position.pixels + delta)
+                    .clamp(position.minScrollExtent, position.maxScrollExtent)
+                    .toDouble(),
+              );
+            }
+            return;
+          }
           await Scrollable.ensureVisible(
             rowContext,
             alignment: 0.35,
@@ -1437,6 +1557,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final total = _cachedListItems?.length ?? 0;
           ratio = total <= 1 ? 0.0 : (target / (total - 1)).clamp(0.0, 1.0);
         }
+        _revealRowContexts.removeWhere((_, context) => !context.mounted);
         if (_revealRowContexts.isNotEmpty) {
           var minBuilt = _revealRowContexts.keys.first;
           var maxBuilt = minBuilt;
@@ -1458,8 +1579,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _jumpToRevealRatio(ratio);
       }
     } finally {
-      _pendingRevealKey = null;
-      _revealRowContexts.clear();
+      if (_pendingRevealKey == key) {
+        _pendingRevealKey = null;
+        _revealRowContexts.clear();
+      }
     }
   }
 
@@ -1467,6 +1590,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!_scrollController.hasClients) return;
     final offset =
         ratio.clamp(0.0, 1.0) * _scrollController.position.maxScrollExtent;
+    _jumpToRevealOffset(offset);
+  }
+
+  void _jumpToRevealOffset(double offset) {
     _isAdjustingHistoryScroll = true;
     try {
       _scrollController.jumpTo(offset);
@@ -1573,6 +1700,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             'This session keeps its conversation only while that process runs; '
             'it cannot be resumed after the process stops. Start a new Har session.',
         snackBarText: 'Start a new Har session to continue.',
+        blocksSend: true,
+      );
+    }
+    if (session?.metadata?.flavor == 'prime-agent' &&
+        (session!.archived ||
+            session.hasLifecycleError ||
+            const {
+              'exited',
+              'stopped',
+              'failed',
+              'error',
+              'archived',
+            }.contains(session.effectiveLifecycleState))) {
+      return const _SessionSendIssue(
+        title: 'Prime Agent conversation stopped',
+        message:
+            'The Prime Agent process for this conversation ended. '
+            'This conversation cannot be resumed after the process stops. '
+            'Start a new Prime Agent session.',
+        snackBarText: 'Start a new Prime Agent session to continue.',
         blocksSend: true,
       );
     }

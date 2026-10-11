@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../wire/wire_parsers.dart';
@@ -241,6 +242,34 @@ class MessageOutbox {
     List<int>.generate(32, (index) => 32 - index),
   );
 
+  /// Stable derived account id, not a JWT or account secret. URL credentials
+  /// and fragments are never part of the persisted scope.
+  static String ownerScope({
+    required String accountId,
+    required String serverUrl,
+  }) {
+    if (accountId.isEmpty) throw ArgumentError('Missing outbox account id');
+    final uri = Uri.parse(serverUrl);
+    final path = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    final server = Uri(
+      scheme: uri.scheme.toLowerCase(),
+      host: uri.host.toLowerCase(),
+      port: uri.hasPort ? uri.port : null,
+      path: path,
+    ).toString();
+    return sha256
+        .convert(utf8.encode(jsonEncode([accountId, server])))
+        .toString();
+  }
+
+  String _ownerScope = 'unowned';
+  int _unownedEntryCount = 0;
+
+  /// Legacy payloads are retained, but cannot be retried without confirmed
+  /// ownership. Expose the count without exposing their account's contents.
+  int get unownedEntryCount => _unownedEntryCount;
+  Future<void> _storageTail = Future<void>.value();
+
   MMKVStorage _storage;
   AtRestEncryptionService _protection;
 
@@ -270,6 +299,7 @@ class MessageOutbox {
   final Map<String, Set<String>> _readinessDeferredEntries = {};
   Timer? _persistTimer;
   bool _initialized = false;
+  Future<void>? _restoration;
   bool _suspended = false;
   int _generation = 0;
 
@@ -287,7 +317,10 @@ class MessageOutbox {
   void configure({
     required OutboxDeliverFn deliver,
     OutboxStatusChangedFn? onStatusChanged,
+    String ownerScope = 'unowned',
   }) {
+    if (_ownerScope != ownerScope) dispose();
+    _ownerScope = ownerScope;
     _suspended = false;
     _deliver = _deliverOverride ?? deliver;
     _onStatusChanged = onStatusChanged;
@@ -295,12 +328,29 @@ class MessageOutbox {
 
   /// Load persisted entries from MMKV and schedule retries for any that
   /// are still pending. Call this once after [configure] on app startup.
-  Future<void> restoreAndFlush() async {
+  Future<void> restoreAndFlush() {
+    if (_restoration != null) return _restoration!;
+    final generation = _generation;
+    final future = _restoreAndFlush();
+    _restoration = future;
+    unawaited(
+      future.whenComplete(() {
+        if (generation == _generation && identical(_restoration, future)) {
+          _restoration = null;
+        }
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _restoreAndFlush() async {
     if (_initialized) return;
     _initialized = true;
     final generation = _generation;
     String? raw;
     try {
+      await _storageTail;
+      if (generation != _generation) return;
       raw = await _storage.getOutboxEntries();
       if (generation != _generation) return;
     } catch (error) {
@@ -322,12 +372,6 @@ class MessageOutbox {
           if (generation != _generation) return;
         } catch (error) {
           if (generation != _generation) return;
-          if (wasLegacyPlaintext) {
-            // Fail closed: legacy data must never remain plaintext merely
-            // because the secure key is temporarily unavailable.
-            await _storage.saveOutboxEntries('');
-            if (generation != _generation) return;
-          }
           // Keep an already-encrypted blob byte-for-byte intact so recovery
           // can be retried when platform secure storage is available again.
           _initialized = false;
@@ -345,10 +389,36 @@ class MessageOutbox {
               associatedData: _outboxAssociatedData,
             );
       if (plaintext == null) {
-        await _replacePersistedOutboxWithEmpty();
+        // A failed decode is not permission to delete another owner's bucket.
+        _initialized = false;
         return;
       }
-      final list = jsonDecode(plaintext) as List<dynamic>;
+      final buckets = _decodeBuckets(plaintext);
+      final unowned = buckets['unowned'];
+      _unownedEntryCount = unowned is List<dynamic> ? unowned.length : 0;
+      if (_ownerScope != 'unowned' && _unownedEntryCount > 0) {
+        logger.warning(
+          '[MessageOutbox] retained $_unownedEntryCount unowned legacy sends; '
+          'automatic retry requires confirmed account ownership',
+        );
+      }
+      final list = List<dynamic>.of(
+        (buckets[_ownerScope] as List<dynamic>?) ?? <dynamic>[],
+      );
+      if (_ownerScope == 'unowned') {
+        // Legacy snapshots ordered by timestamp. New scoped snapshots retain
+        // reservation order, including explicit revival of older dead entries.
+        final indexed = list.asMap().entries.toList()
+          ..sort((a, b) {
+            final order = (a.value['queuedAt'] as int).compareTo(
+              b.value['queuedAt'] as int,
+            );
+            return order == 0 ? a.key.compareTo(b.key) : order;
+          });
+        list
+          ..clear()
+          ..addAll(indexed.map((item) => item.value));
+      }
       for (final item in list) {
         if (item is Map<String, dynamic>) {
           final entry = OutboxEntry.fromJson(item);
@@ -372,13 +442,11 @@ class MessageOutbox {
         final migrated = await _persistCurrentSnapshot();
         if (generation != _generation) return;
         if (!migrated) {
-          // Normal debounced writes are loss-averse and retain their previous
-          // ciphertext on failure. Migration is stricter: if sealing failed,
-          // remove the legacy plaintext before any retry is scheduled.
-          await _storage.saveOutboxEntries('');
-          if (generation != _generation) return;
+          // Do not destroy unowned payloads or foreign buckets when a
+          // migration cannot commit. No retries start before sealing succeeds.
           _entries.clear();
           _dead.clear();
+          _initialized = false;
           return;
         }
       }
@@ -405,13 +473,26 @@ class MessageOutbox {
       logger.warning('[MessageOutbox] failed to restore entries: $e');
       _entries.clear();
       _dead.clear();
-      await _replacePersistedOutboxWithEmpty();
+      _initialized = false;
+      // Keep the original blob intact; a decode failure can be temporary or
+      // isolated to one owner. Never replace the shared store with an empty list.
     }
+  }
+
+  /// Wait for account restoration before choosing the network head.
+  Future<void> prepareDelivery() async {
+    if (_ownerScope == 'unowned') return;
+    await restoreAndFlush();
+    if (!_initialized) throw StateError('Outbox restore unavailable');
   }
 
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
     final generation = _generation;
+    if (_ownerScope != 'unowned') {
+      await prepareDelivery();
+      if (generation != _generation) return;
+    }
     final previousPending = _entries[entry.localId];
     final previousDead = _dead.remove(entry.localId);
     _clearReadinessDeferral(entry.localId, sessionId: entry.sessionId);
@@ -455,8 +536,30 @@ class MessageOutbox {
       if (!persisted) {
         _schedulePersist();
       }
+      _wakeHead(removed.sessionId);
       logger.info('[MessageOutbox] removed localId=$localId');
     }
+  }
+
+  /// A pending logical head retains priority across backoff. Foreground
+  /// follow-ups enqueue durably instead of waiting for its retry Future.
+  bool hasPendingHead(String sessionId, {required String excludingLocalId}) =>
+      _entries.values.any(
+        (entry) =>
+            entry.sessionId == sessionId && entry.localId != excludingLocalId,
+      );
+
+  OutboxEntry? _head(String sessionId) {
+    for (final entry in _entries.values) {
+      if (entry.sessionId == sessionId) return entry;
+    }
+    return null;
+  }
+
+  void _wakeHead(String sessionId) {
+    final head = _head(sessionId);
+    if (head == null || _isReadinessDeferred(head.localId, sessionId)) return;
+    _scheduleRetry(head, initialDelay: Duration.zero);
   }
 
   /// Runs delivery work in FIFO order for one session.
@@ -517,8 +620,12 @@ class MessageOutbox {
   /// reach this agent. Keep its payload and [localId] in the dead-letter
   /// bucket so the failed row can offer a user-driven retry.
   void notifySessionUnavailable(String sessionId) {
-    final localIds = _readinessDeferredEntries.remove(sessionId);
-    if (localIds == null || localIds.isEmpty) return;
+    final deferred = _readinessDeferredEntries.remove(sessionId);
+    if (deferred == null || deferred.isEmpty) return;
+    final localIds = _entries.values
+        .where((entry) => entry.sessionId == sessionId)
+        .map((entry) => entry.localId)
+        .toList();
 
     for (final localId in localIds) {
       final entry = _entries.remove(localId);
@@ -687,7 +794,9 @@ class MessageOutbox {
     _readinessDeferredEntries.clear();
     _entries.clear();
     _dead.clear();
+    _unownedEntryCount = 0;
     _initialized = false;
+    _restoration = null;
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -733,6 +842,8 @@ class MessageOutbox {
   Future<void> _attemptSerialized(String localId, int generation) async {
     final entry = _entries[localId];
     if (entry == null || generation != _generation || _suspended) return;
+    // Timer jitter/backoff must never reorder pending logical messages.
+    if (_head(entry.sessionId)?.localId != localId) return;
 
     final deliver = _deliver;
     if (deliver == null) {
@@ -788,6 +899,7 @@ class MessageOutbox {
         _schedulePersist();
       }
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
+      _wakeHead(entry.sessionId);
       return;
     }
 
@@ -856,7 +968,10 @@ class MessageOutbox {
         reason: failure.reason,
         failureClass: failure.failureClass.name,
       );
+      // A dead-lettered head is an explicit terminal failure, not an
+      // indefinitely pending barrier. Keep its payload for manual retry.
       _onStatusChanged?.call(entry.sessionId, localId, 'failed');
+      _wakeHead(entry.sessionId);
       return;
     }
 
@@ -914,55 +1029,74 @@ class MessageOutbox {
     await _persistCurrentSnapshot();
   }
 
-  Future<bool> _persistCurrentSnapshot() async {
-    final generation = _generation;
-    try {
-      if (!_protection.isReady) {
-        await _protection.initialize();
-        if (generation != _generation) return false;
-      }
-      final list = [
-        ..._entries.values.map((e) => e.toJson()),
-        ..._dead.values.map((e) => e.toJson()),
-      ];
-      final protected = _protection.protectString(
-        jsonEncode(list),
-        associatedData: _outboxAssociatedData,
-      );
-      if (protected == null) {
-        logger.warning(
-          '[MessageOutbox] device protection key unavailable; '
-          'skipping persist',
-        );
-        return false;
-      }
-      await _storage.saveOutboxEntries(protected);
-      return true;
-    } catch (e) {
-      logger.warning('[MessageOutbox] failed to persist: $e');
-      return false;
-    }
+  Map<String, dynamic> _decodeBuckets(String plaintext) {
+    final decoded = jsonDecode(plaintext);
+    // Older clients had no owner. Quarantine those sends instead of guessing
+    // which authenticated account owns them.
+    if (decoded is List<dynamic>) return {'unowned': decoded};
+    final envelope = decoded as Map<String, dynamic>;
+    if (envelope['version'] != 2)
+      throw FormatException('Unknown outbox version');
+    // Preserve foreign values opaquely: a corrupt foreign bucket is not
+    // permission to discard it, or to prevent this owner's recovery.
+    return Map<String, dynamic>.of(envelope['buckets'] as Map<String, dynamic>);
   }
 
-  Future<void> _replacePersistedOutboxWithEmpty() async {
+  Future<bool> _persistCurrentSnapshot() {
     final generation = _generation;
-    try {
-      if (!_protection.isReady) {
-        await _protection.initialize();
-        if (generation != _generation) return;
+    final owner = _ownerScope;
+    final list = <dynamic>[
+      ..._entries.values.map((e) => e.toJson()),
+      ..._dead.values.map((e) => e.toJson()),
+    ];
+    final result = Completer<bool>();
+    // Read/modify/write the shared envelope in one lane. A new runtime drains
+    // an already-started old write before loading or updating its own bucket.
+    _storageTail = _storageTail.then((_) async {
+      if (generation != _generation) {
+        result.complete(false);
+        return;
       }
-      final protected = _protection.protectString(
-        '[]',
-        associatedData: _outboxAssociatedData,
-      );
-      await _storage.saveOutboxEntries(protected ?? '');
-    } catch (error) {
-      if (generation != _generation) return;
-      // An empty string carries no user data and prevents legacy plaintext
-      // from surviving when secure storage is unavailable.
-      await _storage.saveOutboxEntries('');
-      logger.warning('[MessageOutbox] failed to seal empty outbox: $error');
-    }
+      try {
+        if (!_protection.isReady) await _protection.initialize();
+        if (generation != _generation) {
+          result.complete(false);
+          return;
+        }
+        final raw = await _storage.getOutboxEntries();
+        if (generation != _generation) {
+          result.complete(false);
+          return;
+        }
+        final buckets = <String, dynamic>{};
+        if (raw != null && raw.isNotEmpty) {
+          final plaintext = _protection.isProtected(raw)
+              ? _protection.unprotectString(
+                  raw,
+                  associatedData: _outboxAssociatedData,
+                )
+              : raw;
+          if (plaintext == null) throw StateError('Outbox cannot be decrypted');
+          buckets.addAll(_decodeBuckets(plaintext));
+        }
+        buckets[owner] = list;
+        final payload = owner == 'unowned' && buckets.length == 1
+            ? jsonEncode(list)
+            : jsonEncode({'version': 2, 'buckets': buckets});
+        final protected = _protection.protectString(
+          payload,
+          associatedData: _outboxAssociatedData,
+        );
+        if (protected == null)
+          throw StateError('Outbox protection unavailable');
+        await _storage.saveOutboxEntries(protected);
+        result.complete(generation == _generation);
+      } catch (error) {
+        logger.warning('[MessageOutbox] failed to persist: $error');
+        result.complete(false);
+      }
+    });
+    return result.future;
   }
 }
 

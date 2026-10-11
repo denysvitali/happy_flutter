@@ -209,8 +209,8 @@ class TtsService {
         _setCurrentToken(null);
         _currentText.value = null;
       });
-      _tts!.setErrorHandler((msg) {
-        logger.error('[TTS] Error: $msg');
+      _tts!.setErrorHandler((_) {
+        logger.error('[TTS] Speech failed');
         _setCurrentToken(null);
         _currentText.value = null;
       });
@@ -450,10 +450,7 @@ class TtsService {
       );
       return;
     }
-    logger.info(
-      '[TTS] Speaking ${clean.length} chars: '
-      '"${clean.substring(0, clean.length.clamp(0, 80))}..."',
-    );
+    logger.info('[TTS] Speaking ${clean.length} chars');
 
     if (useOffline && OfflineTtsService().isSupported) {
       // If sherpa-onnx's FFI binding probe failed during initialize,
@@ -520,13 +517,13 @@ class TtsService {
           if (e is OfflineTtsException) {
             _logFallbackOnce(
               '[TTS] offline engine unavailable, '
-              'using system TTS: $e',
+              'using system TTS (${e.runtimeType})',
             );
           } else {
             logger.warning(
               '[TTS] offline speak failed, '
-              'falling back to system engine: $e',
-              e,
+              'falling back to system engine (${e.runtimeType})',
+              null,
               st,
             );
           }
@@ -553,7 +550,7 @@ class TtsService {
       _initialized = false;
       _setCurrentToken(null);
       _currentText.value = null;
-      logger.warning('[TTS] speak skipped: $e');
+      logger.warning('[TTS] speak skipped: ${e.runtimeType}');
       return;
     }
     _setCurrentToken(token);
@@ -566,8 +563,8 @@ class TtsService {
     // ignored; iOS ducking is handled by the audio-session category
     // configured in [_configureAudioSessionForDucking].
     final focus = !kIsWeb && Platform.isAndroid;
-    final result = await _tts!.speak(clean, focus: focus);
-    logger.info('[TTS] speak() returned: $result');
+    await _tts!.speak(clean, focus: focus);
+    logger.info('[TTS] speak() dispatched');
   }
 
   /// Stop any in-progress speech (across both backends).
