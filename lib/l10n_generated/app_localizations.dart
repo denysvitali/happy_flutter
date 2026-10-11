@@ -124,18 +124,6 @@ abstract class AppLocalizations {
   /// **'Back to turn review'**
   String get chatReviewBack;
 
-  /// No description provided for @chatToolsGrouped.
-  ///
-  /// In en, this message translates to:
-  /// **'Grouped tools'**
-  String get chatToolsGrouped;
-
-  /// No description provided for @chatToolsExpanded.
-  ///
-  /// In en, this message translates to:
-  /// **'Full tool trace'**
-  String get chatToolsExpanded;
-
   /// No description provided for @chatRefreshFailedCached.
   ///
   /// In en, this message translates to:
@@ -9382,24 +9370,6 @@ abstract class AppLocalizations {
   /// **'Out of iterations'**
   String get goalLoopsStatusExhausted;
 
-  /// No description provided for @desktopConversation.
-  ///
-  /// In en, this message translates to:
-  /// **'Conversation'**
-  String get desktopConversation;
-
-  /// No description provided for @desktopShowToolCalls.
-  ///
-  /// In en, this message translates to:
-  /// **'Show all tool calls'**
-  String get desktopShowToolCalls;
-
-  /// No description provided for @desktopToolCallsCollapsed.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed tools are grouped; expand a summary to inspect them.'**
-  String get desktopToolCallsCollapsed;
-
   /// No description provided for @desktopHideSessions.
   ///
   /// In en, this message translates to:
@@ -9579,12 +9549,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quiet'**
   String get chatSessionQuiet;
-
-  /// No description provided for @desktopSearchToolsVisible.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool calls visible for search'**
-  String get desktopSearchToolsVisible;
 }
 
 class _AppLocalizationsDelegate

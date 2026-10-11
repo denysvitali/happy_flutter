@@ -73,10 +73,10 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 
 ### Key Architectural Patterns
 
-Desktop chats group completed tool calls by default, with a per-chat control
-to show the full trace. Mobile starts from its hide-tools preference and offers
-a per-chat grouped/full toggle; search temporarily shows all tools. Tool
-summaries name successful file work and commands while retaining failures,
+Desktop chats group completed tool calls by default. Mobile uses its
+hide-tools preference. There is no grouped/full tool switch or extra chat
+header; search temporarily shows all tools. Tool summaries name successful
+file work and commands while retaining failures,
 queued calls, cancellations, and approvals. The activity bar shows the recorded
 running tool family and elapsed request time; its clock pauses with TickerMode.
 An idle turn offers a result review sheet with the latest answer, recorded

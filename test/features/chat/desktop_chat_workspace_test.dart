@@ -83,76 +83,64 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('phone tool toggle keeps draft and search restores choice', (
-    tester,
-  ) async {
-    viewport(tester, 390);
-    await tester.pumpWidget(_harness());
-    await tester.enterText(find.byType(TextField), 'Mobile draft');
-    await tester.tap(find.byKey(const ValueKey('chat-tool-visibility')));
-    await tester.pump();
-    expect(find.text('grouped'), findsOneWidget);
-    expect(find.text('Mobile draft'), findsOneWidget);
-    await tester.pumpWidget(_harness(searching: true));
-    expect(find.text('full trace'), findsOneWidget);
-    await tester.pumpWidget(_harness());
-    expect(find.text('grouped'), findsOneWidget);
-    expect(find.text('Mobile draft'), findsOneWidget);
-  });
+  for (final width in [390.0, 1200.0]) {
+    testWidgets('chat at $width has no tool switch or extra header', (
+      tester,
+    ) async {
+      viewport(tester, width);
+      await tester.pumpWidget(_harness());
+      expect(find.byType(TextButton), findsNothing);
+      expect(find.byType(Tooltip), findsNothing);
+      final bounds = tester.getRect(find.byKey(_conversation));
+      expect(bounds.top, 0);
+      expect(bounds.height, 800);
+      expect(bounds.width, width < 960 ? width : 880);
+    });
+  }
 
   testWidgets('phone preserves both existing tool preferences', (tester) async {
     viewport(tester, 390);
     await tester.pumpWidget(_harness());
     expect(find.text('full trace'), findsOneWidget);
-    expect(find.text('Show all tool calls'), findsNothing);
-    expect(tester.getSize(find.byKey(_conversation)).width, 390);
     await tester.pumpWidget(_harness(hideTools: true));
     expect(find.text('grouped'), findsOneWidget);
   });
 
-  testWidgets('desktop toggle preserves draft and does not change mobile', (
+  testWidgets('desktop groups tools regardless of the mobile preference', (
     tester,
   ) async {
     viewport(tester, 1200);
-    await tester.pumpWidget(_harness());
-    expect(find.text('grouped'), findsOneWidget);
-    expect(tester.getSize(find.byKey(_conversation)).width, 880);
-    await tester.enterText(find.byType(TextField), 'unsent draft');
-    await tester.tap(find.text('Show all tool calls'));
-    await tester.pump();
-    expect(find.text('full trace'), findsOneWidget);
-    expect(find.text('unsent draft'), findsOneWidget);
-    await tester.tap(find.text('Hide Tool Calls'));
-    await tester.pump();
-    expect(find.text('grouped'), findsOneWidget);
-    tester.view.physicalSize = const Size(390, 800);
-    await tester.pump();
-    expect(find.text('full trace'), findsOneWidget);
-    expect(find.text('Show all tool calls'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('search reveals tools and restores each viewport preference', (
-    tester,
-  ) async {
-    viewport(tester, 1200);
-    for (final width in [1200.0, 390.0]) {
-      tester.view.physicalSize = Size(width, 800);
-      await tester.pumpWidget(_harness(hideTools: true));
-      expect(find.text('grouped'), findsOneWidget);
-      await tester.pumpWidget(_harness(hideTools: true, searching: true));
-      expect(find.text('full trace'), findsOneWidget);
-      await tester.pumpWidget(_harness(hideTools: true));
+    for (final hideTools in [false, true]) {
+      await tester.pumpWidget(_harness(hideTools: hideTools));
       expect(find.text('grouped'), findsOneWidget);
     }
-    tester.view.physicalSize = const Size(1200, 800);
-    await tester.pumpWidget(_harness());
-    await tester.tap(find.text('Show all tool calls'));
-    await tester.pump();
-    await tester.pumpWidget(_harness(searching: true));
-    await tester.pumpWidget(_harness());
-    expect(find.text('full trace'), findsOneWidget);
   });
+
+  testWidgets(
+    'search reveals tools then restores defaults without losing draft',
+    (tester) async {
+      viewport(tester, 1200);
+      for (final width in [1200.0, 390.0]) {
+        tester.view.physicalSize = Size(width, 800);
+        for (final hideTools in [false, true]) {
+          final defaultLabel = width >= 960 || hideTools
+              ? 'grouped'
+              : 'full trace';
+          await tester.pumpWidget(_harness(hideTools: hideTools));
+          await tester.enterText(find.byType(TextField), 'Unsent draft');
+          expect(find.text(defaultLabel), findsOneWidget);
+          await tester.pumpWidget(
+            _harness(hideTools: hideTools, searching: true),
+          );
+          expect(find.text('full trace'), findsOneWidget);
+          expect(find.text('Unsent draft'), findsOneWidget);
+          await tester.pumpWidget(_harness(hideTools: hideTools));
+          expect(find.text(defaultLabel), findsOneWidget);
+          expect(find.text('Unsent draft'), findsOneWidget);
+        }
+      }
+    },
+  );
 
   testWidgets('inspector takes space only while selected', (tester) async {
     viewport(tester, 1200);

@@ -25,12 +25,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReviewBack => 'Back to turn review';
 
   @override
-  String get chatToolsGrouped => 'Grouped tools';
-
-  @override
-  String get chatToolsExpanded => 'Full tool trace';
-
-  @override
   String get chatRefreshFailedCached =>
       'Showing saved messages. Refresh failed.';
 
@@ -5336,16 +5330,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goalLoopsStatusExhausted => 'Out of iterations';
 
   @override
-  String get desktopConversation => 'Conversation';
-
-  @override
-  String get desktopShowToolCalls => 'Show all tool calls';
-
-  @override
-  String get desktopToolCallsCollapsed =>
-      'Completed tools are grouped; expand a summary to inspect them.';
-
-  @override
   String get desktopHideSessions => 'Hide sessions';
 
   @override
@@ -5493,7 +5477,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSessionQuiet => 'Quiet';
-
-  @override
-  String get desktopSearchToolsVisible => 'Tool calls visible for search';
 }

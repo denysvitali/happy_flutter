@@ -4,8 +4,6 @@
   "chatReviewPreviousFile": "Previous file",
   "chatReviewNextFile": "Next file",
   "chatReviewBack": "Back to turn review",
-  "chatToolsGrouped": "Grouped tools",
-  "chatToolsExpanded": "Full tool trace",
   "chatRefreshFailedCached": "Showing saved messages. Refresh failed.",
   "newSessionAdvanced": "Advanced options",
   "newSessionRecentWorkspace": "Start a new session in a recent workspace",
@@ -2873,9 +2871,6 @@
   "@goalLoopsStatusStalled": {"description": "Status chip: iterations stopped changing anything"},
   "goalLoopsStatusExhausted": "Out of iterations",
   "@goalLoopsStatusExhausted": {"description": "Status chip: hit the iteration cap"},
-  "desktopConversation": "Conversation",
-  "desktopShowToolCalls": "Show all tool calls",
-  "desktopToolCallsCollapsed": "Completed tools are grouped; expand a summary to inspect them.",
   "desktopHideSessions": "Hide sessions",
   "desktopShowSessions": "Show sessions",
   "chatWorkReadFiles": "Read {count, plural, =1{1 file} other{{count} files}}",
@@ -2982,6 +2977,5 @@
     }
   },
   "chatSessionFailed": "Failed",
-  "chatSessionQuiet": "Quiet",
-  "desktopSearchToolsVisible": "Tool calls visible for search"
+  "chatSessionQuiet": "Quiet"
 }
