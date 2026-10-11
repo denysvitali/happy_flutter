@@ -2217,10 +2217,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 : null,
             configurationNotice:
                 PendingSessionConfiguration().read(widget.sessionId) == null ||
-                    _session?.metadata?.flavor == 'har'
+                    _session?.metadata?.flavor == 'har' ||
+                    _session?.metadata?.flavor == 'prime-agent'
                 ? null
-                : _session?.metadata?.flavor == 'prime-agent'
-                ? context.l10n.chatConfigurationPending
                 : context.l10n.chatConfigurationRestartPending,
             sessionFlavor: _session?.metadata?.flavor,
             codexFastMode:

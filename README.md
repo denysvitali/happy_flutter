@@ -107,7 +107,9 @@ original identity.
 New-session worktree/backend controls live under Advanced options. Recent
 workspaces select only a path on the chosen machine, not an agent or model.
 Mobile approvals and Composer options stay outside the scrolling model lane.
-Pending configuration changes explain whether the next send restarts the agent.
+Pending configuration notices appear only when the next send restarts the
+agent; Prime Agent model picks have no extra notice. Transcript rows keep a
+12px side gutter, including full-width tool details.
 The session pane can be hidden without losing its selection or scroll state;
 dragging its divider resizes it. Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer

@@ -9,9 +9,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get chatConfigurationPending => 'Selected for your next message';
-
-  @override
   String get chatConfigurationRestartPending =>
       'Restart required on your next message';
 

@@ -17,9 +17,11 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
+import 'package:happy_flutter/core/services/pending_session_configuration.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_input_buttons.dart';
@@ -163,6 +165,38 @@ void main() {
     ChatScreen.testInitialSettingsApplyBarrier = null;
     PerformanceContextService().resetForTesting();
     await TtsService().dispose();
+  });
+
+  testWidgets('Prime model intent stays pending without a composer notice', (
+    tester,
+  ) async {
+    sync.isInitialized = true;
+    sync.messagesSync['session_1'] = InvalidateSync(() async {});
+    sync.testSetSessionMessages('session_1', const []);
+    sync.testSessions['session_1'] = _makeSession(
+      flavor: 'prime-agent',
+      presence: 'online',
+    );
+    final pending = PendingSessionConfiguration();
+    final selection = pending.save(
+      'session_1',
+      profileId: '',
+      modelMode: 'test-model',
+    );
+    addTearDown(() => pending.clearIfCurrent('session_1', selection));
+
+    await tester.pumpWidget(
+      _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      tester.widget<ChatInput>(find.byType(ChatInput)).configurationNotice,
+      isNull,
+    );
+    expect(pending.read('session_1'), selection);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   for (final state in [
@@ -693,6 +727,16 @@ void main() {
 
       expect(find.text('Hello there'), findsOneWidget);
       expect(find.text('Hi! How can I help?'), findsOneWidget);
+
+      final transcript = find.byWidgetPredicate(
+        (widget) => widget is ListView && widget.reverse,
+      );
+      final bounds = tester.getRect(transcript);
+      for (final id in ['msg_1', 'msg_2']) {
+        final row = tester.getRect(find.byKey(ValueKey(id)));
+        expect(row.left - bounds.left, AppSpacing.md);
+        expect(bounds.right - row.right, AppSpacing.md);
+      }
     });
 
     testWidgets('does not refresh messages when revision is unchanged', (
@@ -1545,6 +1589,13 @@ void main() {
         expect(find.text('Read File'), findsNothing);
         expect(find.text('ok'), findsOneWidget);
         expect(find.text('stdout'), findsNothing);
+        final transcript = find.byWidgetPredicate(
+          (widget) => widget is ListView && widget.reverse,
+        );
+        final bounds = tester.getRect(transcript);
+        final cell = tester.getRect(find.byKey(const ValueKey('msg_2')));
+        expect(cell.left - bounds.left, AppSpacing.md);
+        expect(bounds.right - cell.right, AppSpacing.md);
         expect(tester.takeException(), isNull);
       },
     );

@@ -148,9 +148,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final listView = ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xsm,
-        bottom: AppSpacing.xs,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xsm,
+        AppSpacing.md,
+        AppSpacing.xs,
       ),
       // Each message item is wrapped in RepaintBoundary already;
       // skip the default automatic wrappers to reduce widget depth.
