@@ -81,7 +81,6 @@ class ChatInput extends ConsumerStatefulWidget {
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
     this.sessionFlavor,
-    this.configurationNotice,
     this.codexFastMode,
     this.onCodexFastModeChanged,
   });
@@ -130,7 +129,6 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
 
-  final String? configurationNotice;
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
 
@@ -744,6 +742,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final appCs =
         Theme.of(context).extension<AppColorScheme>() ?? AppColorScheme.dark();
     final cardColor = cs.surfaceContainerLow;
+    final tight = ChatChromeScope.of(context).isTight;
 
     // Only the border color depends on focus state — wrap in a
     // ValueListenableBuilder so focus changes don't rebuild the
@@ -778,12 +777,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Writing area first: the draft is the primary content with a
-          // clean left edge; dictate and send sit at its trailing edge and
-          // never move as the draft grows or attachments appear.
+          // Writing area first: the draft owns the full width of the card.
+          // Only the expand utility shares its row, pinned to the first
+          // line. A tight pane folds the toolbar, so dictate and send move
+          // up here to stay reachable.
           Row(
             key: const ValueKey<String>('chat-composer-input-row'),
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: tight
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _isDownloadingModel
@@ -802,9 +804,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
               Padding(
                 padding: const EdgeInsets.only(
                   top: AppSpacing.xxs,
-                  right: AppSpacing.xsm,
+                  right: AppSpacing.xs,
                 ),
-                child: _buildPrimaryActions(context),
+                child: tight
+                    ? _buildPrimaryActions(context)
+                    : ExpandComposerButton(onTap: _openFullscreenComposer),
               ),
             ],
           ),
@@ -817,13 +821,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
-  /// One toolbar under the draft: add, the explicit settings
-  /// (`Approvals: …`, `Model: …`, options) and the expand utility.
+  /// One toolbar under the draft: add and the explicit settings
+  /// (`Approvals: …`, `Model: …`, options) lead; dictate and send close
+  /// the row at the trailing edge.
   ///
   /// A **tight** chat pane (Android split screen, a short desktop window)
-  /// folds the whole toolbar while the field is idle and empty — dictate
-  /// and send live in the draft row, so the composer stays usable — and
-  /// brings it back on focus or content.
+  /// folds the whole toolbar while the field is idle and empty — there
+  /// dictate and send live in the draft row, so the composer stays usable
+  /// — and brings it back on focus or content.
   Widget _buildToolbar(BuildContext context) {
     final density = ChatChromeScope.of(context);
     if (!density.isTight) return _toolbarRow(context);
@@ -836,12 +841,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Widget _toolbarRow(BuildContext context) {
+    final tight = ChatChromeScope.of(context).isTight;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxs,
+        AppSpacing.xs,
         0,
-        AppSpacing.xsm,
-        AppSpacing.xxs,
+        AppSpacing.xs,
+        AppSpacing.xs,
       ),
       child: Row(
         key: const ValueKey<String>('chat-composer-toolbar'),
@@ -851,7 +857,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
           else
             const SizedBox(width: AppSpacing.sm),
           Expanded(child: _settingsLane(context)),
-          ExpandComposerButton(onTap: _openFullscreenComposer),
+          if (tight)
+            ExpandComposerButton(onTap: _openFullscreenComposer)
+          else
+            _buildPrimaryActions(context),
         ],
       ),
     );
@@ -919,7 +928,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _settingsLane(BuildContext context) {
     return InputToolbar(
       compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
-      configurationNotice: widget.configurationNotice,
       permissionMode: widget.permissionMode,
       onPermissionModeChanged: widget.onPermissionModeChanged,
       modelMode: widget.modelMode,

@@ -457,17 +457,23 @@ void main() {
     final inputRow = find.byKey(
       const ValueKey<String>('chat-composer-input-row'),
     );
+    final toolbar = find.byKey(const ValueKey<String>('chat-composer-toolbar'));
     expect(queueButton, findsOneWidget);
     expect(inputRow, findsOneWidget);
     expect(
       find.descendant(of: inputRow, matching: find.byType(TextField)),
       findsOneWidget,
     );
-    // Both follow-up actions live beside the field as icon buttons, so the
-    // composer never grows a second action row.
-    expect(find.descendant(of: inputRow, matching: queueButton), findsOne);
+    // The draft keeps its row to itself; both follow-up actions close the
+    // existing toolbar as icon buttons, so the composer never grows a
+    // second action row.
     expect(
       find.descendant(of: inputRow, matching: find.byType(SendButton)),
+      findsNothing,
+    );
+    expect(find.descendant(of: toolbar, matching: queueButton), findsOne);
+    expect(
+      find.descendant(of: toolbar, matching: find.byType(SendButton)),
       findsOneWidget,
     );
     expect(

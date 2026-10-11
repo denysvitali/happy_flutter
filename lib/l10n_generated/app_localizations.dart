@@ -94,12 +94,6 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
-  /// No description provided for @chatConfigurationRestartPending.
-  ///
-  /// In en, this message translates to:
-  /// **'Restart required on your next message'**
-  String get chatConfigurationRestartPending;
-
   /// No description provided for @chatModelFixed.
   ///
   /// In en, this message translates to:

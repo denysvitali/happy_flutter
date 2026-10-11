@@ -31,7 +31,6 @@ void main() {
         InputToolbar(
           compact: true,
           resolvedModelLabel: 'A very long provider model name with context',
-          configurationNotice: 'Applies to your next message',
           permissionMode: perm.PermissionMode.defaultMode,
           onPermissionModeChanged: (_) {},
           onShowModelPicker: () {},
@@ -41,7 +40,6 @@ void main() {
     );
     final options = find.byKey(const ValueKey('composer-options-button'));
     expect(tester.getBottomRight(options).dx, lessThanOrEqualTo(320));
-    expect(find.text('Applies to your next message'), findsOneWidget);
     await tester.tap(options);
     await tester.pumpAndSettle();
     expect(find.byType(ListTile), findsWidgets);

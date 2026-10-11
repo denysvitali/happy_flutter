@@ -103,7 +103,7 @@ class ComposerSelectorChip extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: labelMaxWidth!),
         child: text,
       );
-    } else if (width != null) {
+    } else {
       text = Flexible(child: text);
     }
 

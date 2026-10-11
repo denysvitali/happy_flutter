@@ -191,10 +191,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(
-      tester.widget<ChatInput>(find.byType(ChatInput)).configurationNotice,
-      isNull,
-    );
+    expect(find.byType(ChatInput), findsOneWidget);
     expect(pending.read('session_1'), selection);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -734,8 +731,8 @@ void main() {
       final bounds = tester.getRect(transcript);
       for (final id in ['msg_1', 'msg_2']) {
         final row = tester.getRect(find.byKey(ValueKey(id)));
-        expect(row.left - bounds.left, AppSpacing.md);
-        expect(bounds.right - row.right, AppSpacing.md);
+        expect(row.left - bounds.left, AppSpacing.xs);
+        expect(bounds.right - row.right, AppSpacing.xs);
       }
     });
 
@@ -1594,8 +1591,8 @@ void main() {
         );
         final bounds = tester.getRect(transcript);
         final cell = tester.getRect(find.byKey(const ValueKey('msg_2')));
-        expect(cell.left - bounds.left, AppSpacing.md);
-        expect(bounds.right - cell.right, AppSpacing.md);
+        expect(cell.left - bounds.left, AppSpacing.xs);
+        expect(bounds.right - cell.right, AppSpacing.xs);
         expect(tester.takeException(), isNull);
       },
     );

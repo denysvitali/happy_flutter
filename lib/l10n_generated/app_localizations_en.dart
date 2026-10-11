@@ -9,10 +9,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get chatConfigurationRestartPending =>
-      'Restart required on your next message';
-
-  @override
   String get chatModelFixed => 'This session has one available model.';
 
   @override

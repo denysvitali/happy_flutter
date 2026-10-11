@@ -149,9 +149,9 @@ extension _ChatScreenBuilders on _ChatScreenState {
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
+        AppSpacing.xs,
         AppSpacing.xsm,
-        AppSpacing.md,
+        AppSpacing.xs,
         AppSpacing.xs,
       ),
       // Each message item is wrapped in RepaintBoundary already;

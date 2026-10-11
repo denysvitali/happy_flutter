@@ -27,7 +27,6 @@ import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/main_isolate_stall_tracker.dart';
 import '../../core/services/opentelemetry_service.dart';
-import '../../core/services/pending_session_configuration.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/screen_awake_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
@@ -2215,12 +2214,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     !profileOwnsRawCodexModel(_selectedProfile)
                 ? _refreshModelPickerCatalog
                 : null,
-            configurationNotice:
-                PendingSessionConfiguration().read(widget.sessionId) == null ||
-                    _session?.metadata?.flavor == 'har' ||
-                    _session?.metadata?.flavor == 'prime-agent'
-                ? null
-                : context.l10n.chatConfigurationRestartPending,
             sessionFlavor: _session?.metadata?.flavor,
             codexFastMode:
                 CodexSpeedSelection().read(widget.sessionId) ??

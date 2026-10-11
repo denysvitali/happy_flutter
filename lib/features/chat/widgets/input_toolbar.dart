@@ -155,6 +155,9 @@ class ContextSizeIndicator extends StatelessWidget {
 /// Width of the trailing fade on the scrolling settings lane.
 const double _laneFade = 16;
 
+/// Gap between neighbouring setting chips.
+const double _chipGap = AppSpacing.sm;
+
 /// Toolbar row — clean horizontal strip with inline chips.
 class InputToolbar extends StatelessWidget {
   const InputToolbar({
@@ -172,7 +175,6 @@ class InputToolbar extends StatelessWidget {
     this.maxContext,
     this.compact = false,
     this.resolvedModelLabel,
-    this.configurationNotice,
     this.codexFastMode,
     this.onCodexFastModeChanged,
   });
@@ -197,7 +199,6 @@ class InputToolbar extends StatelessWidget {
   final int? maxContext;
   final bool compact;
   final String? resolvedModelLabel;
-  final String? configurationNotice;
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
 
@@ -247,7 +248,7 @@ class InputToolbar extends StatelessWidget {
                   ? perm.PermissionModeExtension.codexModes
                   : perm.PermissionModeExtension.claudeAgyModes,
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: _chipGap),
           ],
           ModelChip(
             model: model,
@@ -256,14 +257,14 @@ class InputToolbar extends StatelessWidget {
             onTap: onShowModelPicker,
           ),
           if (sessionFlavor == 'codex') ...[
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: _chipGap),
             CodexSpeedSelector(
               fastMode: codexFastMode,
               onChanged: onCodexFastModeChanged,
             ),
           ],
           if (!compact) ...[
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: _chipGap),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           ],
           if (!compact && contextSize != null && contextSize! > 0) ...[
@@ -286,40 +287,46 @@ class InputToolbar extends StatelessWidget {
       ).createShader(rect),
       child: lane,
     );
-    final controls = compact
-        ? Row(
-            children: [
-              if (onPermissionModeChanged != null)
-                Flexible(
-                  child: perm.PermissionModeSelector(
-                    selectedMode: permissionMode,
-                    onModeChanged: onPermissionModeChanged,
-                    availableModes: sessionFlavor == 'codex'
-                        ? perm.PermissionModeExtension.codexModes
-                        : perm.PermissionModeExtension.claudeAgyModes,
-                  ),
-                ),
-              Expanded(flex: 2, child: scrollingLane),
-              ComposerIconChip(
-                key: const ValueKey('composer-options-button'),
-                icon: Icons.tune_rounded,
-                tooltip: context.l10n.chatComposerOptions,
-                onTap: () => _showOptions(context),
+    if (!compact) return scrollingLane;
+    final options = ComposerIconChip(
+      key: const ValueKey('composer-options-button'),
+      icon: Icons.tune_rounded,
+      tooltip: context.l10n.chatComposerOptions,
+      onTap: () => _showOptions(context),
+    );
+    if (onPermissionModeChanged == null) {
+      return Row(
+        children: [
+          Flexible(child: scrollingLane),
+          options,
+        ],
+      );
+    }
+    // Approvals keep their natural width, the model lane takes what is
+    // left and options follow the last chip instead of floating mid-row.
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: math.max(
+                0,
+                constraints.maxWidth - AppTouchTarget.min - _chipGap,
               ),
-            ],
-          )
-        : scrollingLane;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        controls,
-        if (configurationNotice case final notice?)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text(notice, style: AppText.secondary(Theme.of(context))),
+            ),
+            child: perm.PermissionModeSelector(
+              selectedMode: permissionMode,
+              onModeChanged: onPermissionModeChanged,
+              availableModes: sessionFlavor == 'codex'
+                  ? perm.PermissionModeExtension.codexModes
+                  : perm.PermissionModeExtension.claudeAgyModes,
+            ),
           ),
-      ],
+          const SizedBox(width: _chipGap),
+          Flexible(child: scrollingLane),
+          options,
+        ],
+      ),
     );
   }
 

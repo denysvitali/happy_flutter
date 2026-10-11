@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
@@ -73,20 +72,16 @@ class _BotMessageState extends State<BotMessage> {
   /// The full bubble row (alignment + padding included), rendered both
   /// in-place and as the focused copy so the two line up pixel for pixel.
   Widget _row(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
-    final appColors = theme.extension<AppColorScheme>();
-    final accentGradient =
-        appColors?.accentLinearGradient ??
-        LinearGradient(colors: <Color>[cs.primary, cs.tertiary]);
-
+    // No avatar gutter: the reply is plain text on the transcript's own
+    // side gutter, so a phone keeps the whole line for content.
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: EdgeInsets.only(
-          left: AppSpacing.md,
-          right: AppSpacing.lg,
+          left: AppSpacing.sm,
+          right: AppSpacing.sm,
           top: widget.isCompact
               ? 0
               : (widget.isFirstInGroup ? AppSpacing.sm : 1),
@@ -98,61 +93,35 @@ class _BotMessageState extends State<BotMessage> {
           label: widget.isStreaming
               ? 'AI response streaming'
               : 'AI message: ${_truncateForLabel(widget.text)}',
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: AppSpacing.xxl,
-                child: widget.isFirstInGroup
-                    ? Container(
-                        key: const ValueKey<String>('assistant-message-marker'),
-                        width: AppSpacing.xl,
-                        height: AppSpacing.xl,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: accentGradient,
-                        ),
-                        child: Icon(
-                          Icons.auto_awesome_rounded,
-                          size: AppIconSize.xs,
-                          color: cs.onPrimary,
-                        ),
-                      )
-                    : null,
+          child: Container(
+            key: const ValueKey<String>('assistant-message-surface'),
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: widget.isCompact ? 0 : AppSpacing.xxs,
+              bottom: widget.isCompact ? 0 : AppSpacing.xs,
+            ),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                height: AppLineHeight.relaxed,
+                color: cs.onSurface.withValues(alpha: AppOpacity.strong),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Container(
-                  key: const ValueKey<String>('assistant-message-surface'),
-                  padding: EdgeInsets.only(
-                    top: widget.isCompact ? 0 : AppSpacing.xxs,
-                    bottom: widget.isCompact ? 0 : AppSpacing.xs,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MarkdownView(
+                    markdown: widget.text,
+                    onOptionPress: widget.onOptionPress,
+                    isStreaming: widget.isStreaming,
                   ),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(
-                      height: AppLineHeight.relaxed,
-                      color: cs.onSurface.withValues(alpha: AppOpacity.strong),
+                  if (widget.isStreaming)
+                    const Padding(
+                      padding: EdgeInsets.only(top: AppSpacing.xxxs),
+                      child: StreamingCursor(),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MarkdownView(
-                          markdown: widget.text,
-                          onOptionPress: widget.onOptionPress,
-                          isStreaming: widget.isStreaming,
-                        ),
-                        if (widget.isStreaming)
-                          const Padding(
-                            padding: EdgeInsets.only(top: AppSpacing.xxxs),
-                            child: StreamingCursor(),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

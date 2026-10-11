@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/widgets/bot_message.dart';
 import 'package:happy_flutter/features/chat/widgets/user_bubble.dart';
 
@@ -15,7 +16,7 @@ Widget _app(Widget child) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('assistant prose uses an open surface with one group marker', (
+  testWidgets('assistant prose uses an open surface without an avatar gutter', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -31,25 +32,13 @@ void main() {
       find.byKey(const ValueKey<String>('assistant-message-surface')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey<String>('assistant-message-marker')),
-      findsOneWidget,
+    // No avatar gutter: the reply starts at the row's own side padding.
+    final row = tester.getRect(find.byType(BotMessage));
+    final surface = tester.getRect(
+      find.byKey(const ValueKey<String>('assistant-message-surface')),
     );
-
-    await tester.pumpWidget(
-      _app(
-        const BotMessage(
-          text: 'Continuation',
-          messageData: <String, dynamic>{'id': 'assistant-2'},
-          isFirstInGroup: false,
-        ),
-      ),
-    );
-
-    expect(
-      find.byKey(const ValueKey<String>('assistant-message-marker')),
-      findsNothing,
-    );
+    expect(surface.left - row.left, AppSpacing.sm);
+    expect(row.right - surface.right, AppSpacing.sm);
   });
 
   testWidgets('user turn keeps a distinct tonal message surface', (
