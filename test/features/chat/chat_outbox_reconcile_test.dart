@@ -174,7 +174,7 @@ void main() {
             'a dead-lettered message must not keep spinning: only the '
             "'failed' row renders the retry affordance.",
       );
-      expect(find.text('Failed — tap to retry'), findsWidgets);
+      expect(find.text('Not delivered — retry'), findsWidgets);
 
       // Dispose the screen before canceling session work. TestWidgets checks
       // pending timers before the outer tearDown callback runs.

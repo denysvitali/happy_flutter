@@ -45,7 +45,15 @@ No commit/push or device deployment was authorized or performed.
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-10-04
+**Last Updated**: 2026-10-11
+
+## Current UI/UX acceptance
+
+Cached chat refresh/retry, stopped-process new-session recovery, mobile tool
+visibility and composer options, changed-file review navigation, recent
+workspaces, Advanced launch controls, and ordered attention reasons are
+implemented. Widget regressions are added; CI and device acceptance remain
+pending. Message delivery and canonical `localId` behavior are unchanged.
 
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.

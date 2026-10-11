@@ -82,6 +82,66 @@ Future<void> _pump(
 }
 
 void main() {
+  test('attention prioritizes approvals and errors over working activity', () {
+    final session = _session();
+    expect(
+      sessionAttentionPriority(
+        session.copyWith(agentState: AgentState(requests: _requests)),
+        unreadCount: 1,
+        lastMessageIsError: true,
+      ),
+      0,
+    );
+    expect(
+      sessionAttentionPriority(
+        session,
+        unreadCount: 1,
+        lastMessageRole: 'agent',
+      ),
+      2,
+    );
+    expect(
+      sessionAttentionPriority(
+        session.copyWith(thinking: true),
+        unreadCount: 1,
+        lastMessageRole: 'agent',
+      ),
+      3,
+    );
+    expect(
+      sessionAttentionPriority(
+        session,
+        unreadCount: 0,
+        lastMessageIsError: true,
+      ),
+      1,
+    );
+    expect(
+      sessionAttentionPriority(
+        session.copyWith(thinking: true),
+        unreadCount: 0,
+      ),
+      4,
+    );
+  });
+
+  testWidgets('attention card explains why it needs review', (tester) async {
+    await _pump(
+      tester,
+      NeedsAttentionCard(
+        session: _session(),
+        showFlavorIcon: false,
+        onTap: () {},
+        onLongPress: () {},
+        unreadCount: 2,
+        lastMessageRole: 'agent',
+        lastMessagePreview: _preview,
+      ),
+    );
+    expect(find.text('Unread answer'), findsOneWidget);
+    expect(find.byTooltip('Review session'), findsOneWidget);
+  });
+
   for (final dark in [false, true]) {
     for (final scale in [1.0, 2.0]) {
       for (final selection in [false, true]) {

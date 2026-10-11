@@ -14,21 +14,27 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// danger/warning — semantics live in colour, not in silhouette.
 ///
 /// Renders in two variants based on [SendIssue.blocksSend]:
-/// - blocksSend=true: error-colored banner (red theme), suggests
-///   the user can retry by sending a message which will restart
-///   the local agent.
-/// - blocksSend=false: warning-colored banner (amber theme),
-///   indicates the session will auto-restart on the next send.
+/// - blocksSend=true: error-colored banner with an explicit recovery action.
+/// - blocksSend=false: warning-colored banner explaining next-send recovery.
+/// The issue text owns the distinction between restart and fresh session.
 ///
 /// Extracted from chat_screen.dart in batch 17. The widget takes
 /// the public [SendIssue] record (defined alongside
 /// [buildChatStatusChips] in chat_app_bar.dart) so it can be
 /// tested in isolation.
 class SessionIssueBanner extends StatelessWidget {
-  const SessionIssueBanner({required this.issue, this.onCopy, super.key});
+  const SessionIssueBanner({
+    required this.issue,
+    this.onCopy,
+    this.actionLabel,
+    this.onAction,
+    super.key,
+  });
 
   final SendIssue issue;
   final VoidCallback? onCopy;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +98,11 @@ class SessionIssueBanner extends StatelessWidget {
                       issue.message,
                       style: AppText.secondary(theme, foregroundColor),
                     ),
+                    if (actionLabel != null && onAction != null)
+                      TextButton(
+                        onPressed: onAction,
+                        child: Text(actionLabel!),
+                      ),
                   ],
                 ),
               ),

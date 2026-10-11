@@ -14,12 +14,14 @@ for that machine. Third-party profiles omit it; failed refreshes label retained
 limits as stale.
 
 Desktop chats group completed tool calls by default, with a per-chat control
-to show the full trace. Mobile keeps its existing hide-tools preference. Tool
+to show the full trace. Mobile starts from its hide-tools preference and offers
+a per-chat grouped/full toggle; search temporarily shows all tools. Tool
 summaries name successful file work and commands while retaining failures,
 queued calls, cancellations, and approvals. The activity bar shows the recorded
 running tool family and elapsed request time; its clock pauses with TickerMode.
 An idle turn offers a result review sheet with the latest answer, recorded
-changed files/diffs, and command output. These are bounded, cached display
+changed files/diffs, and command output. File details include previous/next
+navigation and a return to the review list. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
 Prime Agent session badges and the new-session picker share `PrimeAgentLogo`:
 the official Prime Intellect bird mark, bundled from
@@ -36,6 +38,15 @@ Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and
 moves profile/context settings into Composer options. Session triage labels
 separate unread assistant results from unread activity while still working.
+Unread Focus orders approvals, errors, unread answers, then unread activity;
+routine thinking without unread work remains in All Sessions.
+Cached chats stay mounted during refresh; a failed refresh offers Retry above
+the retained history. Failed sends have a 44px retry target. Stopped Har and
+Prime Agent chats offer an explicit new-session action, never automatic resume.
+New-session worktree/backend controls live under Advanced options. Recent
+workspaces select only a path on the chosen machine, not an agent or model.
+Mobile approvals and Composer options stay outside the scrolling model lane.
+Pending configuration changes explain whether the next send restarts the agent.
 The session pane can be hidden without losing its selection or scroll state;
 dragging its divider resizes it. Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer

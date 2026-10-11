@@ -26,6 +26,19 @@ Widget _buildIndicator(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('retry has a comfortable target and fires only once', (
+    tester,
+  ) async {
+    var retries = 0;
+    await tester.pumpWidget(
+      _buildIndicator('failed', onRetry: () => retries++),
+    );
+    final target = find.byType(InkWell);
+    expect(tester.getSize(target).height, greaterThanOrEqualTo(44));
+    await tester.tapAt(tester.getTopLeft(target) + const Offset(5, 5));
+    expect(retries, 1);
+  });
+
   testWidgets('renders queued retry state', (tester) async {
     await tester.pumpWidget(_buildIndicator('pending'));
 
@@ -43,7 +56,7 @@ void main() {
   testWidgets('renders failed retry affordance', (tester) async {
     await tester.pumpWidget(_buildIndicator('failed'));
 
-    expect(find.text('Failed — tap to retry'), findsOneWidget);
+    expect(find.text('Not delivered — retry'), findsOneWidget);
     expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
   });
 
@@ -52,11 +65,11 @@ void main() {
     void retry() => retries++;
 
     await tester.pumpWidget(_buildIndicator('failed', onRetry: retry));
-    await tester.tap(find.text('Failed — tap to retry'));
+    await tester.tap(find.text('Not delivered — retry'));
     expect(retries, 1);
 
     await tester.pumpWidget(_buildIndicator('pending', onRetry: retry));
-    expect(find.text('Failed — tap to retry'), findsNothing);
+    expect(find.text('Not delivered — retry'), findsNothing);
     expect(find.byType(InkWell), findsNothing);
     expect(find.text('Retry queued'), findsOneWidget);
 

@@ -16,6 +16,21 @@ import 'session_badges.dart';
 import 'session_cards.dart';
 import 'session_list_details.dart';
 
+/// Smaller values need user action sooner. Routine work stays in All Sessions.
+int sessionAttentionPriority(
+  Session session, {
+  required int unreadCount,
+  String? lastMessageRole,
+  bool lastMessageIsError = false,
+}) {
+  if (session.agentState?.requests?.isNotEmpty ?? false) return 0;
+  if (session.hasLifecycleError || lastMessageIsError) return 1;
+  if (unreadCount > 0) {
+    return !session.thinking && lastMessageRole == 'agent' ? 2 : 3;
+  }
+  return 4;
+}
+
 /// Attention card with a quiet surface, slim accent and readable preview.
 class NeedsAttentionCard extends StatefulWidget {
   const NeedsAttentionCard({
@@ -32,6 +47,7 @@ class NeedsAttentionCard extends StatefulWidget {
     this.isSelected = false,
     this.unreadCount = 0,
     this.permissionRequests,
+    this.lastMessageIsError = false,
   });
 
   final Session session;
@@ -50,6 +66,7 @@ class NeedsAttentionCard extends StatefulWidget {
   /// inline Allow/Deny so a blocked agent unblocks without a tap into
   /// the chat.
   final Map<String, RequestInfo>? permissionRequests;
+  final bool lastMessageIsError;
 
   @override
   State<NeedsAttentionCard> createState() => _NeedsAttentionCardState();
@@ -79,7 +96,25 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
     final session = widget.session;
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
-    final statusWidget = buildStatusText(_d.status, theme.textTheme);
+    final hasApproval = widget.permissionRequests?.isNotEmpty ?? false;
+    final priority = sessionAttentionPriority(
+      session,
+      unreadCount: widget.unreadCount,
+      lastMessageRole: widget.lastMessageRole,
+      lastMessageIsError: widget.lastMessageIsError,
+    );
+    final reason = hasApproval
+        ? context.l10n.chatStatusApprovalNeeded
+        : priority == 1
+        ? context.l10n.commonError
+        : priority == 2
+        ? context.l10n.sessionsUnreadAnswer
+        : priority == 3
+        ? context.l10n.sessionsUnreadActivity
+        : null;
+    final statusWidget = reason == null
+        ? buildStatusText(_d.status, theme.textTheme)
+        : Text(reason, style: AppText.label(theme));
     final hasPreview =
         widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
@@ -178,6 +213,15 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                           ),
                         ],
                       ),
+                      if (!widget.selectionMode && !hasApproval)
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: IconButton(
+                            tooltip: context.l10n.sessionsReviewSession,
+                            onPressed: widget.onTap,
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ),
                       if (widget.permissionRequests != null &&
                           widget.permissionRequests!.isNotEmpty &&
                           !widget.selectionMode) ...[

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tool_work_summary.dart';
@@ -50,6 +51,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened?['id'], 'edit');
     expect(find.text('Changed files'), findsNothing);
+  });
+
+  testWidgets('file review navigates without closing the review sheet', (
+    tester,
+  ) async {
+    final turn = ChatTurnWork.fromMessages([
+      {'role': 'user'},
+      for (final file in ['first.dart', 'second.dart'])
+        {
+          'id': file,
+          'kind': 'tool-call',
+          'name': 'Write',
+          'state': 'completed',
+          'input': {'file_path': file, 'content': 'void main() {}'},
+        },
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TurnReviewBar(
+              turn: turn,
+              onOpenTool: (_) {},
+              sessionId: 'review-session',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('turn-review-bar')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('first.dart'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next file'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to turn review'));
+    await tester.pumpAndSettle();
+    expect(find.text('Changed files'), findsOneWidget);
+    expect(find.text('first.dart'), findsOneWidget);
   });
 
   testWidgets('review handles tool-only results and narrow large-text panes', (

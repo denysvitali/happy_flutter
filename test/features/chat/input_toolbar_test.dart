@@ -20,6 +20,34 @@ void main() {
     );
   }
 
+  testWidgets('compact options stay visible with a long model name', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          compact: true,
+          resolvedModelLabel: 'A very long provider model name with context',
+          configurationNotice: 'Applies to your next message',
+          permissionMode: perm.PermissionMode.defaultMode,
+          onPermissionModeChanged: (_) {},
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    final options = find.byKey(const ValueKey('composer-options-button'));
+    expect(tester.getBottomRight(options).dx, lessThanOrEqualTo(320));
+    expect(find.text('Applies to your next message'), findsOneWidget);
+    await tester.tap(options);
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Codex speed selection is explicit and ultra fast is unavailable',
     (tester) async {

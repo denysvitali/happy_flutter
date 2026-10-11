@@ -81,6 +81,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
     this.sessionFlavor,
+    this.configurationNotice,
     this.codexFastMode,
     this.onCodexFastModeChanged,
   });
@@ -129,6 +130,7 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
 
+  final String? configurationNotice;
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
 
@@ -917,6 +919,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _settingsLane(BuildContext context) {
     return InputToolbar(
       compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+      configurationNotice: widget.configurationNotice,
       permissionMode: widget.permissionMode,
       onPermissionModeChanged: widget.onPermissionModeChanged,
       modelMode: widget.modelMode,

@@ -9,6 +9,32 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
+  testWidgets('recovery action is distinct from diagnostic copy', (
+    tester,
+  ) async {
+    var recovered = 0;
+    var copied = 0;
+    await tester.pumpWidget(
+      _wrap(
+        SessionIssueBanner(
+          issue: const SendIssue(
+            title: 'Stopped',
+            message: 'Start a new conversation.',
+            blocksSend: true,
+          ),
+          actionLabel: 'Start new session',
+          onAction: () => recovered++,
+          onCopy: () => copied++,
+        ),
+      ),
+    );
+    await tester.tap(find.text('Start new session'));
+    expect(recovered, 1);
+    expect(copied, 0);
+    await tester.tap(find.byIcon(Icons.copy_rounded));
+    expect(copied, 1);
+  });
+
   testWidgets('renders title and message text', (tester) async {
     await tester.pumpWidget(
       _wrap(

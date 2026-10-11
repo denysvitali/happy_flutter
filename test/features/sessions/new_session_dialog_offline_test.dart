@@ -70,14 +70,16 @@ class _StubSettingsNotifier extends SettingsNotifier {
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
-  _StubSessionsNotifier({this.onCreateSession});
+  _StubSessionsNotifier({this.onCreateSession, this.sessions = const {}});
+
+  final Map<String, Session> sessions;
 
   /// When set, replaces the real `createSession` so a test can hold the
   /// dialog inside the async gap between the spawn request and its reply.
   final Future<String> Function()? onCreateSession;
 
   @override
-  Map<String, Session> build() => <String, Session>{};
+  Map<String, Session> build() => sessions;
 
   @override
   void loadFromSync() {}
@@ -441,6 +443,8 @@ void main() {
       required Map<String, Machine> machines,
       String? initialMachineId,
       String? initialPath,
+      String? initialAgent,
+      Map<String, Session> sessions = const {},
       String? initialRepositoryUrl = 'https://example.com/repo.git',
       Future<String> Function()? onCreateSession,
     }) {
@@ -451,7 +455,10 @@ void main() {
           ),
           settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
           sessionsNotifierProvider.overrideWith(
-            () => _StubSessionsNotifier(onCreateSession: onCreateSession),
+            () => _StubSessionsNotifier(
+              onCreateSession: onCreateSession,
+              sessions: sessions,
+            ),
           ),
           connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
         ],
@@ -462,6 +469,7 @@ void main() {
             body: NewSessionDialog(
               initialMachineId: initialMachineId,
               initialPath: initialPath,
+              initialAgent: initialAgent,
               initialRepositoryUrl: initialRepositoryUrl,
             ),
           ),
@@ -885,6 +893,80 @@ void main() {
       expect(find.text('Spawn on'), findsNothing);
     });
 
+    testWidgets('recent workspace selection updates the path without '
+        'inheriting the agent', (tester) async {
+      Session recent(String id, String machineId, String path) => Session(
+        id: id,
+        seq: 1,
+        createdAt: 1,
+        updatedAt: 2,
+        active: false,
+        thinking: false,
+        activeAt: 1,
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        metadata: Metadata(machineId: machineId, path: path, flavor: 'har'),
+      );
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-local': _machine(
+              id: 'm-local',
+              displayName: 'Laptop',
+              active: true,
+              activeAtMs: DateTime.now().millisecondsSinceEpoch,
+              spawnBackends: const ['local'],
+            ),
+          },
+          initialMachineId: 'm-local',
+          sessions: {
+            'local': recent('local', 'm-local', '/recent-repo'),
+            'other': recent('other', 'm-other', '/other-machine'),
+          },
+        ),
+      );
+      expect(find.text('/other-machine'), findsNothing);
+      await tester.tap(find.text('/recent-repo'));
+      await tester.pump();
+      expect(
+        tester
+            .widget<TextFormField>(find.byType(TextFormField))
+            .controller!
+            .text,
+        '/recent-repo',
+      );
+      expect(find.text('Har model'), findsNothing);
+      await tester.enterText(find.byType(TextFormField), '/edited');
+      await tester.pump();
+      expect(find.text('/edited'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('fresh recovery explicitly selects its original agent', (
+      tester,
+    ) async {
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-local': _machine(
+              id: 'm-local',
+              displayName: 'Local',
+              active: true,
+              activeAtMs: DateTime.now().millisecondsSinceEpoch,
+              spawnBackends: const ['local'],
+            ),
+          },
+          initialMachineId: 'm-local',
+          initialPath: '/repo',
+          initialAgent: 'har',
+        ),
+      );
+      expect(find.text('Har model'), findsOneWidget);
+      expect(find.textContaining('Requires an installed'), findsOneWidget);
+    });
+
     testWidgets('supports local sessions alongside Kubernetes sessions', (
       tester,
     ) async {
@@ -906,6 +988,10 @@ void main() {
         ),
       );
 
+      expect(find.text('Local'), findsNothing);
+      expect(find.text('Worktree'), findsNothing);
+      await tester.tap(find.text('Advanced options'));
+      await tester.pumpAndSettle();
       expect(find.text('Local'), findsOneWidget);
       expect(find.text('Kubernetes'), findsOneWidget);
       expect(find.text('Path'), findsOneWidget);

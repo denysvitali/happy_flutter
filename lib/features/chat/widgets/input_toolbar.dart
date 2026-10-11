@@ -40,8 +40,15 @@ class ModelChip extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: '${l10n.composerModelLabel}: ${resolvedLabel ?? model.label}',
+      hint: enabled ? null : l10n.chatModelFixed,
       excludeSemantics: true,
-      child: ComposerSelectorChip(onTap: enabled ? onTap : null, label: value),
+      child: Tooltip(
+        message: enabled ? l10n.composerModelLabel : l10n.chatModelFixed,
+        child: ComposerSelectorChip(
+          onTap: enabled ? onTap : null,
+          label: value,
+        ),
+      ),
     );
   }
 }
@@ -165,6 +172,7 @@ class InputToolbar extends StatelessWidget {
     this.maxContext,
     this.compact = false,
     this.resolvedModelLabel,
+    this.configurationNotice,
     this.codexFastMode,
     this.onCodexFastModeChanged,
   });
@@ -189,6 +197,7 @@ class InputToolbar extends StatelessWidget {
   final int? maxContext;
   final bool compact;
   final String? resolvedModelLabel;
+  final String? configurationNotice;
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
 
@@ -220,10 +229,8 @@ class InputToolbar extends StatelessWidget {
     }
     final model = modelMode ?? ChatModelMode.defaultModel;
 
-    // Long provider and model names must not split composer controls across
-    // two rows. Keep one dense lane and let overflow scroll instead.
-    // Long provider and model names must not split composer controls across
-    // two rows. Keep one dense lane and let overflow scroll instead.
+    // Only secondary controls scroll on mobile; approvals and options stay
+    // reachable even when the selected model has a long name.
     final lane = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       clipBehavior: Clip.hardEdge,
@@ -232,7 +239,7 @@ class InputToolbar extends StatelessWidget {
       child: Row(
         children: [
           // Approvals lead so a high-risk state is never scrolled away.
-          if (onPermissionModeChanged != null) ...[
+          if (!compact && onPermissionModeChanged != null) ...[
             perm.PermissionModeSelector(
               selectedMode: permissionMode,
               onModeChanged: onPermissionModeChanged,
@@ -255,14 +262,7 @@ class InputToolbar extends StatelessWidget {
               onChanged: onCodexFastModeChanged,
             ),
           ],
-          if (compact)
-            ComposerIconChip(
-              key: const ValueKey('composer-options-button'),
-              icon: Icons.tune_rounded,
-              tooltip: context.l10n.chatComposerOptions,
-              onTap: () => _showOptions(context),
-            )
-          else ...[
+          if (!compact) ...[
             const SizedBox(width: AppSpacing.xs),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           ],
@@ -278,13 +278,48 @@ class InputToolbar extends StatelessWidget {
     );
     // Overflowing settings fade out at the trailing edge instead of being
     // cut mid-glyph against the expand button.
-    return ShaderMask(
+    final scrollingLane = ShaderMask(
       blendMode: BlendMode.dstIn,
       shaderCallback: (rect) => LinearGradient(
         colors: const [Colors.black, Colors.black, Colors.transparent],
         stops: [0, math.max(0, (rect.width - _laneFade) / rect.width), 1],
       ).createShader(rect),
       child: lane,
+    );
+    final controls = compact
+        ? Row(
+            children: [
+              if (onPermissionModeChanged != null)
+                Flexible(
+                  child: perm.PermissionModeSelector(
+                    selectedMode: permissionMode,
+                    onModeChanged: onPermissionModeChanged,
+                    availableModes: sessionFlavor == 'codex'
+                        ? perm.PermissionModeExtension.codexModes
+                        : perm.PermissionModeExtension.claudeAgyModes,
+                  ),
+                ),
+              Expanded(flex: 2, child: scrollingLane),
+              ComposerIconChip(
+                key: const ValueKey('composer-options-button'),
+                icon: Icons.tune_rounded,
+                tooltip: context.l10n.chatComposerOptions,
+                onTap: () => _showOptions(context),
+              ),
+            ],
+          )
+        : scrollingLane;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        controls,
+        if (configurationNotice case final notice?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(notice, style: AppText.secondary(Theme.of(context))),
+          ),
+      ],
     );
   }
 

@@ -83,6 +83,23 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  testWidgets('phone tool toggle keeps draft and search restores choice', (
+    tester,
+  ) async {
+    viewport(tester, 390);
+    await tester.pumpWidget(_harness());
+    await tester.enterText(find.byType(TextField), 'Mobile draft');
+    await tester.tap(find.byKey(const ValueKey('chat-tool-visibility')));
+    await tester.pump();
+    expect(find.text('grouped'), findsOneWidget);
+    expect(find.text('Mobile draft'), findsOneWidget);
+    await tester.pumpWidget(_harness(searching: true));
+    expect(find.text('full trace'), findsOneWidget);
+    await tester.pumpWidget(_harness());
+    expect(find.text('grouped'), findsOneWidget);
+    expect(find.text('Mobile draft'), findsOneWidget);
+  });
+
   testWidgets('phone preserves both existing tool preferences', (tester) async {
     viewport(tester, 390);
     await tester.pumpWidget(_harness());

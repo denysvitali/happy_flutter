@@ -18,7 +18,6 @@ import '../../../core/services/sync_service.dart';
 import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
@@ -639,13 +638,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     SessionUiState uiState,
   ) {
     final entry = uiState.bySessionId[sessionId] ?? SessionUiEntry.empty;
-    if (entry.unreadCount > 0) return true;
-    // Attention routing is independent of dot animation: thinking and
-    // permission-required rows stay in this section even though their
-    // dots are now static (isPulsing only covers thinking).
-    final status = getSessionStatus(session);
-    return status.state == SessionState.thinking ||
-        status.state == SessionState.permissionRequired;
+    return sessionAttentionPriority(
+          session,
+          unreadCount: entry.unreadCount,
+          lastMessageRole: entry.lastMessageRole,
+          lastMessageIsError: entry.lastMessageIsError,
+        ) <
+        4;
   }
 
   Widget _buildMissionControlView(
@@ -768,6 +767,22 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       }
     }
 
+    needsAttention.sort((a, b) {
+      int priority(Session session) {
+        final entry = uiState.bySessionId[session.id] ?? SessionUiEntry.empty;
+        return sessionAttentionPriority(
+          session,
+          unreadCount: entry.unreadCount,
+          lastMessageRole: entry.lastMessageRole,
+          lastMessageIsError: entry.lastMessageIsError,
+        );
+      }
+
+      final comparison = priority(a).compareTo(priority(b));
+      if (comparison != 0) return comparison;
+      final freshness = b.updatedAt.compareTo(a.updatedAt);
+      return freshness != 0 ? freshness : a.id.compareTo(b.id);
+    });
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -857,6 +872,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
       unreadCount: entry.unreadCount,
+      lastMessageIsError: entry.lastMessageIsError,
       permissionRequests: session.agentState?.requests,
     );
     return sel.isActive

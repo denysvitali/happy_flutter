@@ -3,6 +3,21 @@
 **Date:** 2026-03-13
 **Agent:** A2 — UI/UX Designer
 
+## October 2026 implementation update
+
+- Cached chat history stays mounted during refresh and refresh failure.
+- Failed sends have a 44px retry target and stronger status contrast.
+- Stopped Har and Prime Agent chats can explicitly start a fresh session.
+- Mobile tool grouping is adjustable; search restores the previous choice.
+- Turn review supports previous/next changed-file details without closing.
+- Mobile approval and options controls stay visible beside long model names.
+- New sessions offer recent machine-local paths and Advanced backend/worktree
+  options. Recent paths do not import agent or model settings.
+- Unread Focus orders approvals and errors ahead of unread results and activity.
+
+Regression coverage is added. Tests run in CI only; device acceptance remains
+required for keyboard, large-text, screen-reader, and navigation behavior.
+
 ## July 2026 implementation update
 
 - Code and JSON rendering use theme extensions rather than fixed palettes.

@@ -27,11 +27,34 @@ class DesktopChatWorkspace extends StatefulWidget {
 
 class _DesktopChatWorkspaceState extends State<DesktopChatWorkspace> {
   bool _showTools = false;
+  bool? _mobileCollapseTools;
 
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.sizeOf(context).width < AppBreakpoint.desktop) {
-      return widget.builder(!widget.searching && widget.mobileHideToolCalls);
+      final collapse = _mobileCollapseTools ?? widget.mobileHideToolCalls;
+      return Column(
+        children: [
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              key: const ValueKey('chat-tool-visibility'),
+              onPressed: widget.searching
+                  ? null
+                  : () => setState(() => _mobileCollapseTools = !collapse),
+              icon: Icon(collapse ? Icons.unfold_more : Icons.unfold_less),
+              label: Text(
+                widget.searching
+                    ? context.l10n.desktopSearchToolsVisible
+                    : collapse
+                    ? context.l10n.chatToolsGrouped
+                    : context.l10n.chatToolsExpanded,
+              ),
+            ),
+          ),
+          Expanded(child: widget.builder(!widget.searching && collapse)),
+        ],
+      );
     }
     final cs = Theme.of(context).colorScheme;
     final l10n = context.l10n;

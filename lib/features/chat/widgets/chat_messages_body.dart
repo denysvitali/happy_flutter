@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_tokens.dart';
 import 'chat_loading_shimmer.dart';
 import 'empty_chat_view.dart';
 import 'retry_error_view.dart';
@@ -8,7 +10,7 @@ import 'retry_error_view.dart';
 /// [AnimatedSwitcher] based on the chat screen's reactive state.
 ///
 /// Branches (in priority order):
-/// 1. [isLoading] → [ChatLoadingShimmer]
+/// 1. [isLoading] with no cached messages → [ChatLoadingShimmer]
 /// 2. [loadFailed] → [RetryErrorView] (which is itself a button that
 ///    calls [onRetry])
 /// 3. [messages] is empty → [EmptyChatView]
@@ -29,9 +31,8 @@ class ChatMessagesBody extends StatelessWidget {
     super.key,
   });
 
-  /// Whether the chat screen is in its initial load state. When
-  /// true, the loading shimmer is shown regardless of other
-  /// state.
+  /// Whether messages are loading. Cached content stays mounted during
+  /// refresh so scroll, selection and expanded tools are preserved.
   final bool isLoading;
 
   /// The current message list. Empty = show the empty-state view.
@@ -54,7 +55,7 @@ class ChatMessagesBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return isLoading
+    return isLoading && messages.isEmpty
         ? const ChatLoadingShimmer(key: ValueKey('loading'))
         : messages.isEmpty
         ? (loadFailed
@@ -66,6 +67,24 @@ class ChatMessagesBody extends StatelessWidget {
                   key: const ValueKey('chat-empty'),
                   onSuggestionTap: onSuggestionTap,
                 ))
-        : messageList;
+        : Column(
+            children: [
+              if (loadFailed)
+                MaterialBanner(
+                  content: Text(context.l10n.chatRefreshFailedCached),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  actions: [
+                    TextButton(
+                      onPressed: isLoading ? null : onRetry,
+                      child: Text(context.l10n.commonRetry),
+                    ),
+                  ],
+                ),
+              Expanded(
+                key: const ValueKey('cached-messages'),
+                child: messageList,
+              ),
+            ],
+          );
   }
 }

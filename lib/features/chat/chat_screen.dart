@@ -27,6 +27,7 @@ import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/main_isolate_stall_tracker.dart';
 import '../../core/services/opentelemetry_service.dart';
+import '../../core/services/pending_session_configuration.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/screen_awake_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
@@ -47,6 +48,7 @@ import '../loops/create_loop_sheet.dart';
 import '../loops/loop_actions.dart';
 import '../sessions/session_avatar.dart' show AvatarStyle;
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
+import '../sessions/widgets/new_session_dialog.dart';
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
 import 'chat_list_pipeline.dart';
@@ -2197,6 +2199,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     !profileOwnsRawCodexModel(_selectedProfile)
                 ? _refreshModelPickerCatalog
                 : null,
+            configurationNotice:
+                PendingSessionConfiguration().read(widget.sessionId) == null ||
+                    _session?.metadata?.flavor == 'har'
+                ? null
+                : _session?.metadata?.flavor == 'prime-agent'
+                ? context.l10n.chatConfigurationPending
+                : context.l10n.chatConfigurationRestartPending,
             sessionFlavor: _session?.metadata?.flavor,
             codexFastMode:
                 CodexSpeedSelection().read(widget.sessionId) ??
@@ -2304,6 +2313,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               blocksSend: issue.blocksSend,
             ),
             onCopy: () => _copySessionIssue(issue),
+            actionLabel:
+                issue.blocksSend &&
+                    const {
+                      'har',
+                      'prime-agent',
+                    }.contains(_session?.metadata?.flavor)
+                ? context.l10n.sessionsStartSession
+                : context.l10n.sessionsViewComputers,
+            onAction: () async {
+              final session = _session;
+              if (issue.blocksSend &&
+                  const {
+                    'har',
+                    'prime-agent',
+                  }.contains(session?.metadata?.flavor)) {
+                final id = await showNewSessionDialog(
+                  context,
+                  initialMachineId: session?.metadata?.machineId,
+                  initialPath: session?.metadata?.path,
+                  initialAgent: session?.metadata?.flavor,
+                );
+                if (!mounted || id == null) return;
+                unawaited(context.push('/chat/$id'));
+              } else {
+                unawaited(context.pushNamed('machines'));
+              }
+            },
           ),
         if (!hasSendIssue) ...[
           SessionGoalBanner(sessionId: widget.sessionId),
@@ -2336,6 +2372,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             turn.hasResult)
           TurnReviewBar(
             turn: turn,
+            sessionId: widget.sessionId,
             onOpenTool: (tool) {
               final id = tool['id'];
               if (id is String) {

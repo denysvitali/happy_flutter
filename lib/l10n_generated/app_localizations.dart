@@ -94,6 +94,108 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @chatConfigurationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected for your next message'**
+  String get chatConfigurationPending;
+
+  /// No description provided for @chatConfigurationRestartPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart required on your next message'**
+  String get chatConfigurationRestartPending;
+
+  /// No description provided for @chatModelFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'This session has one available model.'**
+  String get chatModelFixed;
+
+  /// No description provided for @chatReviewPreviousFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous file'**
+  String get chatReviewPreviousFile;
+
+  /// No description provided for @chatReviewNextFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Next file'**
+  String get chatReviewNextFile;
+
+  /// No description provided for @chatReviewBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to turn review'**
+  String get chatReviewBack;
+
+  /// No description provided for @chatToolsGrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Grouped tools'**
+  String get chatToolsGrouped;
+
+  /// No description provided for @chatToolsExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'Full tool trace'**
+  String get chatToolsExpanded;
+
+  /// No description provided for @chatRefreshFailedCached.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing saved messages. Refresh failed.'**
+  String get chatRefreshFailedCached;
+
+  /// No description provided for @newSessionAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced options'**
+  String get newSessionAdvanced;
+
+  /// No description provided for @newSessionRecentWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new session in a recent workspace'**
+  String get newSessionRecentWorkspace;
+
+  /// No description provided for @newSessionWorktreeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a separate Git worktree for isolated changes.'**
+  String get newSessionWorktreeHint;
+
+  /// No description provided for @newSessionLocalSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Local computer'**
+  String get newSessionLocalSummary;
+
+  /// No description provided for @newSessionKubernetesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes workspace'**
+  String get newSessionKubernetesSummary;
+
+  /// No description provided for @sessionsUnreadAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread answer'**
+  String get sessionsUnreadAnswer;
+
+  /// No description provided for @sessionsUnreadActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread activity'**
+  String get sessionsUnreadActivity;
+
+  /// No description provided for @sessionsReviewSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Review session'**
+  String get sessionsReviewSession;
+
   /// App title
   ///
   /// In en, this message translates to:
@@ -4028,7 +4130,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatSendFailedRetry.
   ///
   /// In en, this message translates to:
-  /// **'Failed — tap to retry'**
+  /// **'Not delivered — retry'**
   String get chatSendFailedRetry;
 
   /// No description provided for @chatClearFailedSafe.

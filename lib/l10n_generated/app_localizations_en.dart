@@ -9,6 +9,61 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get chatConfigurationPending => 'Selected for your next message';
+
+  @override
+  String get chatConfigurationRestartPending =>
+      'Restart required on your next message';
+
+  @override
+  String get chatModelFixed => 'This session has one available model.';
+
+  @override
+  String get chatReviewPreviousFile => 'Previous file';
+
+  @override
+  String get chatReviewNextFile => 'Next file';
+
+  @override
+  String get chatReviewBack => 'Back to turn review';
+
+  @override
+  String get chatToolsGrouped => 'Grouped tools';
+
+  @override
+  String get chatToolsExpanded => 'Full tool trace';
+
+  @override
+  String get chatRefreshFailedCached =>
+      'Showing saved messages. Refresh failed.';
+
+  @override
+  String get newSessionAdvanced => 'Advanced options';
+
+  @override
+  String get newSessionRecentWorkspace =>
+      'Start a new session in a recent workspace';
+
+  @override
+  String get newSessionWorktreeHint =>
+      'Use a separate Git worktree for isolated changes.';
+
+  @override
+  String get newSessionLocalSummary => 'Local computer';
+
+  @override
+  String get newSessionKubernetesSummary => 'Kubernetes workspace';
+
+  @override
+  String get sessionsUnreadAnswer => 'Unread answer';
+
+  @override
+  String get sessionsUnreadActivity => 'Unread activity';
+
+  @override
+  String get sessionsReviewSession => 'Review session';
+
+  @override
   String get appTitle => 'Happy';
 
   @override
@@ -2154,7 +2209,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Message not delivered — tap to retry';
 
   @override
-  String get chatSendFailedRetry => 'Failed — tap to retry';
+  String get chatSendFailedRetry => 'Not delivered — retry';
 
   @override
   String get chatClearFailedSafe =>

@@ -83,13 +83,13 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
           liveRegion: true,
           child: _StatusLabel(
             label: l10n.chatSendSending,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+            color: cs.onSurfaceVariant,
             indicator: SizedBox(
               width: 8,
               height: 8,
               child: AppCircularProgressIndicator(
                 strokeWidth: 1,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                color: cs.onSurfaceVariant,
               ),
             ),
           ),
@@ -145,28 +145,36 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
                     color: cs.error,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: 3,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: AppTouchTarget.min,
+                      minWidth: AppTouchTarget.min,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.refresh_rounded,
-                          size: AppIconSize.xs,
-                          color: cs.onError,
-                        ),
-                        const SizedBox(width: AppSpacing.xxs),
-                        Text(
-                          l10n.chatSendFailedRetry,
-                          style: style?.copyWith(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 3,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: AppIconSize.xs,
                             color: cs.onError,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: AppSpacing.xxs),
+                          Flexible(
+                            child: Text(
+                              l10n.chatSendFailedRetry,
+                              style: style.copyWith(
+                                color: cs.onError,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -23,6 +23,10 @@ import '../../chat/model_selection_resolver.dart'
 import '../../chat/widgets/model_mode.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
+part 'new_session_fields.dart';
+part 'new_session_resolution.dart';
+part 'new_session_recent_workspace.dart';
+
 enum NewSessionCreateBlocker {
   missingMachine,
   offlineMachine,
@@ -94,9 +98,6 @@ String newSessionCreateErrorMessage({
   }
   if (errorText.contains('deadline exceeded') ||
       errorText.contains('context deadline')) {
-    // Daemon-side timeouts (e.g. spawn-happy-session RPC context deadline)
-    // are transient and already logged; show a generic user-facing message
-    // instead of the raw technical error string.
     return l10n.newSessionCouldNotStartSession;
   }
   if (errorText.contains('unknown agent') ||
@@ -118,6 +119,7 @@ Future<String?> showNewSessionDialog(
   String? initialPath,
   String? initialRepositoryUrl,
   String? initialRepositoryRef,
+  String? initialAgent,
   bool useRootNavigator = true,
 }) {
   return showDialog<String>(
@@ -129,6 +131,7 @@ Future<String?> showNewSessionDialog(
       initialPath: initialPath,
       initialRepositoryUrl: initialRepositoryUrl,
       initialRepositoryRef: initialRepositoryRef,
+      initialAgent: initialAgent,
     ),
   );
 }
@@ -141,6 +144,7 @@ class NewSessionDialog extends ConsumerStatefulWidget {
     this.initialPath,
     this.initialRepositoryUrl,
     this.initialRepositoryRef,
+    this.initialAgent,
   });
 
   /// Optional pre-selected machine ID.
@@ -150,6 +154,7 @@ class NewSessionDialog extends ConsumerStatefulWidget {
   final String? initialPath;
   final String? initialRepositoryUrl;
   final String? initialRepositoryRef;
+  final String? initialAgent;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
@@ -169,24 +174,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedSpawnBackend;
   bool _spawnBackendTouched = false;
 
-  /// Whether Riverpod's [ref] (and `setState`) may still be touched.
-  ///
-  /// `State.mounted` only flips to `false` once `dispose()` has run, but a
-  /// `ConsumerState`'s `ref` starts throwing as soon as its *element* is
-  /// deactivated — the window a dismissed dialog spends between
-  /// `Navigator.pop` and the end of the frame. Production landed exactly in
-  /// that window: `[NewSessionDialog] createSession failed: Bad state: Using
-  /// "ref" when a widget is about to or has been unmounted is unsafe`.
-  /// `context.mounted` reads the element lifecycle, so it closes the gap that
-  /// a bare `mounted` check leaves open. Every post-await `ref`/`setState`
-  /// touch in this state goes through here.
+  /// Deactivation can precede State.dispose; guard both before using ref.
   bool get _canUseRef => mounted && context.mounted;
 
   @override
   void initState() {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
-    final lastUsedAgent = settings.lastUsedAgent;
+    final lastUsedAgent = widget.initialAgent ?? settings.lastUsedAgent;
     _selectedAgent = _agentIds.contains(lastUsedAgent)
         ? lastUsedAgent!
         : 'claude';
@@ -220,14 +215,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final l10n = context.l10n;
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final allMachines = ref.watch(machinesNotifierProvider);
-    // Sort machines: online first, then offline. Show all so users can see
-    // (and understand) which machines are unavailable rather than silently
-    // hiding them.
     final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machines = allMachines.values.toList()
       ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
-    // Check whether the currently selected machine is still online.
     final selectedMachineObj = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
@@ -292,8 +283,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     ),
                     ...machines.map((machine) {
                       final online = machine.isOnlineAt(machineSortNow);
-                      // Disable offline items so the user cannot select a
-                      // machine that will fail at session creation time.
                       return DropdownMenuItem(
                         value: machine.id,
                         enabled: online,
@@ -349,8 +338,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     }),
                   ],
                   onChanged: (value) {
-                    // Guard against selecting an offline machine even if a
-                    // disabled DropdownMenuItem is somehow tapped.
                     if (value != null) {
                       final m = allMachines[value];
                       if (m != null && !m.isOnlineAt(machineSortNow)) {
@@ -384,38 +371,67 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     _createError = null;
                   }),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                      value: 'simple',
-                      label: Text(l10n.sessionsSimple),
-                      icon: const Icon(Icons.folder_outlined),
-                    ),
-                    ButtonSegment(
-                      value: 'worktree',
-                      label: Text(l10n.sessionsWorktree),
-                      icon: const Icon(Icons.account_tree_outlined),
-                    ),
-                  ],
-                  selected: {_sessionType},
-                  onSelectionChanged: (selection) =>
-                      setState(() => _sessionType = selection.first),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (spawnBackends.length > 1) ...[
-                _SpawnBackendPicker(
-                  backends: spawnBackends,
-                  selectedBackend: selectedSpawnBackend,
-                  onSelected: (backend) => setState(() {
-                    _selectedSpawnBackend = backend;
-                    _spawnBackendTouched = true;
+                _RecentWorkspacePicker(
+                  machineId: _selectedMachine,
+                  selectedPath: _selectedPath,
+                  onSelected: (path) => setState(() {
+                    _selectedPath = path;
                     _createError = null;
                   }),
                 ),
-                const SizedBox(height: AppSpacing.lg),
               ],
+              if (!isKubernetes || spawnBackends.length > 1)
+                ExpansionTile(
+                  key: const PageStorageKey('new-session-advanced'),
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(l10n.newSessionAdvanced),
+                  subtitle: Text(
+                    isKubernetes
+                        ? l10n.newSessionKubernetesSummary
+                        : _sessionType == 'worktree'
+                        ? l10n.sessionsWorktree
+                        : l10n.newSessionLocalSummary,
+                  ),
+                  children: [
+                    if (!isKubernetes) ...[
+                      Text(
+                        l10n.newSessionWorktreeHint,
+                        style: AppText.secondary(theme),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      SegmentedButton<String>(
+                        segments: [
+                          ButtonSegment(
+                            value: 'simple',
+                            label: Text(l10n.sessionsSimple),
+                            icon: const Icon(Icons.folder_outlined),
+                          ),
+                          ButtonSegment(
+                            value: 'worktree',
+                            label: Text(l10n.sessionsWorktree),
+                            icon: const Icon(Icons.account_tree_outlined),
+                          ),
+                        ],
+                        selected: {_sessionType},
+                        onSelectionChanged: (selection) =>
+                            setState(() => _sessionType = selection.first),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                    if (spawnBackends.length > 1) ...[
+                      _SpawnBackendPicker(
+                        backends: spawnBackends,
+                        selectedBackend: selectedSpawnBackend,
+                        onSelected: (backend) => setState(() {
+                          _selectedSpawnBackend = backend;
+                          _spawnBackendTouched = true;
+                          _createError = null;
+                        }),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                  ],
+                ),
               if (isKubernetes) ...[
                 _RepositoryUrlField(
                   machineId: _selectedMachine,
@@ -565,9 +581,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     if (selectedMachineId == null) return;
     final navigator = Navigator.of(context);
     if (!_canUseRef) return;
-    // Resolve every notifier up-front, while `ref` is provably usable. Each
-    // one is a stable object, so holding it across the awaits below removes
-    // three `ref` touches from the async tail entirely.
     final machinesNotifier = ref.read(machinesNotifierProvider.notifier);
     final settingsNotifier = ref.read(settingsNotifierProvider.notifier);
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
@@ -579,10 +592,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     });
 
     try {
-      // The dialog may have been open while the daemon disconnected. Refresh
-      // authoritative presence immediately before doing any settings,
-      // worktree, or spawn work, then migrate stale registrations for the
-      // same host when a newer online daemon registration exists.
       await machinesNotifier.refreshFromSync();
       if (!_canUseRef) return;
       final machines = ref.read(machinesNotifierProvider);
@@ -640,12 +649,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         settings,
         _selectedAgent,
       );
-      // Resolve defaultModelMode so the daemon always receives a model hint,
-      // preventing profile env vars from being used incorrectly when
-      // lastUsedProfile changes between profile switch and session creation.
-      // Re-read settings after applySettings so we use the current
-      // lastUsedModelMode (the user's last explicit selection), not a stale
-      // snapshot from initState.
       await settingsNotifier.applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': profileId,
@@ -668,9 +671,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       }
       String? normalizeProfileCandidate(String? raw) {
         if (raw == null) return null;
-        // The daemon aborts Claude-alias models on third-party
-        // Anthropic-compatible gateways (Grok proxy / MiniMax / etc.) as
-        // provider_model_mismatch, so such candidates are rejected.
         final candidate = ChatModelMode.normalizeRawForFlavor(
           raw,
           _selectedAgent,
@@ -690,11 +690,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         return candidate;
       }
 
-      // The provider's saved favorite/default model wins over the profile's
-      // defaultModelMode so the picker's "favorite" choice is honored for
-      // brand-new sessions too. A ghost profileId (no matching profile) does
-      // not inherit a favorite — mirroring the resolver's guard so a favorite
-      // belonging to a vanished profile cannot steer the new session.
       if (!hadGhostProfileReference) {
         modelMode = normalizeProfileCandidate(
           favoriteModelForProvider(
@@ -705,10 +700,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         );
         modelMode ??= selectedProfile?.defaultModelMode;
       }
-      // Fall back to the user's last explicit model selection so profile
-      // switches don't regress the model choice. The last-used model is
-      // global across agents, and Prime Agent only accepts models its own
-      // installation advertises, so another agent's pick must not reach it.
       if (_selectedAgent != 'prime-agent') {
         modelMode ??= normalizeProfileCandidate(
           updatedSettings.lastUsedModelMode,
@@ -757,24 +748,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       setState(() {
         _creationPhase = l10n.newSessionPhaseFinalizing;
       });
-      // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {
         await DraftStorage().saveProfileId(sessionId, profileId);
       }
-      // Keep the model selected for this session separate from the global
-      // last-used model. Without this, reopening a session after choosing a
-      // model for another session could make the picker select that newer
-      // global choice and unnecessarily restart the original session.
       await DraftStorage().saveModelMode(
         sessionId,
         modelMode ?? ChatModelMode.defaultModel.modeString,
       );
-      // createSession() already called refreshSessions() internally
-      // and added the session to sync._sessions (optimistic fallback).
-      // Just read the in-memory state — no redundant server fetch.
       sessionsNotifier.loadFromSync();
-      // A dialog whose element is already deactivated has been dismissed by
-      // something else; popping again would unwind an unrelated route.
       if (!_canUseRef) return;
       navigator.pop(sessionId);
     } on IncompatibleProviderAndModelError catch (e, st) {
@@ -790,9 +771,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _createError = e.message;
       });
     } catch (e, st) {
-      // Keep the issue title stable. Sync.createSession records RPC-specific
-      // details as a breadcrumb, so this is the single GlitchTip warning for
-      // the user-visible failure rather than a duplicate second capture.
       logger.warning('[NewSessionDialog] createSession failed', e, st);
       if (!_canUseRef) return;
       final userMessage = newSessionCreateErrorMessage(l10n: l10n, error: e);
@@ -802,593 +780,5 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _createError = userMessage;
       });
     }
-  }
-}
-
-/// Resolves a stale machine selection to the freshest online registration for
-/// the same host.
-///
-/// Daemon credential resets and interrupted database updates can leave more
-/// than one machine record for a host. Never fall back to an unrelated host:
-/// if no matching online registration exists, preserve the stale selection so
-/// the dialog's offline guard keeps Create disabled.
-String? resolveAvailableMachineId(
-  String? selectedMachineId,
-  Map<String, Machine> machines, {
-  int? nowMs,
-}) {
-  if (selectedMachineId == null) return null;
-
-  final selected = machines[selectedMachineId];
-  if (selected == null) return selectedMachineId;
-
-  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
-  if (selected.isOnlineAt(now)) return selectedMachineId;
-
-  final host = selected.metadata?.host?.trim();
-  if (host == null || host.isEmpty) return selectedMachineId;
-
-  final replacements =
-      machines.values
-          .where(
-            (machine) =>
-                machine.id != selectedMachineId &&
-                machine.metadata?.host?.trim() == host &&
-                machine.isOnlineAt(now),
-          )
-          .toList()
-        ..sort((a, b) {
-          final activeComparison = b.activeAt.compareTo(a.activeAt);
-          if (activeComparison != 0) return activeComparison;
-          return a.id.compareTo(b.id);
-        });
-
-  return replacements.firstOrNull?.id ?? selectedMachineId;
-}
-
-/// Probes the selected registration and then other online registrations for
-/// the same host, newest first.
-///
-/// A daemon restart or clustered launcher can keep emitting host activity
-/// under one machine ID while its RPC handlers are registered under another.
-/// Presence alone therefore cannot identify the registration that can spawn.
-Future<String> resolveReachableMachineId(
-  String selectedMachineId,
-  Map<String, Machine> machines, {
-  required Future<void> Function(String machineId) probe,
-  int? nowMs,
-}) async {
-  final selected = machines[selectedMachineId];
-  if (selected == null) {
-    throw StateError('Machine is offline');
-  }
-
-  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
-  final host = selected.metadata?.host?.trim();
-  final candidates = <Machine>[
-    selected,
-    if (host != null && host.isNotEmpty)
-      ...machines.values.where(
-        (machine) =>
-            machine.id != selectedMachineId &&
-            machine.metadata?.host?.trim() == host &&
-            machine.isOnlineAt(now),
-      ),
-  ];
-  if (candidates.length > 1) {
-    candidates.setRange(
-      1,
-      candidates.length,
-      candidates.sublist(1)..sort((a, b) {
-        final activeComparison = b.activeAt.compareTo(a.activeAt);
-        if (activeComparison != 0) return activeComparison;
-        return a.id.compareTo(b.id);
-      }),
-    );
-  }
-
-  Object? lastError;
-  StackTrace? lastStack;
-  for (final candidate in candidates) {
-    try {
-      await probe(candidate.id);
-      return candidate.id;
-    } catch (error, stack) {
-      lastError = error;
-      lastStack = stack;
-    }
-  }
-  Error.throwWithStackTrace(
-    lastError ?? StateError('Machine is unreachable'),
-    lastStack ?? StackTrace.current,
-  );
-}
-
-bool _machineSupportsKubernetes(Machine machine) =>
-    machine.metadata?.spawnBackends?.contains('kubernetes') ?? false;
-
-List<String> _spawnBackendsForMachine(Machine? machine) {
-  final advertised = machine?.metadata?.spawnBackends ?? const <String>[];
-  final supported = advertised
-      .where((backend) => backend == 'local' || backend == 'kubernetes')
-      .toList(growable: false);
-  return supported.isEmpty ? const ['local'] : supported;
-}
-
-String _defaultSpawnBackendForMachine(Machine? machine) {
-  final backends = _spawnBackendsForMachine(machine);
-  final advertisedDefault = machine?.metadata?.defaultSpawnBackend;
-  return backends.contains(advertisedDefault)
-      ? advertisedDefault!
-      : backends.first;
-}
-
-String _selectedSpawnBackendForMachine(Machine? machine, String? selected) {
-  final backends = _spawnBackendsForMachine(machine);
-  return backends.contains(selected)
-      ? selected!
-      : _defaultSpawnBackendForMachine(machine);
-}
-
-String? _spawnBackendRequestValueForMachine(
-  Machine? machine,
-  String? selected,
-) {
-  final advertised = machine?.metadata?.spawnBackends;
-  if (advertised == null || advertised.isEmpty) return null;
-  return _selectedSpawnBackendForMachine(machine, selected);
-}
-
-String kubernetesCheckoutPath(Machine machine, String repositoryUrl) {
-  final advertisedBase = machine.metadata?.kubernetesCheckoutBaseDir?.trim();
-  final base = advertisedBase != null && advertisedBase.isNotEmpty
-      ? advertisedBase
-      : '/workspace';
-  var slug = repositoryUrl.trim().replaceAll(RegExp(r'[/\\]+$'), '');
-  final slash = slug.lastIndexOf('/');
-  final colon = slug.lastIndexOf(':');
-  final separator = slash > colon ? slash : colon;
-  if (separator >= 0) slug = slug.substring(separator + 1);
-  if (slug.toLowerCase().endsWith('.git')) {
-    slug = slug.substring(0, slug.length - 4);
-  }
-  slug = slug
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9._-]+'), '-')
-      .replaceAll(RegExp(r'^[-.]+|[-.]+$'), '');
-  if (slug.isEmpty) slug = 'repository';
-  return '${base.replaceAll(RegExp(r'/+$'), '')}/$slug';
-}
-
-/// Mirrors Sync._isClaudeModelAlias so the create dialog can reject
-/// lastUsedModelMode values that would trip the daemon's
-/// provider_model_mismatch guard.
-bool _isClaudeModelAliasForDialog(String modelMode) {
-  final separator = modelMode.lastIndexOf(':');
-  final slug = separator > 0 ? modelMode.substring(0, separator) : modelMode;
-  return slug == 'opus' ||
-      slug == 'sonnet' ||
-      slug == 'haiku' ||
-      slug == 'fable' ||
-      slug.startsWith('claude-') ||
-      slug.contains('/claude-');
-}
-
-class _PathField extends ConsumerWidget {
-  const _PathField({
-    required this.machineId,
-    required this.selectedPath,
-    required this.onChanged,
-    required this.onSelected,
-  });
-
-  final String? machineId;
-  final String? selectedPath;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final paths =
-        sessions.values
-            .where((session) => session.metadata?.machineId == machineId)
-            .map((session) => session.metadata?.path)
-            .whereType<String>()
-            .toSet()
-            .toList()
-          ..sort();
-    return Autocomplete<String>(
-      key: ValueKey('local-path-$machineId'),
-      optionsBuilder: (value) {
-        if (value.text.isEmpty) return paths;
-        final query = value.text.toLowerCase();
-        return paths.where((path) => path.toLowerCase().contains(query));
-      },
-      onSelected: onSelected,
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        final path = selectedPath;
-        if (path != null && path.isNotEmpty && controller.text.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (controller.text.isEmpty) controller.text = path;
-          });
-        }
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: context.l10n.sessionPath,
-            hintText: context.l10n.sessionPathHint,
-            prefixIcon: const Icon(Icons.folder_outlined),
-          ),
-          onChanged: onChanged,
-        );
-      },
-    );
-  }
-}
-
-class _SpawnBackendPicker extends StatelessWidget {
-  const _SpawnBackendPicker({
-    required this.backends,
-    required this.selectedBackend,
-    required this.onSelected,
-  });
-
-  final List<String> backends;
-  final String selectedBackend;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) => SegmentedButton<String>(
-    segments: backends
-        .map(
-          (backend) => ButtonSegment(
-            value: backend,
-            label: Text(
-              backend == 'kubernetes'
-                  ? context.l10n.newSessionSpawnKubernetes
-                  : context.l10n.newSessionSpawnLocal,
-            ),
-            icon: Icon(
-              backend == 'kubernetes'
-                  ? Icons.cloud_queue_outlined
-                  : Icons.computer_outlined,
-            ),
-          ),
-        )
-        .toList(growable: false),
-    selected: {selectedBackend},
-    onSelectionChanged: (selection) => onSelected(selection.first),
-  );
-}
-
-class _RepositoryUrlField extends ConsumerWidget {
-  const _RepositoryUrlField({
-    required this.machineId,
-    required this.selectedRepoUrl,
-    required this.onChanged,
-    required this.onSelected,
-  });
-
-  final String? machineId;
-  final String? selectedRepoUrl;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final repoUrls = _repositoryUrlsForMachine(sessions, machineId);
-
-    return Autocomplete<String>(
-      key: ValueKey('repo-url-$machineId'),
-      optionsBuilder: (textEditingValue) {
-        if (repoUrls.isEmpty) return const <String>[];
-        final query = textEditingValue.text.toLowerCase();
-        if (query.isEmpty) return repoUrls;
-        return repoUrls.where((url) => url.toLowerCase().contains(query));
-      },
-      onSelected: onSelected,
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        final value = selectedRepoUrl;
-        if (value != null && value.isNotEmpty && controller.text.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (controller.text.isEmpty) {
-              controller.text = value;
-            }
-          });
-        }
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: context.l10n.newSessionRepositoryUrl,
-            hintText: context.l10n.newSessionRepositoryUrlHint,
-            prefixIcon: const Icon(Icons.source_outlined),
-          ),
-          keyboardType: TextInputType.url,
-          textInputAction: TextInputAction.next,
-          onChanged: onChanged,
-        );
-      },
-    );
-  }
-}
-
-List<String> _repositoryUrlsForMachine(
-  Map<String, Session> sessions,
-  String? machineId,
-) {
-  final urls = <String>{};
-  for (final session in sessions.values) {
-    final metadata = session.metadata;
-    if (metadata == null) continue;
-    if (machineId != null && metadata.machineId != machineId) continue;
-    final url = metadata.repoUrl?.trim();
-    if (url != null && url.isNotEmpty) {
-      urls.add(url);
-    }
-  }
-  return urls.toList()..sort();
-}
-
-class _AgentPicker extends StatelessWidget {
-  const _AgentPicker({required this.selectedAgent, required this.onSelected});
-
-  final String selectedAgent;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            l10n.sessionsAgent,
-            style: AppText.label(theme, cs.onSurfaceVariant),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        FocusTraversalGroup(
-          policy: AppReadingOrderTraversalPolicy(),
-          child: Column(
-            children: [
-              for (var start = 0; start < _agentIds.length; start += 3) ...[
-                if (start > 0) const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    for (
-                      var i = start;
-                      i < start + 3 && i < _agentIds.length;
-                      i++
-                    ) ...[
-                      if (i > start) const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: _AgentOption(
-                          label: _agentLabel(l10n, _agentIds[i]),
-                          agent: _agentIds[i],
-                          selected: _agentIds[i] == selectedAgent,
-                          onTap: () => onSelected(_agentIds[i]),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AgentOption extends StatelessWidget {
-  const _AgentOption({
-    required this.label,
-    required this.agent,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String agent;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final borderColor = selected ? cs.primary : cs.outlineVariant;
-    final foreground = selected ? cs.onPrimaryContainer : cs.onSurfaceVariant;
-    final radius = BorderRadius.circular(AppRadius.sm);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      child: Material(
-        color: selected ? cs.primaryContainer : cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: borderColor),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          mouseCursor: SystemMouseCursors.click,
-          child: ExcludeSemantics(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.sm,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (agent == 'prime-agent')
-                    const PrimeAgentLogo(size: AppIconSize.lg)
-                  else
-                    Icon(
-                      _agentIcon(agent),
-                      size: AppIconSize.lg,
-                      color: foreground,
-                    ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: AppText.badge(theme, foreground),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DialogRequirementStatus extends StatelessWidget {
-  const _DialogRequirementStatus({
-    required this.blocker,
-    required this.selectedMachineOffline,
-  });
-
-  final NewSessionCreateBlocker? blocker;
-  final bool selectedMachineOffline;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isBlocked = blocker != null;
-    final color =
-        selectedMachineOffline ||
-            blocker == NewSessionCreateBlocker.offlineMachine
-        ? cs.error
-        : isBlocked
-        ? cs.onSurfaceVariant
-        : AppColors.success;
-    final icon = isBlocked
-        ? selectedMachineOffline ||
-                  blocker == NewSessionCreateBlocker.offlineMachine
-              ? Icons.cloud_off_rounded
-              : Icons.info_outline_rounded
-        : Icons.check_circle_outline_rounded;
-
-    return Row(
-      children: [
-        ExcludeSemantics(
-          child: Icon(icon, size: AppIconSize.md, color: color),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Semantics(
-            liveRegion: true,
-            child: Text(
-              _dialogRequirementText(l10n, blocker),
-              style: AppText.secondary(theme, color),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _agentLabel(AppLocalizations l10n, String agent) {
-  return switch (agent) {
-    'codex' => l10n.sessionsCodex,
-    'agy' => l10n.sessionsAgy,
-    'pi' => l10n.sessionsPi,
-    'opencode' => l10n.sessionsOpencode,
-    'grok' => l10n.sessionsGrok,
-    'har' => 'Har',
-    'prime-agent' => 'Prime Agent',
-    _ => l10n.sessionsClaude,
-  };
-}
-
-IconData _agentIcon(String agent) {
-  return switch (agent) {
-    'codex' => Icons.terminal_rounded,
-    'agy' => Icons.auto_awesome_rounded,
-    'pi' => Icons.memory_rounded,
-    'opencode' => Icons.code_rounded,
-    'grok' => Icons.rocket_launch_rounded,
-    'har' => Icons.hub_outlined,
-    _ => Icons.psychology_alt_rounded,
-  };
-}
-
-class _CreateButton extends StatelessWidget {
-  const _CreateButton({
-    required this.isCreating,
-    required this.onPressed,
-    required this.label,
-    required this.tooltip,
-  });
-
-  final bool isCreating;
-  final VoidCallback? onPressed;
-  final String label;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final button = FilledButton(
-      onPressed: onPressed,
-      child: isCreating
-          ? const Icon(Icons.hourglass_top_rounded, size: AppIconSize.md)
-          : Text(label),
-    );
-    final tip = tooltip;
-    if (tip == null || tip.isEmpty) return button;
-    return Tooltip(message: tip, child: button);
-  }
-}
-
-String _dialogRequirementText(
-  AppLocalizations l10n,
-  NewSessionCreateBlocker? blocker,
-) {
-  switch (blocker) {
-    case NewSessionCreateBlocker.missingMachine:
-      return l10n.sessionNoMachineSelected;
-    case NewSessionCreateBlocker.offlineMachine:
-      return l10n.machineOfflineUnableToSpawn;
-    case NewSessionCreateBlocker.kubernetesUnavailable:
-      return l10n.newSessionKubernetesUnavailable;
-    case NewSessionCreateBlocker.missingPath:
-      return l10n.sessionNoPathSelected;
-    case NewSessionCreateBlocker.missingRepository:
-      return l10n.newSessionRepositoryRequired;
-    case NewSessionCreateBlocker.missingRepositoryRef:
-      return l10n.newSessionGitRefRequired;
-    case NewSessionCreateBlocker.harLocalBackend:
-      return 'Select the local backend for Har.';
-    case NewSessionCreateBlocker.creating:
-      return l10n.commonCreate;
-    case NewSessionCreateBlocker.disconnected:
-      return l10n.sessionNotConnectedToServer;
-    case NewSessionCreateBlocker.syncNotReady:
-      return l10n.authConnecting;
-    case null:
-      return l10n.newSessionReadyToCreate;
   }
 }

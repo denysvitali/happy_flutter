@@ -32,6 +32,19 @@ Widget _wrap({
 
 void main() {
   group('ChatMessagesBody', () {
+    testWidgets('refresh keeps cached content visible after a failure', (
+      tester,
+    ) async {
+      for (final loading in [true, false]) {
+        await tester.pumpWidget(
+          _wrap(isLoading: loading, messages: const [1], loadFailed: true),
+        );
+        expect(find.byKey(const ValueKey('message-list')), findsOneWidget);
+        expect(find.byType(ChatLoadingShimmer), findsNothing);
+        expect(find.byType(RetryErrorView), findsNothing);
+      }
+    });
+
     testWidgets('shows the loading shimmer when isLoading is true', (
       tester,
     ) async {
