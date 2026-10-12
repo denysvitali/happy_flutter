@@ -55,17 +55,17 @@ class SessionListDetails extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           detail!,
         ],
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xxs),
         Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xxs,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SessionStatusIndicator(status: sessionStatus),
-                const SizedBox(width: AppSpacing.xsm),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
                   formatTimestamp(timestamp, relative: true),
                   style: AppText.secondary(theme),

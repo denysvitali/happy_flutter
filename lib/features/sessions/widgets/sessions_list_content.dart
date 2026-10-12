@@ -816,7 +816,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (allOthers.isNotEmpty) {
       if (needsAttention.isNotEmpty) {
-        items.add(const SizedBox(height: AppSpacing.md));
+        items.add(const SizedBox(height: AppSpacing.xs));
       }
       items
         ..add(

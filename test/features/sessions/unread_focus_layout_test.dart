@@ -153,12 +153,50 @@ void main() {
     expect(find.byType(IconButton), findsNothing);
     expect(
       tester.getSize(find.byType(NeedsAttentionCard)).height,
-      lessThan(110),
+      lessThan(86),
     );
     await tester.tap(find.text('Review changes'));
     await tester.longPress(find.text('Review changes'));
     expect(taps, 1);
     expect(longPresses, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long titles and previews stay dense in both sections', (
+    tester,
+  ) async {
+    final session = _session().copyWith(todos: [], pinned: false);
+    await _pump(
+      tester,
+      Column(
+        children: [
+          NeedsAttentionCard(
+            session: session,
+            showFlavorIcon: false,
+            onTap: () {},
+            onLongPress: () {},
+            unreadCount: 2,
+            lastMessageRole: 'agent',
+            lastMessagePreview: _preview,
+          ),
+          UnreadFocusListGroup(
+            children: [
+              UnreadFocusListRow(
+                session: session,
+                showFlavorIcon: false,
+                onTap: () {},
+                onLongPress: () {},
+                lastMessagePreview: _preview,
+              ),
+            ],
+          ),
+        ],
+      ),
+      width: 480,
+    );
+    for (final type in [NeedsAttentionCard, UnreadFocusListRow]) {
+      expect(tester.getSize(find.byType(type)).height, lessThan(80));
+    }
     expect(tester.takeException(), isNull);
   });
 
@@ -233,6 +271,12 @@ void main() {
             tester.element(find.text(_name).first),
           ).colorScheme;
           expect(name.style?.color, cs.onSurface);
+          for (final text in [
+            ...find.text(_name).evaluate(),
+            ...find.text(_preview).evaluate(),
+          ]) {
+            expect((text.widget as Text).maxLines, 1);
+          }
           for (final title in find.text(_name).evaluate()) {
             expect(
               tester.getSize(find.byWidget(title.widget)).width,

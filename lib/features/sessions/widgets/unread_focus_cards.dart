@@ -128,8 +128,8 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
       selected: widget.isSelected,
       child: Container(
         margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -164,8 +164,8 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                   ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +189,11 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                               hasDraft: hasDraft,
                               avatarStyle: widget.avatarStyle,
                             ),
-                          const SizedBox(width: AppSpacing.sm),
+                          const SizedBox(width: AppSpacing.xsm),
                           Expanded(
                             child: SessionListDetails(
                               name: _d.name,
-                              titleMaxLines: 2,
+                              titleMaxLines: 1,
                               timestamp:
                                   widget.lastMessageTimestamp ??
                                   session.lastMessageAt ??
@@ -209,7 +209,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                                       preview: widget.lastMessagePreview!,
                                       role: widget.lastMessageRole,
                                       style: AppText.secondary(theme),
-                                      maxLines: 2,
+                                      maxLines: 1,
                                     )
                                   : null,
                             ),
@@ -408,8 +408,8 @@ class UnreadFocusListRow extends StatelessWidget {
           onLongPress: onLongPress,
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,7 +429,7 @@ class UnreadFocusListRow extends StatelessWidget {
                     hasDraft: hasDraft,
                     avatarStyle: avatarStyle,
                   ),
-                const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.xsm),
                 Expanded(
                   child: SessionListDetails(
                     name: derived.name,
@@ -468,7 +468,7 @@ class UnreadFocusListGroup extends StatelessWidget {
     if (children.isEmpty) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
       clipBehavior: Clip.hardEdge,
@@ -489,8 +489,8 @@ class UnreadFocusListGroup extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: AppBorder.hairline,
-                indent: AppSpacing.md + AppAvatarSize.small + AppSpacing.sm,
-                endIndent: AppSpacing.md,
+                indent: AppSpacing.sm + AppAvatarSize.small + AppSpacing.xsm,
+                endIndent: AppSpacing.sm,
                 color: cs.outlineVariant.withValues(alpha: 0.35),
               ),
           ],

@@ -16,8 +16,9 @@
 - New sessions offer recent machine-local paths and Advanced backend/worktree
   options. Recent paths do not import agent or model settings.
 - Unread Focus orders approvals and errors ahead of unread results and activity.
-  Compact, keyboard-accessible cards remove the extra review-button row and
-  replace avatars with checkboxes in selection mode. Approval controls still
+  Dense, keyboard-accessible cards use single-line titles/previews and 4px
+  vertical padding, without an extra review-button row. Selection checkboxes
+  replace avatars. Text sizes remain unchanged. Approval controls still
   wrap below the content at larger text sizes.
 
 Regression coverage is added. Tests run in CI only; device acceptance remains
