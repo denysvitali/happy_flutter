@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/components/pressable_card.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
@@ -112,9 +111,10 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
         : priority == 3
         ? context.l10n.sessionsUnreadActivity
         : null;
+    final attentionColor = hasApproval || priority == 1 ? cs.error : cs.primary;
     final statusWidget = reason == null
         ? buildStatusText(_d.status, theme.textTheme)
-        : Text(reason, style: AppText.label(theme));
+        : Text(reason, style: AppText.label(theme, attentionColor));
     final hasPreview =
         widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
@@ -126,29 +126,30 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
     return Semantics(
       button: true,
       selected: widget.isSelected,
-      child: PressableCard(
-        onTap: widget.onTap,
-        onLongPress: widget.onLongPress,
-        pressedScale: 0.985,
-        child: Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: widget.isSelected
+                ? cs.primary.withValues(alpha: 0.4)
+                : cs.outlineVariant.withValues(alpha: 0.45),
+            width: AppBorder.hairline,
           ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            color: bgColor,
-            border: Border.all(
-              color: cs.primary.withValues(
-                alpha: widget.isSelected ? 0.4 : 0.18,
-              ),
-              width: AppBorder.hairline,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            clipBehavior: Clip.hardEdge,
+        ),
+        child: Material(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          clipBehavior: Clip.hardEdge,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap();
+            },
+            onLongPress: widget.onLongPress,
             child: Stack(
               children: [
                 if (!widget.selectionMode)
@@ -157,12 +158,15 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                     top: 0,
                     bottom: 0,
                     child: ColoredBox(
-                      color: cs.primary,
+                      color: attentionColor,
                       child: const SizedBox(width: AppBorder.accent),
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -170,23 +174,22 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (widget.selectionMode) ...[
+                          if (widget.selectionMode)
                             SelectionCheckbox(
                               isSelected: widget.isSelected,
                               borderRadius: BorderRadius.zero,
+                            )
+                          else
+                            buildSessionAvatar(
+                              sessionId: session.id,
+                              avatarId: _d.avatarId,
+                              sessionFlavor: session.metadata?.flavor,
+                              size: AppAvatarSize.small,
+                              showFlavorIcon: widget.showFlavorIcon,
+                              hasDraft: hasDraft,
+                              avatarStyle: widget.avatarStyle,
                             ),
-                            const SizedBox(width: AppSpacing.sm),
-                          ],
-                          buildSessionAvatar(
-                            sessionId: session.id,
-                            avatarId: _d.avatarId,
-                            sessionFlavor: session.metadata?.flavor,
-                            size: AppAvatarSize.small,
-                            showFlavorIcon: widget.showFlavorIcon,
-                            hasDraft: hasDraft,
-                            avatarStyle: widget.avatarStyle,
-                          ),
-                          const SizedBox(width: AppSpacing.md),
+                          const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: SessionListDetails(
                               name: _d.name,
@@ -213,15 +216,6 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                           ),
                         ],
                       ),
-                      if (!widget.selectionMode && !hasApproval)
-                        Align(
-                          alignment: AlignmentDirectional.centerEnd,
-                          child: IconButton(
-                            tooltip: context.l10n.sessionsReviewSession,
-                            onPressed: widget.onTap,
-                            icon: const Icon(Icons.chevron_right),
-                          ),
-                        ),
                       if (widget.permissionRequests != null &&
                           widget.permissionRequests!.isNotEmpty &&
                           !widget.selectionMode) ...[
@@ -415,28 +409,27 @@ class UnreadFocusListRow extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
-              vertical: AppSpacing.smd,
+              vertical: AppSpacing.sm,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (selectionMode) ...[
+                if (selectionMode)
                   SelectionCheckbox(
                     isSelected: isSelected,
                     borderRadius: BorderRadius.zero,
+                  )
+                else
+                  buildSessionAvatar(
+                    sessionId: session.id,
+                    avatarId: derived.avatarId,
+                    sessionFlavor: session.metadata?.flavor,
+                    size: AppAvatarSize.small,
+                    showFlavorIcon: showFlavorIcon,
+                    hasDraft: hasDraft,
+                    avatarStyle: avatarStyle,
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
-                buildSessionAvatar(
-                  sessionId: session.id,
-                  avatarId: derived.avatarId,
-                  sessionFlavor: session.metadata?.flavor,
-                  size: AppAvatarSize.small,
-                  showFlavorIcon: showFlavorIcon,
-                  hasDraft: hasDraft,
-                  avatarStyle: avatarStyle,
-                ),
-                const SizedBox(width: AppSpacing.md),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: SessionListDetails(
                     name: derived.name,
@@ -496,7 +489,7 @@ class UnreadFocusListGroup extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: AppBorder.hairline,
-                indent: AppSpacing.md + AppAvatarSize.small + AppSpacing.md,
+                indent: AppSpacing.md + AppAvatarSize.small + AppSpacing.sm,
                 endIndent: AppSpacing.md,
                 color: cs.outlineVariant.withValues(alpha: 0.35),
               ),

@@ -51,8 +51,11 @@ class SessionListDetails extends StatelessWidget {
           maxLines: titleMaxLines,
           overflow: TextOverflow.ellipsis,
         ),
-        if (detail != null) ...[const SizedBox(height: AppSpacing.xs), detail!],
-        const SizedBox(height: AppSpacing.xsm),
+        if (detail != null) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          detail!,
+        ],
+        const SizedBox(height: AppSpacing.xs),
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.xs,

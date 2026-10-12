@@ -97,7 +97,8 @@ next turn actions. Mobile keeps model/permission controls in the composer and
 moves profile/context settings into Composer options. Session triage labels
 separate unread assistant results from unread activity while still working.
 Unread Focus orders approvals, errors, unread answers, then unread activity;
-routine thinking without unread work remains in All Sessions.
+routine thinking without unread work remains in All Sessions. Compact cards
+keep review on the whole row, with keyboard access and inline approval actions.
 Cached chats stay mounted during refresh; a failed refresh offers Retry above
 the retained history. Failed sends have a 44px retry target. Stopped Har chats
 and Prime Agent chats without a saved transcript offer

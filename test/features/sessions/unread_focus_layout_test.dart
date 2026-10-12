@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -125,21 +126,60 @@ void main() {
     );
   });
 
-  testWidgets('attention card explains why it needs review', (tester) async {
+  testWidgets('compact attention card keeps the whole row actionable', (
+    tester,
+  ) async {
+    var taps = 0;
+    var longPresses = 0;
+    await _pump(
+      tester,
+      NeedsAttentionCard(
+        session: _session().copyWith(
+          metadata: const Metadata(
+            summary: Summary(text: 'Review changes', updatedAt: 0),
+          ),
+          todos: [],
+          pinned: false,
+        ),
+        showFlavorIcon: false,
+        onTap: () => taps++,
+        onLongPress: () => longPresses++,
+        unreadCount: 2,
+        lastMessageRole: 'agent',
+        lastMessagePreview: 'Ready for review.',
+      ),
+    );
+    expect(find.text('Unread answer'), findsOneWidget);
+    expect(find.byType(IconButton), findsNothing);
+    expect(
+      tester.getSize(find.byType(NeedsAttentionCard)).height,
+      lessThan(110),
+    );
+    await tester.tap(find.text('Review changes'));
+    await tester.longPress(find.text('Review changes'));
+    expect(taps, 1);
+    expect(longPresses, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('attention card supports keyboard review', (tester) async {
+    var taps = 0;
     await _pump(
       tester,
       NeedsAttentionCard(
         session: _session(),
         showFlavorIcon: false,
-        onTap: () {},
+        onTap: () => taps++,
         onLongPress: () {},
-        unreadCount: 2,
-        lastMessageRole: 'agent',
-        lastMessagePreview: _preview,
+        unreadCount: 1,
       ),
     );
-    expect(find.text('Unread answer'), findsOneWidget);
-    expect(find.byTooltip('Review session'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(taps, 1);
+    expect(tester.takeException(), isNull);
   });
 
   for (final dark in [false, true]) {
@@ -193,11 +233,13 @@ void main() {
             tester.element(find.text(_name).first),
           ).colorScheme;
           expect(name.style?.color, cs.onSurface);
-          if (!selection) {
+          for (final title in find.text(_name).evaluate()) {
             expect(
-              tester.getSize(find.text(_name).first).width,
+              tester.getSize(find.byWidget(title.widget)).width,
               greaterThan(200),
             );
+          }
+          if (!selection) {
             expect(find.text('Allow'), findsOneWidget);
             expect(find.text('Deny'), findsOneWidget);
           } else {
