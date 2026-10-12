@@ -94,8 +94,10 @@ is preserved when its result arrives.
 
 Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and
-moves profile/context settings into Composer options. Session triage labels
-separate unread assistant results from unread activity while still working.
+moves profile/context settings into Composer options. Profile-wide and per-model
+context pickers offer 32k, 128k, 200k, 256k, 500k and 1M token budgets, plus the
+provider/model default. Session triage labels separate unread assistant results
+from unread activity while still working.
 Unread Focus orders approvals, errors, unread answers, then unread activity;
 routine thinking without unread work remains in All Sessions. Dense cards use
 single-line titles and previews with 4px vertical padding, keeping whole-row

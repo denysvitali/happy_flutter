@@ -321,7 +321,7 @@ class ModelsSection extends StatelessWidget {
   static const int _contextDefaultSentinel = 0;
 
   /// The default row, then each preset budget. A saved window that is not a
-  /// preset (a hand-written `id@500000`) is inserted too, so opening the
+  /// preset (a hand-written `id@384000`) is inserted too, so opening the
   /// editor never crashes on a value the dropdown cannot display.
   static List<({int value, String label})> _rowWindowOptions(
     AppLocalizations l10n,

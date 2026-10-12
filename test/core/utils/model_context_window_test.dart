@@ -16,6 +16,17 @@ AIBackendProfile _profile({
 }
 
 void main() {
+  test('context presets include 500k between 256k and 1M', () {
+    expect(selectableContextWindows, [
+      32000,
+      128000,
+      200000,
+      256000,
+      500000,
+      extendedContextWindowTokens,
+    ]);
+  });
+
   group('parseModelContextChoice', () {
     test('keeps a bare id and a non-numeric suffix intact', () {
       expect(parseModelContextChoice('grok/grok-4.7').model, 'grok/grok-4.7');
@@ -175,6 +186,41 @@ void main() {
         200000,
       );
       expect(defaultContextWindowForModel('grok/grok-4.7'), isNot(200000));
+    });
+
+    test('500k round-trips and reaches the Claude process unchanged', () {
+      final encoded = encodeModelContextChoice(
+        const ModelContextChoice(
+          model: 'vendor/custom-model',
+          contextWindow: 500000,
+        ),
+      );
+      expect(encoded, 'vendor/custom-model@500000');
+      final profile = AIBackendProfile.fromJson(
+        _profile(contextWindow: 500000, models: [encoded]).toJson(),
+      );
+      expect(profile.contextWindow, 500000);
+      expect(
+        effectiveContextWindow(profile: profile, model: 'vendor/custom-model'),
+        500000,
+      );
+      expect(
+        applyContextWindowToSpawnEnv(
+          const {},
+          agent: 'claude',
+          profile: profile,
+          model: 'vendor/custom-model:high',
+        )[claudeCodeMaxContextTokensEnv],
+        '500000',
+      );
+      expect(
+        applyProfileContextWindowSuffix(
+          raw: 'vendor/custom-model:high',
+          profile: profile,
+          flavor: 'claude',
+        ),
+        'vendor/custom-model:high',
+      );
     });
 
     test('default still carries a profile-wide window', () {

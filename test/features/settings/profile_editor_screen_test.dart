@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/settings/profile_editor_screen.dart';
+import 'package:happy_flutter/features/settings/widgets/profile_editor_row_state.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
   @override
@@ -130,6 +131,105 @@ void main() {
         ..['name'] = 'After rename'
         ..['updatedAt'] = saved.updatedAt;
       expect(saved.toJson(), expected);
+    });
+
+    testWidgets('selects, saves and reopens 500k in both context pickers', (
+      tester,
+    ) async {
+      final original = AIBackendProfile(
+        id: 'custom_context',
+        name: 'Context test',
+        models: ['vendor/custom-model'],
+      );
+      var closed = false;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              _StorageFreeSettingsNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ProfileEditorScreen(
+                existing: original,
+                embedded: true,
+                onClose: () => closed = true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfileEditorScreen)),
+      );
+      final pickers = [
+        find.descendant(
+          of: find.byType(ModelsSection),
+          matching: find.byType(DropdownButtonFormField<int>),
+        ),
+        find.descendant(
+          of: find.byType(ContextWindowSection),
+          matching: find.byType(DropdownButtonFormField<int>),
+        ),
+      ];
+
+      for (final picker in pickers) {
+        await tester.scrollUntilVisible(
+          picker,
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        final dropdown = tester.widget<DropdownButton<int>>(
+          find.descendant(
+            of: picker,
+            matching: find.byType(DropdownButton<int>),
+          ),
+        );
+        expect(
+          dropdown.items!.where((item) => item.value == 500000),
+          hasLength(1),
+        );
+        await tester.tap(picker);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('500k').last);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(closed, isTrue);
+      final saved = container.read(settingsNotifierProvider).profiles.single;
+      expect(saved.models, ['vendor/custom-model@500000']);
+      expect(saved.contextWindow, 500000);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(buildSubject(existing: saved));
+      await tester.pumpAndSettle();
+      for (final picker in pickers) {
+        await tester.scrollUntilVisible(
+          picker,
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        final dropdown = tester.widget<DropdownButton<int>>(
+          find.descendant(
+            of: picker,
+            matching: find.byType(DropdownButton<int>),
+          ),
+        );
+        expect(dropdown.value, 500000);
+        expect(
+          dropdown.items!.where((item) => item.value == 500000),
+          hasLength(1),
+        );
+      }
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('quick setup renders all built-in profile options', (

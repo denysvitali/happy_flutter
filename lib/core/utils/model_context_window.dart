@@ -11,6 +11,7 @@ const List<int> selectableContextWindows = <int>[
   128000,
   200000,
   256000,
+  500000,
   extendedContextWindowTokens,
 ];
 
