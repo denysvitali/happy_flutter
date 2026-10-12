@@ -263,6 +263,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CodeBlockWidget), findsOneWidget);
     expect(find.byType(TerminalOutputSection), findsOneWidget);
+    // Disposing during the completion flash must cancel its pending timer.
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('Python details opens without expanding the cell', (

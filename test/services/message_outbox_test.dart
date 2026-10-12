@@ -107,7 +107,7 @@ OutboxEntry _makeEntry({
 /// `Future.delayed`. The production delays are untouched; only the clock
 /// they run against is faked.
 @isTest
-void _fakeAsyncTest(
+void _runFakeAsyncTest(
   String description,
   Future<void> Function(FakeAsync async) body,
 ) {
@@ -191,7 +191,20 @@ void main() {
       outbox.dispose();
     });
 
-    _fakeAsyncTest(
+    @isTest
+    void outboxFakeTest(
+      String description,
+      Future<void> Function(FakeAsync async) body,
+    ) {
+      _runFakeAsyncTest(description, (async) {
+        // Persistence futures must belong to the same zone as the fake clock.
+        outbox.dispose();
+        outbox = MessageOutbox(storage: storage);
+        return body(async);
+      });
+    }
+
+    outboxFakeTest(
       'readiness deferral waits for an explicit readiness wakeup',
       (async) async {
         var attempts = 0;
@@ -458,7 +471,7 @@ void main() {
       expect(storage._outboxData, isNot(contains('hello')));
     });
 
-    _fakeAsyncTest('failed head blocks follow-up until retry succeeds', (
+    outboxFakeTest('failed head blocks follow-up until retry succeeds', (
       async,
     ) async {
       final successes = <String>[];
@@ -484,7 +497,7 @@ void main() {
       expect(outbox.entries, isEmpty);
     });
 
-    _fakeAsyncTest('follow-up timer cannot bypass repeated head backoff', (
+    outboxFakeTest('follow-up timer cannot bypass repeated head backoff', (
       async,
     ) async {
       final successes = <String>[];
@@ -511,7 +524,7 @@ void main() {
       expect(successes, ['first', 'second']);
     });
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'dead-lettered head releases follow-up without losing payload',
       (async) async {
         final successes = <String>[];
@@ -535,7 +548,7 @@ void main() {
 
     // ── Basic add / remove ──────────────────────────────────────────────────
 
-    _fakeAsyncTest('add queues an entry and persists it', (async) async {
+    outboxFakeTest('add queues an entry and persists it', (async) async {
       final delivered = <String>[];
       outbox.configure(
         deliver: (e) async {
@@ -643,7 +656,7 @@ void main() {
       restored.dispose();
     });
 
-    _fakeAsyncTest('remove clears an entry and persists', (async) async {
+    outboxFakeTest('remove clears an entry and persists', (async) async {
       outbox.configure(deliver: (e) async => null);
       final entry = _makeEntry();
       await outbox.add(entry);
@@ -658,7 +671,7 @@ void main() {
       expect(saved, isEmpty);
     });
 
-    _fakeAsyncTest('removing a deferred send clears its readiness wait', (
+    outboxFakeTest('removing a deferred send clears its readiness wait', (
       async,
     ) async {
       outbox.configure(
@@ -678,7 +691,7 @@ void main() {
 
     // ── Successful delivery ─────────────────────────────────────────────────
 
-    _fakeAsyncTest('successful delivery removes entry and fires sent status', (
+    outboxFakeTest('successful delivery removes entry and fires sent status', (
       async,
     ) async {
       final statuses = <String>[];
@@ -700,7 +713,7 @@ void main() {
 
     // ── Failed delivery with retry ─────────────────────────────────────────
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'failed delivery retries up to maxRetries then marks failed',
       (async) async {
         var attempts = 0;
@@ -735,7 +748,7 @@ void main() {
 
     // ── Dead-letter ─────────────────────────────────────────────────────────
 
-    _fakeAsyncTest('exhausted entry is dead-lettered, not destroyed', (
+    outboxFakeTest('exhausted entry is dead-lettered, not destroyed', (
       async,
     ) async {
       final statuses = <String>[];
@@ -777,7 +790,7 @@ void main() {
       expect(after.outboxDeadLetters - before.outboxDeadLetters, 1);
     });
 
-    _fakeAsyncTest('restoreAndFlush rehydrates dead entries as failed rows', (
+    outboxFakeTest('restoreAndFlush rehydrates dead entries as failed rows', (
       async,
     ) async {
       final deadEntry = OutboxEntry(
@@ -851,7 +864,7 @@ void main() {
       );
     }
 
-    _fakeAsyncTest('reviveDead requeues with a fresh retry budget', (
+    outboxFakeTest('reviveDead requeues with a fresh retry budget', (
       async,
     ) async {
       final deadEntry = OutboxEntry(
@@ -930,7 +943,7 @@ void main() {
       timeout: const Timeout(Duration(seconds: 20)),
     );
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'throwing deliver is treated as transient, not dead-lettered',
       (async) async {
         var attempts = 0;
@@ -971,7 +984,7 @@ void main() {
       expect(legacy.failureReason, isNull);
     });
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'reviveTransientDead re-arms transient + legacy, skips permanent',
       (async) async {
         final delivered = <OutboxEntry>[];
@@ -1049,7 +1062,7 @@ void main() {
 
     // ── Restore ─────────────────────────────────────────────────────────────
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'restoreAndFlush loads persisted entries and schedules retry',
       (async) async {
         // Pre-populate storage with one entry.
@@ -1084,7 +1097,7 @@ void main() {
       // No exception thrown.
     });
 
-    _fakeAsyncTest('restoreAndFlush delivers entries in queuedAt order', (
+    outboxFakeTest('restoreAndFlush delivers entries in queuedAt order', (
       async,
     ) async {
       // Pre-populate storage with multiple entries with different queuedAt.
@@ -1154,7 +1167,7 @@ void main() {
 
     // ── Suspend ─────────────────────────────────────────────────────────────
 
-    _fakeAsyncTest('resume before restore recovery re-enables retries', (
+    outboxFakeTest('resume before restore recovery re-enables retries', (
       async,
     ) async {
       final deliveredIds = <String>[];
@@ -1180,7 +1193,7 @@ void main() {
       expect(outbox.entries, isEmpty);
     });
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'an in-flight failure stays suspended until foreground resume',
       (async) async {
         final delivery = Completer<OutboxDeliveryFailure?>();
@@ -1211,7 +1224,7 @@ void main() {
       },
     );
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'entries added while suspended wait for resume without losing identity',
       (async) async {
         final deliveredIds = <String>[];
@@ -1261,7 +1274,7 @@ void main() {
       },
     );
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'suspendAndFlush skips the write when no persist is pending',
       (async) async {
         outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
@@ -1284,7 +1297,7 @@ void main() {
       },
     );
 
-    _fakeAsyncTest(
+    outboxFakeTest(
       'suspend() preserves the durable snapshot without an await',
       (async) async {
         outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
@@ -1303,7 +1316,7 @@ void main() {
 
     // ── Dispose ─────────────────────────────────────────────────────────────
 
-    _fakeAsyncTest('a stale restore cannot resurrect disposed entries', (
+    outboxFakeTest('a stale restore cannot resurrect disposed entries', (
       async,
     ) async {
       final blockingStorage = _BlockingReadMMKVStorage();
@@ -1338,7 +1351,7 @@ void main() {
       restoringOutbox.dispose();
     });
 
-    _fakeAsyncTest('a disposed add cannot notify the replacement runtime', (
+    outboxFakeTest('a disposed add cannot notify the replacement runtime', (
       async,
     ) async {
       final blockingStorage = _BlockingMMKVStorage();
@@ -1363,7 +1376,7 @@ void main() {
       savingOutbox.dispose();
     });
 
-    _fakeAsyncTest('dispose cancels pending timers', (async) async {
+    outboxFakeTest('dispose cancels pending timers', (async) async {
       var attempts = 0;
       outbox.configure(
         deliver: (e) async {

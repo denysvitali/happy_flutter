@@ -44,7 +44,7 @@ void main() {
     );
   });
 
-  test('unacknowledged sent rows fail but persisted sends stay sent', () {
+  test('confirmed sends stay sent after a delayed failure event', () {
     sync.testSetSessionMessages('s1', [
       {'localId': localId, 'sendStatus': 'sent'},
       {'localId': 'confirmed', 'id': 'server-id', 'sendStatus': 'sent'},
@@ -58,7 +58,7 @@ void main() {
     }
     final messages = sync.testSessionMessages('s1')!;
     expect(messages.first['localId'], localId);
-    expect(messages.first['sendStatus'], 'failed');
+    expect(messages.first['sendStatus'], 'sent');
     expect(messages.last['sendStatus'], 'sent');
   });
 

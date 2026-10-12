@@ -126,6 +126,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   // Full input/JSON is always reachable via long-press → [MessageDetailScreen].
   bool _expanded = false;
   bool _showCheckFlash = false;
+  Timer? _checkFlashTimer;
   bool _collapsing = false;
   ToolState? _prevState;
   late int _toolSignature;
@@ -224,7 +225,9 @@ class _ToolViewState extends ConsumerState<ToolView>
         newState == ToolState.completed &&
         !AppMotion.reduceMotion(context)) {
       setState(() => _showCheckFlash = true);
-      Future.delayed(const Duration(milliseconds: 800), () {
+      _checkFlashTimer?.cancel();
+      _checkFlashTimer = Timer(const Duration(milliseconds: 800), () {
+        _checkFlashTimer = null;
         if (mounted) setState(() => _showCheckFlash = false);
       });
     }
@@ -462,6 +465,7 @@ class _ToolViewState extends ConsumerState<ToolView>
 
   @override
   void dispose() {
+    _checkFlashTimer?.cancel();
     _chevronController.dispose();
     _staggerController.dispose();
     super.dispose();

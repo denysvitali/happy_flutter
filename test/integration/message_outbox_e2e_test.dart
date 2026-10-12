@@ -369,6 +369,7 @@ void main() {
       ApiClient().testDio!.interceptors.add(interceptor);
 
       messageOutbox.dispose();
+      messageOutbox.testStorage = _FakeMMKVStorage();
       // Track outbox delivery attempts so the first one fails
       // (matching the interceptor) while subsequent ones succeed.
       var outboxDeliverCount = 0;

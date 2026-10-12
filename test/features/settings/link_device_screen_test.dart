@@ -329,10 +329,13 @@ void main() {
         matching: find.widgetWithText(FilledButton, 'Approve Linking'),
       ),
     );
-    await tester.pumpAndSettle();
+    // The signed-out landing screen has repeating decorative animations.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(storage.credentialReads, 0);
     expect(container.read(pendingLinkRequestProvider), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('cleared request cannot approve the old dialog', (tester) async {

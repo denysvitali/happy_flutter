@@ -21,6 +21,33 @@ void main() {
   // ─── RoundButton ──────────────────────────────────────────
 
   group('RoundButton', () {
+    for (final isPrimary in [true, false]) {
+      testWidgets('long title fits a narrow button (primary=$isPrimary)', (
+        tester,
+      ) async {
+        var pressed = false;
+        await tester.pumpWidget(
+          wrap(
+            Center(
+              child: SizedBox(
+                width: 160,
+                child: RoundButton(
+                  title: 'Restore an existing account',
+                  icon: Icons.key,
+                  isPrimary: isPrimary,
+                  onPressed: () => pressed = true,
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byType(RoundButton));
+        await tester.pump();
+        expect(pressed, isTrue);
+      });
+    }
+
     testWidgets('renders title text', (tester) async {
       await tester.pumpWidget(wrap(const RoundButton(title: 'Click Me')));
 

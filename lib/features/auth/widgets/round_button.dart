@@ -144,13 +144,17 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
                         Icon(widget.icon, size: 20, color: scheme.onPrimary),
                         const SizedBox(width: AppSpacing.sm),
                       ],
-                      Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: AppFontSize.lg,
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onPrimary,
-                          letterSpacing: 0.3,
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppFontSize.lg,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onPrimary,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ),
                     ],
@@ -241,16 +245,20 @@ class _SecondaryButtonState extends State<_SecondaryButton> {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                       ],
-                      Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: AppFontSize.base,
-                          fontWeight: FontWeight.w500,
-                          color: widget.enabled
-                              ? scheme.onSurface
-                              : scheme.onSurface.withValues(
-                                  alpha: AppOpacity.medium,
-                                ),
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppFontSize.base,
+                            fontWeight: FontWeight.w500,
+                            color: widget.enabled
+                                ? scheme.onSurface
+                                : scheme.onSurface.withValues(
+                                    alpha: AppOpacity.medium,
+                                  ),
+                          ),
                         ),
                       ),
                     ],

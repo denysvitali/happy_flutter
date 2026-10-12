@@ -434,4 +434,14 @@ void main() {
 
 class _FakeMMKVStorage extends MMKVStorage {
   _FakeMMKVStorage() : super.testConstructor();
+
+  String? _outboxData;
+
+  @override
+  Future<String?> getOutboxEntries() async => _outboxData;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    _outboxData = json;
+  }
 }

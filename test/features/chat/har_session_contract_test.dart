@@ -17,6 +17,7 @@ void main() {
     expect(models.map((m) => m.modeString), [
       'codex/gpt-6-luna',
       'codex/gpt-6.1-sol',
+      'grok/grok-4.7',
     ]);
     expect(models.every((m) => m.reasoningEffort == null), isTrue);
     expect(

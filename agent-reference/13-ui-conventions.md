@@ -33,6 +33,8 @@ grouped. Each cell expands independently to syntax-highlighted source and
 readable output with four-line previews. Full source, Copy, output expansion,
 and raw wire details remain available. A cell’s manual expansion or collapse
 is preserved when its result arrives.
+Tool completion flashes cancel their timer when the row is disposed.
+Auth button labels fit the available width with a single-line ellipsis.
 
 Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and

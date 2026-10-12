@@ -15,7 +15,9 @@ import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/services/pending_session_configuration.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -142,6 +144,7 @@ void main() {
     // initialise without the native MMKV library.
     originalMMKVPlatform = MMKVPluginPlatform.instance;
     MMKVPluginPlatform.instance = FakeMmkvPlatform();
+    await MMKVStorage.initialize();
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, (call) async => 1);
@@ -154,6 +157,12 @@ void main() {
     await TtsService().dispose();
   });
 
+  setUp(() async {
+    // Every test uses session_1; a previous composer's saved text is not
+    // part of the next test's fixture.
+    await DraftStorage().removeDraft('session_1');
+  });
+
   tearDown(() async {
     sync.testFetchOlderMessagesOverride = null;
     sync.testClearSessionMessageState('session_1');
@@ -162,6 +171,7 @@ void main() {
     sync.testEncryptionInitialized = false;
     sync.testMachineRPCOverride = null;
     sync.testClearCodexModelsCache();
+    sync.testResetDataChangeDebounce();
     ChatScreen.testInitialSettingsApplyBarrier = null;
     PerformanceContextService().resetForTesting();
     await TtsService().dispose();
@@ -184,6 +194,7 @@ void main() {
       modelMode: 'test-model',
     );
     addTearDown(() => pending.clearIfCurrent('session_1', selection));
+    expect(pending.read('session_1'), selection);
 
     await tester.pumpWidget(
       _buildApp(child: const ChatScreen(sessionId: 'session_1')),
@@ -299,7 +310,11 @@ void main() {
       );
       if (metadata.hasPrimeAgentSessionFile) {
         expect(
-          find.textContaining('saved transcript is available'),
+          find.textContaining('saved transcript reference'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('machine or project details'),
           findsOneWidget,
         );
         expect(
@@ -441,6 +456,10 @@ void main() {
           tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
           expected,
         );
+        // A grouped model choice leaves the sheet open for effort changes.
+        // Dismiss it before interacting with the composer underneath.
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextField), 'hello Har');
         await tester.pump();
         await tester.tap(find.byType(SendButton));
@@ -999,6 +1018,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Queued for next turn'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
       expect(
         find.byKey(const ValueKey<String>('queue-next-turn-button')),
         // Follow-up actions stay hidden until the composer has content.
@@ -2174,7 +2197,9 @@ void main() {
         sync.testSessionMessages('session_1')?.any((m) => m['seq'] == 1),
         isTrue,
       );
-      sync.testFlushPendingMessageSaves();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+      await sync.testFlushPendingMessageSaves();
     });
 
     testWidgets('pagination failure uses inline retry without a SnackBar', (
@@ -2379,7 +2404,7 @@ void main() {
         await tester.tap(
           find.descendant(
             of: find.byType(PaginationFailureRetry),
-            matching: find.byType(TextButton),
+            matching: find.bySubtype<TextButton>(),
           ),
         );
         await tester.pump();
@@ -2470,6 +2495,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
       final gap = find.byKey(const ValueKey('chat-scrollback-gap'));
+      // The gap is a lazily built row beside the search hit, so bring that
+      // row into the viewport before asserting its recovery action.
+      await tester.scrollUntilVisible(
+        gap,
+        300,
+        maxScrolls: cap,
+        scrollable: find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(Scrollable),
+        ),
+      );
       expect(gap, findsOneWidget);
       await tester.ensureVisible(find.text('Return to latest'));
       await tester.tap(find.text('Return to latest'));
