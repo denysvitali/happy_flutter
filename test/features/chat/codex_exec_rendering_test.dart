@@ -111,7 +111,9 @@ void main() {
     expect(jsonEncode(tool), original);
 
     await tester.tap(find.byType(ToolHeader));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
     expect(find.byType(CodexExecView), findsNothing);
     expect(find.byType(CodexExecAnswerView), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -165,7 +167,16 @@ void main() {
     expect(find.byType(JsonTreeViewer), findsNothing);
 
     final raw = find.text('Raw JSON');
-    await tester.ensureVisible(raw);
+    await tester.scrollUntilVisible(
+      raw,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.tap(raw);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(JsonTreeViewer), findsWidgets);
