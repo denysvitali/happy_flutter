@@ -315,6 +315,8 @@ class _GroupedModelPickerContentState
                 widget.onChanged,
                 labelOverride: model.hasEffort
                     ? model.reasoningEffortLabel
+                    : model.flavor == 'prime-agent'
+                    ? 'Current'
                     : 'Auto',
               ),
           ],
@@ -403,7 +405,11 @@ class _GroupedModelPickerContentState
     final cs = theme.colorScheme;
     final labels = [
       for (final model in models)
-        model.hasEffort ? model.reasoningEffortLabel : 'Auto',
+        model.hasEffort
+            ? model.reasoningEffortLabel
+            : model.flavor == 'prime-agent'
+            ? 'Current'
+            : 'Auto',
     ];
     final selectedIndex = models.indexWhere((m) => m == _current);
     final currentIndex = selectedIndex < 0 ? 0 : selectedIndex;

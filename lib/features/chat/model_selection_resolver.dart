@@ -5,6 +5,8 @@ import '../../core/models/settings.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart';
 
+export '../../core/utils/model_selection.dart' show primeAgentModelSelection;
+
 /// Pure result of resolving the permission/model/profile priority chain
 /// for a chat session. See [resolveModelSelection].
 class ModelSelectionResolution {

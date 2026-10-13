@@ -113,6 +113,7 @@ dynamic _sandboxEnabledToJson(bool? sandboxEnabled) {
 ///
 /// happy-cli-go publishes these as `primeagentModels` in session metadata;
 /// [id] is the `provider/model` name the session accepts as a model selection.
+/// `primeagentEfforts` uses the same id/name entries for ACP thought levels.
 @immutable
 class PrimeAgentModelInfo {
   const PrimeAgentModelInfo({required this.id, required this.name});
@@ -227,6 +228,13 @@ abstract class Metadata with _$Metadata {
       toJson: _primeAgentModelsToJson,
     )
     List<PrimeAgentModelInfo>? primeAgentModels,
+    @JsonKey(
+      name: 'primeagentEfforts',
+      fromJson: _primeAgentModelsFromJson,
+      toJson: _primeAgentModelsToJson,
+    )
+    List<PrimeAgentModelInfo>? primeAgentEfforts,
+    @JsonKey(fromJson: _asApiStringNullable) String? reasoningEffort,
     @JsonKey(fromJson: _asApiStringNullable) String? primeAgentSessionFile,
     @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,

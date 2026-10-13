@@ -83,6 +83,7 @@ import '../utils/bounded_concurrency.dart';
 import '../utils/codex_provider_config.dart';
 import '../utils/image_content_blocks.dart';
 import '../utils/model_context_window.dart';
+import '../utils/model_selection.dart';
 import '../utils/utf16_sanitizer.dart';
 import '../sync/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';

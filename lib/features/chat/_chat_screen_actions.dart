@@ -69,7 +69,12 @@ extension _ChatScreenActions on _ChatScreenState {
       savedPermissionMode: savedPermMode,
       savedModelMode: savedModelMode,
       savedProfileId: savedProfileId,
-      sessionModelMode: flavor == 'har'
+      sessionModelMode: flavor == 'prime-agent'
+          ? primeAgentModelSelection(
+              session?.metadata?.model,
+              session?.metadata?.reasoningEffort,
+            )
+          : flavor == 'har'
           ? session?.metadata?.model ?? session?.modelMode
           : session?.modelMode,
       sessionPermissionMode: session?.permissionMode,
@@ -596,7 +601,7 @@ extension _ChatScreenActions on _ChatScreenState {
           content: Text(
             // Running Prime Agent switches model in place on the next send.
             flavor == 'prime-agent'
-                ? 'Model changed. It applies from your next message.'
+                ? 'Model and effort changes apply from your next message.'
                 : 'Model changed. The session will restart '
                       'automatically on the next message.',
           ),
@@ -633,6 +638,7 @@ extension _ChatScreenActions on _ChatScreenState {
       providerOwnedCodexModel: providerOwnedCodexModel,
       profileModels: _selectedProfile?.models,
       primeAgentModels: _session?.metadata?.primeAgentModels,
+      primeAgentEfforts: _session?.metadata?.primeAgentEfforts,
     );
   }
 

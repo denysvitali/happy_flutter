@@ -202,6 +202,70 @@ void main() {
   );
 
   test(
+    'Prime effort is delivered separately with stable message identities',
+    () async {
+      final session = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = session.copyWith(
+        metadata: session.metadata!.copyWith(
+          flavor: 'prime-agent',
+          model: 'openai-codex/gpt-6-luna',
+        ),
+      );
+      for (final localId in ['effort-one', 'effort-two']) {
+        await sync.sendMessage(
+          sessionId,
+          'continue',
+          clientLocalId: localId,
+          modelMode: 'openai-codex/gpt-6-luna:minimal',
+        );
+        await sync.lastCompleteSendFuture;
+      }
+      expect(spawns, isEmpty);
+      expect(http.capturedLocalIds, ['effort-one', 'effort-two']);
+      final rows = sync.testSessionMessages(sessionId)!;
+      expect(rows, hasLength(2));
+      for (final row in rows) {
+        final raw = row['raw'] as Map<String, dynamic>;
+        final meta = raw['meta'] as Map<String, dynamic>;
+        expect(meta['model'], 'openai-codex/gpt-6-luna');
+        expect(meta['reasoning_effort'], 'minimal');
+      }
+      // Restore a failed cached row with its original payload and identity.
+      sync.testSetSessionMessages(sessionId, [
+        for (final row in rows)
+          {...row, if (row['localId'] == 'effort-one') 'sendStatus': 'failed'},
+      ]);
+      await sync.retryFailedMessage(sessionId, 'effort-one');
+      expect(sync.testSessionMessages(sessionId), hasLength(2));
+      final retry = messageOutbox.entries.single;
+      expect(retry.localId, 'effort-one');
+      expect((retry.rawRecord['meta'] as Map)['reasoning_effort'], 'minimal');
+      final echoes = <Map<String, dynamic>>[
+        for (final (localId, seq) in [('effort-two', 2), ('effort-one', 1)])
+          {
+            'id': 'srv-$seq',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'continue',
+          },
+      ];
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      expect(sync.testSessionMessages(sessionId), hasLength(2));
+      expect(
+        sync
+            .testSessionMessages(sessionId)!
+            .map((row) => row['localId'])
+            .toSet(),
+        {'effort-one', 'effort-two'},
+      );
+    },
+  );
+
+  test(
     'recently launched Prime keeps its process while presence catches up',
     () async {
       final session = sync.testSessions[sessionId]!;

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/model_picker_catalog.dart';
@@ -59,6 +60,34 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('Prime Agent effort slider sends the advertised effort', (
+    tester,
+  ) async {
+    ChatModelMode? selected;
+    final models = ChatModelMode.fromPrimeAgentCatalog(
+      const [PrimeAgentModelInfo(id: 'openai-codex/gpt-6-luna', name: 'Luna')],
+      efforts: const [
+        PrimeAgentModelInfo(id: 'off', name: 'Off'),
+        PrimeAgentModelInfo(id: 'minimal', name: 'Minimal'),
+      ],
+    );
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onChanged: (model) => selected = model,
+    );
+    expect(find.text('Effort'), findsOneWidget);
+    expect(find.text('Minimal'), findsOneWidget);
+    expect(find.text('High'), findsNothing);
+    expect(find.text('Current'), findsOneWidget);
+    await tester.drag(find.byType(Slider), const Offset(1000, 0));
+    await tester.pumpAndSettle();
+    expect(selected?.modelSlug, 'openai-codex/gpt-6-luna');
+    expect(selected?.reasoningEffort, 'minimal');
+    expect(selected?.flavor, 'prime-agent');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('missing provider shows setup guidance without hiding Default', (
     tester,

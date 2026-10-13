@@ -13,6 +13,7 @@ class ChatModelMode {
     required this.modeString,
     this.modelSlug,
     this.reasoningEffort,
+    this.effortLabel,
     this.flavor,
   });
 
@@ -185,6 +186,7 @@ class ChatModelMode {
   final String modeString;
   final String? modelSlug;
   final String? reasoningEffort;
+  final String? effortLabel;
   final String? flavor;
 
   bool get isCodex => flavor == 'codex';
@@ -198,7 +200,8 @@ class ChatModelMode {
   bool get isCustom =>
       !isDefault && !isCodex && !_knownSlugs.contains(modelSlug);
 
-  String get reasoningEffortLabel => _capitalizeEffort(reasoningEffort ?? '');
+  String get reasoningEffortLabel =>
+      effortLabel ?? _capitalizeEffort(reasoningEffort ?? '');
 
   @override
   bool operator ==(Object other) =>
@@ -324,6 +327,7 @@ class ChatModelMode {
     String? providerOwnedCodexModel,
     List<String>? profileModels,
     List<PrimeAgentModelInfo>? primeAgentModels,
+    List<PrimeAgentModelInfo>? primeAgentEfforts,
   }) {
     if (flavor == 'har') return harModels;
     // The running Prime Agent owns its catalog: only models it advertises can
@@ -331,7 +335,10 @@ class ChatModelMode {
     if (flavor == 'prime-agent' &&
         primeAgentModels != null &&
         primeAgentModels.isNotEmpty) {
-      return fromPrimeAgentCatalog(primeAgentModels);
+      return fromPrimeAgentCatalog(
+        primeAgentModels,
+        efforts: primeAgentEfforts,
+      );
     }
     // An explicit profile model list is authoritative for every flavor.
     // Codex's live catalog only contains models known to the local Codex
@@ -535,8 +542,9 @@ class ChatModelMode {
 
   /// Builds picker options from the models a Prime Agent session advertises.
   static List<ChatModelMode> fromPrimeAgentCatalog(
-    List<PrimeAgentModelInfo> catalog,
-  ) {
+    List<PrimeAgentModelInfo> catalog, {
+    List<PrimeAgentModelInfo>? efforts,
+  }) {
     final models = <ChatModelMode>[defaultModel];
     for (final item in catalog) {
       final id = item.id.trim();
@@ -547,7 +555,22 @@ class ChatModelMode {
         modelSlug: id,
         flavor: 'prime-agent',
       );
-      if (!models.contains(model)) models.add(model);
+      if (models.contains(model)) continue;
+      models.add(model);
+      final seenEfforts = <String>{};
+      for (final effort in efforts ?? const <PrimeAgentModelInfo>[]) {
+        if (effort.id.isEmpty || !seenEfforts.add(effort.id)) continue;
+        models.add(
+          ChatModelMode._(
+            label: '${model.label} ${effort.name}',
+            effortLabel: effort.name,
+            modeString: '$id:${effort.id}',
+            modelSlug: id,
+            reasoningEffort: effort.id,
+            flavor: 'prime-agent',
+          ),
+        );
+      }
     }
     return models;
   }
@@ -613,8 +636,9 @@ class ChatModelMode {
     if (flavor == 'prime-agent') {
       if (model.isDefault) return defaultModel;
       return ChatModelMode._(
-        label: model.modelSlug ?? model.modeString,
+        label: model.label,
         modeString: model.modeString,
+        effortLabel: model.effortLabel,
         modelSlug: model.modelSlug ?? model.modeString,
         reasoningEffort: model.reasoningEffort,
         flavor: 'prime-agent',

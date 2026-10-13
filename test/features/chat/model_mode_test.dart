@@ -1,8 +1,77 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/utils/model_selection.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 
 void main() {
+  test(
+    'Prime message configuration separates effort and clears old effort',
+    () {
+      expect(
+        messageModelMetadata('openai-codex/gpt-6-luna:off', 'prime-agent'),
+        {'model': 'openai-codex/gpt-6-luna', 'reasoning_effort': 'off'},
+      );
+      final old = <String, dynamic>{'reasoning_effort': 'high'};
+      expect(
+        {
+          ...old,
+          ...messageModelMetadata('openai-codex/gpt-6-luna', 'prime-agent'),
+        }['reasoning_effort'],
+        isNull,
+      );
+      expect(messageModelMetadata('sonnet:high', 'claude'), {
+        'model': 'sonnet:high',
+      });
+    },
+  );
+
+  test(
+    'Prime Agent exposes only advertised effort choices and keeps selection',
+    () {
+      final metadata = Metadata.fromJson(const {
+        'primeagentModels': [
+          {'id': 'openai-codex/gpt-6-luna', 'name': 'Luna'},
+        ],
+        'primeagentEfforts': [
+          {'id': 'off', 'name': 'Off'},
+          {'id': 'minimal', 'name': 'Minimal'},
+          {'id': 'high', 'name': 'High'},
+        ],
+        'reasoningEffort': 'minimal',
+      });
+      final modes = ChatModelMode.availableForProfile(
+        flavor: 'prime-agent',
+        claudeCompatible: false,
+        primeAgentModels: metadata.primeAgentModels,
+        primeAgentEfforts: metadata.primeAgentEfforts,
+      );
+      expect(modes.map((mode) => mode.modeString), [
+        'default',
+        'openai-codex/gpt-6-luna',
+        'openai-codex/gpt-6-luna:off',
+        'openai-codex/gpt-6-luna:minimal',
+        'openai-codex/gpt-6-luna:high',
+      ]);
+      final selected = modes[3];
+      expect(
+        ChatModelMode.normalizeForFlavor(
+          selected,
+          'prime-agent',
+        ).reasoningEffort,
+        'minimal',
+      );
+      expect(
+        ChatModelMode.fromString(selected.modeString).reasoningEffort,
+        'minimal',
+      );
+      expect(
+        Metadata.fromJson(metadata.toJson()).primeAgentEfforts,
+        metadata.primeAgentEfforts,
+      );
+      expect(metadata.reasoningEffort, 'minimal');
+    },
+  );
+
   test('Prime Agent rejects unowned Claude aliases but keeps owned models', () {
     expect(
       ChatModelMode.normalizeRawForFlavor('sonnet', 'prime-agent'),

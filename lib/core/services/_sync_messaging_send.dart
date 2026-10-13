@@ -311,7 +311,10 @@ extension SyncMessagingSend on Sync {
       'content': content,
       'meta': <String, dynamic>{
         'permissionMode': permissionMode ?? 'default',
-        'model': modelMode == 'default' ? null : modelMode,
+        ...messageModelMetadata(
+          modelMode,
+          _sessions[sessionId]?.metadata?.flavor,
+        ),
         'displayText': ?displayText,
         'codexDeliveryMode': ?codexDeliveryMode,
       },
@@ -360,7 +363,10 @@ extension SyncMessagingSend on Sync {
       'content': _buildOutboundUserContent(text, images: images),
       'meta': <String, dynamic>{
         'permissionMode': permissionMode ?? 'default',
-        'model': modelMode == 'default' ? null : modelMode,
+        ...messageModelMetadata(
+          modelMode,
+          _sessions[sessionId]?.metadata?.flavor,
+        ),
         'displayText': ?displayText,
         'codexDeliveryMode': ?codexDeliveryMode,
       },
@@ -593,9 +599,11 @@ extension SyncMessagingSend on Sync {
           TargetPlatform.macOS => 'mac',
           _ => 'web',
         };
-        final model = effectiveModelMode != 'default'
-            ? effectiveModelMode
-            : null;
+        final modelMetadata = messageModelMetadata(
+          effectiveModelMode,
+          session.metadata?.flavor,
+        );
+        final model = modelMetadata['model'] as String?;
         final outboundContent = _buildOutboundUserContent(text, images: images);
         final displayContent = _extractDisplayTextFromUserContent(
           outboundContent,
@@ -607,7 +615,7 @@ extension SyncMessagingSend on Sync {
           'meta': <String, dynamic>{
             'sentFrom': sentFrom,
             'permissionMode': wirePermissionMode,
-            'model': model,
+            ...modelMetadata,
             'fallbackModel': null,
             'appendSystemPrompt': Sync._appendSystemPrompt,
             'displayText': ?displayText,
@@ -1997,7 +2005,12 @@ extension SyncMessagingSend on Sync {
         session: session!,
         sessionEncryption: sessionEncryption,
         effectivePermissionMode: meta['permissionMode'] as String? ?? 'default',
-        modelMode: meta['model'] as String?,
+        modelMode: (_sessions[sessionId]?.metadata?.flavor == 'prime-agent'
+            ? primeAgentModelSelection(
+                meta['model'] as String?,
+                meta['reasoning_effort'] as String?,
+              )
+            : meta['model'] as String?),
         localId: localId,
       );
       if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
@@ -2198,7 +2211,14 @@ extension SyncMessagingSend on Sync {
         sessionEncryption: sessionEncryption,
         effectivePermissionMode: meta['permissionMode'] as String? ?? 'default',
         profileId: pendingSelection?.profileId,
-        modelMode: pendingSelection?.modelMode ?? meta['model'] as String?,
+        modelMode:
+            pendingSelection?.modelMode ??
+            (_sessions[sessionId]?.metadata?.flavor == 'prime-agent'
+                ? primeAgentModelSelection(
+                    meta['model'] as String?,
+                    meta['reasoning_effort'] as String?,
+                  )
+                : meta['model'] as String?),
         localId: localId,
       );
       checkRuntime();
@@ -2207,9 +2227,10 @@ extension SyncMessagingSend on Sync {
       if (pendingSelection != null) {
         raw['meta'] = {
           ...meta,
-          'model': pendingSelection.modelMode == 'default'
-              ? null
-              : pendingSelection.modelMode,
+          ...messageModelMetadata(
+            pendingSelection.modelMode,
+            session.metadata?.flavor,
+          ),
         };
       }
     }

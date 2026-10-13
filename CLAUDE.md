@@ -49,8 +49,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 - **Prime Agent switches model in place** — flavor `prime-agent` lists the
   models the running agent publishes in `metadata.primeagentModels`. A pick
-  travels in the next message's `meta.model`; a running session is never
-  respawned for a model or profile change. Stopped sessions may restore only
+  travels in the next message's `meta.model`. The Effort slider uses only
+  `metadata.primeagentEfforts`; `meta.reasoning_effort` applies before the next
+  prompt, separate from the model ID. Confirmed effort is `reasoningEffort`.
+  A running session is never respawned for a model, effort, or profile change. Stopped sessions may restore only
   with a valid `metadata.primeAgentSessionFile` transcript basename and a
   machine/project target. Send and Retry require confirmed same-session
   restore before delivery and preserve `localId`; failed restore never falls
