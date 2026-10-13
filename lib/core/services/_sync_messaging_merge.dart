@@ -1810,7 +1810,21 @@ extension SyncMessagingMerge on Sync {
         messageInvariantMonitor.seedSentLocalId(localId);
       }
     }
-    // NOTE: do NOT reset _orphanFetchOlderNoProgressCount here. The
+    // Ensure repeated incoming rows sharing a canonical localId collapse to one,
+    // so prompt echoes and retried sends never create duplicate bubbles.
+    final seenLocalIds = <String>{};
+    final dedupedMessages = messages.where((message) {
+      final localId = message['localId'];
+      if (localId is String && localId.isNotEmpty) {
+        if (!seenLocalIds.add(localId)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList(growable: false);
+    if (dedupedMessages.length != messages.length) {
+      messages = dedupedMessages;
+    }
     // orphan walk-back's own fetchOlderMessages upserts every page it
     // fetches, so a blanket reset on upsert pinned the counter below
     // both caps and the walk-back looped forever. If an upsert delivers
