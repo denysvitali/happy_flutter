@@ -1339,24 +1339,15 @@ extension SyncMessagingMerge on Sync {
   void _updateSessionUsage(
     String sessionId,
     Map<String, dynamic> usage,
-    int timestamp,
-  ) {
-    final existing = _sessionUsage[sessionId];
-    final existingTs = existing?['timestamp'] as int? ?? 0;
-    if (timestamp > existingTs) {
-      final inputTokens = usage['input_tokens'] as int? ?? 0;
-      final cacheCreation = usage['cache_creation_input_tokens'] as int? ?? 0;
-      final cacheRead = usage['cache_read_input_tokens'] as int? ?? 0;
-      final outputTokens = usage['output_tokens'] as int? ?? 0;
-      _sessionUsage[sessionId] = {
-        'inputTokens': inputTokens,
-        'outputTokens': outputTokens,
-        'cacheCreation': cacheCreation,
-        'cacheRead': cacheRead,
-        'contextSize': cacheCreation + cacheRead + inputTokens,
-        'timestamp': timestamp,
-      };
-    }
+    int timestamp, {
+    int? seq,
+  }) {
+    _sessionUsage[sessionId] = reduceSessionUsage(
+      _sessionUsage[sessionId],
+      usage,
+      timestamp,
+      seq: seq,
+    );
   }
 
   bool _isMessageListOrdered(List<Map<String, dynamic>> messages) {

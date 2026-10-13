@@ -5,10 +5,12 @@ void _processAcpContent({
   required String? localId,
   required int seq,
   required int createdAt,
+  required String sessionId,
   required Map<String, dynamic> outerContent,
   required Map<String, dynamic> nestedContent,
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
+  required List<Map<String, dynamic>> usageUpdates,
   List<String>? droppedReasons,
 }) {
   final data = nestedContent['data'];
@@ -25,6 +27,19 @@ void _processAcpContent({
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
   final agentMetadata = WireParsers.asMap(data['agentMetadata']);
+
+  if (dataType == 'usage') {
+    final usage = WireParsers.asMap(data['usage']);
+    if (usage != null) {
+      usageUpdates.add({
+        'sessionId': sessionId,
+        'usage': usage,
+        'timestamp': createdAt,
+        'seq': seq,
+      });
+    }
+    return;
+  }
 
   if (dataType == DataType.message ||
       dataType == DataType.reasoning ||

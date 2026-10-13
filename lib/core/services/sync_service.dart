@@ -88,6 +88,7 @@ import '../utils/utf16_sanitizer.dart';
 import '../sync/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
 import '../utils/network_errors.dart';
+import '../utils/session_context_usage.dart';
 import '../utils/shell_script_parser.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;

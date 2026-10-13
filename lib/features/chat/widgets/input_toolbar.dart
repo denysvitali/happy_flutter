@@ -93,6 +93,7 @@ class ContextSizeIndicator extends StatelessWidget {
   const ContextSizeIndicator({
     required this.contextSize,
     this.maxContext = defaultMaxContext,
+    this.showPercentage = false,
     super.key,
   });
 
@@ -100,7 +101,8 @@ class ContextSizeIndicator extends StatelessWidget {
 
   /// The window the [contextSize] is measured against. Reflects the
   /// selected context window (1M vs. the model's default).
-  final int maxContext;
+  final int? maxContext;
+  final bool showPercentage;
 
   /// Conservative default budget for the standard (non-1M) window.
   static const int defaultMaxContext = 190000;
@@ -109,13 +111,16 @@ class ContextSizeIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pctUsed = (contextSize / maxContext * 100).clamp(0.0, 100.0);
-    final pctRemaining = (100 - pctUsed).round();
+    final window = maxContext;
+    final pctUsed = window != null && window > 0
+        ? (contextSize / window * 100).clamp(0.0, 100.0)
+        : null;
+    final pctRemaining = pctUsed == null ? null : (100 - pctUsed).round();
 
     final Color indicatorColor;
-    if (pctRemaining <= 5) {
+    if (pctRemaining != null && pctRemaining <= 5) {
       indicatorColor = cs.error;
-    } else if (pctRemaining <= 15) {
+    } else if (pctRemaining != null && pctRemaining <= 15) {
       indicatorColor = Colors.orange;
     } else {
       indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.65);
@@ -132,21 +137,28 @@ class ContextSizeIndicator extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 24,
-          height: 2,
-          child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(AppRadius.hairline),
-            child: AppLinearProgressIndicator(
-              value: pctUsed / 100,
-              backgroundColor: cs.onSurface.withValues(alpha: 0.06),
-              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
+        if (pctUsed != null) ...[
+          SizedBox(
+            width: 24,
+            height: 2,
+            child: ClipRRect(
+              clipBehavior: Clip.hardEdge,
+              borderRadius: BorderRadius.circular(AppRadius.hairline),
+              child: AppLinearProgressIndicator(
+                value: pctUsed / 100,
+                backgroundColor: cs.onSurface.withValues(alpha: 0.06),
+                valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
+              ),
             ),
           ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        Text(
+          showPercentage && pctUsed != null
+              ? '$label · ${pctUsed.toStringAsFixed(1)}%'
+              : label,
+          style: AppText.secondary(theme, indicatorColor),
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(label, style: AppText.secondary(theme, indicatorColor)),
       ],
     );
   }
@@ -267,11 +279,16 @@ class InputToolbar extends StatelessWidget {
             const SizedBox(width: _chipGap),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           ],
-          if (!compact && contextSize != null && contextSize! > 0) ...[
+          if (!compact &&
+              contextSize != null &&
+              (contextSize! > 0 || sessionFlavor == 'prime-agent')) ...[
             const SizedBox(width: AppSpacing.sm),
             ContextSizeIndicator(
               contextSize: contextSize!,
-              maxContext: maxContext ?? ContextSizeIndicator.defaultMaxContext,
+              maxContext: sessionFlavor == 'prime-agent'
+                  ? maxContext
+                  : maxContext ?? ContextSizeIndicator.defaultMaxContext,
+              showPercentage: sessionFlavor == 'prime-agent',
             ),
           ],
         ],
@@ -362,14 +379,17 @@ class InputToolbar extends StatelessWidget {
                   onShowProfilePicker();
                 },
               ),
-              if (contextSize != null && contextSize! > 0)
+              if (contextSize != null &&
+                  (contextSize! > 0 || sessionFlavor == 'prime-agent'))
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l10n.chatComposerContext),
                   trailing: ContextSizeIndicator(
                     contextSize: contextSize!,
-                    maxContext:
-                        maxContext ?? ContextSizeIndicator.defaultMaxContext,
+                    maxContext: sessionFlavor == 'prime-agent'
+                        ? maxContext
+                        : maxContext ?? ContextSizeIndicator.defaultMaxContext,
+                    showPercentage: sessionFlavor == 'prime-agent',
                   ),
                 ),
             ],

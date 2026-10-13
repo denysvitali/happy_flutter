@@ -43,7 +43,7 @@ class ProcessedMessages {
   final List<Map<String, dynamic>> toolResults;
 
   /// Usage data extracted from assistant messages.
-  /// Each entry: `{sessionId, usage, timestamp}`.
+  /// Each entry: `{sessionId, usage, timestamp}` with optional wire `seq`.
   final List<Map<String, dynamic>> usageUpdates;
 
   /// Highest `seq` seen in this batch (-1 if empty).
@@ -413,10 +413,12 @@ ProcessedMessages processDecryptedMessages({
           localId: localId,
           seq: seq,
           createdAt: createdAt,
+          sessionId: sessionId,
           outerContent: content,
           nestedContent: nestedContent,
           messages: messages,
           toolResults: toolResults,
+          usageUpdates: usageUpdates,
           droppedReasons: droppedReasons,
         );
       } else if (_looksLikeSessionEnvelope(nestedContent) ||

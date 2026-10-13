@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/utils/session_context_usage.dart';
+import 'package:happy_flutter/core/widgets/app_linear_progress_indicator.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart'
@@ -19,6 +21,91 @@ void main() {
       home: Scaffold(body: child),
     );
   }
+
+  testWidgets('Prime explicit context shows 2.4 percent of reported capacity', (
+    tester,
+  ) async {
+    final reduced = reduceSessionUsage(null, {
+      'source': 'prime-agent-daemon',
+      'scope': 'session',
+      'model': 'gpt-6-luna',
+      'provider': 'openai-codex',
+      'context_size': 11978,
+      'context_window': 500000,
+      'input_tokens': 139982,
+    }, 1000);
+    final gauge = projectSessionContext(
+      usage: reduced,
+      flavor: 'prime-agent',
+      currentModel: 'openai-codex/gpt-6-luna',
+      fallbackWindow: 190000,
+    );
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          sessionFlavor: 'prime-agent',
+          contextSize: gauge.contextSize,
+          maxContext: gauge.contextWindow,
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    expect(find.text('12k · 2.4%'), findsOneWidget);
+    final bar = tester.widget<AppLinearProgressIndicator>(
+      find.byType(AppLinearProgressIndicator),
+    );
+    expect(bar.value, closeTo(11978 / 500000, 0.000001));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Prime zero and unknown capacity show count without a gauge', (
+    tester,
+  ) async {
+    for (final used in [0, 11978]) {
+      await tester.pumpWidget(
+        wrap(
+          InputToolbar(
+            sessionFlavor: 'prime-agent',
+            contextSize: used,
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
+          ),
+        ),
+      );
+      expect(find.text(used == 0 ? '0' : '12k'), findsOneWidget);
+      expect(find.byType(AppLinearProgressIndicator), findsNothing);
+      expect(find.textContaining('%'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('Prime null context hides indicator and legacy default stays', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          sessionFlavor: 'prime-agent',
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    expect(find.byType(ContextSizeIndicator), findsNothing);
+    await tester.pumpWidget(
+      wrap(const ContextSizeIndicator(contextSize: 12000)),
+    );
+    expect(find.text('12k'), findsOneWidget);
+    expect(
+      tester
+          .widget<AppLinearProgressIndicator>(
+            find.byType(AppLinearProgressIndicator),
+          )
+          .value,
+      closeTo(12000 / 190000, 0.000001),
+    );
+  });
 
   testWidgets('compact options stay visible with a long model name', (
     tester,

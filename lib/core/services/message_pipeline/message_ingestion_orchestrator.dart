@@ -639,6 +639,7 @@ extension SyncMessagePipeline on Sync {
               u['sessionId'] as String,
               usageMap,
               u['timestamp'] as int,
+              seq: u['seq'] as int?,
             );
             shouldNotify = true;
           }

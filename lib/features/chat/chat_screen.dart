@@ -38,6 +38,7 @@ import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/model_context_window.dart';
 import '../../core/utils/network_errors.dart';
+import '../../core/utils/session_context_usage.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/desktop_update_banner.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -255,6 +256,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int? get _profileMaxContext => effectiveContextWindow(
     profile: _selectedProfile,
     model: _effectiveModelModeString,
+  );
+
+  ({int? contextSize, int? contextWindow}) _contextUsageForComposer(
+    Map<String, dynamic> usage,
+  ) => projectSessionContext(
+    usage: usage,
+    flavor: _session?.metadata?.flavor,
+    currentModel: _session?.metadata?.model ?? _session?.modelMode,
+    selectedModel: _effectiveModelModeString,
+    fallbackWindow: _profileMaxContext,
   );
 
   /// Raw model mode string from storage, used for provider-owned modes.
@@ -2230,8 +2241,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onProfileChanged: _onProfileChanged,
             machineName: _session?.metadata?.host,
             currentPath: _session?.metadata?.path,
-            contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
-            maxContext: _profileMaxContext,
+            contextSize: _contextUsageForComposer(
+              sessionUiEntry.sessionUsage,
+            ).contextSize,
+            maxContext: _contextUsageForComposer(
+              sessionUiEntry.sessionUsage,
+            ).contextWindow,
             isSessionOnline: _session?.isPresenceOnline ?? false,
             enterToSend: enterToSend,
             lastDeliveryStatus:

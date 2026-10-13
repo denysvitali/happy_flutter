@@ -63,6 +63,11 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   `agentMetadata` on calls, any child text/thinking, and terminal results;
   each present map replaces the previous snapshot, including `{}` to clear it.
   Child models and permissions never inherit parent defaults.
+  Prime context usage comes from the daemon's timestamped `context_size` and
+  `context_window` snapshot, separate from cumulative billing counters. Null
+  clears unknown values; zero occupancy is valid. Wire sequence orders snapshots
+  across equal timestamps and clock changes; legacy usage uses timestamp order.
+  Hide stale context after a model/provider change. Unknown capacity has no gauge.
 
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
