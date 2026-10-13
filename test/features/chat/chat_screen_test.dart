@@ -17,6 +17,7 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/message_cache_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/services/pending_session_configuration.dart';
@@ -32,6 +33,7 @@ import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart'
     show ModelChip;
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
+import 'package:happy_flutter/features/chat/widgets/model_picker_catalog.dart';
 import 'package:happy_flutter/features/chat/widgets/pagination_failure_retry.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 import 'package:happy_flutter/features/chat/widgets/session_issue_banner.dart';
@@ -158,9 +160,10 @@ void main() {
   });
 
   setUp(() async {
-    // Every test uses session_1; a previous composer's saved text is not
-    // part of the next test's fixture.
+    // Every test uses session_1; neither a previous draft nor its cached
+    // transcript belongs to the next test's synthetic in-memory fixture.
     await DraftStorage().removeDraft('session_1');
+    MessageCacheService().clearMessages('session_1');
   });
 
   tearDown(() async {
@@ -458,10 +461,19 @@ void main() {
         );
         // A grouped model choice leaves the sheet open for effort changes.
         // Dismiss it before interacting with the composer underneath.
-        await tester.tapAt(const Offset(10, 10));
+        final picker = find.byType(ModelPickerCatalog);
+        expect(picker, findsOneWidget);
+        final pickerContext = tester.element(picker);
+        expect(
+          ModalRoute.of(pickerContext),
+          isA<ModalBottomSheetRoute<void>>(),
+        );
+        Navigator.of(pickerContext).pop();
         await tester.pumpAndSettle();
+        expect(picker, findsNothing);
         await tester.enterText(find.byType(TextField), 'hello Har');
         await tester.pump();
+        expect(find.byType(SendButton).hitTestable(), findsOneWidget);
         await tester.tap(find.byType(SendButton));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 600));
@@ -804,7 +816,9 @@ void main() {
         {'id': 'msg_1', 'role': 'agent', 'content': 'streaming token'},
       ]);
       await tester.pump(const Duration(milliseconds: 220));
-      sync.testFlushPendingMessageSaves();
+      await tester.runAsync(() async {
+        await sync.testFlushPendingMessageSaves();
+      });
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.textContaining('streaming token'), findsOneWidget);
@@ -2199,7 +2213,10 @@ void main() {
       );
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 600));
-      await sync.testFlushPendingMessageSaves();
+      // Cache encoding uses a real compute isolate, outside fake frame time.
+      await tester.runAsync(() async {
+        await sync.testFlushPendingMessageSaves();
+      });
     });
 
     testWidgets('pagination failure uses inline retry without a SnackBar', (
@@ -2226,6 +2243,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       sync.testEmitPaginationError('session_1');
+      await tester.pump();
       await tester.pump();
 
       expect(find.byType(PaginationFailureRetry), findsOneWidget);
@@ -2387,7 +2405,10 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('chat-search-close')));
         await tester.pumpAndSettle();
         final list = find.byType(ListView);
+        expect(list, findsOneWidget);
         final controller = tester.widget<ListView>(list).controller!;
+        expect(controller.hasClients, isTrue);
+        expect(controller.position.maxScrollExtent, greaterThan(0));
         controller.jumpTo(controller.position.maxScrollExtent);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
@@ -2395,18 +2416,20 @@ void main() {
         // Real inline Retry callback enters _loadMore and captures the row at rest.
         sync.testEmitPaginationError('session_1');
         await tester.pump();
+        await tester.pump();
+        expect(find.byType(PaginationFailureRetry), findsOneWidget);
         final oldest = find.byKey(const ValueKey('anchor-10000'));
         expect(oldest, findsOneWidget);
         final before = tester.getTopLeft(oldest).dy;
         final viewport = tester.getRect(list);
         expect(tester.getRect(oldest).overlaps(viewport), isTrue);
         expect(fetches, 0);
-        await tester.tap(
-          find.descendant(
-            of: find.byType(PaginationFailureRetry),
-            matching: find.bySubtype<TextButton>(),
-          ),
+        final retry = find.descendant(
+          of: find.byType(PaginationFailureRetry),
+          matching: find.bySubtype<TextButton>(),
         );
+        expect(retry.hitTestable(), findsOneWidget);
+        await tester.tap(retry);
         await tester.pump();
         expect(fetches, 1);
         page.complete(<String, dynamic>{
@@ -2458,7 +2481,9 @@ void main() {
         );
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 600));
-        sync.testFlushPendingMessageSaves();
+        await tester.runAsync(() async {
+          await sync.testFlushPendingMessageSaves();
+        });
       },
     );
 
@@ -2467,12 +2492,17 @@ void main() {
     ) async {
       const cap = Sync.maxVisibleSessionMessagesForTesting;
       sync.isInitialized = true;
+      sync.encryption = _FakeEncryption();
+      sync.testEncryptionInitialized = true;
+      sync.sessionsSync = InvalidateSync(() async {});
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSessions['session_1'] = _makeSession();
       sync.testSetSessionMessages('session_1', const []);
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
       sync.testUpsertSessionMessages('session_1', [
         for (var i = 1; i <= 3 * cap; i++)
           {
@@ -2494,6 +2524,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
+      final list = find.byType(ListView);
+      expect(list, findsOneWidget);
+      final controller = tester.widget<ListView>(list).controller!;
+      expect(controller.hasClients, isTrue);
+      expect(controller.position.maxScrollExtent, greaterThan(0));
+      final scrollable = find.byWidgetPredicate(
+        (widget) => widget is Scrollable && widget.controller == controller,
+      );
+      expect(scrollable, findsOneWidget);
       final gap = find.byKey(const ValueKey('chat-scrollback-gap'));
       // The gap is a lazily built row beside the search hit, so bring that
       // row into the viewport before asserting its recovery action.
@@ -2501,10 +2540,7 @@ void main() {
         gap,
         300,
         maxScrolls: cap,
-        scrollable: find.descendant(
-          of: find.byType(ListView),
-          matching: find.byType(Scrollable),
-        ),
+        scrollable: scrollable,
       );
       expect(gap, findsOneWidget);
       await tester.ensureVisible(find.text('Return to latest'));

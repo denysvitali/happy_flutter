@@ -744,15 +744,28 @@ void main() {
   });
 }
 
-class _FakeDictationService extends OfflineDictationService {
+class _FakeDictationService implements OfflineDictationService {
   _FakeDictationService({this.delayed = false});
   final bool delayed;
+  final _progress = ValueNotifier<Map<String, OfflineSttDownloadProgress>>(
+    const {},
+  );
   final startBarrier = Completer<void>();
   bool recording = false;
   int cancels = 0;
   int starts = 0;
   final stopBarrier = Completer<String>();
   void Function(String)? transcript;
+
+  @override
+  OfflineSttModel get selectedModel => OfflineSttCatalog.defaultModel;
+
+  @override
+  String get selectedModelId => OfflineSttCatalog.defaultModel.id;
+
+  @override
+  ValueNotifier<Map<String, OfflineSttDownloadProgress>> get progress =>
+      _progress;
 
   @override
   OfflineSttStatus statusFor(String modelId) => OfflineSttStatus.ready;
@@ -783,4 +796,13 @@ class _FakeDictationService extends OfflineDictationService {
   Stream<double> levels({
     Duration interval = const Duration(milliseconds: 200),
   }) => const Stream.empty();
+
+  @override
+  Future<void> dispose() async {
+    await cancel();
+    _progress.dispose();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

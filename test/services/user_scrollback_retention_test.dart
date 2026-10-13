@@ -241,17 +241,19 @@ void main() {
         'messages': [_wireBlocks(100, cap)],
         'hasMore': false,
       };
-      final errors = <String>[];
-      final subscription = sync.onPaginationError.listen(errors.add);
+      // The broadcast error stream delivers asynchronously after the fetch
+      // completes; subscribe first and await the event itself.
+      final error = sync.onPaginationError.first.timeout(
+        const Duration(seconds: 2),
+      );
       await sync.fetchOlderMessages(sessionId, userInitiated: true);
-      expect(errors, [sessionId]);
+      expect(await error, sessionId);
       expect(sync.testSessionMessages(sessionId)!.first['seq'], 101);
       expect(sync.testSessionMessages(sessionId)!.length, cap);
       expect(sync.testSessionFirstLoadedSeq(sessionId), 101);
       expect(sync.hasOlderMessages(sessionId), isTrue);
       expect(sync.testHistoryFullyLoaded(sessionId), isFalse);
       expect(sync.scrollbackGapBeforeMessageId(sessionId), isNull);
-      await subscription.cancel();
     },
   );
 

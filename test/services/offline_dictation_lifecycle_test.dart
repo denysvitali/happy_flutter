@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/_offline_dictation_service_native.dart';
 import 'package:record/record.dart';
 
-class _Recorder extends AudioRecorder {
+class _Recorder implements AudioRecorder {
   bool recording = false;
   int starts = 0;
   int cancels = 0;
@@ -35,6 +35,9 @@ class _Recorder extends AudioRecorder {
 
   @override
   Future<void> dispose() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _Service extends OfflineDictationService {

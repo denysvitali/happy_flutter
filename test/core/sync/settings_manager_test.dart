@@ -126,18 +126,20 @@ void main() {
     },
   );
 
-  testWidgets('write can finish after the old 10 second wrapper deadline', (
-    tester,
-  ) async {
+  test('write can finish after the old 10 second wrapper deadline', () async {
     await manager.applySettings({'lastUsedAgent': 'codex'});
     final response = Completer<Response<dynamic>>();
-    api.respond = () => response.future;
+    final requestStarted = Completer<void>();
+    api.respond = () {
+      requestStarted.complete();
+      return response.future;
+    };
     var completed = false;
     final write = manager.syncSettings().then((_) => completed = true);
-    await tester.pump(const Duration(seconds: 11));
+    await requestStarted.future;
+    await Future<void>.delayed(const Duration(seconds: 11));
     expect(completed, isFalse);
     response.complete(_response({'success': true, 'settingsVersion': 1}));
-    await tester.pump();
     await write;
     expect(manager.pendingSettings, isEmpty);
     expect(manager.settingsVersion, 1);

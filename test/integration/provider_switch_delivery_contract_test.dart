@@ -15,6 +15,7 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/chat_action_notifier.dart';
+import 'package:happy_flutter/core/services/at_rest_encryption_service.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/codex_speed_selection.dart';
@@ -29,6 +30,7 @@ void main() {
   late Sync sync;
   late _TrackingInterceptor http;
   late List<Map<String, dynamic>> spawns;
+  late _OutboxStorage outboxStorage;
   final selections = PendingSessionConfiguration();
 
   setUp(() async {
@@ -38,6 +40,9 @@ void main() {
     await MMKVStorage.initialize();
     await MMKVStorage().clearAll();
     messageOutbox.dispose();
+    outboxStorage = _OutboxStorage();
+    // This hook uses the real AES protector with an isolated test key.
+    messageOutbox.testStorage = outboxStorage;
     sync = createTestSync();
     sync.testSessions.clear();
     sync.testMachines.clear();
@@ -100,8 +105,10 @@ void main() {
 
   tearDown(() async {
     await sync.lastCompleteSendFuture;
+    await messageOutbox.suspendAndFlush();
     InvalidateSync.isBackgrounded = false;
     messageOutbox.dispose();
+    messageOutbox.testStorage = MMKVStorage.testConstructor();
     Sync.testResetTimingOverrides();
     sync.testMachineRPCOverride = null;
     sync.testEnsureMachineReachableMachineRPCOverride = null;
@@ -238,6 +245,10 @@ void main() {
       await sync.retryFailedMessage(sessionId, 'effort-one');
       expect(sync.testSessionMessages(sessionId), hasLength(2));
       final retry = messageOutbox.entries.single;
+      expect(
+        outboxStorage.data,
+        startsWith(AtRestEncryptionService.envelopePrefix),
+      );
       expect(retry.localId, 'effort-one');
       expect((retry.rawRecord['meta'] as Map)['reasoning_effort'], 'minimal');
       final echoes = <Map<String, dynamic>>[
@@ -290,6 +301,11 @@ void main() {
       expect(
         sync.testSessionMessages(sessionId)!.single['localId'],
         'prime-starting',
+      );
+      expect(messageOutbox.entries.single.localId, 'prime-starting');
+      expect(
+        outboxStorage.data,
+        startsWith(AtRestEncryptionService.envelopePrefix),
       );
     },
   );
@@ -538,7 +554,8 @@ void main() {
       final echoes = [
         for (final (id, seq) in [('saved-second', 2), ('saved-first', 1)])
           <String, dynamic>{
-            'id': 'saved-server-$seq',
+            // Socket echoes carry the same server ID as the HTTP ACK.
+            'id': 'srv-$seq',
             'localId': id,
             'seq': seq,
             'createdAt': DateTime.now().millisecondsSinceEpoch,
@@ -632,7 +649,6 @@ void main() {
           spawns.add(params);
           return {'type': 'success', 'sessionId': sessionId};
         };
-        messageOutbox.testStorage = MMKVStorage();
         final retry = await sync.retryFailedMessage(sessionId, 'saved-first');
         expect(retry.isQueued, isTrue);
         expect(messageOutbox.entries.single.localId, 'saved-first');
@@ -691,7 +707,6 @@ void main() {
         },
         queuedAt: 1,
       );
-      messageOutbox.testStorage = MMKVStorage();
       messageOutbox.testInsertDead(entry);
       sync.testMachineRPCOverride = (_, method, params) async {
         spawns.add(params);
@@ -752,7 +767,6 @@ void main() {
         spawns.add(params);
         return {'type': 'success', 'sessionId': sessionId};
       };
-      messageOutbox.testStorage = MMKVStorage();
       final retry = await sync.retryFailedMessage(sessionId, 'speed-retry');
       expect(retry.isQueued, isTrue);
       expect(messageOutbox.entries.single.localId, 'speed-retry');
@@ -1158,7 +1172,6 @@ void main() {
         spawns.add(params);
         return {'type': 'success', 'sessionId': sessionId};
       };
-      messageOutbox.testStorage = MMKVStorage();
       final result = await sync.retryFailedMessage(sessionId, 'retry-id');
       expect(result.isQueued, isTrue);
       expect(spawns.single['model'], 'sonnet:medium');
@@ -1300,6 +1313,20 @@ class _TrackingInterceptor extends Interceptor {
     final first = msgs.first;
     if (first is! Map<String, dynamic>) return null;
     return first['localId'] as String?;
+  }
+}
+
+class _OutboxStorage extends MMKVStorage {
+  _OutboxStorage() : super.testConstructor();
+
+  String? data;
+
+  @override
+  Future<String?> getOutboxEntries() async => data;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    data = json;
   }
 }
 

@@ -432,12 +432,17 @@ void main() {
             'sending or pending, not yet failed',
       );
 
-      // Now the interceptor will succeed on subsequent calls.
-      // Send a second message — this one goes through.
+      // A follow-up stays behind the pending head until its retry succeeds.
+      // Await the actual delivery transitions, not a delay shorter than the
+      // first backoff; lastCompleteSendFuture only confirms it was queued.
       await sync.sendMessage('sess-3', 'Second attempt');
       await sync.lastCompleteSendFuture;
-
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await _waitUntil(() {
+        final rows = sync.testSessionMessages('sess-3');
+        return rows != null &&
+            rows.length == 2 &&
+            rows.every((row) => row['sendStatus'] == 'sent');
+      }, reason: 'the pending head and its follow-up should deliver in order');
 
       final msgsAfterSuccess = sync.testSessionMessages('sess-3');
       expect(msgsAfterSuccess, isNotNull);

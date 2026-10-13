@@ -1177,7 +1177,7 @@ void main() {
             sync.testSetSessionSpawnedModel(id, luna);
             await sync.retryFailedMessage(id, 'har-retry');
             // Retry durably enqueues; drive its separate outbox delivery lane.
-            await sync.messageOutbox.testAttemptNow('har-retry');
+            await messageOutbox.testAttemptNow('har-retry');
             await sync.sendMessage(
               id,
               'continue',

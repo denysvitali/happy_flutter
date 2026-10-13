@@ -127,28 +127,30 @@ void main() {
   }
 
   for (final method in ['loop-create', 'loop-list']) {
-    test('$method fences the caller continuation after RPC resolves', () async {
-      final release = Completer<dynamic>();
-      sync.testSessionRPCOverride = (_, _, _) => release.future;
-      final counter = sync.domainChangeCounter(SyncDomain.loops);
-      final result = expectLater(_operate(sync, method), throwsStateError);
+    test(
+      '$method fences an RPC completion queued before replacement',
+      () async {
+        final release = Completer<dynamic>();
+        sync.testSessionRPCOverride = (_, _, _) => release.future;
+        final counter = sync.domainChangeCounter(SyncDomain.loops);
+        final result = expectLater(_operate(sync, method), throwsStateError);
 
-      release.complete({
-        'ok': true,
-        'loop': _sample().toJson(),
-        'loops': [_sample().toJson()],
-      });
-      // sessionRPC resumes first; replacement runs before the caller's
-      // continuation can publish its successfully fenced RPC result.
-      scheduleMicrotask(() {
+        release.complete({
+          'ok': true,
+          'loop': _sample().toJson(),
+          'loops': [_sample().toJson()],
+        });
+        // Queue a successful completion, then replace the runtime before its
+        // continuation runs. An extra scheduled microtask would race Dart's
+        // await continuation optimization and could run after publication.
         sync.testAdvanceRuntimeGeneration();
         sync.testClearAllLoops();
-      });
-      await result;
-      expect(sync.loopsBySession, isEmpty);
-      expect(storage.writes, 0);
-      expect(sync.domainChangeCounter(SyncDomain.loops), counter);
-    });
+        await result;
+        expect(sync.loopsBySession, isEmpty);
+        expect(storage.writes, 0);
+        expect(sync.domainChangeCounter(SyncDomain.loops), counter);
+      },
+    );
   }
 
   for (final method in ['loop-delete', 'loop-pause']) {

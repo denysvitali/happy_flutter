@@ -15,11 +15,11 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   late Sync sync;
-  late Encryption originalEncryption;
+  late Encryption baselineEncryption;
 
   setUp(() {
-    sync = createTestSync();
-    originalEncryption = sync.encryption;
+    baselineEncryption = _SessionEncryptionStore(null);
+    sync = createTestSync()..encryption = baselineEncryption;
     sync.testSessionRPCOverride = null;
     sync.testForceFullFetchNext = false;
     InvalidateSync.isBackgrounded = false;
@@ -31,7 +31,7 @@ void main() {
   tearDown(() {
     sync.testSessionRPCOverride = null;
     sync.testResetRpcCapabilitiesPolicy();
-    sync.encryption = originalEncryption;
+    sync.encryption = baselineEncryption;
     socketIoClient.disconnect();
     socketIoClient.testSetCredentials();
     sync.sessionsSync.dispose();
