@@ -276,7 +276,7 @@ void main() {
     expect(manager.pendingSettings['lastUsedAgent'], 'codex');
   });
 
-  testWidgets('rapid settings edits share one server write', (tester) async {
+  test('rapid settings edits share one server write', () async {
     late SettingsManager batched;
     final syncer = InvalidateSync(() => batched.syncSettings());
     addTearDown(syncer.dispose);
@@ -291,17 +291,22 @@ void main() {
       purchasesSyncGetter: () => syncer,
       onDataChanged: (_) {},
     );
-    api.respond = () async =>
-        _response({'success': true, 'settingsVersion': 1});
+    final requestStarted = Completer<void>();
+    api.respond = () async {
+      if (!requestStarted.isCompleted) requestStarted.complete();
+      return _response({'success': true, 'settingsVersion': 1});
+    };
 
+    // Persistence uses a real isolate; keep its debounce timers and I/O in
+    // the same async zone rather than awaiting compute inside FakeAsync.
     await batched.applySettings({'lastUsedAgent': 'codex'});
-    await tester.pump(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(seconds: 1));
     await batched.applySettings({'lastUsedProfile': 'work'});
-    await tester.pump(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(seconds: 1));
     await batched.applySettings({'lastUsedModelMode': 'fast'});
     expect(api.writes, isEmpty);
 
-    await tester.pump(const Duration(seconds: 3));
+    await requestStarted.future.timeout(const Duration(seconds: 8));
     await syncer.awaitQueue();
     expect(api.writes, hasLength(1));
     final body =
@@ -312,15 +317,13 @@ void main() {
     expect(body['lastUsedModelMode'], 'fast');
   });
 
-  testWidgets('suspension cancels the write timer but retains edits', (
-    tester,
-  ) async {
+  test('suspension cancels the write timer but retains edits', () async {
     api.respond = () async =>
         _response({'success': true, 'settingsVersion': 1});
     await manager.applySettings({'lastUsedAgent': 'codex'});
     manager.suspendPendingSync();
 
-    await tester.pump(const Duration(seconds: 7));
+    await Future<void>.delayed(const Duration(seconds: 7));
     expect(api.writes, isEmpty);
     expect(manager.pendingSettings['lastUsedAgent'], 'codex');
 

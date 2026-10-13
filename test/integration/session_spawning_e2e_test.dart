@@ -1146,7 +1146,8 @@ void main() {
             ),
           );
           sync.testSetSessionSpawnedModel(id, luna);
-          final capture = _CapturingApiInterceptor()..respondWith(id);
+          final capture = _CapturingApiInterceptor(deduplicateLocalIds: true)
+            ..respondWith(id);
           ApiClient().testDio!.interceptors.insert(0, capture);
           var spawnCalls = 0;
           sync.testMachineRPCOverride = (_, method, __) async {
@@ -1158,6 +1159,9 @@ void main() {
             expect(params, {'model': sol});
             return {'model': sol};
           };
+          messageOutbox.configure(
+            deliver: sync.testDeliverOutboxEntryClassified,
+          );
           try {
             // Unconfirmed intent must fail before delivery, keeping retry identity.
             await expectLater(
@@ -1178,21 +1182,22 @@ void main() {
             await sync.retryFailedMessage(id, 'har-retry');
             // Retry durably enqueues; drive its separate outbox delivery lane.
             await messageOutbox.testAttemptNow('har-retry');
-            await sync.sendMessage(
-              id,
-              'continue',
-              clientLocalId: 'har-next',
-              modelMode: sol,
-              profileId: 'default',
-            );
-            await sync.sendMessage(
-              id,
-              'continue',
-              clientLocalId: 'har-next',
-              modelMode: sol,
-              profileId: 'default',
-            );
-            await sync.lastCompleteSendFuture;
+            expect(messageOutbox.contains('har-retry'), isFalse);
+            for (var attempt = 0; attempt < 2; attempt++) {
+              await sync.sendMessage(
+                id,
+                'continue',
+                clientLocalId: 'har-next',
+                modelMode: sol,
+                profileId: 'default',
+              );
+              await sync.lastCompleteSendFuture;
+              // Foreground completion can be the durable enqueue boundary.
+              await messageOutbox.testAttemptNow('har-next');
+              expect(messageOutbox.contains('har-next'), isFalse);
+            }
+            await messageOutbox.suspendAndFlush();
+            expect(messageOutbox.entries, isEmpty);
             final rows = sync.testSessionMessages(id)!;
             expect(rows.map((r) => r['localId']).toSet(), {
               'har-retry',
@@ -1201,6 +1206,19 @@ void main() {
             expect(rows, hasLength(2));
             expect(rows.every((r) => r['sendStatus'] == 'sent'), isTrue);
             expect(capture.requests, isNotEmpty);
+            final posts = capture.requests.where((r) => r.method == 'POST');
+            expect(posts.map((r) => capture._extractLocalId(r.data)).toSet(), {
+              'har-retry',
+              'har-next',
+            });
+            expect(
+              posts.every((r) => r.path == '/v3/sessions/$id/messages'),
+              isTrue,
+            );
+            for (final row in rows) {
+              final raw = row['raw'] as Map<String, dynamic>;
+              expect((raw['meta'] as Map<String, dynamic>)['model'], sol);
+            }
             expect(spawnCalls, 0);
             expect(sync.testSessions[id]!.metadata!.model, sol);
           } finally {
@@ -3019,8 +3037,12 @@ class _FakeEncryptor implements Encryptor {
 // ---------------------------------------------------------------------------
 
 class _CapturingApiInterceptor extends Interceptor {
+  _CapturingApiInterceptor({this.deduplicateLocalIds = false});
+
+  final bool deduplicateLocalIds;
   String? _respondForSessionId;
   final List<RequestOptions> requests = <RequestOptions>[];
+  final Map<String, Map<String, dynamic>> _storedMessages = {};
 
   void respondWith(String sessionId) {
     _respondForSessionId = sessionId;
@@ -3033,19 +3055,22 @@ class _CapturingApiInterceptor extends Interceptor {
     if (sessionId != null &&
         options.path.contains('/v3/sessions/') &&
         options.path.contains('/messages')) {
+      final localId = _extractLocalId(options.data);
+      Map<String, dynamic> createMessage() => {
+        'id': 'srv-msg-${DateTime.now().microsecondsSinceEpoch}',
+        'seq': 2,
+        'localId': localId,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+      };
+      final message = deduplicateLocalIds && localId != null
+          ? _storedMessages.putIfAbsent(localId, createMessage)
+          : createMessage();
       handler.resolve(
         Response<dynamic>(
           requestOptions: options,
           statusCode: 200,
           data: <String, dynamic>{
-            'messages': <Map<String, dynamic>>[
-              <String, dynamic>{
-                'id': 'srv-msg-${DateTime.now().microsecondsSinceEpoch}',
-                'seq': 2,
-                'localId': _extractLocalId(options.data),
-                'createdAt': DateTime.now().millisecondsSinceEpoch,
-              },
-            ],
+            'messages': <Map<String, dynamic>>[message],
           },
         ),
       );

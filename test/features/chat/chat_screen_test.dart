@@ -81,9 +81,13 @@ Session _makeSession({
 }
 
 class _HarPickerActions extends ChatActionNotifier {
+  static const localId = 'har-picker-message';
   final confirmation = Completer<void>();
   String? requestedModel;
   String? sentModel;
+
+  @override
+  String createLocalMessageId() => localId;
 
   @override
   Future<void> setSessionModel(String sessionId, String model) {
@@ -104,6 +108,21 @@ class _HarPickerActions extends ChatActionNotifier {
     String? codexDeliveryMode,
   }) async {
     sentModel = modelMode;
+    if (clientLocalId != localId) {
+      throw StateError('Har picker send lost its canonical message identity');
+    }
+    sync.testUpsertSessionMessages(sessionId, [
+      {
+        'id': 'har-picker-server-message',
+        'localId': clientLocalId,
+        'seq': 1,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'role': 'user',
+        'kind': 'text',
+        'content': text,
+        'sendStatus': 'sent',
+      },
+    ]);
     return sessionId;
   }
 }
@@ -410,6 +429,8 @@ void main() {
         const luna = 'codex/gpt-6-luna';
         const sol = 'codex/gpt-6.1-sol';
         sync.isInitialized = true;
+        sync.encryption = _FakeEncryption();
+        sync.testEncryptionInitialized = true;
         sync.messagesSync['session_1'] = InvalidateSync(() async {});
         sync.testSetSessionMessages('session_1', const []);
         sync.testSessions['session_1'] =
@@ -471,6 +492,22 @@ void main() {
         Navigator.of(pickerContext).pop();
         await tester.pumpAndSettle();
         expect(picker, findsNothing);
+        if (rejects) {
+          expect(
+            find.text(
+              'Model could not be changed. '
+              'Wait for the current turn to finish.',
+            ),
+            findsOneWidget,
+          );
+          // The rejected pick's fixed SnackBar covers the composer. Close
+          // that notice before exercising the unchanged send selection.
+          ScaffoldMessenger.of(
+            tester.element(find.byType(ChatScreen)),
+          ).hideCurrentSnackBar();
+          await tester.pumpAndSettle();
+          expect(find.byType(SnackBar), findsNothing);
+        }
         await tester.enterText(find.byType(TextField), 'hello Har');
         await tester.pump();
         expect(find.byType(SendButton).hitTestable(), findsOneWidget);
@@ -478,6 +515,19 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 600));
         expect(actions.sentModel, expected);
+        final delivered = sync.messagesForSession('session_1').single;
+        expect(delivered['localId'], _HarPickerActions.localId);
+        expect(delivered['sendStatus'], 'sent');
+        await tester.runAsync(() async {
+          await sync.testFlushPendingMessageSaves();
+        });
+        // The periodic send watchdog observes the canonical ACK on its next
+        // five-second tick and cancels; no pending delivery is fabricated.
+        await tester.pump(const Duration(seconds: 5));
+        expect(
+          sync.messagesForSession('session_1').single['sendStatus'],
+          'sent',
+        );
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 600));
       },
@@ -2418,17 +2468,21 @@ void main() {
         await tester.pump();
         await tester.pump();
         expect(find.byType(PaginationFailureRetry), findsOneWidget);
+        final retry = find.descendant(
+          of: find.byType(PaginationFailureRetry),
+          matching: find.bySubtype<TextButton>(),
+        );
+        // The newly inserted header is cached above the old history edge.
+        // Reveal the action before recording the row's resting position.
+        controller.jumpTo(controller.position.maxScrollExtent);
+        await tester.pump();
+        expect(retry.hitTestable(), findsOneWidget);
         final oldest = find.byKey(const ValueKey('anchor-10000'));
         expect(oldest, findsOneWidget);
         final before = tester.getTopLeft(oldest).dy;
         final viewport = tester.getRect(list);
         expect(tester.getRect(oldest).overlaps(viewport), isTrue);
         expect(fetches, 0);
-        final retry = find.descendant(
-          of: find.byType(PaginationFailureRetry),
-          matching: find.bySubtype<TextButton>(),
-        );
-        expect(retry.hitTestable(), findsOneWidget);
         await tester.tap(retry);
         await tester.pump();
         expect(fetches, 1);
@@ -2523,6 +2577,7 @@ void main() {
         'gap boundary',
       );
       await tester.pumpAndSettle();
+      expect(find.text('1 of 1'), findsOneWidget);
       expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
       final list = find.byType(ListView);
       expect(list, findsOneWidget);
@@ -2534,15 +2589,16 @@ void main() {
       );
       expect(scrollable, findsOneWidget);
       final gap = find.byKey(const ValueKey('chat-scrollback-gap'));
-      // The gap is a lazily built row beside the search hit, so bring that
-      // row into the viewport before asserting its recovery action.
-      await tester.scrollUntilVisible(
-        gap,
-        300,
-        maxScrolls: cap,
-        scrollable: scrollable,
-      );
+      // Equal-height rows put the older/live boundary in the middle. Re-read
+      // the lazily estimated extent on bounded frames instead of dragging
+      // through the history edge and starting unrelated pagination.
+      for (var frame = 0; frame < 8 && gap.evaluate().isEmpty; frame++) {
+        expect(controller.hasClients, isTrue);
+        controller.jumpTo(controller.position.maxScrollExtent / 2);
+        await tester.pump(const Duration(milliseconds: 50));
+      }
       expect(gap, findsOneWidget);
+      expect(_tintOn('gap-${2 * cap + 1}'), findsOneWidget);
       await tester.ensureVisible(find.text('Return to latest'));
       await tester.tap(find.text('Return to latest'));
       await tester.pumpAndSettle();
