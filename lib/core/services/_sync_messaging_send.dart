@@ -314,6 +314,9 @@ extension SyncMessagingSend on Sync {
         ...messageModelMetadata(
           modelMode,
           _sessions[sessionId]?.metadata?.flavor,
+          opencodeModels: _sessions[sessionId]?.metadata?.opencodeModels?.map(
+            (m) => m.id,
+          ),
         ),
         'displayText': ?displayText,
         'codexDeliveryMode': ?codexDeliveryMode,
@@ -366,6 +369,9 @@ extension SyncMessagingSend on Sync {
         ...messageModelMetadata(
           modelMode,
           _sessions[sessionId]?.metadata?.flavor,
+          opencodeModels: _sessions[sessionId]?.metadata?.opencodeModels?.map(
+            (m) => m.id,
+          ),
         ),
         'displayText': ?displayText,
         'codexDeliveryMode': ?codexDeliveryMode,
@@ -495,7 +501,7 @@ extension SyncMessagingSend on Sync {
     );
 
     checkRuntime();
-    _rejectUnsupportedHarContent(
+    _rejectUnsupportedAgentContent(
       flavor: session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId],
       content: _buildOutboundUserContent(text, images: images),
     );
@@ -529,7 +535,16 @@ extension SyncMessagingSend on Sync {
             ? _resolveProfile(profileId)
             : await _sessionProfileForNormalization(sessionId);
         checkRuntime();
-        final requestedModelMode = flavor == 'codex' && modelMode != null
+        final requestedModelMode = flavor == 'opencode'
+            ? messageModelMetadata(
+                    modelMode,
+                    flavor,
+                    opencodeModels: session.metadata?.opencodeModels?.map(
+                      (m) => m.id,
+                    ),
+                  )['model']
+                  as String?
+            : flavor == 'codex' && modelMode != null
             ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
             : _normalizeModelModeForAgent(
                 modelMode,
@@ -602,6 +617,7 @@ extension SyncMessagingSend on Sync {
         final modelMetadata = messageModelMetadata(
           effectiveModelMode,
           session.metadata?.flavor,
+          opencodeModels: session.metadata?.opencodeModels?.map((m) => m.id),
         );
         final model = modelMetadata['model'] as String?;
         final outboundContent = _buildOutboundUserContent(text, images: images);
@@ -2017,6 +2033,44 @@ extension SyncMessagingSend on Sync {
         return false;
       }
     }
+    if (session?.metadata?.flavor == 'opencode') {
+      final meta =
+          WireParsers.asMap(entry.rawRecord['meta']) ?? <String, dynamic>{};
+      final modelMeta = messageModelMetadata(
+        meta['model'] as String?,
+        'opencode',
+        opencodeModels: session?.metadata?.opencodeModels?.map((m) => m.id),
+      );
+      if (modelMeta['model'] != meta['model']) {
+        final sessionEncryption = encryption.getSessionEncryption(sessionId);
+        if (sessionEncryption == null) return false;
+        final raw = <String, dynamic>{
+          ...entry.rawRecord,
+          'meta': {...meta, ...modelMeta},
+        };
+        _rejectUnsupportedAgentContent(
+          flavor: 'opencode',
+          content: raw['content'],
+        );
+        final encrypted = await sessionEncryption.encryptRawRecord(raw);
+        if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
+          return false;
+        }
+        await _queueMessageRetry(
+          sessionId: sessionId,
+          localId: localId,
+          text: entry.text,
+          encryptedRawRecord: encrypted,
+          rawRecord: raw,
+        );
+        if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
+          return false;
+        }
+        _updateMessageSendStatus(sessionId, localId, 'sending');
+        _notifySessionMessagesChanged(sessionId);
+        return true;
+      }
+    }
     final revived = await messageOutbox.reviveDead(localId);
     if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
     if (!revived) return false;
@@ -2105,7 +2159,7 @@ extension SyncMessagingSend on Sync {
       return const MessageRetryResult(MessageRetryOutcome.rawDataUnavailable);
     }
 
-    _rejectUnsupportedHarContent(
+    _rejectUnsupportedAgentContent(
       flavor:
           _sessions[sessionId]?.metadata?.flavor ??
           _sessionSpawnedAgent[sessionId],
@@ -2230,11 +2284,23 @@ extension SyncMessagingSend on Sync {
           ...messageModelMetadata(
             pendingSelection.modelMode,
             session.metadata?.flavor,
+            opencodeModels: session.metadata?.opencodeModels?.map((m) => m.id),
           ),
         };
       }
     }
 
+    if (session?.metadata?.flavor == 'opencode') {
+      final meta = WireParsers.asMap(raw['meta']) ?? <String, dynamic>{};
+      raw['meta'] = {
+        ...meta,
+        ...messageModelMetadata(
+          meta['model'] as String?,
+          'opencode',
+          opencodeModels: session?.metadata?.opencodeModels?.map((m) => m.id),
+        ),
+      };
+    }
     late final String encryptedRawRecord;
     try {
       encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
@@ -2476,11 +2542,11 @@ extension SyncMessagingSend on Sync {
   /// Reject unsupported blocks before target resolution or retry queueing.
   /// The preparation boundary preserves the original localId and raw content
   /// so a rejected mixed message cannot become a partial text-only delivery.
-  void _rejectUnsupportedHarContent({
+  void _rejectUnsupportedAgentContent({
     required String? flavor,
     required Object? content,
   }) {
-    if (flavor != 'har') return;
+    if (flavor != 'har' && flavor != 'opencode') return;
     final textOnly = content is Map
         ? content['type'] == 'text'
         : content is List &&
@@ -2489,7 +2555,8 @@ extension SyncMessagingSend on Sync {
               );
     if (!textOnly) {
       throw StateError(
-        'Har supports text only. Remove images or other '
+        '${flavor == 'opencode' ? 'OpenCode' : 'Har'} supports text only. '
+        'Remove images or other '
         'attachments and send a new message; this message has not been sent.',
       );
     }

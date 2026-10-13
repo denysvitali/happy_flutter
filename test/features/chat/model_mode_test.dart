@@ -4,6 +4,68 @@ import 'package:happy_flutter/core/utils/model_selection.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 
 void main() {
+  test('OpenCode catalog overrides profiles and preserves exact model IDs', () {
+    const catalog = [
+      PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Big Pickle'),
+      PrimeAgentModelInfo(id: 'provider/model:variant', name: 'Variant'),
+      PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Duplicate'),
+    ];
+    final modes = ChatModelMode.availableForProfile(
+      flavor: 'opencode',
+      claudeCompatible: true,
+      profileModels: ['sonnet', 'gpt-6-luna'],
+      opencodeModels: catalog,
+    );
+    expect(modes.map((m) => m.modeString), [
+      'default',
+      'opencode/big-pickle',
+      'provider/model:variant',
+    ]);
+    expect(modes[2].reasoningEffort, isNull);
+    expect(
+      ChatModelMode.availableForProfile(
+        flavor: 'opencode',
+        claudeCompatible: true,
+        profileModels: ['sonnet'],
+      ),
+      [ChatModelMode.defaultModel],
+    );
+    for (final raw in ['sonnet', 'gpt-6-luna', 'grok-4.7', 'stale/model']) {
+      expect(
+        messageModelMetadata(
+          raw,
+          'opencode',
+          opencodeModels: catalog.map((m) => m.id),
+        ),
+        {'model': null},
+      );
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          raw,
+          'opencode',
+          allowedRawModels: catalog.map((m) => m.id).toList(),
+        ),
+        'default',
+      );
+    }
+    expect(
+      messageModelMetadata(
+        modes[2].modeString,
+        'opencode',
+        opencodeModels: catalog.map((m) => m.id),
+      ),
+      {'model': 'provider/model:variant'},
+    );
+    expect(
+      messageModelMetadata(
+        'default',
+        'opencode',
+        opencodeModels: catalog.map((m) => m.id),
+      ),
+      {'model': null},
+    );
+  });
+
   test(
     'Prime message configuration separates effort and clears old effort',
     () {

@@ -705,6 +705,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           updatedSettings.lastUsedModelMode,
         );
       }
+      if (_selectedAgent == 'opencode') modelMode = null;
       if (_selectedAgent == 'har') modelMode = _harModel;
       if (!_canUseRef) return;
       if (modelMode != null) {

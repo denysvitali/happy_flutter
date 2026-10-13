@@ -100,6 +100,39 @@ void main() {
       expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     });
 
+    testWidgets('OpenCode metadata plan refreshes and clears the banner', (
+      tester,
+    ) async {
+      final sessions =
+          container.read(sessionsNotifierProvider.notifier)
+              as _StubSessionsNotifier;
+      sessions.replace(
+        _session([]).copyWith(
+          metadata: Metadata.fromJson({
+            'flavor': 'opencode',
+            'plan': [
+              {'content': 'Read note', 'status': 'in_progress'},
+              {'content': 'Reply', 'status': 'pending'},
+            ],
+          }),
+        ),
+      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+      expect(find.text('0 of 2 complete · 1 running'), findsOneWidget);
+      await tester.tap(find.text('Tasks'));
+      await tester.pumpAndSettle();
+      expect(find.text('Read note'), findsOneWidget);
+      sessions.replace(
+        _session([]).copyWith(
+          metadata: Metadata.fromJson({'flavor': 'opencode', 'plan': []}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Tasks'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('shows task title and progress for the active session', (
       tester,
     ) async {

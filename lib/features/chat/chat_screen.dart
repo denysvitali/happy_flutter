@@ -261,13 +261,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   ({int? contextSize, int? contextWindow}) _contextUsageForComposer(
     Map<String, dynamic> usage,
-  ) => projectSessionContext(
-    usage: usage,
-    flavor: _session?.metadata?.flavor,
-    currentModel: _session?.metadata?.model ?? _session?.modelMode,
-    selectedModel: _effectiveModelModeString,
-    fallbackWindow: _profileMaxContext,
-  );
+  ) => _session?.metadata?.flavor == 'opencode'
+      ? (contextSize: null, contextWindow: null)
+      : projectSessionContext(
+          usage: usage,
+          flavor: _session?.metadata?.flavor,
+          currentModel: _session?.metadata?.model ?? _session?.modelMode,
+          selectedModel: _effectiveModelModeString,
+          fallbackWindow: _profileMaxContext,
+        );
 
   /// Raw model mode string from storage, used for provider-owned modes.
   /// For Claude profiles, this matches _modelMode.modeString.
@@ -787,6 +789,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final previousDeliveryStatus =
         _latestUserStatusMessage?['sendStatus'] as String?;
+    final openCodeModelConfirmed =
+        latestSession?.metadata?.flavor == 'opencode' &&
+        (latestSession?.metadata?.model != _session?.metadata?.model ||
+            (!_userOverrodeModelOrProfile &&
+                latestSession?.metadata?.opencodeModels !=
+                    _session?.metadata?.opencodeModels));
     final needsScreenRebuild = sessionChanged;
     void applyUpdates() {
       if (sessionChanged) {
@@ -811,11 +819,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _modelMode = ChatModelMode.normalizeForFlavor(
           _modelMode,
           latestSession?.metadata?.flavor,
-          allowedRawModels: _selectedProfile?.models,
+          allowedRawModels: latestSession?.metadata?.flavor == 'opencode'
+              ? latestSession?.metadata?.opencodeModels
+                    ?.map((m) => m.id)
+                    .toList()
+              : _selectedProfile?.models,
           preserveProviderOwned:
               profileOwnsRawCodexModel(_selectedProfile) ||
               profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
         );
+      }
+      if (openCodeModelConfirmed) {
+        _modelMode =
+            ChatModelMode.fromOpenCodeCatalog(
+                  latestSession?.metadata?.opencodeModels ?? const [],
+                )
+                .where((m) => m.modeString == latestSession?.metadata?.model)
+                .firstOrNull ??
+            ChatModelMode.defaultModel;
+        _profileModelOverride = _modelMode.modeString;
       }
       unawaited(_refreshCodexModelModes(latestSession));
 
@@ -2211,7 +2233,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           builder: (context, revision, child) => ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
-            attachmentController: _session?.metadata?.flavor == 'har'
+            attachmentController:
+                const {'har', 'opencode'}.contains(_session?.metadata?.flavor)
                 ? null
                 : _attachmentController,
             onSend: hasActiveCodexTurn
@@ -2227,7 +2250,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
-            resolvedModelLabel: _profileModelOverride,
+            resolvedModelLabel:
+                _session?.metadata?.flavor == 'opencode' &&
+                    !_userOverrodeModelOrProfile
+                ? (_modelMode.isDefault
+                      ? _session?.metadata?.model
+                      : _modelMode.label)
+                : _profileModelOverride,
             availableModels: availableModels,
             modelCatalogNotice:
                 _session?.metadata?.flavor == 'codex' &&

@@ -47,6 +47,14 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   fields, so `HAR_API_KEY` is not forwarded. Images, provider switching,
   reasoning/speed/context controls and startup resume are unavailable.
 
+- **OpenCode owns its model catalog** — flavor `opencode` offers only
+  `metadata.opencodeModels` (`{id,name}` entries) plus Default. Confirmed
+  selection is `metadata.model`; advertised IDs travel unchanged in
+  `meta.model` and switch in place before the next prompt. Saved conversations
+  restore through the existing daemon path. ACP tools reuse the tool cards,
+  and `metadata.plan` supplies the task banner. Effort, images, child anchors,
+  and context/usage telemetry are unavailable.
+
 - **Prime Agent switches model in place** — flavor `prime-agent` lists the
   models the running agent publishes in `metadata.primeagentModels`. A pick
   travels in the next message's `meta.model`. The Effort slider uses only

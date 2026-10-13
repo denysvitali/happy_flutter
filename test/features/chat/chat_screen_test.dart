@@ -199,6 +199,56 @@ void main() {
     await TtsService().dispose();
   });
 
+  testWidgets(
+    'OpenCode catalog arrival selects confirmed model without images',
+    (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      final session = _makeSession(flavor: 'opencode', presence: 'online')
+          .copyWith(
+            metadata: const Metadata(
+              host: '',
+              flavor: 'opencode',
+              model: 'opencode/big-pickle',
+            ),
+          );
+      sync.testSessions['session_1'] = session;
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      var input = tester.widget<ChatInput>(find.byType(ChatInput));
+      expect(input.attachmentController, isNull);
+      expect(input.resolvedModelLabel, 'opencode/big-pickle');
+      expect(input.availableModels.map((m) => m.modeString), ['default']);
+      sync.testSessions['session_1'] = session.copyWith(
+        metadata: session.metadata!.copyWith(
+          opencodeModels: const [
+            PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Big Pickle'),
+          ],
+        ),
+      );
+      sync.testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      input = tester.widget<ChatInput>(find.byType(ChatInput));
+      expect(input.modelMode!.modeString, 'opencode/big-pickle');
+      expect(input.modelMode!.label, 'Big Pickle');
+      expect(input.availableModels.map((m) => m.modeString), [
+        'default',
+        'opencode/big-pickle',
+      ]);
+      await tester.tap(find.byType(ModelChip));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Default').last);
+      await tester.pumpAndSettle();
+      expect(PendingSessionConfiguration().read('session_1'), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('Prime model intent stays pending without a composer notice', (
     tester,
   ) async {

@@ -3,6 +3,51 @@ import 'package:test/test.dart';
 
 void main() {
   group('Session metadata', () {
+    test('ACP plan entries retain statuses and tolerate malformed values', () {
+      final metadata = Metadata.fromJson({
+        'flavor': 'opencode',
+        'plan': [
+          {'content': 'Read file', 'status': 'in_progress', 'priority': 'high'},
+          {'content': 'Reply', 'status': 'pending'},
+          null,
+        ],
+      });
+      expect(metadata.plan, hasLength(2));
+      expect(metadata.acpPlanItems.first.content, 'Read file');
+      expect(metadata.acpPlanItems.first.status.value, 'inProgress');
+      expect(metadata.acpPlanItems.last.priority, 'medium');
+      expect(Metadata.fromJson(metadata.toJson()).plan, metadata.plan);
+      expect(Metadata.fromJson({'plan': false}).acpPlanItems, isEmpty);
+    });
+
+    test('OpenCode catalog roundtrips and ignores malformed entries', () {
+      final metadata = Metadata.fromJson({
+        'flavor': 'opencode',
+        'model': 'opencode/big-pickle',
+        'opencodeModels': [
+          {'id': 'opencode/big-pickle', 'name': 'OpenCode/Big Pickle'},
+          {'id': 'provider/free'},
+          {'id': ''},
+          {'id': 123},
+          null,
+        ],
+      });
+      expect(metadata.opencodeModels!.map((m) => m.id), [
+        'opencode/big-pickle',
+        'provider/free',
+      ]);
+      expect(metadata.opencodeModels!.last.name, 'provider/free');
+      expect(
+        metadata.copyWith(model: 'provider/free').opencodeModels,
+        metadata.opencodeModels,
+      );
+      expect(Metadata.fromJson(metadata.toJson()), metadata);
+      expect(
+        Metadata.fromJson({'opencodeModels': 'bad'}).opencodeModels,
+        isNull,
+      );
+    });
+
     test('roundtrips the Prime Agent saved transcript field', () {
       final metadata = Metadata.fromJson({
         'host': 'workspace',

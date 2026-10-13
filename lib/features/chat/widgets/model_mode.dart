@@ -327,9 +327,13 @@ class ChatModelMode {
     String? providerOwnedCodexModel,
     List<String>? profileModels,
     List<PrimeAgentModelInfo>? primeAgentModels,
+    List<PrimeAgentModelInfo>? opencodeModels,
     List<PrimeAgentModelInfo>? primeAgentEfforts,
   }) {
     if (flavor == 'har') return harModels;
+    if (flavor == 'opencode') {
+      return fromOpenCodeCatalog(opencodeModels ?? const []);
+    }
     // The running Prime Agent owns its catalog: only models it advertises can
     // be selected, so its list wins over profile entries and static tiers.
     if (flavor == 'prime-agent' &&
@@ -575,6 +579,24 @@ class ChatModelMode {
     return models;
   }
 
+  /// OpenCode accepts exact advertised IDs, without effort suffixes.
+  static List<ChatModelMode> fromOpenCodeCatalog(
+    List<PrimeAgentModelInfo> catalog,
+  ) {
+    final seen = <String>{'default'};
+    return [
+      defaultModel,
+      for (final item in catalog)
+        if (item.id.isNotEmpty && seen.add(item.id))
+          ChatModelMode._(
+            label: item.name.isEmpty ? item.id : item.name,
+            modeString: item.id,
+            modelSlug: item.id,
+            flavor: 'opencode',
+          ),
+    ];
+  }
+
   static List<ChatModelMode> fromCodexCatalog(List<CodexModelInfo> catalog) {
     final models = <ChatModelMode>[defaultModel];
     for (final item in catalog) {
@@ -633,6 +655,15 @@ class ChatModelMode {
               .firstOrNull ??
           harModels.first;
     }
+    if (flavor == 'opencode') {
+      final id = model.modeString;
+      if (model.isDefault || !(allowedRawModels?.contains(id) ?? false)) {
+        return defaultModel;
+      }
+      return fromOpenCodeCatalog([
+        PrimeAgentModelInfo(id: id, name: model.label),
+      ]).last;
+    }
     if (flavor == 'prime-agent') {
       if (model.isDefault) return defaultModel;
       return ChatModelMode._(
@@ -688,6 +719,9 @@ class ChatModelMode {
     List<String>? allowedRawModels,
   }) {
     final trimmed = value.trim();
+    if (flavor == 'opencode') {
+      return allowedRawModels?.contains(value) == true ? value : 'default';
+    }
     if (flavor == 'prime-agent') {
       if (trimmed.isEmpty || trimmed == 'default') {
         return defaultModel.modeString;

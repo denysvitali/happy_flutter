@@ -19,6 +19,7 @@ void main() {
     required List<ChatModelMode> models,
     ValueChanged<ChatModelMode>? onChanged,
     String? catalogNotice,
+    Settings? settings,
     String? favorite,
     ValueChanged<String?>? onFavoriteChanged,
     ModelCatalogLoader? onRefreshModels,
@@ -44,6 +45,7 @@ void main() {
                     models,
                     onChanged ?? (_) {},
                     catalogNotice: catalogNotice,
+                    settings: settings,
                     favorite: favorite,
                     onFavoriteChanged: onFavoriteChanged,
                     onRefreshModels: onRefreshModels,
@@ -60,6 +62,24 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('OpenCode picker offers no custom models or effort controls', (
+    tester,
+  ) async {
+    await pumpPickerHost(
+      tester,
+      models: ChatModelMode.fromOpenCodeCatalog(const [
+        PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Big Pickle'),
+      ]),
+      settings: Settings()..customModelModes = ['sonnet', 'gpt-6-luna'],
+    );
+    expect(find.text('Big Pickle'), findsOneWidget);
+    expect(find.text('Custom…'), findsNothing);
+    expect(find.text('Custom'), findsNothing);
+    expect(find.text('Effort'), findsNothing);
+    expect(find.byType(Slider), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Prime Agent effort slider sends the advertised effort', (
     tester,

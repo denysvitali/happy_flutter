@@ -190,6 +190,15 @@ AgentState? _agentStateFromJson(dynamic value) {
   return null;
 }
 
+List<Map<String, dynamic>>? _acpPlanFromJson(dynamic value) {
+  if (value is! List) return null;
+  return [
+    for (final item in value)
+      if (item is Map<String, dynamic> && item['content'] is String)
+        Map<String, dynamic>.from(item),
+  ];
+}
+
 List<TodoItem>? _todoListFromJson(dynamic value) =>
     TodoItem.listFromJson(value);
 
@@ -228,6 +237,12 @@ abstract class Metadata with _$Metadata {
       toJson: _primeAgentModelsToJson,
     )
     List<PrimeAgentModelInfo>? primeAgentModels,
+    @JsonKey(
+      fromJson: _primeAgentModelsFromJson,
+      toJson: _primeAgentModelsToJson,
+    )
+    List<PrimeAgentModelInfo>? opencodeModels,
+    @JsonKey(fromJson: _acpPlanFromJson) List<Map<String, dynamic>>? plan,
     @JsonKey(
       name: 'primeagentEfforts',
       fromJson: _primeAgentModelsFromJson,
@@ -272,6 +287,13 @@ abstract class Metadata with _$Metadata {
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>
       _$MetadataFromJson(json);
+}
+
+extension AcpPlanMetadata on Metadata {
+  List<TodoItem> get acpPlanItems => [
+    for (final (index, entry) in (plan ?? const []).indexed)
+      TodoItem.fromJson({...entry, 'id': 'acp-plan-$index', 'order': index}),
+  ];
 }
 
 extension PrimeAgentTranscriptMetadata on Metadata {

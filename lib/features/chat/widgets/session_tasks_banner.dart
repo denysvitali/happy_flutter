@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/components/app_inline_row.dart';
 import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_color_scheme.dart';
@@ -47,7 +48,14 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     final persisted = ref.watch(
       sessionByIdProvider(widget.sessionId).select((s) => s?.todos),
     );
-    final items = live ?? persisted ?? const <TodoItem>[];
+    final plan = ref.watch(
+      sessionByIdProvider(widget.sessionId).select(
+        (s) => s?.metadata?.flavor == 'opencode' ? s?.metadata?.plan : null,
+      ),
+    );
+    final items = plan != null && plan.isNotEmpty
+        ? Metadata(plan: plan).acpPlanItems
+        : live ?? persisted ?? const <TodoItem>[];
     final activeItems = TodoItem.activeItems(items);
 
     if (activeItems.isEmpty) return const SizedBox.shrink();

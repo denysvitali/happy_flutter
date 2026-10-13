@@ -1,10 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/features/chat/model_selection_resolver.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 
 void main() {
+  test(
+    'OpenCode confirmed model wins over stale draft and global selection',
+    () {
+      final resolution = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'sonnet',
+        savedProfileId: null,
+        sessionModelMode: 'opencode/big-pickle',
+        sessionPermissionMode: null,
+        flavor: 'opencode',
+        settingsProfiles: [],
+        builtInProfiles: [],
+        lastUsedModelMode: 'gpt-6-luna',
+        opencodeModels: const [
+          PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Big Pickle'),
+        ],
+      );
+      expect(resolution.resolvedModelMode.label, 'Big Pickle');
+      expect(resolution.resolvedRawModelString, 'opencode/big-pickle');
+      expect(resolution.resolvedModelMode.reasoningEffort, isNull);
+    },
+  );
+
   group('resolveSessionDisplayModel', () {
     test('hides absent or default session model', () {
       expect(resolveSessionDisplayModel(null), ChatModelMode.defaultModel);

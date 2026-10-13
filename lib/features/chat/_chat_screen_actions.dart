@@ -74,9 +74,10 @@ extension _ChatScreenActions on _ChatScreenState {
               session?.metadata?.model,
               session?.metadata?.reasoningEffort,
             )
-          : flavor == 'har'
+          : flavor == 'har' || flavor == 'opencode'
           ? session?.metadata?.model ?? session?.modelMode
           : session?.modelMode,
+      opencodeModels: session?.metadata?.opencodeModels,
       sessionPermissionMode: session?.permissionMode,
       syncedSessionPermissionMode: settings.permissionModesBySession[sessionId],
       lastUsedPermissionMode: settings.lastUsedPermissionMode,
@@ -573,7 +574,9 @@ extension _ChatScreenActions on _ChatScreenState {
     final normalized = ChatModelMode.normalizeForFlavor(
       selected,
       flavor,
-      allowedRawModels: _selectedProfile?.models,
+      allowedRawModels: flavor == 'opencode'
+          ? _session?.metadata?.opencodeModels?.map((m) => m.id).toList()
+          : _selectedProfile?.models,
       preserveProviderOwned:
           profileOwnsRawCodexModel(_selectedProfile) ||
           profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
@@ -583,17 +586,20 @@ extension _ChatScreenActions on _ChatScreenState {
       _modelMode = normalized;
       _profileModelOverride = normalized.modeString;
     });
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveSelection(
-          widget.sessionId,
-          profileId: _selectedProfile?.id,
-          modelMode: normalized.modeString,
-        );
+    final actions = ref.read(chatActionNotifierProvider.notifier);
+    if (flavor == 'opencode') {
+      // A model pick is prompt metadata, not a pending process replacement.
+      actions.saveModelMode(widget.sessionId, normalized.modeString);
+    } else {
+      actions.saveSelection(
+        widget.sessionId,
+        profileId: _selectedProfile?.id,
+        modelMode: normalized.modeString,
+      );
+    }
 
-    // The next sendMessage call will automatically detect the model
-    // change and kill+respawn the session with the new model.
-    // No manual restart required.
+    // Running catalog-owned ACP agents apply the pick on the next prompt;
+    // other agents use the existing configuration restart path.
     final isRunning = _session?.isPresenceOnline ?? false;
     if (isRunning && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -602,6 +608,8 @@ extension _ChatScreenActions on _ChatScreenState {
             // Running Prime Agent switches model in place on the next send.
             flavor == 'prime-agent'
                 ? 'Model and effort changes apply from your next message.'
+                : flavor == 'opencode'
+                ? 'Model changes apply from your next message.'
                 : 'Model changed. The session will restart '
                       'automatically on the next message.',
           ),
@@ -638,6 +646,7 @@ extension _ChatScreenActions on _ChatScreenState {
       providerOwnedCodexModel: providerOwnedCodexModel,
       profileModels: _selectedProfile?.models,
       primeAgentModels: _session?.metadata?.primeAgentModels,
+      opencodeModels: _session?.metadata?.opencodeModels,
       primeAgentEfforts: _session?.metadata?.primeAgentEfforts,
     );
   }
@@ -739,7 +748,10 @@ extension _ChatScreenActions on _ChatScreenState {
               parseModelContextChoice(entry).model.trim() ==
               currentModelMode.trim(),
         );
-    final profileDefaultModelMode = profileSupportsCurrentModel
+    final isOpenCode = _session?.metadata?.flavor == 'opencode';
+    final profileDefaultModelMode = isOpenCode
+        ? currentModelMode
+        : profileSupportsCurrentModel
         ? currentModelMode
         : (favoriteModelForProvider(
                 ref.read(settingsNotifierProvider).favoriteModelsByProfile,
@@ -754,14 +766,18 @@ extension _ChatScreenActions on _ChatScreenState {
             preserveProviderOwned:
                 profileOwnsRawCodexModel(profile) ||
                 profileUsesThirdPartyAnthropicBaseUrl(profile),
-            allowedRawModels: profile?.models,
+            allowedRawModels: isOpenCode
+                ? _session?.metadata?.opencodeModels?.map((m) => m.id).toList()
+                : profile?.models,
           )
         : ChatModelMode.defaultModel.modeString;
     final newModel = profileDefaultModelMode != null
         ? ChatModelMode.normalizeForFlavor(
             ChatModelMode.fromString(rawModelString),
             _session?.metadata?.flavor,
-            allowedRawModels: profile?.models,
+            allowedRawModels: isOpenCode
+                ? _session?.metadata?.opencodeModels?.map((m) => m.id).toList()
+                : profile?.models,
             preserveProviderOwned:
                 profileOwnsRawCodexModel(profile) ||
                 profileUsesThirdPartyAnthropicBaseUrl(profile),

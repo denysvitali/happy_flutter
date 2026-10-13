@@ -117,13 +117,16 @@ void _processAcpContent({
     final harCall = harName == null
         ? null
         : normalizeHarToolCall(harName, rawInput);
-    final normalized = harCall ?? normalizeGrokToolCall(rawName, rawInput);
+    final isOpenCode = nestedContent['type'] == 'opencode';
+    final normalized = isOpenCode
+        ? normalizeOpenCodeToolCall(rawName, toolCall['kind'], rawInput)
+        : harCall ?? normalizeGrokToolCall(rawName, rawInput);
     final name = normalized.name;
     final input = normalized.input;
     // Normalization adds Claude-compatible aliases (`file_path`,
     // `target_directory`) for the tool views. Keep what the tool was really
     // called with so the detail screen does not present aliases as arguments.
-    final wireInput = harCall != null
+    final wireInput = isOpenCode || harCall != null
         ? rawInput
         : unwrapGrokMcpDispatch(rawName, rawInput).input;
     final status = (toolCall['status'] ?? data['status'])?.toString();
@@ -167,9 +170,12 @@ void _processAcpContent({
         data['content'] ??
         data['rawOutput'];
     final harName = harToolName(data);
-    normalized['result'] =
-        (harName == null ? null : normalizeHarToolResult(harName, rawResult)) ??
-        normalizeGrokToolResult(rawResult);
+    normalized['result'] = nestedContent['type'] == 'opencode'
+        ? rawResult
+        : (harName == null
+                  ? null
+                  : normalizeHarToolResult(harName, rawResult)) ??
+              normalizeGrokToolResult(rawResult);
     // Grok emits status: completed|failed; map onto isError when absent.
     if (normalized['isError'] != true && normalized['is_error'] != true) {
       final status = (data['status'] ?? data['state'])

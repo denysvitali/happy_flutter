@@ -150,6 +150,135 @@ void main() {
   );
 
   test(
+    'OpenCode dead-letter retry clears stale model and keeps identity',
+    () async {
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'opencode',
+          model: 'opencode/big-pickle',
+          opencodeModels: const [
+            PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Pickle'),
+          ],
+        ),
+      );
+      const localId = 'oc-dead';
+      messageOutbox.testInsertDead(
+        const OutboxEntry(
+          localId: localId,
+          sessionId: sessionId,
+          text: 'continue',
+          encryptedContent: 'old-ciphertext',
+          queuedAt: 1,
+          rawRecord: {
+            'role': 'user',
+            'content': {'type': 'text', 'text': 'continue'},
+            'meta': {'model': 'sonnet'},
+          },
+        ),
+      );
+      final retry = await sync.retryFailedMessage(sessionId, localId);
+      expect(retry.isQueued, isTrue);
+      final entry = messageOutbox.entries.single;
+      expect(entry.localId, localId);
+      expect((entry.rawRecord['meta'] as Map)['model'], isNull);
+      expect(entry.encryptedContent, isNot('old-ciphertext'));
+      expect(spawns, isEmpty);
+    },
+  );
+
+  test('OpenCode drops foreign model picks before REST delivery', () async {
+    sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+      metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+        flavor: 'opencode',
+        model: 'opencode/big-pickle',
+        opencodeModels: const [
+          PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Pickle'),
+        ],
+      ),
+    );
+    for (final model in ['sonnet', 'gpt-6-luna', 'grok-4.7', 'stale/model']) {
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: model,
+        modelMode: model,
+        profileId: 'default',
+      );
+      await sync.lastCompleteSendFuture;
+    }
+    expect(spawns, isEmpty);
+    expect(http.capturedRecords, hasLength(4));
+    expect(
+      http.capturedRecords.every((r) => (r['meta'] as Map)['model'] == null),
+      isTrue,
+    );
+  });
+
+  test(
+    'OpenCode advertised model pick is delivered without replacing the process',
+    () async {
+      // Model selection must not restart a running OpenCode conversation.
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'opencode',
+          opencodeModels: const [
+            PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Pickle'),
+            PrimeAgentModelInfo(id: 'provider/free', name: 'Free'),
+          ],
+          model: 'opencode/big-pickle',
+        ),
+      );
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'oc-switch',
+        profileId: 'default',
+        modelMode: 'provider/free',
+      );
+      await sync.lastCompleteSendFuture;
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'oc-default',
+        profileId: 'default',
+        modelMode: 'default',
+      );
+      await sync.lastCompleteSendFuture;
+      expect(spawns, isEmpty);
+      expect(selections.read(sessionId), isNull);
+      expect(http.capturedLocalIds, ['oc-switch', 'oc-default']);
+      expect(http.capturedRecords.map((r) => (r['meta'] as Map)['model']), [
+        'provider/free',
+        null,
+      ]);
+      // Late echoes may arrive newest first and be repeated. Replace only
+      // their matching localIds; identical text is not message identity.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final echoes = <Map<String, dynamic>>[
+        for (final (localId, seq) in [('oc-default', 2), ('oc-switch', 1)])
+          {
+            'id': 'srv-$seq',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': now,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'continue',
+          },
+      ];
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      final rows = sync.testSessionMessages(sessionId)!;
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row['localId']).toSet(), {
+        'oc-switch',
+        'oc-default',
+      });
+      expect(rows.every((row) => row['id'] != row['localId']), isTrue);
+    },
+  );
+
+  test(
     'Prime Agent model pick is delivered without replacing the process',
     () async {
       // Model selection must not restart a running Prime conversation.
@@ -1257,6 +1386,7 @@ void main() {
 
 class _TrackingInterceptor extends Interceptor {
   final List<String> capturedLocalIds = [];
+  final List<Map<String, dynamic>> capturedRecords = [];
   int _seqCounter = 1;
 
   @override
@@ -1271,6 +1401,12 @@ class _TrackingInterceptor extends Interceptor {
       final localId = _extractLocalId(options.data);
       if (localId != null) {
         capturedLocalIds.add(localId);
+        final data = options.data as Map<String, dynamic>;
+        final payload = (data['messages'] as List).first as Map;
+        final bytes = base64Decode(payload['content'] as String);
+        capturedRecords.add(
+          jsonDecode(utf8.decode(bytes.sublist(1))) as Map<String, dynamic>,
+        );
       }
       final seq = _seqCounter++;
       handler.resolve(

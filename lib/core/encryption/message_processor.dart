@@ -9,6 +9,7 @@ import 'dart:convert' show jsonDecode;
 
 import '../utils/grok_acp_normalize.dart';
 import '../utils/har_acp_normalize.dart';
+import '../utils/opencode_acp_normalize.dart';
 import '../utils/task_label.dart';
 import '../utils/utf16_sanitizer.dart';
 import '../wire/wire_parsers.dart';

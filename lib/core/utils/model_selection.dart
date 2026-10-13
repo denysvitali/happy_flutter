@@ -36,7 +36,19 @@ String? primeAgentModelSelection(String? model, String? effort) =>
     : '$model:$effort';
 
 /// Build the same configuration metadata for send, failed prep, and Retry.
-Map<String, dynamic> messageModelMetadata(String? modelMode, String? flavor) {
+Map<String, dynamic> messageModelMetadata(
+  String? modelMode,
+  String? flavor, {
+  Iterable<String>? opencodeModels,
+}) {
+  if (flavor == 'opencode') {
+    return {
+      'model':
+          modelMode != 'default' && opencodeModels?.contains(modelMode) == true
+          ? modelMode
+          : null,
+    };
+  }
   if (flavor == 'prime-agent') {
     final selection = splitPrimeAgentModelSelection(modelMode);
     return {'model': selection.model, 'reasoning_effort': selection.effort};

@@ -209,6 +209,9 @@ class _GroupedModelPickerContentState
     widget.settings?.customModelModes ?? const [],
   );
 
+  bool get _allowsCustomModels =>
+      !widget.models.any((model) => model.flavor == 'opencode');
+
   String? get _firstSlug {
     for (final model in widget.models) {
       if (model.modelSlug != null) return model.modelSlug;
@@ -315,7 +318,7 @@ class _GroupedModelPickerContentState
                 widget.onChanged,
                 labelOverride: model.hasEffort
                     ? model.reasoningEffortLabel
-                    : model.flavor == 'prime-agent'
+                    : const {'prime-agent', 'opencode'}.contains(model.flavor)
                     ? 'Current'
                     : 'Auto',
               ),
@@ -335,7 +338,7 @@ class _GroupedModelPickerContentState
               _buildCustomModelTile(context, model, theme),
           ],
           Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-          _buildCustomTile(context, cs, theme),
+          if (_allowsCustomModels) _buildCustomTile(context, cs, theme),
           if (onFavoriteChanged != null)
             FavoriteModelPicker(
               models: widget.models,
@@ -407,7 +410,7 @@ class _GroupedModelPickerContentState
       for (final model in models)
         model.hasEffort
             ? model.reasoningEffortLabel
-            : model.flavor == 'prime-agent'
+            : const {'prime-agent', 'opencode'}.contains(model.flavor)
             ? 'Current'
             : 'Auto',
     ];
@@ -466,6 +469,7 @@ class _GroupedModelPickerContentState
   }
 
   List<ChatModelMode> get _recentCustomModels {
+    if (!_allowsCustomModels) return const [];
     return _customModels
         .map((slug) => ChatModelMode.custom(slug: slug))
         .toList();

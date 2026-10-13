@@ -160,10 +160,11 @@ extension SyncSendTargetResolution on Sync {
         'prime-agent';
     final restorePrime =
         isPrimeAgentSession && _processScopedSessionStopped(sessionId, session);
+    final isOpenCodeSession = session.metadata?.flavor == 'opencode';
     final configurationChanged =
         !isPrimeAgentSession &&
         (profileChanged ||
-            modelChanged ||
+            (!isOpenCodeSession && modelChanged) ||
             codexSpeedChanged ||
             pendingSelection != null);
     // Running Prime applies model changes through meta.model, never respawn.

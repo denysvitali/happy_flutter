@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../core/models/favorite_model.dart';
+import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -71,6 +72,7 @@ ModelSelectionResolution resolveModelSelection({
   required List<AIBackendProfile> builtInProfiles,
   required String? lastUsedModelMode,
   Map<String, String> favoriteModelsByProfile = const {},
+  List<PrimeAgentModelInfo>? opencodeModels,
   String? syncedSessionPermissionMode,
   String? lastUsedPermissionMode,
 }) {
@@ -141,6 +143,24 @@ ModelSelectionResolution resolveModelSelection({
       }
     }
     if (selectedProfile == null) hadGhostProfileReference = true;
+  }
+
+  if (flavor == 'opencode') {
+    final catalog = ChatModelMode.fromOpenCodeCatalog(
+      opencodeModels ?? const [],
+    );
+    final model =
+        catalog.where((m) => m.modeString == sessionModelMode).firstOrNull ??
+        ChatModelMode.defaultModel;
+    return ModelSelectionResolution(
+      resolvedPermissionMode: permissionMode,
+      shouldPersistPermissionMode: shouldPersistPermissionMode,
+      resolvedModelMode: model,
+      resolvedRawModelString: model.modeString,
+      resolvedProfile: selectedProfile,
+      availableProfiles: availableProfiles,
+      hadGhostProfileReference: hadGhostProfileReference,
+    );
   }
 
   String? rawModelModeString;
