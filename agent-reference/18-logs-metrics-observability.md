@@ -101,6 +101,12 @@ Discover the exported metric spelling before querying it.
 
 These signals require the updated app/CLI to be running on the reporting device
 and owning host. A successful build does not establish that runtime acceptance.
+Updating Flutter alone does not replace the owning host's Happy bridge or an
+existing session process. CLI snapshots identify their source commit in
+`cli_version` (for example, `0.0.0-next+abcdef1`); legacy constant
+`v0.0.0-next` cannot distinguish installed builds. Compare the running bridge's
+capability/revision with the intended source and inspect the daemon's managed
+update status. Missing capability alone is not proof of an older executable.
 
 ### Server-side Loki
 
