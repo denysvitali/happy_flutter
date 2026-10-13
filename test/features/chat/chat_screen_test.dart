@@ -2317,6 +2317,17 @@ void main() {
   });
 
   group('ChatScreen in-conversation search', () {
+    Future<void> disposeScrollbackFixture(WidgetTester tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      // Disposal and Return to latest can arm new cache-save timers. Clear
+      // this synthetic session before the widget test checks timer cleanup;
+      // awaiting a worker started on the fake clock from runAsync can stall.
+      sync.testClearSessionMessageState('session_1');
+      MessageCacheService().clearMessages('session_1');
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(sync.testHasPendingSaveTimer('session_1'), isFalse);
+    }
+
     // Drives the real app-bar toggle and query field so a regression in the
     // wiring (search action missing, index not rebuilt, counter wrong,
     // highlight not applied) fails here rather than in a manual check.
@@ -2533,11 +2544,7 @@ void main() {
           1,
           reason: 'anchor restore must not auto-walk more pages',
         );
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump(const Duration(milliseconds: 600));
-        await tester.runAsync(() async {
-          await sync.testFlushPendingMessageSaves();
-        });
+        await disposeScrollbackFixture(tester);
       },
     );
 
@@ -2607,6 +2614,7 @@ void main() {
       final rows = sync.messagesForSession('session_1');
       expect(rows.length, lessThanOrEqualTo(cap));
       expect(rows.last['id'], 'gap-${3 * cap}');
+      await disposeScrollbackFixture(tester);
     });
 
     testWidgets('distant search matches enter the reverse-list viewport', (
