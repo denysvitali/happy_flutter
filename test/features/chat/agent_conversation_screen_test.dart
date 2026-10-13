@@ -8,9 +8,12 @@ import 'package:happy_flutter/core/services/sidechain_grouper.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tool_result_processor.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
+import 'package:happy_flutter/core/widgets/app_circular_progress_indicator.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
+import 'package:happy_flutter/features/chat/code_block_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view_widgets.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 import 'package:happy_flutter/features/chat/widgets/task_event_summary_card.dart';
 
@@ -135,6 +138,132 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets(
+    'running native Prime replay receives later sibling-scoped steps',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final native = nativePrimeAgentEnvelopes();
+      final envelopes = native.take(2).toList();
+      List<Map<String, dynamic>> project() {
+        final parsed = processDecryptedMessages(
+          decryptedJsonList: envelopes,
+          wireMessages: [
+            for (var i = 0; i < envelopes.length; i++)
+              {'id': 'live-prime-$i', 'seq': i + 1, 'createdAt': 1000 + i},
+          ],
+          sessionId: 'session_1',
+        );
+        expect(parsed.droppedReasons, isEmpty);
+        final grouped = SidechainGrouper().groupMessages(parsed.messages);
+        expect(grouped?.hasOrphans ?? false, isFalse);
+        return ToolResultProcessor()
+            .applyToolResults(
+              grouped?.messages ?? parsed.messages,
+              parsed.toolResults,
+            )
+            .messages;
+      }
+
+      final initial = project();
+      sync.testSetSessionMessages('session_1', initial);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: AgentConversationScreen(
+              sessionId: 'session_1',
+              messageId: 'prime-agent:sub-alpha',
+              taskData: initial.first,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final emptySpinner = find.byWidgetPredicate(
+        (widget) =>
+            widget is Center && widget.child is AppCircularProgressIndicator,
+      );
+      expect(emptySpinner, findsOneWidget);
+      expect(find.byType(ToolView), findsNothing);
+
+      // First the running screen receives thinking and an in-flight tool.
+      envelopes.addAll(native.skip(2).take(2));
+      sync
+        ..testSetSessionMessages('session_1', project())
+        ..testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(emptySpinner, findsNothing);
+      expect(find.byType(ToolView), findsOneWidget);
+      expect(
+        tester.widget<ToolView>(find.byType(ToolView)).tool['state'],
+        'running',
+      );
+
+      // Results and remaining sibling steps arrive while the anchors run.
+      // Apply terminal anchor results in the final stage below.
+      envelopes
+        ..clear()
+        ..addAll(
+          native.where((envelope) {
+            final data = envelope['content']['data'] as Map<String, dynamic>;
+            return data['type'] != 'tool-result' || data['isSidechain'] == true;
+          }),
+        );
+      sync
+        ..testSetSessionMessages('session_1', project())
+        ..testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(emptySpinner, findsNothing);
+      expect(find.text('No messages yet'), findsNothing);
+      expect(find.text('Observed ALPHA=17'), findsOneWidget);
+      expect(find.textContaining('BETA=29'), findsNothing);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(AgentConversationScreen)),
+      );
+      expect(find.text(l10n.chatThinking), findsOneWidget);
+      expect(find.byType(ToolView), findsOneWidget);
+      final tool = tester.widget<ToolView>(find.byType(ToolView)).tool;
+      expect(tool['wireInput'] ?? tool['input'], {'code': "print('ALPHA=17')"});
+      expect(tool['state'], 'completed');
+      expect(tool['result'], 'ALPHA=17');
+      await tester.tap(
+        find.descendant(
+          of: find.byType(ToolView),
+          matching: find.byType(ToolHeader),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(CodeBlockWidget), findsOneWidget);
+      expect(
+        tester.widget<CodeBlockWidget>(find.byType(CodeBlockWidget)).code,
+        "print('ALPHA=17')",
+      );
+      expect(find.text('ALPHA=17'), findsOneWidget);
+      expect(find.textContaining('BETA=29'), findsNothing);
+
+      envelopes
+        ..clear()
+        ..addAll(native);
+      sync
+        ..testSetSessionMessages('session_1', project())
+        ..testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('gpt-6-luna · completed'), findsOneWidget);
+      expect(find.text(l10n.chatThinking), findsNothing);
+      expect(find.text('Observed ALPHA=17'), findsOneWidget);
+      expect(find.textContaining('BETA=29'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Prime ACP child model is visible after parsing and grouping', (
     tester,

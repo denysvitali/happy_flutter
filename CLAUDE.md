@@ -63,6 +63,8 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   `agentMetadata` on calls, any child text/thinking, and terminal results;
   each present map replaces the previous snapshot, including `{}` to clear it.
   Child models and permissions never inherit parent defaults.
+  happy-cli-go reads native child transcripts from Prime's existing daemon;
+  group their linked sidechain steps under the corresponding Agent anchor.
   Prime context usage comes from the daemon's timestamped `context_size` and
   `context_window` snapshot, separate from cumulative billing counters. Null
   clears unknown values; zero occupancy is valid. Wire sequence orders snapshots

@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
+import 'package:happy_flutter/core/services/sidechain_grouper.dart';
+import 'package:happy_flutter/core/services/tool_result_processor.dart';
+
+import '../fixtures/prime_agent_captured_envelopes.dart';
 
 void main() {
   group('happy-cli-go cross-repo contract', () {
@@ -187,6 +191,92 @@ void main() {
         contains('TestSpawnEnv_AnthropicBaseURLNotInheritedFromDaemonEnv'),
       );
     });
+    test('native Prime daemon child fixture reaches sibling conversations', () {
+      final cliRoot = _cliRoot();
+      if (cliRoot == null) {
+        _skipOrFail(_missingCliMessage);
+        return;
+      }
+      final goFiles = _requireGoFiles(cliRoot, [
+        'internal/remote/primeagent/testdata/subagents-native-happy.jsonl',
+      ]);
+      if (goFiles == null) return;
+      final envelopes = const LineSplitter()
+          .convert(goFiles.single)
+          .where((line) => line.trim().isNotEmpty)
+          .map((line) => jsonDecode(line) as Map<String, dynamic>)
+          .toList();
+      expect(
+        envelopes,
+        nativePrimeAgentEnvelopes(),
+        reason: 'Browser-safe native replay must match Go producer evidence',
+      );
+      final parsed = processDecryptedMessages(
+        decryptedJsonList: envelopes,
+        wireMessages: [
+          for (var i = 0; i < envelopes.length; i++)
+            {'id': 'native-prime-$i', 'seq': i + 1, 'createdAt': 1000 + i},
+        ],
+        sessionId: 'native-prime-session',
+      );
+      expect(parsed.droppedReasons, isEmpty);
+      final grouped = SidechainGrouper().groupMessages(parsed.messages)!;
+      expect(grouped.hasOrphans, isFalse);
+      final updated = ToolResultProcessor().applyToolResults(
+        grouped.messages,
+        parsed.toolResults,
+      );
+      final anchors = updated.messages.where((row) => row['name'] == 'Agent');
+      expect(
+        anchors.map((row) => row['agentId']),
+        unorderedEquals(['sub-alpha', 'sub-beta']),
+      );
+      expect(updated.messages, hasLength(3));
+      expect(updated.messages.last['content'], 'ALPHA=17 and BETA=29');
+      expect(
+        updated.messages.any((row) => row['isSidechain'] == true),
+        isFalse,
+      );
+      for (final anchor in anchors) {
+        final children = (anchor['children'] as List)
+            .cast<Map<String, dynamic>>();
+        expect(anchor['state'], 'completed');
+        expect(children, hasLength(3));
+        for (final child in children) {
+          expect(child['isSidechain'], isTrue);
+          expect(child['parentToolUseId'], anchor['toolUseId']);
+          expect(child['agentId'], anchor['agentId']);
+        }
+      }
+      final children = anchors
+          .expand(
+            (anchor) =>
+                (anchor['children'] as List).cast<Map<String, dynamic>>(),
+          )
+          .toList();
+      expect(children.any((row) => row['isThinking'] == true), isTrue);
+      for (final thinking in children.where(
+        (row) => row['isThinking'] == true,
+      )) {
+        expect(thinking['content'], contains('Read the requested file.'));
+      }
+      final tools = children.where((row) => row['kind'] == 'tool-call');
+      expect(tools, isNotEmpty);
+      for (final tool in tools) {
+        expect(tool['state'], 'completed');
+        expect(tool['result'], isNotNull);
+        expect(updated.matchedIds, contains(tool['toolUseId']));
+        final raw = tool['raw'] as Map<String, dynamic>;
+        final originalInput = raw['content']['data']['input'];
+        expect((originalInput as Map).keys, unorderedEquals(['code']));
+        final output = tool['agentId'] == 'sub-alpha' ? 'ALPHA=17' : 'BETA=29';
+        expect(originalInput, {'code': "print('$output')"});
+        expect(raw['content']['data']['wireInput'], originalInput);
+        expect(tool['wireInput'] ?? tool['input'], originalInput);
+        expect(tool['result'], output);
+      }
+    });
+
     test('canonical message fixtures round-trip through Flutter processor', () {
       final cliRoot = _cliRoot();
       if (cliRoot == null) {

@@ -85,6 +85,8 @@ navigation and a return to the review list. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
 Prime Agent session badges and the new-session picker use the official
 Prime Intellect bird logo bundled with the app.
+Prime Agent child views display text, thinking, Python cells, and results
+forwarded by happy-cli-go from Prime's native daemon.
 Prime Agent’s `Python cell` calls start collapsed with a description or first
 source line and a one-line output preview, including when completed tools are
 grouped. Each cell expands independently to syntax-highlighted source and

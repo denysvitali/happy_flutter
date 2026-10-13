@@ -340,7 +340,7 @@ jobs:
         with:
           repository: denysvitali/happy-cli-go
           token: ${{ secrets.HAPPY_CLI_GO_READ_TOKEN }}
-          ref: 307b8f8ae95bc92da8d84088546908f673423587
+          ref: ccb2963eb92b42c8205f4f705e1fe51a7f43b044
           path: .contract/happy-cli-go
           persist-credentials: false
 

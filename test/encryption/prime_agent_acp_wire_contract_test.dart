@@ -95,6 +95,102 @@ void main() {
   });
 
   test(
+    'interleaved Prime steps stay with their sibling and retain wire input',
+    () {
+      Map<String, dynamic> child(String id, Map<String, dynamic> body) => {
+        ...body,
+        'isSidechain': true,
+        'parentToolUseId': 'prime-agent:$id',
+        'agentId': id,
+      };
+      final parsed = _process([
+        for (final id in ['alpha', 'beta'])
+          {
+            'type': 'tool-call',
+            'callId': 'prime-agent:$id',
+            'name': 'Agent',
+            'agentId': id,
+            'input': {'description': id, 'subagent_type': 'prime-agent'},
+          },
+        child('alpha', {'type': 'message', 'message': 'Alpha first step'}),
+        child('beta', {'type': 'message', 'message': 'Beta first step'}),
+        child('alpha', {'type': 'thinking', 'text': 'Alpha inspects source'}),
+        child('beta', {
+          'type': 'tool-call',
+          'callId': 'prime-agent:beta:read',
+          'name': 'Read',
+          'input': {'path': 'beta.dart', 'limit': 10},
+        }),
+        child('alpha', {
+          'type': 'tool-call',
+          'callId': 'prime-agent:alpha:read',
+          'name': 'Read',
+          'input': {'path': 'alpha.dart', 'limit': 5},
+        }),
+        child('alpha', {
+          'type': 'tool-result',
+          'callId': 'prime-agent:alpha:read',
+          'result': 'Alpha source contents',
+        }),
+        child('beta', {
+          'type': 'tool-result',
+          'callId': 'prime-agent:beta:read',
+          'result': 'Beta source contents',
+        }),
+        child('alpha', {'type': 'message', 'message': 'Alpha final step'}),
+        {'type': 'message', 'message': 'Parent answer'},
+      ]);
+      expect(parsed.droppedReasons, isEmpty);
+      final grouped = SidechainGrouper().groupMessages(parsed.messages)!;
+      expect(grouped.hasOrphans, isFalse);
+      final updated = ToolResultProcessor().applyToolResults(
+        grouped.messages,
+        parsed.toolResults,
+      );
+      expect(updated.matchedIds, {
+        'prime-agent:alpha:read',
+        'prime-agent:beta:read',
+      });
+      expect(updated.messages, hasLength(3));
+      expect(updated.messages.last['content'], 'Parent answer');
+      expect(
+        updated.messages.any((row) => row['isSidechain'] == true),
+        isFalse,
+      );
+      for (final id in ['alpha', 'beta']) {
+        final anchor = updated.messages.singleWhere(
+          (row) => row['toolUseId'] == 'prime-agent:$id',
+        );
+        final children = (anchor['children'] as List)
+            .cast<Map<String, dynamic>>();
+        expect(children, hasLength(id == 'alpha' ? 4 : 2));
+        for (final row in children) {
+          expect(row['agentId'], id);
+          expect(row['parentToolUseId'], 'prime-agent:$id');
+          expect(row['isSidechain'], isTrue);
+        }
+        final tool = children.singleWhere((row) => row['kind'] == 'tool-call');
+        final wireInput = {'path': '$id.dart', 'limit': id == 'alpha' ? 5 : 10};
+        expect(tool['wireInput'], wireInput);
+        expect(tool['input']['file_path'], '$id.dart');
+        expect(tool['wireInput'].containsKey('file_path'), isFalse);
+        expect(tool['state'], 'completed');
+        expect(
+          tool['result'],
+          id == 'alpha' ? 'Alpha source contents' : 'Beta source contents',
+        );
+        if (id == 'alpha') {
+          final thinking = children.singleWhere(
+            (row) => row['isThinking'] == true,
+          );
+          expect(thinking['content'], contains('Alpha inspects source'));
+          expect(children.last['content'], 'Alpha final step');
+        }
+      }
+    },
+  );
+
+  test(
     'Prime children group under Agent and result clears replace metadata',
     () {
       final parsed = _process([
