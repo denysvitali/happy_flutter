@@ -1133,6 +1133,20 @@ extension SyncMessaging on Sync {
             };
             _groupSidechainMessages(sessionId, changedIds: changedIds);
           }
+          if (_sessions[sessionId]?.metadata?.flavor == 'prime-agent') {
+            SyncMessagePipeline._sidechainDiagnostics.recordGrouping(
+              sessionId: sessionId,
+              runtimeGeneration: runtimeGeneration,
+              source: 'http',
+              incoming: pageMessages,
+              resident: _sessionMessages[sessionId] ?? const [],
+              metadata: _sessions[sessionId]?.metadata,
+              groupingApplied: pageHasSidechain && isStillVisible,
+              hasUnloadedHistoryGap:
+                  _userScrollback?.sessionId == sessionId &&
+                  _userScrollback?.gapBeforeSeq != null,
+            );
+          }
 
           // ── Apply tool results + usage ──
           // Replay against newly resident calls before fresh unmatched
@@ -1888,6 +1902,19 @@ extension SyncMessaging on Sync {
       }
       _groupSidechainMessages(sessionId);
       _applyPermissionRequests(sessionId);
+      if (_sessions[sessionId]?.metadata?.flavor == 'prime-agent') {
+        SyncMessagePipeline._sidechainDiagnostics.recordGrouping(
+          sessionId: sessionId,
+          runtimeGeneration: runtimeGeneration,
+          source: 'http',
+          incoming: processed.messages,
+          resident: _sessionMessages[sessionId] ?? const [],
+          metadata: _sessions[sessionId]?.metadata,
+          hasUnloadedHistoryGap:
+              _userScrollback?.sessionId == sessionId &&
+              _userScrollback?.gapBeforeSeq != null,
+        );
+      }
 
       // Move the lower boundary back. "Covered by a request" and "resident
       // in memory" are different things once the newest-N trim can discard

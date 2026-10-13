@@ -7,6 +7,8 @@ part of '../sync_service.dart';
 const String _encryptionMissingReason = 'encryptionMissing';
 
 extension SyncMessagePipeline on Sync {
+  static final _sidechainDiagnostics = SidechainDiagnostics();
+
   String _newTraceId(String sessionId, String suffix) {
     final randomSuffix = Random()
         .nextInt(1 << 16)
@@ -577,6 +579,13 @@ extension SyncMessagePipeline on Sync {
           mutationRowCount >=
           ProcessedMessageBundle.postDecryptMutationYieldRows;
 
+      if (_sessions[sessionId]?.metadata?.flavor == 'prime-agent') {
+        _sidechainDiagnostics.recordIngress(
+          source: _sourceName(normalized.source),
+          incoming: processed.messages,
+          metadata: _sessions[sessionId]?.metadata,
+        );
+      }
       if (!applyMutations) {
         _logPipelineStage(
           traceId,
@@ -681,6 +690,21 @@ extension SyncMessagePipeline on Sync {
           MessagePipelineStage.grouped,
           'ok',
           const <String, dynamic>{},
+        );
+      }
+
+      if (_sessions[sessionId]?.metadata?.flavor == 'prime-agent') {
+        _sidechainDiagnostics.recordGrouping(
+          sessionId: sessionId,
+          runtimeGeneration: generation,
+          source: _sourceName(normalized.source),
+          incoming: processed.messages,
+          resident: _sessionMessages[sessionId] ?? const [],
+          metadata: _sessions[sessionId]?.metadata,
+          groupingApplied: hasSidechain,
+          hasUnloadedHistoryGap:
+              _userScrollback?.sessionId == sessionId &&
+              _userScrollback?.gapBeforeSeq != null,
         );
       }
 

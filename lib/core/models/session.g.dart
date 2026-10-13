@@ -28,6 +28,12 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   primeAgentEfforts: _primeAgentModelsFromJson(json['primeagentEfforts']),
   reasoningEffort: _asApiStringNullable(json['reasoningEffort']),
   primeAgentSessionFile: _asApiStringNullable(json['primeAgentSessionFile']),
+  primeAgentChildStepsVersion: _asApiIntNullable(
+    json['primeAgentChildStepsVersion'],
+  ),
+  primeAgentChildStepsRevision: _asApiStringNullable(
+    json['primeAgentChildStepsRevision'],
+  ),
   codexFastMode: _asApiBoolNullable(json['codexFastMode']),
   lifecycleState: _asApiStringNullable(json['lifecycleState']),
   lifecycleStateError: _asApiStringNullable(json['lifecycleStateError']),
@@ -74,6 +80,8 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'primeagentEfforts': _primeAgentModelsToJson(instance.primeAgentEfforts),
   'reasoningEffort': instance.reasoningEffort,
   'primeAgentSessionFile': instance.primeAgentSessionFile,
+  'primeAgentChildStepsVersion': instance.primeAgentChildStepsVersion,
+  'primeAgentChildStepsRevision': instance.primeAgentChildStepsRevision,
   'codexFastMode': instance.codexFastMode,
   'lifecycleState': instance.lifecycleState,
   'lifecycleStateError': instance.lifecycleStateError,

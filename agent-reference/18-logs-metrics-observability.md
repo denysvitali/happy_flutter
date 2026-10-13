@@ -69,6 +69,39 @@ histogram_quantile(0.95, sum(rate(app_fetch_messages_seconds_bucket[5m])) by (le
 
 Use for **fatal** bugs and issue triage — see the *Production Issues / GlitchTip* section above for the `mcp__glitchtip__` invocation recipe (organization `default`, project `happy_flutter`).
 
+### Agent child steps
+
+Flutter emits bounded INFO `[sidechain]` JSON records with `stage=grouping` or
+`stage=child_screen`. Match `session_id` and the selected `tool_use_id` to the
+CLI's child-step records; these identifiers are log/trace fields, never metric
+labels. Records include resident/grouped/flat unmatched counts and any reported
+`child_steps_version` / `child_steps_revision`. Missing capability metadata is
+unknown, including on older working bridges. `resident_only` and `truncated`
+prevent a bounded snapshot from being mistaken for complete history.
+
+Jaeger operations are `app.sidechain.grouping`, `app.sidechain.child_screen`,
+and `prime_agent.child_steps.poll` on the CLI. Native polls report finite stage
+and reason codes for read failures and skipped work, plus roster, transcript,
+forwarded, duplicate, and deferred counts. Look at those operation spans rather
+than interpreting an agent lifetime span as spawn latency.
+
+Prometheus exports CLI counters `happy_prime_agent_child_polls_total` and
+`happy_prime_agent_child_steps_total`. Flutter records
+`app.sidechain.incoming_linked_rows`, `app.sidechain.ingress_truncated`,
+`app.sidechain.grouping_reports`, and `app.sidechain.child_screen_reports`.
+Incoming rows count ingestion occurrences, including repeated fetches; reports
+count emitted diagnostic snapshots. They are not a durable message balance.
+CLI forwarded counts mean durable queue admission, rather than a server ACK.
+Discover the exported metric spelling before querying it.
+
+```logql
+{service_name="happy-flutter"} |= "[sidechain]" |= "<session-id>"
+{service_name="happy-agent"} |= "child_steps" |= "<session-id>"
+```
+
+These signals require the updated app/CLI to be running on the reporting device
+and owning host. A successful build does not establish that runtime acceptance.
+
 ### Server-side Loki
 
 The Rust daemon and Go server are also indexed in Loki:

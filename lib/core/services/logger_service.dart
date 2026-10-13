@@ -152,9 +152,25 @@ class LoggerService {
     dynamic error,
     StackTrace? stackTrace,
     bool reportToSentry = true,
+  }) => _log(
+    message,
+    level: level,
+    error: error,
+    stackTrace: stackTrace,
+    reportToSentry: reportToSentry,
+  );
+
+  void _log(
+    String message, {
+    LogLevel level = LogLevel.info,
+    dynamic error,
+    StackTrace? stackTrace,
+    bool reportToSentry = true,
+    bool operationalInfo = false,
   }) {
     // Level / mode gate — bail before doing any allocation work.
-    if (!shouldLog(level)) {
+    if (!shouldLog(level) &&
+        !(operationalInfo && level.index >= _minLevel.index)) {
       return;
     }
 
@@ -170,7 +186,9 @@ class LoggerService {
         !release || _developerModeEnabled || level == LogLevel.error;
     final shouldWriteConsole = kDebugMode || (release && _developerModeEnabled);
     final shouldForward =
-        shouldBufferAndNotify || level.index >= LogLevel.warning.index;
+        shouldBufferAndNotify ||
+        level.index >= LogLevel.warning.index ||
+        operationalInfo;
 
     // If nothing downstream will consume this entry, skip allocation entirely.
     if (!shouldBufferAndNotify && !shouldWriteConsole && !shouldForward) {
@@ -593,6 +611,17 @@ class LoggerService {
   /// Log an info message
   void info(String message, [dynamic error, StackTrace? stackTrace]) {
     log(message, level: LogLevel.info, error: error, stackTrace: stackTrace);
+  }
+
+  /// Export a bounded operational INFO record even without developer mode.
+  /// Callers own metadata privacy and rate limiting. Minimum level and local
+  /// visibility remain unchanged; this opt-in path never forwards to Sentry.
+  void infoTelemetry(String message) {
+    if (LogLevel.info.index < _minLevel.index) return;
+    final bounded = message.length > 4096
+        ? '${message.substring(0, 4093)}...'
+        : message;
+    _log(bounded, operationalInfo: true, reportToSentry: false);
   }
 
   /// Log a warning message

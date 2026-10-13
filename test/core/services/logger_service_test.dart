@@ -361,6 +361,52 @@ void main() {
       expect(testLogger.count, equals(0));
     });
 
+    test('operational INFO opts into release OTel export only', () {
+      final sentryBefore = testLogger.debugSentryEmitCount;
+      testLogger
+        ..info('ordinary INFO remains filtered')
+        ..infoTelemetry('[sidechain] {"stage":"grouping","linked_rows":0}');
+
+      expect(exportedMessages(), [
+        '[sidechain] {"stage":"grouping","linked_rows":0}',
+      ]);
+      expect(forwarded.single.level, LogLevel.info);
+      expect(testLogger.count, 0);
+      expect(testLogger.debugSentryEmitCount, sentryBefore);
+      expect(testLogger.shouldLog(LogLevel.info), isFalse);
+    });
+
+    test('operational INFO is bounded and honors minLevel', () {
+      testLogger.infoTelemetry('x' * 6000);
+      expect(forwarded.single.message.length, lessThanOrEqualTo(4096));
+      forwarded.clear();
+      testLogger.setMinLevel(LogLevel.warning);
+      addTearDown(() => testLogger.setMinLevel(LogLevel.debug));
+      testLogger.infoTelemetry('[sidechain] filtered by minLevel');
+      expect(exportedMessages(), isEmpty);
+      expect(testLogger.count, 0);
+    });
+
+    test('operational INFO does not change warning and error forwarding', () {
+      testLogger
+        ..infoTelemetry('[sidechain] expected empty child')
+        ..warningLocal('expected transport warning')
+        ..error('failure signal');
+      expect(exportedMessages(), [
+        '[sidechain] expected empty child',
+        'expected transport warning',
+        'failure signal',
+      ]);
+      expect(forwarded.map((entry) => entry.level), [
+        LogLevel.info,
+        LogLevel.warning,
+        LogLevel.error,
+      ]);
+      expect(testLogger.getLogs().map((entry) => entry.level), [
+        LogLevel.error,
+      ]);
+    });
+
     test('shouldLog admits warnings but not info in a release build', () {
       expect(testLogger.shouldLog(LogLevel.debug), isFalse);
       expect(testLogger.shouldLog(LogLevel.info), isFalse);

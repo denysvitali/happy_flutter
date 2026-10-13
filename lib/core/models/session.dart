@@ -236,6 +236,9 @@ abstract class Metadata with _$Metadata {
     List<PrimeAgentModelInfo>? primeAgentEfforts,
     @JsonKey(fromJson: _asApiStringNullable) String? reasoningEffort,
     @JsonKey(fromJson: _asApiStringNullable) String? primeAgentSessionFile,
+    @JsonKey(fromJson: _asApiIntNullable) int? primeAgentChildStepsVersion,
+    @JsonKey(fromJson: _asApiStringNullable)
+    String? primeAgentChildStepsRevision,
     @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,

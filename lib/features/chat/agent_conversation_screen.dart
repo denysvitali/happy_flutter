@@ -9,6 +9,7 @@ import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/repositories/workflows_repository.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/sidechain_diagnostics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_text.dart';
@@ -70,6 +71,7 @@ class _AgentConversationScreenState
   StreamSubscription<String>? _workflowSubscription;
   Map<String, dynamic>? _taskMsg;
   int _prevChildFingerprint = 0;
+  final _sidechainDiagnostics = SidechainDiagnostics();
   // A Workflow tool call's inner transcript never reaches the session
   // message stream (the daemon keeps it in wf_<runId>.json), so the grouped
   // `children` only ever carry transient task_* events. When we detect a
@@ -116,6 +118,7 @@ class _AgentConversationScreenState
     final messages = sync.sessionMessages[widget.sessionId] ?? [];
     final found = _findMessageById(messages, widget.messageId);
     if (found == null) {
+      _recordSidechainDiagnostics(messages, _taskMsg);
       final taskDataChildren =
           WireParsers.asList(widget.taskData?['children'])?.length ?? 0;
       logger.debug(
@@ -135,7 +138,38 @@ class _AgentConversationScreenState
       _runFetchAttempted = false;
     }
     _applyUpdate(found);
+    _recordSidechainDiagnostics(messages, _taskMsg);
     _loadRun();
+  }
+
+  void _recordSidechainDiagnostics(
+    List<Map<String, dynamic>> messages,
+    Map<String, dynamic>? selected,
+  ) {
+    final metadata = sync.sessionsView[widget.sessionId]?.metadata;
+    if (metadata?.flavor != 'prime-agent') return;
+    final rawChildren = WireParsers.asList(selected?['children']);
+    final children =
+        rawChildren
+            ?.take(SidechainSnapshot.maxRows)
+            .whereType<Map<String, dynamic>>()
+            .toList() ??
+        const <Map<String, dynamic>>[];
+    _sidechainDiagnostics.recordScreen(
+      sessionId: widget.sessionId,
+      selectedMessageId: widget.messageId,
+      resident: messages,
+      selected: selected,
+      renderedChildren: buildAgentDisplayChildren(
+        children,
+        selected?['state'] == 'running',
+      ).length,
+      renderedChildrenTruncated:
+          (rawChildren?.length ?? 0) > SidechainSnapshot.maxRows,
+      metadata: metadata,
+      hasUnloadedHistoryGap:
+          sync.scrollbackGapBeforeMessageId(widget.sessionId) != null,
+    );
   }
 
   String? _resolveRunId(Map<String, dynamic>? msg) {
@@ -314,6 +348,7 @@ class _AgentConversationScreenState
 
   @override
   void dispose() {
+    _sidechainDiagnostics.dispose();
     _messageSubscription?.cancel();
     _workflowSubscription?.cancel();
     _scroll.dispose();

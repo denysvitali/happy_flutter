@@ -87,6 +87,11 @@ Prime Agent session badges and the new-session picker use the official
 Prime Intellect bird logo bundled with the app.
 Prime Agent child views display text, thinking, Python cells, and results
 forwarded by happy-cli-go from Prime's native daemon.
+Bounded sidechain diagnostics correlate incoming linked rows, grouped children,
+unmatched links, and empty child screens across Loki, Jaeger, and Prometheus.
+They include the reported CLI bridge revision when available and exclude
+conversation text and tool payloads. Older sessions without that metadata
+report an unknown capability. Screen counts describe the resident window.
 Prime Agent’s `Python cell` calls start collapsed with a description or first
 source line and a one-line output preview, including when completed tools are
 grouped. Each cell expands independently to syntax-highlighted source and

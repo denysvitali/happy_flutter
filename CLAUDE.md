@@ -70,6 +70,9 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   clears unknown values; zero occupancy is valid. Wire sequence orders snapshots
   across equal timestamps and clock changes; legacy usage uses timestamp order.
   Hide stale context after a model/provider change. Unknown capacity has no gauge.
+  Child-step diagnostics expose bounded resident/grouping counts and reported
+  bridge capability/revision. Missing capability is unknown. Logs/traces carry
+  correlation IDs; metric labels never contain IDs, text, paths, or payloads.
 
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
