@@ -221,7 +221,7 @@ class AppInlineAction extends StatelessWidget {
             Icon(icon, size: dense ? AppIconSize.sm : AppIconSize.md),
             const SizedBox(width: AppSpacing.xxs),
           ],
-          Text(label),
+          Flexible(child: Text(label)),
         ],
       ),
     );
