@@ -47,7 +47,7 @@ void main() {
           'reasoningEffort': 'high',
           'effectiveSandbox': 'read-only',
         },
-        'children': [
+        'children': <Map<String, dynamic>>[
           {
             'agentMetadata': {
               'model': 'gpt-6-luna',

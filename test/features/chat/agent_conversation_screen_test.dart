@@ -203,7 +203,7 @@ void main() {
     await tester.tap(find.text('Agent details'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
-    expect(find.text('Not reported'), findsNWidgets(2));
+    expect(find.text('Not reported'), findsNWidgets(4));
     expect(tester.takeException(), isNull);
   });
 
