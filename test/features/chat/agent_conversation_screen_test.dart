@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/services/sidechain_grouper.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/services/tool_result_processor.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
+import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 import 'package:happy_flutter/features/chat/widgets/task_event_summary_card.dart';
+
+import '../../fixtures/prime_agent_captured_envelopes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +35,176 @@ void main() {
   tearDown(() async {
     sync.testSetSessionMessages('session_1', const []);
     await TtsService().dispose();
+  });
+
+  testWidgets('captured Prime replay shows two named Luna agent cards', (
+    tester,
+  ) async {
+    final envelopes = capturedPrimeAgentEnvelopes();
+    final parsed = processDecryptedMessages(
+      decryptedJsonList: envelopes,
+      wireMessages: [
+        for (var i = 0; i < envelopes.length; i++)
+          {'id': 'captured-$i', 'seq': i + 1, 'createdAt': 1000 + i},
+      ],
+      sessionId: 'session_1',
+    );
+    expect(parsed.droppedReasons, isEmpty);
+    expect(parsed.messages, hasLength(2));
+    expect(parsed.toolResults, hasLength(2));
+    final running =
+        SidechainGrouper().groupMessages(parsed.messages)?.messages ??
+        parsed.messages;
+    final completed = ToolResultProcessor().applyToolResults(
+      running,
+      parsed.toolResults,
+    );
+    expect(completed.matchedIds, {
+      'prime-agent:sub-alpha',
+      'prime-agent:sub-beta',
+    });
+    for (final settled in [false, true]) {
+      final messages = settled ? completed.messages : running;
+      expect(messages, hasLength(2));
+      expect(
+        messages.map((message) => message['state']),
+        everyElement(settled ? 'completed' : 'running'),
+      );
+      if (settled) {
+        for (final message in messages) {
+          expect(message['result']['rawStatus'], 'done');
+          expect(message['result']['status'], 'completed');
+        }
+      }
+      sync.testSetSessionMessages('session_1', messages);
+      final projection = AgentsListSheet.computeProjection('session_1');
+      expect(projection.progress.total, 2);
+      expect(projection.progress.running, settled ? 0 : 2);
+      expect(projection.progress.completed, settled ? 2 : 0);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AgentsListSheet(
+              sessionId: 'session_1',
+              initialProjection: projection,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('alpha_reader'), findsOneWidget);
+      expect(find.text('beta_reader'), findsOneWidget);
+      expect(find.text('gpt-6-luna'), findsNWidgets(2));
+      expect(find.text('prime-agent'), findsNWidgets(2));
+      expect(find.text('Model not reported'), findsNothing);
+      expect(
+        tester
+            .widgetList<ToolStatusIndicator>(find.byType(ToolStatusIndicator))
+            .map((indicator) => indicator.state),
+        List.filled(2, settled ? ToolState.completed : ToolState.running),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Column(
+                children: [
+                  for (final message in messages) ToolView(tool: message),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(ToolView), findsNWidgets(2));
+      for (final nickname in ['alpha_reader', 'beta_reader']) {
+        expect(
+          find.ancestor(
+            of: find.textContaining(nickname, findRichText: true),
+            matching: find.byType(ToolView),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('Prime ACP child model is visible after parsing and grouping', (
+    tester,
+  ) async {
+    final bodies = <Map<String, dynamic>>[
+      {
+        'type': 'tool-call',
+        'callId': 'prime-child',
+        'name': 'Agent',
+        'status': 'completed',
+        'input': {
+          'subagent_type': 'prime-agent',
+          'description': 'Inspect module',
+        },
+      },
+      {
+        'type': 'message',
+        'message': 'Found module',
+        'isSidechain': true,
+        'parentToolUseId': 'prime-child',
+        'agentId': 'prime-child',
+        'agentMetadata': {
+          'model': 'gpt-6-luna',
+          'provider': 'openai-codex',
+          'source': 'acp',
+        },
+      },
+    ];
+    final parsed = processDecryptedMessages(
+      decryptedJsonList: [
+        for (final body in bodies)
+          {
+            'role': 'agent',
+            'content': {'type': 'acp', 'data': body},
+            'meta': {'model': 'parent-model'},
+          },
+      ],
+      wireMessages: [
+        for (var i = 0; i < bodies.length; i++)
+          {'id': 'prime-$i', 'seq': i + 1, 'createdAt': 1000 + i},
+      ],
+      sessionId: 'session_1',
+    );
+    final messages = SidechainGrouper()
+        .groupMessages(parsed.messages)!
+        .messages;
+    final anchor = messages.single;
+    sync.testSetSessionMessages('session_1', messages);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AgentConversationScreen(
+            sessionId: 'session_1',
+            messageId: 'prime-child',
+            taskData: anchor,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('gpt-6-luna · completed'), findsOneWidget);
+    expect(find.text('Found module'), findsOneWidget);
+    expect(find.textContaining('parent-model'), findsNothing);
+    await tester.tap(find.text('Agent details'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Not reported'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('native metadata arrives after anchor and updates details', (

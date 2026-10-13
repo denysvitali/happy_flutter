@@ -108,7 +108,8 @@ Map<String, dynamic> buildAgentTaskEventProjection(
     'input': <String, dynamic>{
       ...?anchorInput,
       ...?WireParsers.asMap(synthetic['input']),
-      if (details.isNativeCodex) 'subagent_type': 'codex',
+      if (details.isNativeCodex)
+        'subagent_type': anchorInput?['subagent_type'] ?? 'codex',
       'agentMetadata': agent.agentMetadata ?? details.metadata,
     },
   };

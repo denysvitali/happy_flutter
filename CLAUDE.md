@@ -59,6 +59,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   back to the dead process. Legacy sessions without a saved transcript need
   a new conversation. Stale permissions remain expired. New sessions do not
   inherit the global last-used model.
+  Native Prime children use ACP `Agent` anchors. Preserve reported
+  `agentMetadata` on calls, any child text/thinking, and terminal results;
+  each present map replaces the previous snapshot, including `{}` to clear it.
+  Child models and permissions never inherit parent defaults.
 
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool

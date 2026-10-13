@@ -11,6 +11,7 @@ class AgentPresentation {
     this.metadataObservedAt,
   });
 
+  /// Legacy name for native child metadata behavior, also used by Prime Agent.
   final bool isNativeCodex;
   final Map<String, dynamic> metadata;
   final String? model;
@@ -47,7 +48,8 @@ class AgentPresentation {
   static AgentPresentation fromMessage(Map<String, dynamic>? message) {
     final input = WireParsers.asMap(message?['input']);
     final type = _text(input?['subagent_type']);
-    final isNative = type == 'codex' || type == 'codex-agent';
+    final isNative =
+        type == 'codex' || type == 'codex-agent' || type == 'prime-agent';
     final metadata = <String, dynamic>{};
     num? observedAt;
     void snapshot(dynamic value, {dynamic timestamp}) {

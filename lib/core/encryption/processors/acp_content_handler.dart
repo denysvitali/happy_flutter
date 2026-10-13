@@ -24,6 +24,7 @@ void _processAcpContent({
   final meta = _sidechainMeta(data);
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
+  final agentMetadata = WireParsers.asMap(data['agentMetadata']);
 
   if (dataType == DataType.message ||
       dataType == DataType.reasoning ||
@@ -47,6 +48,7 @@ void _processAcpContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?agentMetadata,
     });
     return;
   }
@@ -69,6 +71,7 @@ void _processAcpContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?agentMetadata,
     });
     return;
   }
@@ -136,6 +139,7 @@ void _processAcpContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?agentMetadata,
     });
     return;
   }
@@ -160,12 +164,16 @@ void _processAcpContent({
         normalized['isError'] = true;
       }
     }
+    final previousCount = toolResults.length;
     _addToolResultEnvelope(
       data: normalized,
       createdAt: createdAt,
       toolResults: toolResults,
       meta: meta,
     );
+    if (toolResults.length > previousCount && agentMetadata != null) {
+      toolResults.last['agentMetadata'] = agentMetadata;
+    }
     return;
   }
 
@@ -194,6 +202,7 @@ void _processAcpContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?agentMetadata,
     });
     return;
   }
@@ -241,6 +250,7 @@ void _processAcpContent({
           'parentUuid': ?meta.parentUuid,
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
+          'agentMetadata': ?agentMetadata,
         });
         return;
       }
@@ -263,6 +273,7 @@ void _processAcpContent({
         'parentUuid': ?meta.parentUuid,
         'parentToolUseId': ?parentToolUseId,
         'agentId': ?agentId,
+        'agentMetadata': ?agentMetadata,
       });
       return;
     }

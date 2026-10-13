@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/agent_presentation.dart';
+import 'package:happy_flutter/features/chat/agent_task_projection.dart';
 import 'package:happy_flutter/features/chat/tools/known_tools.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/widgets/agent_conversation_info.dart';
@@ -21,6 +22,59 @@ Map<String, dynamic> _native({
 };
 
 void main() {
+  test('Prime task projection preserves its native anchor identity', () {
+    final projected = buildAgentTaskEventProjection(
+      AgentTaskEventProjection(agentId: 'prime-child'),
+      {
+        'input': {'subagent_type': 'prime-agent'},
+        'agentMetadata': {'model': 'gpt-6-luna'},
+      },
+    );
+    expect(projected['input']['subagent_type'], 'prime-agent');
+    expect(AgentPresentation.fromMessage(projected).model, 'gpt-6-luna');
+  });
+
+  test(
+    'Prime child snapshots replace configuration without parent defaults',
+    () {
+      final anchor = <String, dynamic>{
+        'name': 'Agent',
+        'model': 'parent-model',
+        'metadata': {'model': 'parent-model'},
+        'input': {'subagent_type': 'prime-agent', 'model': 'parent-model'},
+        'agentMetadata': {
+          'model': 'gpt-6-luna',
+          'reasoningEffort': 'high',
+          'effectiveSandbox': 'read-only',
+        },
+        'children': [
+          {
+            'agentMetadata': {
+              'model': 'gpt-6-luna',
+              'provider': 'openai-codex',
+            },
+          },
+        ],
+      };
+      final reported = AgentPresentation.fromMessage(anchor);
+      expect(reported.model, 'gpt-6-luna');
+      expect(reported.parentModel, isNull);
+      expect(reported.effort, isNull);
+      expect(reported.sandboxLabel, 'Not reported');
+      expect(reported.approvalLabel, 'Not reported');
+      anchor['children'].add({'agentMetadata': <String, dynamic>{}});
+      final cleared = AgentPresentation.fromMessage(anchor);
+      expect(cleared.model, isNull);
+      expect(cleared.parentModel, isNull);
+      expect(cleared.metadata, isEmpty);
+      anchor.remove('agentMetadata');
+      anchor['children'] = <Map<String, dynamic>>[];
+      final unknown = AgentPresentation.fromMessage(anchor);
+      expect(unknown.model, isNull);
+      expect(unknown.parentModel, isNull);
+    },
+  );
+
   for (final name in ['Agent', 'Task']) {
     testWidgets('$name chat row updates name and type at 320px', (
       tester,
