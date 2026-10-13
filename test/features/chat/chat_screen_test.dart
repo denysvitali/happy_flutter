@@ -378,7 +378,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Prime Agent conversation stopped'), findsNothing);
-      expect(find.text('New session'), findsNothing);
+      expect(
+        find.text('Start session'),
+        state == 'errored' ? findsOneWidget : findsNothing,
+      );
       expect(
         tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
         isFalse,
@@ -387,6 +390,46 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
     });
   }
+
+  testWidgets('failed saved Prime restore offers a new session and retry', (
+    tester,
+  ) async {
+    sync.isInitialized = true;
+    sync.messagesSync['session_1'] = InvalidateSync(() async {});
+    sync.testSetSessionMessages('session_1', const []);
+    sync.testSessions['session_1'] = _makeSession(flavor: 'prime-agent')
+        .copyWith(
+          lifecycleStateCleartext: 'errored',
+          metadata: const Metadata(
+            host: '',
+            flavor: 'prime-agent',
+            machineId: 'machine-1',
+            path: '/work/repo',
+            primeAgentSessionFile: 'conversation.jsonl',
+            lifecycleStateError: 'ACP request failed (code -32603)',
+          ),
+        );
+    await tester.pumpWidget(
+      _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    final banner = tester.widget<SessionIssueBanner>(
+      find.byType(SessionIssueBanner),
+    );
+    expect(banner.issue.title, 'Prime Agent could not resume');
+    expect(banner.issue.message, contains('saved conversation'));
+    expect(banner.issue.message, contains('Retry'));
+    expect(banner.actionLabel, 'Start session');
+    expect(banner.issue.blocksSend, isFalse);
+    expect(find.textContaining('ACP request failed'), findsNothing);
+    expect(
+      tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+      isFalse,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+  });
 
   testWidgets('stopped Har explains daemon loss without exposing diagnostics', (
     tester,

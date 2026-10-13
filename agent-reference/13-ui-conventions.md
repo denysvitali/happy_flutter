@@ -1,5 +1,9 @@
 ## UI Conventions
 
+Warning panels pair `warningContainer` with `onWarningContainer` for readable
+text and actions in both themes. Reserve `onWarning` for solid `warning`
+surfaces. Session issue banners wrap long diagnostics at larger text sizes.
+
 Generic chat Agent/Task rows show the reported child nickname and role using
 the same metadata resolution as agent details. Missing names retain the tool
 label; missing roles retain the supplied subagent type. Step counts and run
@@ -50,7 +54,10 @@ the retained history. Failed sends have a 44px retry target. Stopped Har chats
 and Prime Agent chats without a saved transcript offer
 an explicit new-session action. Transcript-backed Prime chats resume on Send
 or Retry only after the daemon confirms restore; failed sends retain their
-original identity.
+original identity. Failed saved Prime restores also offer a new-session
+action while keeping Send and Retry available for the original transcript.
+Long plain agent notices retain a two-line preview and expand to selectable,
+complete text so recovery instructions remain readable.
 New-session worktree/backend controls live under Advanced options. Recent
 workspaces select only a path on the chosen machine, not an agent or model.
 Mobile approvals and Composer options stay outside the scrolling model lane.

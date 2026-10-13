@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'chat_app_bar.dart' show SendIssue;
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky banner shown above the chat input when the session has a
 /// lifecycle error (e.g. the local agent process is gone, or the
@@ -40,14 +40,18 @@ class SessionIssueBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final appCs =
+        theme.extension<AppColorScheme>() ??
+        (theme.brightness == Brightness.dark
+            ? AppColorScheme.dark()
+            : AppColorScheme.light());
     final containerColor = issue.blocksSend
         ? cs.errorContainer
         : appCs.warningContainer;
     final borderColor = issue.blocksSend ? cs.error : appCs.warning;
     final foregroundColor = issue.blocksSend
         ? cs.onErrorContainer
-        : appCs.onWarning;
+        : appCs.onWarningContainer;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -101,6 +105,9 @@ class SessionIssueBanner extends StatelessWidget {
                     if (actionLabel != null && onAction != null)
                       TextButton(
                         onPressed: onAction,
+                        style: TextButton.styleFrom(
+                          foregroundColor: foregroundColor,
+                        ),
                         child: Text(actionLabel!),
                       ),
                   ],

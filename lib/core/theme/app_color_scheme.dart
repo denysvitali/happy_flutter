@@ -12,6 +12,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     required this.warning,
     required this.onWarning,
     required this.warningContainer,
+    required this.onWarningContainer,
     required this.info,
     required this.onInfo,
     required this.infoContainer,
@@ -66,6 +67,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       warning: AppColors.warning,
       onWarning: Color(0xFF3D2500),
       warningContainer: Color(0xFFFFE7C2),
+      onWarningContainer: Color(0xFF3D2500),
       info: AppColors.info,
       onInfo: Color(0xFF3B2A00),
       infoContainer: Color(0xFFFFEDBF),
@@ -103,6 +105,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       warning: AppColors.warning,
       onWarning: Color(0xFF432C00),
       warningContainer: Color(0xFF5A3B00),
+      onWarningContainer: Color(0xFFFFE7C2),
       info: AppColors.info,
       onInfo: Color(0xFF432F00),
       infoContainer: Color(0xFF5B4100),
@@ -136,8 +139,13 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
   final Color onSuccess;
   final Color successContainer;
   final Color warning;
+
+  /// Foreground for the solid [warning] color.
   final Color onWarning;
   final Color warningContainer;
+
+  /// Foreground for [warningContainer], including tinted warning panels.
+  final Color onWarningContainer;
   final Color info;
   final Color onInfo;
   final Color infoContainer;
@@ -185,6 +193,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     Color? warning,
     Color? onWarning,
     Color? warningContainer,
+    Color? onWarningContainer,
     Color? info,
     Color? onInfo,
     Color? infoContainer,
@@ -215,6 +224,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       warning: warning ?? this.warning,
       onWarning: onWarning ?? this.onWarning,
       warningContainer: warningContainer ?? this.warningContainer,
+      onWarningContainer: onWarningContainer ?? this.onWarningContainer,
       info: info ?? this.info,
       onInfo: onInfo ?? this.onInfo,
       infoContainer: infoContainer ?? this.infoContainer,
@@ -260,6 +270,9 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       warningContainer:
           Color.lerp(warningContainer, other.warningContainer, t) ??
           warningContainer,
+      onWarningContainer:
+          Color.lerp(onWarningContainer, other.onWarningContainer, t) ??
+          onWarningContainer,
       info: Color.lerp(info, other.info, t) ?? info,
       onInfo: Color.lerp(onInfo, other.onInfo, t) ?? onInfo,
       infoContainer:

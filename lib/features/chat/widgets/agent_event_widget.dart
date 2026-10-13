@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
+import '../../../core/components/app_inline_row.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
 import '../tools/known_tools.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Renders a centered system-style label for agent lifecycle events.
 ///
@@ -246,16 +248,25 @@ class AgentEventWidget extends StatelessWidget {
       ],
       if (!labelIsPhaseOnly)
         Flexible(
-          child: Text(
-            // Defensive clamp: cached/legacy events can carry a whole
-            // multi-line shell command as their label, which would
-            // otherwise dump a wall of centered text into the timeline.
-            titleText,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: titleStyle,
-            textAlign: TextAlign.start,
-          ),
+          child:
+              subAgentTool == null &&
+                  (eventType == 'message' || eventType == null)
+              ? _ExpandableEventLabel(
+                  key: ValueKey(label),
+                  label: label,
+                  preview: titleText,
+                  style: titleStyle,
+                )
+              : Text(
+                  // Defensive clamp: cached/legacy events can carry a whole
+                  // multi-line shell command as their label, which would
+                  // otherwise dump a wall of centered text into the timeline.
+                  titleText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
+                  textAlign: TextAlign.start,
+                ),
         ),
     ];
     return Padding(
@@ -325,5 +336,72 @@ class AgentEventWidget extends StatelessWidget {
     }
 
     return 'Unsupported agent event';
+  }
+}
+
+/// Keeps notices bounded while retaining the original text for recovery steps.
+class _ExpandableEventLabel extends StatefulWidget {
+  const _ExpandableEventLabel({
+    required this.label,
+    required this.preview,
+    required this.style,
+    super.key,
+  });
+
+  final String label;
+  final String preview;
+  final TextStyle style;
+
+  @override
+  State<_ExpandableEventLabel> createState() => _ExpandableEventLabelState();
+}
+
+class _ExpandableEventLabelState extends State<_ExpandableEventLabel> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.preview, style: widget.style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          locale: Localizations.localeOf(context),
+          maxLines: 2,
+        )..layout(maxWidth: constraints.maxWidth);
+        final needsDetails =
+            widget.preview != widget.label.trim() || painter.didExceedMaxLines;
+        painter.dispose();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_expanded)
+              SelectableText(widget.label, style: widget.style)
+            else
+              Text(
+                widget.preview,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: widget.style,
+                textAlign: TextAlign.start,
+              ),
+            if (needsDetails || _expanded)
+              Semantics(
+                expanded: _expanded,
+                child: AppInlineAction(
+                  label: _expanded
+                      ? context.l10n.toolOutputShowLess
+                      : context.l10n.toolOutputShowMore,
+                  icon: _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: widget.style.color,
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }

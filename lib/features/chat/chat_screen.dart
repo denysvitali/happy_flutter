@@ -1751,6 +1751,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         startNewSession: true,
       );
     }
+    if (session?.metadata?.flavor == 'prime-agent' &&
+        session!.canRestorePrimeAgent &&
+        session.hasLifecycleError) {
+      return const _SessionSendIssue(
+        title: 'Prime Agent could not resume',
+        message:
+            'The saved conversation could not be opened. Send or Retry will '
+            'try to resume it before delivering your message. If it keeps '
+            'failing, start a new Prime Agent session; this conversation '
+            'remains available.',
+        snackBarText: 'Retry to resume the saved conversation.',
+        blocksSend: false,
+        startNewSession: true,
+      );
+    }
     if (session == null || !session.hasLifecycleError) return null;
     final canRestore = session.canAttemptLifecycleRestore;
     final rawError = session.metadata?.lifecycleStateError?.trim();
