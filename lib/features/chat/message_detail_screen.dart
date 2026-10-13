@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/components/app_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -14,18 +16,18 @@ import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
 import '../../core/wire/send_message_arguments.dart';
 import '../../core/wire/wire_parsers.dart';
+import 'tools/codex_exec_result.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
+import 'tools/views/codex_exec_view.dart';
 import 'tools/views/codex_mcp_view.dart';
 import 'tools/views/edit_view.dart';
 import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/send_message_view.dart';
 import 'tools/views/web_search_view.dart';
 import 'tools/views/write_view.dart';
-import 'package:happy_flutter/core/components/app_card.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 const int _largePayloadThreshold = 16 * 1024;
 const int _payloadPageSize = 12 * 1024;
@@ -182,6 +184,7 @@ class _ToolDetailView extends StatelessWidget {
         );
     final execResult =
         (toolName.startsWith('mcp__') || isSshMcpExecuteTool(toolName)) &&
+            !isCodexExecTool(toolName) &&
             !isRunning &&
             !hasLargePayload
         ? McpExecResult.tryParse(result)
@@ -241,6 +244,11 @@ class _ToolDetailView extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _RawPayloadDisclosure(input: input, result: result, state: state),
           ],
+          const SizedBox(height: AppSpacing.md),
+        ] else if (isCodexExecTool(toolName)) ...[
+          CodexExecView(tool: data),
+          const SizedBox(height: AppSpacing.md),
+          _RawPayloadDisclosure(input: input, result: result, state: state),
           const SizedBox(height: AppSpacing.md),
         ] else if (execResult != null) ...[
           // Exec-shaped MCP tools (ssh and friends): terminal card instead of

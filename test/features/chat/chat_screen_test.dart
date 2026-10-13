@@ -1727,6 +1727,58 @@ void main() {
       },
     );
 
+    testWidgets('Codex answers stay inline when tools are grouped', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'read_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'Read',
+          'toolUseId': 'read_1',
+          'state': 'completed',
+          'input': {'file_path': '/test.dart'},
+        },
+        {
+          'id': 'codex_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'mcp__codex__codex_exec',
+          'toolUseId': 'codex_1',
+          'state': 'completed',
+          'input': {'prompt': 'Review the build'},
+          'result': {
+            'elapsed_ms': 54661,
+            'exit_code': 0,
+            'final_message': '**Codex build answer**',
+          },
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = true,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Codex'), findsOneWidget);
+      expect(
+        find.text('Codex build answer', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Read File'), findsNothing);
+      expect(find.text('Review the build'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      sync.testClearSessionMessageState('session_1');
+    });
+
     testWidgets('invisible rows reserve no space between terminal rows', (
       tester,
     ) async {

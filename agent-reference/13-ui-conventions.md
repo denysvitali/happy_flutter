@@ -30,6 +30,9 @@ An idle turn offers a result review sheet with the latest answer, recorded
 changed files/diffs, and command output. File details include previous/next
 navigation and a return to the review list. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
+Codex Exec's `final_message` renders as attributed Markdown outside the
+collapsed prompt/configuration panel and stays visible when tools are grouped.
+Tool Details retains execution metadata and the unchanged raw payload.
 Prime Agent session badges and the new-session picker share `PrimeAgentLogo`:
 the official Prime Intellect bird mark, bundled from
 `https://www.primeintellect.ai/icons/logo-icon.png`. Generated and custom

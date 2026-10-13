@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/text_truncate.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/wire/send_message_arguments.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/agent_presentation.dart';
 import 'package:happy_flutter/features/chat/agent_steps.dart';
 
+import 'codex_exec_result.dart' as codex_exec;
 import 'python_cell_summary.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
@@ -216,6 +218,9 @@ class KnownTools {
     'mcp__codex__codex',
     'mcp__codex__codex-reply',
   };
+
+  /// Codex Exec calls carry an attributed Markdown answer, not shell output.
+  static const Set<String> codexExecToolNames = codex_exec.codexExecToolNames;
 
   /// Registry of known tool definitions.
   static final Map<String, ToolDefinition> tools = {
@@ -866,6 +871,14 @@ class KnownTools {
     // non-minimal (the CodexMcpView body renders the full prompt + config)
     // and surface the first prompt line as the collapsed-header subtitle.
     ...<String, ToolDefinition>{
+      for (final name in codexExecToolNames)
+        name: ToolDefinition(
+          icon: mcpIcon,
+          title: 'Codex Exec',
+          minimal: false,
+          hideDefaultError: true,
+          extractSubtitle: _extractCodexPromptSubtitle,
+        ),
       for (final name in codexMcpToolNames)
         name: ToolDefinition(
           icon: mcpIcon,
@@ -981,18 +994,14 @@ class KnownTools {
     Map<String, dynamic> tool,
     Map<String, dynamic>? _,
   ) {
-    final input = WireParsers.asMap(tool['input']);
-    final prompt = input?['prompt'] as String?;
-    if (prompt == null) return null;
+    final prompt = WireParsers.toolInput(tool)['prompt'];
+    if (prompt is! String) return null;
     final firstLine = prompt
         .split('\n')
         .map((line) => line.trim())
         .firstWhere((line) => line.isNotEmpty, orElse: () => '');
     if (firstLine.isEmpty) return null;
-    const maxLen = 80;
-    return firstLine.length > maxLen
-        ? '${firstLine.substring(0, maxLen)}…'
-        : firstLine;
+    return truncateGraphemes(firstLine, 80);
   }
 
   static String? _extractPatchSubtitle(Map<String, dynamic> tool) {

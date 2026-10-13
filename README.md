@@ -83,6 +83,9 @@ An idle turn offers a result review sheet with the latest answer, recorded
 changed files/diffs, and command output. File details include previous/next
 navigation and a return to the review list. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
+Codex Exec answers render as Markdown in the chat with a Codex label, even
+when completed tools are grouped. Prompt, run metadata, and the original JSON
+remain available in Tool Details.
 Prime Agent session badges and the new-session picker use the official
 Prime Intellect bird logo bundled with the app.
 Prime Agent child views display text, thinking, Python cells, and results

@@ -6,6 +6,7 @@ import 'views/ask_user_question_view.dart';
 import 'views/bash_view.dart';
 import 'views/codex_bash_view.dart';
 import 'views/codex_diff_view.dart';
+import 'views/codex_exec_view.dart';
 import 'views/codex_mcp_view.dart';
 import 'views/codex_patch_view.dart';
 import 'views/edit_view.dart';
@@ -54,6 +55,8 @@ class ToolViewRegistry {
     'execute': (t, m, s) => GeminiExecuteView(tool: t, metadata: m),
     'CodexPatch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
     'CodexDiff': (t, m, s) => CodexDiffView(tool: t, metadata: m),
+    for (final name in KnownTools.codexExecToolNames)
+      name: (t, m, s) => CodexExecView(tool: t, showAnswer: false),
     // Codex MCP session tools — full prompt + config body.
     ...<String, ToolViewBuilder>{
       for (final name in KnownTools.codexMcpToolNames)

@@ -15,6 +15,7 @@ import '../../../core/utils/tool_error_parser.dart';
 import '../../../core/wire/send_message_arguments.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../message_render_signature.dart';
+import 'codex_exec_result.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
@@ -26,6 +27,7 @@ import 'tool_view_helpers.dart';
 import 'tool_view_registry.dart';
 import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
+import 'views/codex_exec_view.dart';
 import 'views/mcp_exec_view.dart';
 import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
@@ -139,6 +141,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   int? _mcpSummarySignature;
   String? _mcpText;
   McpExecResult? _mcpExec;
+  CodexExecResult? _codexExec;
   String? _mcpSummary;
   int? _pythonPreviewSignature;
   String? _pythonPreview;
@@ -529,13 +532,14 @@ class _ToolViewState extends ConsumerState<ToolView>
     final createdAt = widget.tool['createdAt'] as int?;
 
     final knownTool = KnownTools.get(toolName);
+    final isCodexExec = isCodexExecTool(toolName);
     final isSshExec = isSshMcpExecuteTool(toolName);
     final isMCP =
         toolName.startsWith('mcp__') || toolName.contains('__') || isSshExec;
 
     // Determine tool title
     var toolTitle = toolName;
-    if (isSshExec && knownTool != null) {
+    if ((isSshExec || isCodexExec) && knownTool != null) {
       toolTitle = knownTool.title as String;
     } else if (isMCP) {
       toolTitle = _formatMCPTitle(toolName);
@@ -577,8 +581,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     // ("4 items", "29 traces") inline next to the title. Computed once per
     // tool-content change, not per build — see [_mcpSummarySignature].
     if (_mcpSummarySignature != _toolSignature) {
-      _mcpText = isMCP ? mcpToolTextResult(toolResult) : null;
-      _mcpExec = isMCP && _mcpText == null
+      _codexExec = isCodexExec ? CodexExecResult.tryParse(toolResult) : null;
+      _mcpText = isMCP && !isCodexExec ? mcpToolTextResult(toolResult) : null;
+      _mcpExec = isMCP && !isCodexExec && _mcpText == null
           ? McpExecResult.tryParse(toolResult)
           : null;
       _mcpSummary = (_mcpText == null) ? null : mcpResultSummary(_mcpText!);
@@ -586,6 +591,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     }
     final mcpText = isMCP ? _mcpText : null;
     final mcpExec = isMCP && mcpText == null ? _mcpExec : null;
+    if (isCodexExec && _codexExec?.exitCode != null) {
+      status = 'exit ${_codexExec!.exitCode}';
+    }
     if (status == null && subtitle == null) {
       if (mcpText != null) {
         status = _mcpSummary;
@@ -611,7 +619,14 @@ class _ToolViewState extends ConsumerState<ToolView>
       minimal = true;
     }
 
-    final state = parseToolState(toolState);
+    final reportedState = parseToolState(toolState);
+    final state =
+        isCodexExec &&
+            reportedState == ToolState.completed &&
+            _codexExec?.exitCode != null &&
+            _codexExec!.exitCode != 0
+        ? ToolState.error
+        : reportedState;
 
     final typeAccentColor = toolAccentColor(toolName, theme.colorScheme);
 
@@ -727,6 +742,19 @@ class _ToolViewState extends ConsumerState<ToolView>
             onLongPress: headerOnLongPress,
             onOpenDetails: primaryNavigates ? null : widget.onPress,
           ),
+          if (isCodexExec &&
+              _codexExec != null &&
+              state != ToolState.running &&
+              state != ToolState.pending)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: NeutralizeInnerScroll(
+                child: CodexExecAnswerView(result: _codexExec!),
+              ),
+            ),
           // Expanded body: nested panel below the chromeless header.
           if (hasContent)
             AnimatedSize(
