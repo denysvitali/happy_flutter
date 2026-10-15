@@ -1813,15 +1813,17 @@ extension SyncMessagingMerge on Sync {
     // Ensure repeated incoming rows sharing a canonical localId collapse to one,
     // so prompt echoes and retried sends never create duplicate bubbles.
     final seenLocalIds = <String>{};
-    final dedupedMessages = messages.where((message) {
-      final localId = message['localId'];
-      if (localId is String && localId.isNotEmpty) {
-        if (!seenLocalIds.add(localId)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList(growable: false);
+    final dedupedMessages = messages
+        .where((message) {
+          final localId = message['localId'];
+          if (localId is String && localId.isNotEmpty) {
+            if (!seenLocalIds.add(localId)) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .toList(growable: false);
     if (dedupedMessages.length != messages.length) {
       messages = dedupedMessages;
     }
