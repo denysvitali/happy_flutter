@@ -234,7 +234,7 @@ class FileMatchGroup extends StatelessWidget {
                 Text(
                   '$count',
                   style: TextStyle(
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     fontWeight: FontWeight.w600,
                     color: cs.onSurfaceVariant,
                   ),
@@ -300,7 +300,7 @@ class MatchCountPill extends StatelessWidget {
         horizontal: AppSpacing.xsm,
         vertical: 1,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
+      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
     );
   }
 }
