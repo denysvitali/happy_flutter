@@ -78,8 +78,10 @@ class _GrepViewState extends State<GrepView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header row: pattern badge + path chip
-          Row(
+          // Header: pattern badge + path chip, wrapping on narrow screens
+          Wrap(
+            spacing: AppSpacing.xsm,
+            runSpacing: AppSpacing.xsm,
             children: [
               SearchToolBadge(
                 label: 'grep',
@@ -87,10 +89,7 @@ class _GrepViewState extends State<GrepView> {
                 icon: Icons.manage_search,
                 accent: cs.tertiary,
               ),
-              if (path != null && path.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.xsm),
-                SearchPathChip(path: path),
-              ],
+              if (path != null && path.isNotEmpty) SearchPathChip(path: path),
             ],
           ),
 
@@ -105,13 +104,18 @@ class _GrepViewState extends State<GrepView> {
           if (isContentMode && matches.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.smd),
-              child: MatchCountBadge(count: matches.length, colorScheme: cs),
+              child: MatchCountBadge(
+                count: matches.length,
+                label: _summaryLabel(matches.length, groupedMatches.length),
+                colorScheme: cs,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: GroupedMatchList(
                 groupedMatches: groupedMatches,
                 pattern: pattern,
+                searchPath: path,
                 showLineNumbers: showLineNumbers,
                 totalMatches: matches.length,
                 initialLimit: _initialLimit,
@@ -130,6 +134,12 @@ class _GrepViewState extends State<GrepView> {
         ],
       ),
     );
+  }
+
+  String _summaryLabel(int matchCount, int fileCount) {
+    final m = '$matchCount match${matchCount != 1 ? 'es' : ''}';
+    if (fileCount <= 1) return m;
+    return '$m in $fileCount files';
   }
 
   Map<String, List<GrepMatch>> _groupByFile(List<GrepMatch> matches) {

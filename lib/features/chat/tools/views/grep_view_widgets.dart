@@ -52,6 +52,7 @@ class GroupedMatchList extends StatelessWidget {
     required this.showAll,
     required this.onToggleShowAll,
     super.key,
+    this.searchPath,
   });
 
   /// Matches grouped by file path.
@@ -75,9 +76,14 @@ class GroupedMatchList extends StatelessWidget {
   /// Callback to toggle show-all state.
   final VoidCallback onToggleShowAll;
 
+  /// Directory the search was scoped to; file headers are shown relative
+  /// to it.
+  final String? searchPath;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final highlighter = MatchHighlighter(pattern);
 
     final allEntries = groupedMatches.entries.toList();
 
@@ -96,41 +102,38 @@ class GroupedMatchList extends StatelessWidget {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ...visibleEntries.map((entry) {
-          return FileMatchGroup(
+        for (final entry in visibleEntries)
+          FileMatchGroup(
             filePath: entry.key,
             matches: entry.value,
-            pattern: pattern,
+            totalInFile: groupedMatches[entry.key]?.length,
+            highlighter: highlighter,
             showLineNumbers: showLineNumbers,
             colorScheme: cs,
-          );
-        }),
+            searchPath: searchPath,
+          ),
         if (totalMatches > initialLimit)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xsm),
-            child: GestureDetector(
-              onTap: onToggleShowAll,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    showAll ? Icons.expand_less : Icons.expand_more,
-                    size: AppIconSize.md,
-                    color: cs.tertiary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    showAll ? 'Show less' : 'Show all $totalMatches matches',
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      color: cs.tertiary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onToggleShowAll,
+              style: TextButton.styleFrom(
+                foregroundColor: cs.tertiary,
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(
+                  fontSize: AppFontSize.sm,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              icon: Icon(
+                showAll ? Icons.expand_less : Icons.expand_more,
+                size: AppIconSize.md,
+              ),
+              label: Text(
+                showAll ? 'Show less' : 'Show all $totalMatches matches',
               ),
             ),
           ),
@@ -139,26 +142,32 @@ class GroupedMatchList extends StatelessWidget {
   }
 }
 
-/// A group of matches for a single file.
+/// A group of matches for a single file: a header strip followed by
+/// compact code lines with a line-number gutter.
 class FileMatchGroup extends StatelessWidget {
   /// Creates a [FileMatchGroup].
   const FileMatchGroup({
     required this.filePath,
     required this.matches,
-    required this.pattern,
+    required this.highlighter,
     required this.showLineNumbers,
     required this.colorScheme,
     super.key,
+    this.totalInFile,
+    this.searchPath,
   });
 
   /// The file path.
   final String filePath;
 
-  /// Matches within this file.
+  /// Matches within this file that are visible.
   final List<GrepMatch> matches;
 
-  /// The search pattern for highlighting.
-  final String pattern;
+  /// Total matches in the file, when more than [matches] exist.
+  final int? totalInFile;
+
+  /// Highlights pattern occurrences in each line.
+  final MatchHighlighter highlighter;
 
   /// Whether to show line numbers.
   final bool showLineNumbers;
@@ -166,95 +175,107 @@ class FileMatchGroup extends StatelessWidget {
   /// The current color scheme.
   final ColorScheme colorScheme;
 
+  /// Directory the search was scoped to.
+  final String? searchPath;
+
   @override
   Widget build(BuildContext context) {
     final cs = colorScheme;
-    final displayFile = filePath.split('/').lastOrNull ?? filePath;
-    final parentDir = _parentDir(filePath);
+    final relative = relativeMatchPath(filePath, searchPath);
+    final slash = relative.lastIndexOf('/');
+    final displayFile = slash >= 0 ? relative.substring(slash + 1) : relative;
+    final parentDir = slash > 0 ? relative.substring(0, slash) : '';
+    final showGutter = showLineNumbers || matches.any((m) => m.lineNumber > 0);
+    final maxLine = matches.fold<int>(
+      0,
+      (acc, m) => m.lineNumber > acc ? m.lineNumber : acc,
+    );
+    final gutterWidth = '$maxLine'.length * 7.5 + AppSpacing.sm;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.smd),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           // File header
-          Row(
-            children: [
-              Icon(
-                Icons.insert_drive_file_outlined,
-                size: AppIconSize.sm,
-                color: cs.secondary,
-              ),
-              const SizedBox(width: AppSpacing.xxs2),
-              Flexible(
-                child: Text(
-                  displayFile,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppFontSize.sm,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurface,
-                    fontFamily: 'monospace',
-                    fontFamilyFallback: const ['Courier New', 'Courier'],
-                  ),
-                ),
-              ),
-              if (parentDir.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  child: Text(
-                    parentDir,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      color: cs.onSurfaceVariant,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(width: AppSpacing.xsm),
-              MatchCountPill(count: matches.length, cs: cs),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          // Match rows
           Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.xsm),
+            color: cs.surfaceContainerHigh,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.smd,
+              vertical: AppSpacing.xsm,
             ),
-            child: ClipRRect(
-              clipBehavior: Clip.hardEdge,
-              borderRadius: BorderRadius.circular(AppRadius.xsm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (int i = 0; i < matches.length; i++)
-                    GrepMatchRow(
-                      match: matches[i],
-                      pattern: pattern,
-                      showLineNumbers: showLineNumbers,
-                      isLast: i == matches.length - 1,
-                      colorScheme: cs,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: AppIconSize.sm,
+                  color: cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.xsm),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: displayFile,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        if (parentDir.isNotEmpty)
+                          TextSpan(
+                            text: '  $parentDir',
+                            style: TextStyle(color: cs.onSurfaceVariant),
+                          ),
+                      ],
                     ),
-                ],
-              ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: AppFontSize.sm),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                MatchCountPill(count: totalInFile ?? matches.length, cs: cs),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final match in matches)
+                  GrepMatchRow(
+                    match: match,
+                    highlighter: highlighter,
+                    gutterWidth: showGutter ? gutterWidth : null,
+                    colorScheme: cs,
+                  ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  String _parentDir(String path) {
-    final segments = path.split('/');
-    if (segments.length <= 1) return '';
-    return segments.take(segments.length - 1).join('/');
+/// Returns [filePath] relative to [searchPath] when it lives under it.
+String relativeMatchPath(String filePath, String? searchPath) {
+  if (searchPath == null || searchPath.isEmpty || searchPath == '.') {
+    return filePath;
   }
+  final base = searchPath.endsWith('/') ? searchPath : '$searchPath/';
+  return filePath.startsWith(base) ? filePath.substring(base.length) : filePath;
 }
 
 /// Small pill showing per-file match count.
@@ -275,37 +296,34 @@ class MatchCountPill extends StatelessWidget {
       backgroundColor: cs.secondary.withValues(alpha: 0.12),
       foregroundColor: cs.secondary,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xxs2,
+        horizontal: AppSpacing.xsm,
         vertical: 1,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
+      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
     );
   }
 }
 
-/// A single match line row.
+/// A single match line: right-aligned line number gutter plus the
+/// de-indented, highlighted source line.
 class GrepMatchRow extends StatelessWidget {
   /// Creates a [GrepMatchRow].
   const GrepMatchRow({
     required this.match,
-    required this.pattern,
-    required this.showLineNumbers,
-    required this.isLast,
+    required this.highlighter,
     required this.colorScheme,
     super.key,
+    this.gutterWidth,
   });
 
   /// The match to display.
   final GrepMatch match;
 
-  /// The search pattern for highlighting.
-  final String pattern;
+  /// Highlights pattern occurrences.
+  final MatchHighlighter highlighter;
 
-  /// Whether to show line numbers.
-  final bool showLineNumbers;
-
-  /// Whether this is the last row in its group.
-  final bool isLast;
+  /// Width of the line-number gutter, or null to hide it.
+  final double? gutterWidth;
 
   /// The current color scheme.
   final ColorScheme colorScheme;
@@ -313,53 +331,81 @@ class GrepMatchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = colorScheme;
-    final content = match.content.trimRight();
-
-    return Container(
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.smd,
-          vertical: AppSpacing.xsm,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Line number
-            if (showLineNumbers || match.lineNumber > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm, top: 1),
+    final gutter = gutterWidth;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (gutter != null)
+            SizedBox(
+              width: gutter + AppSpacing.smd,
+              child: Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
                 child: Text(
-                  '${match.lineNumber}',
-                  style: TextStyle(
-                    fontSize: AppFontSize.sm,
-                    fontFamily: 'monospace',
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w500,
+                  match.lineNumber > 0 ? '${match.lineNumber}' : '',
+                  textAlign: TextAlign.right,
+                  style: _codeStyle.copyWith(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.55),
                   ),
                 ),
               ),
-            // Highlighted content
-            Expanded(
+            )
+          else
+            const SizedBox(width: AppSpacing.smd),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.smd),
               child: HighlightedText(
-                content: content,
-                pattern: pattern,
+                content: match.content.trim(),
+                highlighter: highlighter,
                 highlightColor: cs.tertiary,
                 baseColor: cs.onSurface,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+const _codeStyle = TextStyle(
+  fontSize: AppFontSize.sm,
+  fontFamily: 'monospace',
+  fontFamilyFallback: ['Courier New', 'Courier'],
+  height: AppLineHeight.normal,
+);
+
+/// Finds pattern occurrences in a line. Treats the pattern as a
+/// case-insensitive regular expression (grep semantics) and falls back to a
+/// literal search when it does not compile.
+class MatchHighlighter {
+  /// Creates a [MatchHighlighter] for [pattern].
+  MatchHighlighter(this.pattern) : _regex = _compile(pattern);
+
+  /// The raw search pattern.
+  final String pattern;
+
+  final RegExp? _regex;
+
+  static RegExp? _compile(String pattern) {
+    if (pattern.isEmpty) return null;
+    try {
+      return RegExp(pattern, caseSensitive: false);
+    } on FormatException {
+      return RegExp(RegExp.escape(pattern), caseSensitive: false);
+    }
+  }
+
+  /// Non-empty `[start, end)` ranges of matches in [content].
+  List<(int, int)> ranges(String content) {
+    final regex = _regex;
+    if (regex == null) return const [];
+    return [
+      for (final m in regex.allMatches(content))
+        if (m.end > m.start) (m.start, m.end),
+    ];
   }
 }
 
@@ -368,7 +414,7 @@ class HighlightedText extends StatelessWidget {
   /// Creates a [HighlightedText].
   const HighlightedText({
     required this.content,
-    required this.pattern,
+    required this.highlighter,
     required this.highlightColor,
     required this.baseColor,
     super.key,
@@ -377,8 +423,8 @@ class HighlightedText extends StatelessWidget {
   /// The text content.
   final String content;
 
-  /// The pattern to highlight.
-  final String pattern;
+  /// Locates the ranges to highlight.
+  final MatchHighlighter highlighter;
 
   /// Color for highlighted spans.
   final Color highlightColor;
@@ -388,67 +434,27 @@ class HighlightedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (pattern.isEmpty) {
-      return SelectableText(
-        content,
-        style: TextStyle(
-          fontSize: AppFontSize.sm,
-          fontFamily: 'monospace',
-          color: baseColor,
-        ),
-      );
-    }
+    final base = _codeStyle.copyWith(color: baseColor);
+    final hit = _codeStyle.copyWith(
+      fontWeight: FontWeight.w700,
+      color: highlightColor,
+      backgroundColor: highlightColor.withValues(alpha: 0.15),
+    );
 
     final spans = <TextSpan>[];
-    final lowerContent = content.toLowerCase();
-    final lowerPattern = pattern.toLowerCase();
     var start = 0;
-
-    while (true) {
-      final idx = lowerContent.indexOf(lowerPattern, start);
-      if (idx < 0) {
-        if (start < content.length) {
-          spans.add(
-            TextSpan(
-              text: content.substring(start),
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                fontFamily: 'monospace',
-                color: baseColor,
-              ),
-            ),
-          );
-        }
-        break;
+    for (final (from, to) in highlighter.ranges(content)) {
+      if (from > start) {
+        spans.add(TextSpan(text: content.substring(start, from)));
       }
-      if (idx > start) {
-        spans.add(
-          TextSpan(
-            text: content.substring(start, idx),
-            style: TextStyle(
-              fontSize: AppFontSize.sm,
-              fontFamily: 'monospace',
-              color: baseColor,
-            ),
-          ),
-        );
-      }
-      spans.add(
-        TextSpan(
-          text: content.substring(idx, idx + pattern.length),
-          style: TextStyle(
-            fontSize: AppFontSize.sm,
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w700,
-            color: highlightColor,
-            backgroundColor: highlightColor.withValues(alpha: 0.15),
-          ),
-        ),
-      );
-      start = idx + pattern.length;
+      spans.add(TextSpan(text: content.substring(from, to), style: hit));
+      start = to;
+    }
+    if (start < content.length) {
+      spans.add(TextSpan(text: content.substring(start)));
     }
 
-    return SelectableText.rich(TextSpan(children: spans));
+    return SelectableText.rich(TextSpan(style: base, children: spans));
   }
 }
 

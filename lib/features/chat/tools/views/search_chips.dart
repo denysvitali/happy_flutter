@@ -98,9 +98,10 @@ class SearchPathChip extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
+            constraints: const BoxConstraints(maxWidth: 240),
             child: Text(
-              path,
+              _compactPath(path),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
@@ -113,6 +114,14 @@ class SearchPathChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Keeps the last two segments of a long path (`…/repo/pkg`), since the
+/// tail identifies the search scope better than a shared `/home/...` prefix.
+String _compactPath(String path) {
+  final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+  if (path.length <= 28 || segments.length <= 2) return path;
+  return '…/${segments.sublist(segments.length - 2).join('/')}';
 }
 
 BoxDecoration _chipDecoration(ColorScheme cs) => BoxDecoration(
