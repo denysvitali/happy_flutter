@@ -78,19 +78,18 @@ class _GrepViewState extends State<GrepView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header: pattern badge + path chip, wrapping on narrow screens
-          Wrap(
-            spacing: AppSpacing.xsm,
-            runSpacing: AppSpacing.xsm,
-            children: [
-              SearchToolBadge(
-                label: 'grep',
-                pattern: pattern,
-                icon: Icons.manage_search,
-                accent: cs.tertiary,
-              ),
-              if (path != null && path.isNotEmpty) SearchPathChip(path: path),
-            ],
+          // Header: pattern badge, then a quiet summary + scope line
+          SearchToolBadge(
+            label: 'grep',
+            pattern: pattern,
+            icon: Icons.manage_search,
+            accent: cs.tertiary,
+          ),
+          _SearchSummary(
+            summary: isContentMode && matches.isNotEmpty
+                ? _summaryLabel(matches.length, groupedMatches.length)
+                : null,
+            path: path,
           ),
 
           // Count mode
@@ -104,14 +103,6 @@ class _GrepViewState extends State<GrepView> {
           if (isContentMode && matches.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.smd),
-              child: MatchCountBadge(
-                count: matches.length,
-                label: _summaryLabel(matches.length, groupedMatches.length),
-                colorScheme: cs,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: GroupedMatchList(
                 groupedMatches: groupedMatches,
                 pattern: pattern,
@@ -139,7 +130,7 @@ class _GrepViewState extends State<GrepView> {
   String _summaryLabel(int matchCount, int fileCount) {
     final m = '$matchCount match${matchCount != 1 ? 'es' : ''}';
     if (fileCount <= 1) return m;
-    return '$m in $fileCount files';
+    return '$m · $fileCount files';
   }
 
   Map<String, List<GrepMatch>> _groupByFile(List<GrepMatch> matches) {
@@ -291,6 +282,58 @@ class _GrepViewState extends State<GrepView> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// One muted line under the pattern: match summary and search scope.
+class _SearchSummary extends StatelessWidget {
+  const _SearchSummary({required this.summary, required this.path});
+
+  final String? summary;
+  final String? path;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final scope = path;
+    final hasScope = scope != null && scope.isNotEmpty;
+    if (summary == null && !hasScope) return const SizedBox.shrink();
+    final style = TextStyle(
+      fontSize: AppFontSize.sm,
+      color: cs.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xsm, left: AppSpacing.xxs),
+      child: Row(
+        children: [
+          if (summary != null)
+            Text(
+              summary!,
+              style: style.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.tertiary,
+              ),
+            ),
+          if (summary != null && hasScope) Text('  ·  ', style: style),
+          if (hasScope) ...[
+            Icon(
+              Icons.folder_outlined,
+              size: AppIconSize.xs,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                compactSearchPath(scope),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style.copyWith(fontFamily: 'monospace'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

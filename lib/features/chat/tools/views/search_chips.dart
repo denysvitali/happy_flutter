@@ -100,7 +100,7 @@ class SearchPathChip extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 240),
             child: Text(
-              _compactPath(path),
+              compactSearchPath(path),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -118,7 +118,7 @@ class SearchPathChip extends StatelessWidget {
 
 /// Keeps the last two segments of a long path (`…/repo/pkg`), since the
 /// tail identifies the search scope better than a shared `/home/...` prefix.
-String _compactPath(String path) {
+String compactSearchPath(String path) {
   final segments = path.split('/').where((s) => s.isNotEmpty).toList();
   if (path.length <= 28 || segments.length <= 2) return path;
   return '…/${segments.sublist(segments.length - 2).join('/')}';

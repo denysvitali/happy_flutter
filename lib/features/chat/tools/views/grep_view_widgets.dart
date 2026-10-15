@@ -142,8 +142,8 @@ class GroupedMatchList extends StatelessWidget {
   }
 }
 
-/// A group of matches for a single file: a header strip followed by
-/// compact code lines with a line-number gutter.
+/// A group of matches for a single file: a borderless file header followed
+/// by a tinted code block with a line-number gutter.
 class FileMatchGroup extends StatelessWidget {
   /// Creates a [FileMatchGroup].
   const FileMatchGroup({
@@ -190,35 +190,23 @@ class FileMatchGroup extends StatelessWidget {
       0,
       (acc, m) => m.lineNumber > acc ? m.lineNumber : acc,
     );
-    final gutterWidth = '$maxLine'.length * 7.5 + AppSpacing.sm;
+    final gutterWidth = '$maxLine'.length * 7.5;
+    final count = totalInFile ?? matches.length;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           // File header
-          Container(
-            color: cs.surfaceContainerHigh,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xsm,
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xxs,
+              bottom: AppSpacing.xs,
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.description_outlined,
-                  size: AppIconSize.sm,
-                  color: cs.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.xsm),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
@@ -232,7 +220,7 @@ class FileMatchGroup extends StatelessWidget {
                         ),
                         if (parentDir.isNotEmpty)
                           TextSpan(
-                            text: '  $parentDir',
+                            text: '  $parentDir/',
                             style: TextStyle(color: cs.onSurfaceVariant),
                           ),
                       ],
@@ -243,24 +231,37 @@ class FileMatchGroup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                MatchCountPill(count: totalInFile ?? matches.length, cs: cs),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: AppFontSize.xs,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final match in matches)
-                  GrepMatchRow(
-                    match: match,
-                    highlighter: highlighter,
-                    gutterWidth: showGutter ? gutterWidth : null,
-                    colorScheme: cs,
-                  ),
-              ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final match in matches)
+                    GrepMatchRow(
+                      match: match,
+                      highlighter: highlighter,
+                      gutterWidth: showGutter ? gutterWidth : null,
+                      colorScheme: cs,
+                    ),
+                ],
+              ),
             ),
           ),
         ],
@@ -305,8 +306,9 @@ class MatchCountPill extends StatelessWidget {
 }
 
 /// A single match line: right-aligned line number gutter plus the
-/// de-indented, highlighted source line.
-class GrepMatchRow extends StatelessWidget {
+/// de-indented, highlighted source line. Long lines are clipped to a
+/// snippet around the first hit; tapping expands the full line.
+class GrepMatchRow extends StatefulWidget {
   /// Creates a [GrepMatchRow].
   const GrepMatchRow({
     required this.match,
@@ -329,45 +331,83 @@ class GrepMatchRow extends StatelessWidget {
   final ColorScheme colorScheme;
 
   @override
+  State<GrepMatchRow> createState() => _GrepMatchRowState();
+}
+
+class _GrepMatchRowState extends State<GrepMatchRow> {
+  static const int _collapsedLines = 2;
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final cs = colorScheme;
-    final gutter = gutterWidth;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (gutter != null)
-            SizedBox(
-              width: gutter + AppSpacing.smd,
-              child: Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
+    final cs = widget.colorScheme;
+    final gutter = widget.gutterWidth;
+    final line = widget.match.content.trim();
+    final ranges = widget.highlighter.ranges(line);
+    final snippet = _expanded ? null : matchSnippet(line, ranges);
+
+    return InkWell(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (gutter != null) ...[
+              SizedBox(
+                width: gutter,
                 child: Text(
-                  match.lineNumber > 0 ? '${match.lineNumber}' : '',
+                  widget.match.lineNumber > 0
+                      ? '${widget.match.lineNumber}'
+                      : '',
                   textAlign: TextAlign.right,
                   style: _codeStyle.copyWith(
                     color: cs.onSurfaceVariant.withValues(alpha: 0.55),
                   ),
                 ),
               ),
-            )
-          else
-            const SizedBox(width: AppSpacing.smd),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.smd),
+              const SizedBox(width: AppSpacing.smd),
+            ],
+            Expanded(
               child: HighlightedText(
-                content: match.content.trim(),
-                highlighter: highlighter,
-                highlightColor: cs.tertiary,
-                baseColor: cs.onSurface,
+                content: snippet?.text ?? line,
+                ranges: snippet?.ranges ?? ranges,
+                maxLines: _expanded ? null : _collapsedLines,
+                colorScheme: cs,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// A clipped view of a long line with highlight ranges remapped.
+typedef MatchSnippet = ({String text, List<(int, int)> ranges});
+
+/// Drops the prefix of [line] when its first hit sits deep inside it, so
+/// the collapsed preview opens on the match instead of boilerplate.
+MatchSnippet? matchSnippet(
+  String line,
+  List<(int, int)> ranges, {
+  int lead = 24,
+}) {
+  if (ranges.isEmpty) return null;
+  final first = ranges.first.$1;
+  if (first <= lead * 2) return null;
+  // Start at the next word boundary so the preview never opens mid-token.
+  final space = line.indexOf(' ', first - lead);
+  final cut = space >= 0 && space < first ? space + 1 : first - lead;
+  const prefix = '… ';
+  final shift = prefix.length - cut;
+  return (
+    text: '$prefix${line.substring(cut)}',
+    ranges: [for (final (a, b) in ranges) (a + shift, b + shift)],
+  );
 }
 
 const _codeStyle = TextStyle(
@@ -409,41 +449,42 @@ class MatchHighlighter {
   }
 }
 
-/// Renders text with pattern occurrences highlighted.
+/// Renders a code line with the given ranges highlighted.
 class HighlightedText extends StatelessWidget {
   /// Creates a [HighlightedText].
   const HighlightedText({
     required this.content,
-    required this.highlighter,
-    required this.highlightColor,
-    required this.baseColor,
+    required this.ranges,
+    required this.colorScheme,
     super.key,
+    this.maxLines,
   });
 
   /// The text content.
   final String content;
 
-  /// Locates the ranges to highlight.
-  final MatchHighlighter highlighter;
+  /// `[start, end)` ranges to highlight.
+  final List<(int, int)> ranges;
 
-  /// Color for highlighted spans.
-  final Color highlightColor;
+  /// The current color scheme.
+  final ColorScheme colorScheme;
 
-  /// Color for non-highlighted spans.
-  final Color baseColor;
+  /// Optional line cap; overflow is ellipsized.
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
-    final base = _codeStyle.copyWith(color: baseColor);
-    final hit = _codeStyle.copyWith(
+    final cs = colorScheme;
+    final hit = TextStyle(
       fontWeight: FontWeight.w700,
-      color: highlightColor,
-      backgroundColor: highlightColor.withValues(alpha: 0.15),
+      color: cs.onTertiaryContainer,
+      backgroundColor: cs.tertiaryContainer,
     );
 
     final spans = <TextSpan>[];
     var start = 0;
-    for (final (from, to) in highlighter.ranges(content)) {
+    for (final (from, to) in ranges) {
+      if (from < start || to > content.length) continue;
       if (from > start) {
         spans.add(TextSpan(text: content.substring(start, from)));
       }
@@ -454,7 +495,12 @@ class HighlightedText extends StatelessWidget {
       spans.add(TextSpan(text: content.substring(start)));
     }
 
-    return SelectableText.rich(TextSpan(style: base, children: spans));
+    return Text.rich(
+      TextSpan(children: spans),
+      style: _codeStyle.copyWith(color: cs.onSurface),
+      maxLines: maxLines,
+      overflow: maxLines == null ? null : TextOverflow.ellipsis,
+    );
   }
 }
 
