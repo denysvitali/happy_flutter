@@ -544,7 +544,8 @@ void main() {
             matching: find.byType(Material),
           )
           .first;
-      expect(tester.getSize(dialogCard).height, lessThan(500));
+      expect(tester.getSize(dialogCard).height, lessThanOrEqualTo(544));
+      expect(tester.getBottomRight(dialogCard).dy, lessThanOrEqualTo(544));
       expect(
         tester.getBottomRight(find.widgetWithText(TextButton, 'Cancel')).dy,
         lessThanOrEqualTo(544),

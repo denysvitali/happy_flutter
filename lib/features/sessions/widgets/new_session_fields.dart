@@ -282,7 +282,12 @@ class _AgentOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Semantics(
+      label: label,
+      button: true,
+      selected: selected,
       inMutuallyExclusiveGroup: true,
+      excludeSemantics: true,
+      onTap: onTap,
       child: ChoiceChip(
         label: SizedBox(
           width: double.infinity,
