@@ -1,3 +1,50 @@
+## Qualified private Har startup and send confirmation
+
+Saved startup is qualified only for `happy-private-v1`. Happy now persists
+pre-aggregation streamed chunks and complete output identities in its locked,
+bounded, fsynced private journal, launches Har with `-acp-state-dir`, and loads
+only matching checkpoint identities. A restored admission cursor must equal the
+last settled Happy prompt; Happy history must retain that prompt identity.
+Unresolved admissions, partial streams, missing history, cursor mismatch, or
+unconfirmed output commits block new execution rather than blindly replaying a
+prompt or reviving an old host process.
+
+Flutter lets qualified candidates request same-session daemon startup, then
+requires a fresh same-checkpoint runtime ID published after cursor/history
+reconciliation before posting. Spawn errors, session redirects, and unconfirmed
+startup keep the pending message failed with its stable local ID; no dead-process
+fallback is allowed. Qualification and failure-path regressions are added for CI;
+Flutter tests remain CI-only per repository policy. Recovery continuation
+formatted the lifecycle contract tests and reran analysis: no analyzer errors
+or affected-file warnings, but analysis exits 1 with 369 existing diagnostics
+repository-wide and 83 informational diagnostics across affected files. CI
+execution is still required; these static checks do not verify test behavior.
+
+Remaining gates: live authenticated kill/relaunch qualification, CI restore/send
+tests, and an explicit operator reconciliation workflow for retained partial
+streams and unresolved host/tool effects. Completed-display resend uses stable
+IDs and clears only on server commit; it never settles an unknown admission or
+infers successful continuation. Earlier journal-only rollout notes below are
+historical; unqualified saved sessions remain blocked.
+
+<!-- Har unknown-effect recovery display -->
+Reconciliation recheck: targeted Dart analysis of the production handler and
+regression test exited 0 with three informational lints (no warnings/errors);
+`dart format --output=none --set-exit-if-changed` for both files exited 0,
+with no formatting changes. Tests remain CI-only and were not run locally.
+No Har stopped-session restore or send-to-restored-process gate was enabled:
+Happy's private launcher/outbound-journaling integration is still missing.
+
+Har tool observations with `effect: unknown` now render as errors with an
+explicit inspect-host-state / recovery / reconciliation notice, even if the
+transport reports `completed`. Added an encrypted-message processing regression
+for this contradiction. Production-file Dart analysis reports no issues;
+analysis including the changed test reports three existing informational lints
+(no warnings/errors), and the two-file formatter check passes. Tests were not
+run locally under the CI-only rule. This does not enable stopped Har restore,
+resurrect a process, or claim successful continuation; daemon/output-journaling
+integration and CI/device acceptance remain outstanding.
+
 <!-- Prime Agent durable resume -->
 Prime Agent sessions with a valid saved transcript basename now resume on Send
 or Retry after confirmed same-session daemon restore. Running model changes

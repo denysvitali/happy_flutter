@@ -215,6 +215,38 @@ void main() {
     });
   });
 
+  test('unknown Har effects remain failed observations, not completion', () {
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        {
+          'role': 'agent',
+          'content': {
+            'type': 'acp',
+            'data': {
+              'type': 'tool-result',
+              'callId': 'interrupted-edit',
+              'status': 'completed',
+              'isError': false,
+              'effect': 'unknown',
+              'result': _blocks('partial output'),
+              '_meta': _rootMeta('edit_file'),
+            },
+          },
+        },
+      ],
+      wireMessages: [
+        {'id': 'recovered', 'seq': 1, 'createdAt': 1000},
+      ],
+      sessionId: 'har-session',
+    );
+    expect(result.toolResults.single['isError'], isTrue);
+    expect(result.toolResults.single['result'], contains('Effect unknown'));
+    expect(
+      result.toolResults.single['result'],
+      contains('nothing was replayed'),
+    );
+  });
+
   test('har rows reach tool views with view names and readable results', () {
     final bodies = <Map<String, dynamic>>[
       {

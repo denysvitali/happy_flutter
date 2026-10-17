@@ -30,6 +30,9 @@ extension SyncSendTargetResolution on Sync {
     final flavor = session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId];
     if (flavor != 'prime-agent' && flavor != 'har') return;
     if (!_processScopedSessionStopped(sessionId, session)) return;
+    if (allowPrimeRestore && flavor == 'har' && session.canRestoreHar) {
+      return;
+    }
     if (allowPrimeRestore &&
         flavor == 'prime-agent' &&
         session.canRestorePrimeAgent) {
@@ -158,11 +161,15 @@ extension SyncSendTargetResolution on Sync {
     final isPrimeAgentSession =
         (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) ==
         'prime-agent';
+    final savedAgentName = isHarSession ? 'Har' : 'Prime Agent';
+    // Both saved-agent paths forbid legacy dead-process delivery fallbacks.
     final restorePrime =
-        isPrimeAgentSession && _processScopedSessionStopped(sessionId, session);
+        (isPrimeAgentSession || isHarSession) &&
+        _processScopedSessionStopped(sessionId, session);
     final isOpenCodeSession = session.metadata?.flavor == 'opencode';
     final configurationChanged =
         !isPrimeAgentSession &&
+        !isHarSession &&
         (profileChanged ||
             (!isOpenCodeSession && modelChanged) ||
             codexSpeedChanged ||
@@ -202,12 +209,18 @@ extension SyncSendTargetResolution on Sync {
           'your message has not been sent.',
         );
       }
-      _checkProcessScopedSendTarget(sessionId, session);
-      return (
-        sessionId: sessionId,
-        session: session,
-        sessionEncryption: sessionEncryption,
+      _checkProcessScopedSendTarget(
+        sessionId,
+        session,
+        allowPrimeRestore: true,
       );
+      if (!restorePrime) {
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
     }
     // Persist failed configuration changes for later retry.
     SessionConfigurationSelection? requestedSelection = pendingSelection;
@@ -469,7 +482,7 @@ extension SyncSendTargetResolution on Sync {
         restoreClearedSpawnTracking();
         final errorMsg = result.errorMessage ?? '';
         if (restorePrime) {
-          throw StateError('Could not resume Prime Agent: $errorMsg');
+          throw StateError('Could not resume $savedAgentName: $errorMsg');
         }
         if (configurationChanged) {
           throw StateError(
@@ -537,7 +550,40 @@ extension SyncSendTargetResolution on Sync {
       }
 
       if (restorePrime && restoredSessionId != sessionId) {
-        throw StateError('Prime Agent resume returned a different session');
+        throw StateError('$savedAgentName resume returned a different session');
+      }
+
+      if (isHarSession && restorePrime) {
+        // A spawn RPC acknowledges a wrapper, not a successful ACP load.
+        // Require fresh, same-checkpoint metadata published only after private
+        // cursor reconciliation. Failure never posts to the previous process.
+        final previousRuntime = session.metadata?.harRuntimeId;
+        final savedHar = session.metadata?.harSessionId;
+        var confirmed = false;
+        final deadline = DateTime.now().add(const Duration(seconds: 20));
+        while (DateTime.now().isBefore(deadline)) {
+          final current = await fetchSingleSession(
+            sessionId,
+          ).timeout(const Duration(seconds: 5));
+          checkRuntime();
+          final runtime = current?.metadata?.harRuntimeId;
+          if (current?.canRestoreHar == true &&
+              current?.metadata?.harSessionId == savedHar &&
+              runtime != null &&
+              runtime.isNotEmpty &&
+              runtime != previousRuntime) {
+            confirmed = true;
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          checkRuntime();
+        }
+        if (!confirmed) {
+          throw StateError(
+            'Har checkpoint load was not confirmed; '
+            'your message has not been sent.',
+          );
+        }
       }
 
       await _primeSessionFromSpawnResult(

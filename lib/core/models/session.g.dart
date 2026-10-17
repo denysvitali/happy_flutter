@@ -30,6 +30,12 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   primeAgentEfforts: _primeAgentModelsFromJson(json['primeagentEfforts']),
   reasoningEffort: _asApiStringNullable(json['reasoningEffort']),
   primeAgentSessionFile: _asApiStringNullable(json['primeAgentSessionFile']),
+  harSessionId: _asApiStringNullable(json['harSessionId']),
+  harRuntimeId: _asApiStringNullable(json['harRuntimeId']),
+  harResumeProtocol: _asApiStringNullable(json['harResumeProtocol']),
+  harDurableResumeSupported: _asApiBoolNullable(
+    json['harDurableResumeSupported'],
+  ),
   primeAgentChildStepsVersion: _asApiIntNullable(
     json['primeAgentChildStepsVersion'],
   ),
@@ -84,6 +90,10 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'primeagentEfforts': _primeAgentModelsToJson(instance.primeAgentEfforts),
   'reasoningEffort': instance.reasoningEffort,
   'primeAgentSessionFile': instance.primeAgentSessionFile,
+  'harSessionId': instance.harSessionId,
+  'harRuntimeId': instance.harRuntimeId,
+  'harResumeProtocol': instance.harResumeProtocol,
+  'harDurableResumeSupported': instance.harDurableResumeSupported,
   'primeAgentChildStepsVersion': instance.primeAgentChildStepsVersion,
   'primeAgentChildStepsRevision': instance.primeAgentChildStepsRevision,
   'codexFastMode': instance.codexFastMode,

@@ -1720,7 +1720,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   _SessionSendIssue? get _sessionSendIssue {
     final session = _session;
     if (session?.metadata?.flavor == 'har' &&
-        (session!.hasLifecycleError ||
+        !session!.canRestoreHar &&
+        (session.hasLifecycleError ||
             const {
               'exited',
               'stopped',

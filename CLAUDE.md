@@ -41,8 +41,12 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   installed binary and explicitly disabled Boxy on the local daemon. Lock
   provider/permission controls after launch; model changes use the running
   session's `set_model` RPC while idle, never respawn. Publish the selection
-  and refresh send baselines only after confirmation. Never auto-restore a
-  stopped conversation. Flutter profiles forward only explicit `HAR_PROXY_URL` and
+  and refresh send baselines only after confirmation. A stopped conversation may
+  attempt saved startup only with `happy-private-v1` durable checkpoint metadata;
+  the daemon validates locked private evidence, and sending requires a fresh
+  same-checkpoint runtime confirmation after cursor/history reconciliation.
+  Unqualified or unresolved effects remain blocked, never blindly replayed.
+  Flutter profiles forward only explicit `HAR_PROXY_URL` and
   `HAPPY_HAR_BINARY`; profile environment credentials are not secure-storage
   fields, so `HAR_API_KEY` is not forwarded. Images, provider switching,
   reasoning/speed/context controls and startup resume are unavailable.

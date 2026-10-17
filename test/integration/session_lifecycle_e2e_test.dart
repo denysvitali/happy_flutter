@@ -702,6 +702,135 @@ void main() {
     });
 
     test(
+      'qualified Har sends only after fresh checkpoint confirmation',
+      () async {
+        const sessionId = 'confirmed-har';
+        final seed = _makeSession(
+          sessionId,
+          machineId: 'machine-1',
+          path: '/project',
+          flavor: 'har',
+          lifecycleState: 'errored',
+        );
+        final savedMetadata = seed.metadata!.copyWith(
+          harSessionId: 'checkpoint-1',
+          harRuntimeId: 'old-runtime',
+          harResumeProtocol: 'happy-private-v1',
+          harDurableResumeSupported: true,
+        );
+        sync.testSessions[sessionId] = seed.copyWith(metadata: savedMetadata);
+        var confirmed = false;
+        var sends = 0;
+        sync.testSocketSendOverride = (_, __) {
+          expect(
+            confirmed,
+            isTrue,
+            reason: 'spawn ACK alone cannot release send',
+          );
+          sends++;
+        };
+        sync.testMachineRPCOverride = (_, __, params) async {
+          expect(params['harSessionId'], 'checkpoint-1');
+          expect(sends, 0);
+          return {'type': 'success', 'sessionId': sessionId};
+        };
+        sync.testFetchSingleSessionOverride = (_) async {
+          final ready = _makeSession(
+            sessionId,
+            machineId: 'machine-1',
+            path: '/project',
+            flavor: 'har',
+            lifecycleState: 'ready',
+            presence: 'online',
+          );
+          final snapshot = ready.copyWith(
+            metadata: ready.metadata!.copyWith(
+              harSessionId: 'checkpoint-1',
+              harRuntimeId: 'new-runtime',
+              harResumeProtocol: 'happy-private-v1',
+              harDurableResumeSupported: true,
+            ),
+          );
+          sync.testSessions[sessionId] = snapshot;
+          confirmed = true;
+          return snapshot;
+        };
+        await sync.sendMessage(
+          sessionId,
+          'same text',
+          clientLocalId: 'first-id',
+        );
+        await sync.lastCompleteSendFuture;
+        expect(confirmed, isTrue);
+        expect(sends, 1);
+        await sync.sendMessage(
+          sessionId,
+          'same text',
+          clientLocalId: 'second-id',
+        );
+        await sync.lastCompleteSendFuture;
+        expect(
+          sends,
+          2,
+          reason: 'intentional repeated text is a new admission',
+        );
+        final ids = sync
+            .testSessionMessages(sessionId)!
+            .map((row) => row['localId'])
+            .toSet();
+        expect(ids, containsAll(['first-id', 'second-id']));
+      },
+    );
+
+    for (final failure in ['spawn', 'redirect', 'confirmation']) {
+      test(
+        'qualified Har $failure failure never sends to the old process',
+        () async {
+          const sessionId = 'saved-har';
+          final seed = _makeSession(
+            sessionId,
+            machineId: 'machine-1',
+            path: '/project',
+            flavor: 'har',
+            lifecycleState: 'errored',
+          );
+          sync.testSessions[sessionId] = seed.copyWith(
+            metadata: seed.metadata!.copyWith(
+              harSessionId: 'checkpoint-1',
+              harRuntimeId: 'old-runtime',
+              harResumeProtocol: 'happy-private-v1',
+              harDurableResumeSupported: true,
+            ),
+          );
+          var sends = 0;
+          sync.testSocketSendOverride = (_, __) {
+            sends++;
+          };
+          sync.testMachineRPCOverride = (_, __, ___) async => {
+            'type': failure == 'spawn' ? 'error' : 'success',
+            'errorMessage': 'private evidence unresolved',
+            'sessionId': failure == 'redirect' ? 'other-session' : sessionId,
+          };
+          sync.testFetchSingleSessionOverride = (_) async {
+            throw StateError('checkpoint startup not confirmed');
+          };
+          const localId = 'saved-har-stable-id';
+          await expectLater(
+            sync.sendMessage(sessionId, 'same text', clientLocalId: localId),
+            throwsA(isA<StateError>()),
+          );
+          await sync.lastCompleteSendFuture;
+          expect(sends, 0);
+          final rows = sync.testSessionMessages(sessionId)!;
+          expect(rows, hasLength(1));
+          expect(rows.single['localId'], localId);
+          expect(rows.single['sendStatus'], 'failed');
+          expect(sync.testAutoRestoreInFlight, isEmpty);
+        },
+      );
+    }
+
+    test(
       'archived Prime blocks stale online presence and spawn grace',
       () async {
         const sessionId = 'archived-prime-process';

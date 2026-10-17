@@ -2,6 +2,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 
 void main() {
+  test('Recovered Har structured output uses the ACP processor envelope', () {
+    const body = {
+      'type': 'tool-result',
+      'callId': 'read-1',
+      'status': 'completed',
+      'isError': false,
+      'result': {
+        'entries': ['go.mod'],
+        'effect': 'none',
+      },
+    };
+    // The launcher resends this exact materialized body and local identity
+    // after a lost commit ACK; it must not wrap the body in type: har.
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        {
+          'role': 'agent',
+          'content': {'type': 'acp', 'data': body},
+        },
+      ],
+      wireMessages: [
+        {
+          'id': 'committed-har-output',
+          'localId': 'har_checkpoint_1',
+          'seq': 9,
+          'createdAt': 1000,
+        },
+      ],
+      sessionId: 'har-session',
+    );
+    expect(result.toolResults, hasLength(1));
+    expect(result.toolResults.single['toolUseId'], 'read-1');
+    expect(result.toolResults.single['isError'], isFalse);
+    expect(result.toolResults.single['result'].toString(), contains('go.mod'));
+    expect(result.messages.where((m) => m['kind'] == 'error'), isEmpty);
+  });
+
   test('Har ACP text and delegation match tool lifecycle IDs and failures', () {
     final bodies = <Map<String, dynamic>>[
       {'type': 'message', 'message': 'Har answer'},

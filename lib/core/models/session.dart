@@ -251,6 +251,10 @@ abstract class Metadata with _$Metadata {
     List<PrimeAgentModelInfo>? primeAgentEfforts,
     @JsonKey(fromJson: _asApiStringNullable) String? reasoningEffort,
     @JsonKey(fromJson: _asApiStringNullable) String? primeAgentSessionFile,
+    @JsonKey(fromJson: _asApiStringNullable) String? harSessionId,
+    @JsonKey(fromJson: _asApiStringNullable) String? harRuntimeId,
+    @JsonKey(fromJson: _asApiStringNullable) String? harResumeProtocol,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? harDurableResumeSupported,
     @JsonKey(fromJson: _asApiIntNullable) int? primeAgentChildStepsVersion,
     @JsonKey(fromJson: _asApiStringNullable)
     String? primeAgentChildStepsRevision,
@@ -639,6 +643,18 @@ abstract class Session with _$Session {
     return metadata?.lifecycleState == 'errored';
   }
 
+  /// This is only a candidate: the daemon must validate private evidence and
+  /// the client must confirm same-session startup before sending anything.
+  bool get canRestoreHar {
+    final meta = metadata;
+    return meta?.flavor == 'har' &&
+        (meta?.harSessionId?.isNotEmpty ?? false) &&
+        meta?.harResumeProtocol == 'happy-private-v1' &&
+        meta?.harDurableResumeSupported == true &&
+        (meta?.machineId?.isNotEmpty ?? false) &&
+        (meta?.path?.isNotEmpty ?? false);
+  }
+
   /// Whether the daemon can resume Prime Agent from its saved transcript.
   bool get canRestorePrimeAgent {
     final meta = metadata;
@@ -653,7 +669,7 @@ abstract class Session with _$Session {
   bool get canAttemptLifecycleRestore {
     if (!hasLifecycleError) return false;
     final meta = metadata;
-    if (meta?.flavor == 'har') return false;
+    if (meta?.flavor == 'har') return canRestoreHar;
     if (meta?.flavor == 'prime-agent') return canRestorePrimeAgent;
     return (meta?.machineId?.isNotEmpty ?? false) &&
         (meta?.path?.isNotEmpty ?? false);

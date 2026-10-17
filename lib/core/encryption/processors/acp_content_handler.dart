@@ -176,6 +176,23 @@ void _processAcpContent({
                   ? null
                   : normalizeHarToolResult(harName, rawResult)) ??
               normalizeGrokToolResult(rawResult);
+    if (harName != null) {
+      final harMeta = WireParsers.asMap(
+        WireParsers.asMap(data['_meta'])?['har'],
+      );
+      final tool = WireParsers.asMap(harMeta?['tool']);
+      final observation = WireParsers.asMap(tool?['result']);
+      final effect = data['effect'] ?? observation?['effect'];
+      if (effect == 'unknown') {
+        // Interrupted host effects are observations, never success or an
+        // invitation to retry. Do not infer completion from ACP status alone.
+        normalized['isError'] = true;
+        normalized['result'] =
+            '${normalized['result'] ?? ''}\n'
+            '[Effect unknown; nothing was replayed. Inspect host state and '
+            'use /recovery before /reconcile.]';
+      }
+    }
     // Grok emits status: completed|failed; map onto isError when absent.
     if (normalized['isError'] != true && normalized['is_error'] != true) {
       final status = (data['status'] ?? data['state'])

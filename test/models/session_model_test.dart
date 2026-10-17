@@ -192,6 +192,34 @@ void main() {
       });
     }
 
+    test('Har restore requires the qualified private resume protocol', () {
+      final metadata = <String, dynamic>{
+        'flavor': 'har',
+        'machineId': 'm-1',
+        'path': '/work/repo',
+        'harSessionId': 'har-saved',
+        'harDurableResumeSupported': true,
+        'harResumeProtocol': 'happy-private-v1',
+      };
+      final session = sessionWith(
+        cleartext: 'errored',
+        extraMetadata: metadata,
+      );
+      expect(session.canRestoreHar, isTrue);
+      expect(session.canAttemptLifecycleRestore, isTrue);
+      for (final key in metadata.keys) {
+        final incomplete = Map<String, dynamic>.from(metadata)..remove(key);
+        expect(
+          sessionWith(
+            cleartext: 'errored',
+            extraMetadata: incomplete,
+          ).canRestoreHar,
+          isFalse,
+          reason: key,
+        );
+      }
+    });
+
     test('Prime restore requires a saved transcript plus machine and path', () {
       final session = sessionWith(
         cleartext: 'errored',
