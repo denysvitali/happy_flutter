@@ -33,14 +33,14 @@ class _RecentWorkspacePicker extends ConsumerWidget {
         .take(3)
         .toList();
     if (paths.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        context.l10n.newSessionRecentWorkspace,
+        style: AppText.secondary(Theme.of(context)),
+      ),
       children: [
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          context.l10n.newSessionRecentWorkspace,
-          style: AppText.secondary(Theme.of(context)),
-        ),
         for (final path in paths)
           ListTile(
             dense: true,

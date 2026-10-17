@@ -1,5 +1,32 @@
 part of 'new_session_dialog.dart';
 
+class _NewSessionHeading extends StatelessWidget {
+  const _NewSessionHeading({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: cs.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Icon(Icons.add_rounded, color: cs.onPrimaryContainer),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: Text(title)),
+      ],
+    );
+  }
+}
+
 class _PathField extends ConsumerStatefulWidget {
   const _PathField({
     required this.machineId,
@@ -206,31 +233,31 @@ class _AgentPicker extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         FocusTraversalGroup(
           policy: AppReadingOrderTraversalPolicy(),
-          child: Column(
-            children: [
-              for (var start = 0; start < _agentIds.length; start += 3) ...[
-                if (start > 0) const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    for (
-                      var i = start;
-                      i < start + 3 && i < _agentIds.length;
-                      i++
-                    ) ...[
-                      if (i > start) const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: _AgentOption(
-                          label: _agentLabel(l10n, _agentIds[i]),
-                          agent: _agentIds[i],
-                          selected: _agentIds[i] == selectedAgent,
-                          onTap: () => onSelected(_agentIds[i]),
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final twoColumns =
+                  constraints.maxWidth >= 320 &&
+                  MediaQuery.textScalerOf(context).scale(14) <= 20;
+              final width = twoColumns
+                  ? (constraints.maxWidth - AppSpacing.sm) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  for (final agent in _agentIds)
+                    SizedBox(
+                      width: width,
+                      child: _AgentOption(
+                        label: _agentLabel(l10n, agent),
+                        agent: agent,
+                        selected: agent == selectedAgent,
+                        onTap: () => onSelected(agent),
                       ),
-                    ],
-                  ],
-                ),
-              ],
-            ],
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ],
@@ -253,59 +280,35 @@ class _AgentOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final borderColor = selected ? cs.primary : cs.outlineVariant;
-    final foreground = selected ? cs.onPrimaryContainer : cs.onSurfaceVariant;
-    final radius = BorderRadius.circular(AppRadius.sm);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      child: Material(
-        color: selected ? cs.primaryContainer : cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: borderColor),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          mouseCursor: SystemMouseCursors.click,
-          child: ExcludeSemantics(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.sm,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (agent == 'prime-agent')
-                    const PrimeAgentLogo(size: AppIconSize.lg)
-                  else
-                    Icon(
-                      _agentIcon(agent),
-                      size: AppIconSize.lg,
-                      color: foreground,
-                    ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: AppText.badge(theme, foreground),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    final cs = Theme.of(context).colorScheme;
+    return ChoiceChip(
+      label: SizedBox(
+        width: double.infinity,
+        child: Row(
+          children: [
+            Expanded(child: Text(label)),
+            if (selected) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Icon(Icons.check_circle_rounded, size: 18, color: cs.primary),
+            ],
+          ],
         ),
       ),
+      avatar: ExcludeSemantics(
+        child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
+      ),
+      selected: selected,
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.md,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      side: BorderSide(color: selected ? cs.primary : cs.outlineVariant),
+      selectedColor: cs.primaryContainer,
+      onSelected: (_) => onTap(),
     );
   }
 }
@@ -369,18 +372,6 @@ String _agentLabel(AppLocalizations l10n, String agent) {
     'har' => 'Har',
     'prime-agent' => 'Prime Agent',
     _ => l10n.sessionsClaude,
-  };
-}
-
-IconData _agentIcon(String agent) {
-  return switch (agent) {
-    'codex' => Icons.terminal_rounded,
-    'agy' => Icons.auto_awesome_rounded,
-    'pi' => Icons.memory_rounded,
-    'opencode' => Icons.code_rounded,
-    'grok' => Icons.rocket_launch_rounded,
-    'har' => Icons.hub_outlined,
-    _ => Icons.psychology_alt_rounded,
   };
 }
 

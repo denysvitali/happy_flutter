@@ -112,6 +112,9 @@ List<String> _spawnBackendsForMachine(Machine? machine) {
 
 String _defaultSpawnBackendForMachine(Machine? machine) {
   final backends = _spawnBackendsForMachine(machine);
+  // Local execution is the safe default; Kubernetes is an explicit opt-in
+  // unless it is the only supported backend.
+  if (backends.contains('local')) return 'local';
   final advertisedDefault = machine?.metadata?.defaultSpawnBackend;
   return backends.contains(advertisedDefault)
       ? advertisedDefault!

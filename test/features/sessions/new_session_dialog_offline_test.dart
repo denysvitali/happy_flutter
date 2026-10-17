@@ -524,13 +524,74 @@ void main() {
       );
     }
 
+    testWidgets('compact choices stay scrollable above the phone keyboard', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpWidget(buildHarness(machines: {}));
+      await tester.pumpAndSettle();
+      expect(find.byType(ChoiceChip), findsNWidgets(8));
+      expect(tester.getSize(find.byType(AlertDialog)).height, lessThan(500));
+      expect(
+        tester.getBottomRight(find.widgetWithText(TextButton, 'Cancel')).dy,
+        lessThanOrEqualTo(544),
+      );
+      await tester.ensureVisible(find.text('Prime Agent'));
+      await tester.tap(find.text('Prime Agent'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Prime Agent'))
+            .selected,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('large text keeps harness cards readable and selectable', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(buildHarness(machines: {}));
+      await tester.pumpAndSettle();
+
+      for (final chip in find.byType(ChoiceChip).evaluate()) {
+        final size = tester.getSize(find.byWidget(chip.widget));
+        expect(size.width, greaterThan(250));
+        expect(size.height, greaterThanOrEqualTo(44));
+      }
+      final codex = find.widgetWithText(ChoiceChip, 'Codex');
+      await tester.ensureVisible(codex);
+      await tester.tap(codex);
+      await tester.pumpAndSettle();
+      expect(tester.widget<ChoiceChip>(codex).selected, isTrue);
+      expect(
+        tester
+            .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+            .where((chip) => chip.selected),
+        hasLength(1),
+      );
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('Prime Agent picker uses the official logo', (tester) async {
       await pumpDialog(tester, buildHarness(machines: {}));
       await tester.pumpAndSettle();
 
       final option = find.ancestor(
         of: find.text('Prime Agent'),
-        matching: find.byType(InkWell),
+        matching: find.byType(ChoiceChip),
       );
       expect(option, findsOneWidget);
       expect(
@@ -871,7 +932,7 @@ void main() {
       },
     );
 
-    testWidgets('shows repository and ref inputs for Kubernetes pods', (
+    testWidgets('prefers local despite the advertised Kubernetes default', (
       tester,
     ) async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -888,9 +949,16 @@ void main() {
         buildHarness(machines: {'m-kube': machine}, initialMachineId: 'm-kube'),
       );
 
+      expect(find.text('Git repository'), findsNothing);
+      expect(find.text('Branch or ref'), findsNothing);
+      expect(find.byType(Autocomplete<String>), findsOneWidget);
+      await tester.tap(find.text('Advanced options'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Kubernetes'));
+      await tester.tap(find.text('Kubernetes'));
+      await tester.pumpAndSettle();
       expect(find.text('Git repository'), findsOneWidget);
       expect(find.text('Branch or ref'), findsOneWidget);
-      expect(find.text('Spawn on'), findsNothing);
     });
 
     testWidgets('recent workspace selection updates the path without '
@@ -927,6 +995,8 @@ void main() {
         ),
       );
       expect(find.text('/other-machine'), findsNothing);
+      await tester.tap(find.text('Start a new session in a recent workspace'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('/recent-repo'));
       await tester.pump();
       expect(

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/components/app_status_dot.dart';
-import '../../../core/components/prime_agent_logo.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/models/favorite_model.dart';
@@ -15,13 +14,14 @@ import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../../core/widgets/app_focus_traversal.dart';
 import '../../chat/model_selection_resolver.dart'
     show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
+import '../harness_logo.dart';
 
 part 'new_session_fields.dart';
 part 'new_session_resolution.dart';
@@ -251,308 +251,321 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     return PopScope(
       canPop: !_isCreating,
       child: AlertDialog(
-        title: Text(l10n.newSessionTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (machines.isEmpty)
-                Text(l10n.newSessionNoMachinesFound)
-              else
-                DropdownButtonFormField<String>(
-                  key: ValueKey('new-session-machine-$_selectedMachine'),
-                  decoration: InputDecoration(labelText: l10n.sessionMachine),
-                  initialValue: _selectedMachine,
-                  isExpanded: true,
-                  selectedItemBuilder: (context) => [
-                    Text(
-                      l10n.sessionSelectMachine,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    ...machines.map(
-                      (machine) => Text(
-                        machine.displayLabel,
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight:
+              (MediaQuery.sizeOf(context).height -
+                  MediaQuery.viewInsetsOf(context).bottom) *
+              0.9,
+        ),
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        title: _NewSessionHeading(title: l10n.newSessionTitle),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (machines.isEmpty)
+                  Text(l10n.newSessionNoMachinesFound)
+                else
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('new-session-machine-$_selectedMachine'),
+                    decoration: InputDecoration(labelText: l10n.sessionMachine),
+                    initialValue: _selectedMachine,
+                    isExpanded: true,
+                    selectedItemBuilder: (context) => [
+                      Text(
+                        l10n.sessionSelectMachine,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                  items: [
-                    DropdownMenuItem(
-                      value: null,
-                      child: Text(l10n.sessionSelectMachine),
-                    ),
-                    ...machines.map((machine) {
-                      final online = machine.isOnlineAt(machineSortNow);
-                      return DropdownMenuItem(
-                        value: machine.id,
-                        enabled: online,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppStatusDot(
-                              color: online
-                                  ? AppColors.success
-                                  : cs.onSurfaceVariant,
-                              size: 8,
-                              semanticLabel: online
-                                  ? l10n.machineOnline
-                                  : l10n.machineOffline,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Flexible(
-                              child: Text(
-                                machine.displayLabel,
-                                overflow: TextOverflow.ellipsis,
-                                style: online
-                                    ? null
-                                    : theme.textTheme.bodyMedium?.copyWith(
-                                        color: cs.onSurfaceVariant,
-                                      ),
-                              ),
-                            ),
-                            if (!online) ...[
-                              const SizedBox(width: AppSpacing.sm),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: AppSpacing.xxs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.xs,
-                                  ),
-                                ),
-                                child: Text(
-                                  l10n.machineOffline,
-                                  style: AppText.secondary(
-                                    theme,
-                                    cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                      ...machines.map(
+                        (machine) => Text(
+                          machine.displayLabel,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      final m = allMachines[value];
-                      if (m != null && !m.isOnlineAt(machineSortNow)) {
-                        return;
-                      }
-                    }
-                    setState(() {
-                      if (_selectedMachine != value) {
-                        _selectedPath = null;
-                        _selectedRepoUrl = null;
-                        _selectedSpawnBackend = _defaultSpawnBackendForMachine(
-                          allMachines[value],
-                        );
-                        _spawnBackendTouched = false;
-                      }
-                      _selectedMachine = value;
-                    });
-                  },
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              if (!isKubernetes) ...[
-                _PathField(
-                  machineId: _selectedMachine,
-                  selectedPath: _selectedPath,
-                  onChanged: (value) => setState(() {
-                    _selectedPath = value;
-                    _createError = null;
-                  }),
-                  onSelected: (value) => setState(() {
-                    _selectedPath = value;
-                    _createError = null;
-                  }),
-                ),
-                _RecentWorkspacePicker(
-                  machineId: _selectedMachine,
-                  selectedPath: _selectedPath,
-                  onSelected: (path) => setState(() {
-                    _selectedPath = path;
-                    _createError = null;
-                  }),
-                ),
-              ],
-              if (!isKubernetes || spawnBackends.length > 1)
-                ExpansionTile(
-                  key: const PageStorageKey('new-session-advanced'),
-                  tilePadding: EdgeInsets.zero,
-                  title: Text(l10n.newSessionAdvanced),
-                  subtitle: Text(
-                    isKubernetes
-                        ? l10n.newSessionKubernetesSummary
-                        : _sessionType == 'worktree'
-                        ? l10n.sessionsWorktree
-                        : l10n.newSessionLocalSummary,
-                  ),
-                  children: [
-                    if (!isKubernetes) ...[
-                      Text(
-                        l10n.newSessionWorktreeHint,
-                        style: AppText.secondary(theme),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      SegmentedButton<String>(
-                        segments: [
-                          ButtonSegment(
-                            value: 'simple',
-                            label: Text(l10n.sessionsSimple),
-                            icon: const Icon(Icons.folder_outlined),
-                          ),
-                          ButtonSegment(
-                            value: 'worktree',
-                            label: Text(l10n.sessionsWorktree),
-                            icon: const Icon(Icons.account_tree_outlined),
-                          ),
-                        ],
-                        selected: {_sessionType},
-                        onSelectionChanged: (selection) =>
-                            setState(() => _sessionType = selection.first),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
                     ],
-                    if (spawnBackends.length > 1) ...[
-                      _SpawnBackendPicker(
-                        backends: spawnBackends,
-                        selectedBackend: selectedSpawnBackend,
-                        onSelected: (backend) => setState(() {
-                          _selectedSpawnBackend = backend;
-                          _spawnBackendTouched = true;
-                          _createError = null;
-                        }),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                  ],
-                ),
-              if (isKubernetes) ...[
-                _RepositoryUrlField(
-                  machineId: _selectedMachine,
-                  selectedRepoUrl: _selectedRepoUrl,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRepoUrl = value;
-                      _createError = null;
-                    });
-                  },
-                  onSelected: (value) {
-                    setState(() {
-                      _selectedRepoUrl = value;
-                      _createError = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                TextFormField(
-                  initialValue: _selectedRepoRef,
-                  decoration: InputDecoration(
-                    labelText: l10n.newSessionGitRef,
-                    hintText: l10n.newSessionGitRefHint,
-                    prefixIcon: const Icon(Icons.account_tree_outlined),
-                  ),
-                  textInputAction: TextInputAction.next,
-                  onChanged: (value) => setState(() {
-                    _selectedRepoRef = value;
-                    _createError = null;
-                  }),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              _AgentPicker(
-                selectedAgent: _selectedAgent,
-                onSelected: (agent) => setState(() => _selectedAgent = agent),
-              ),
-              if (_selectedAgent == 'har') ...[
-                const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: _harModel,
-                  decoration: const InputDecoration(labelText: 'Har model'),
-                  items: [
-                    for (final model in ChatModelMode.harModels)
+                    items: [
                       DropdownMenuItem(
-                        value: model.modeString,
-                        child: Text(model.label),
+                        value: null,
+                        child: Text(l10n.sessionSelectMachine),
                       ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _harModel = value);
-                  },
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Host execution · approvals disabled. The model can be '
-                  'changed during the conversation. Requires an installed '
-                  'har binary and a local daemon with Boxy explicitly '
-                  'disabled.',
-                  style: AppText.secondary(theme, cs.onSurfaceVariant),
-                ),
-                if (isKubernetes)
-                  Text(
-                    'Har is available on the local backend. Select Local '
-                    'to start it.',
-                    style: AppText.secondary(theme, cs.error),
+                      ...machines.map((machine) {
+                        final online = machine.isOnlineAt(machineSortNow);
+                        return DropdownMenuItem(
+                          value: machine.id,
+                          enabled: online,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AppStatusDot(
+                                color: online
+                                    ? AppColors.success
+                                    : cs.onSurfaceVariant,
+                                size: 8,
+                                semanticLabel: online
+                                    ? l10n.machineOnline
+                                    : l10n.machineOffline,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Text(
+                                  machine.displayLabel,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: online
+                                      ? null
+                                      : theme.textTheme.bodyMedium?.copyWith(
+                                          color: cs.onSurfaceVariant,
+                                        ),
+                                ),
+                              ),
+                              if (!online) ...[
+                                const SizedBox(width: AppSpacing.sm),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.xxs,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cs.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.xs,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    l10n.machineOffline,
+                                    style: AppText.secondary(
+                                      theme,
+                                      cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        final m = allMachines[value];
+                        if (m != null && !m.isOnlineAt(machineSortNow)) {
+                          return;
+                        }
+                      }
+                      setState(() {
+                        if (_selectedMachine != value) {
+                          _selectedPath = null;
+                          _selectedRepoUrl = null;
+                          _selectedSpawnBackend =
+                              _defaultSpawnBackendForMachine(
+                                allMachines[value],
+                              );
+                          _spawnBackendTouched = false;
+                        }
+                        _selectedMachine = value;
+                      });
+                    },
                   ),
-              ],
-              if (createBlocker != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                _DialogRequirementStatus(
-                  blocker: createBlocker,
-                  selectedMachineOffline: selectedMachineOffline,
+                const SizedBox(height: AppSpacing.lg),
+                if (!isKubernetes) ...[
+                  _PathField(
+                    machineId: _selectedMachine,
+                    selectedPath: _selectedPath,
+                    onChanged: (value) => setState(() {
+                      _selectedPath = value;
+                      _createError = null;
+                    }),
+                    onSelected: (value) => setState(() {
+                      _selectedPath = value;
+                      _createError = null;
+                    }),
+                  ),
+                  _RecentWorkspacePicker(
+                    machineId: _selectedMachine,
+                    selectedPath: _selectedPath,
+                    onSelected: (path) => setState(() {
+                      _selectedPath = path;
+                      _createError = null;
+                    }),
+                  ),
+                ],
+                if (!isKubernetes || spawnBackends.length > 1)
+                  ExpansionTile(
+                    key: const PageStorageKey('new-session-advanced'),
+                    dense: true,
+                    tilePadding: EdgeInsets.zero,
+                    title: Text(l10n.newSessionAdvanced),
+                    subtitle: Text(
+                      isKubernetes
+                          ? l10n.newSessionKubernetesSummary
+                          : _sessionType == 'worktree'
+                          ? l10n.sessionsWorktree
+                          : l10n.newSessionLocalSummary,
+                    ),
+                    children: [
+                      if (!isKubernetes) ...[
+                        Text(
+                          l10n.newSessionWorktreeHint,
+                          style: AppText.secondary(theme),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(
+                              value: 'simple',
+                              label: Text(l10n.sessionsSimple),
+                              icon: const Icon(Icons.folder_outlined),
+                            ),
+                            ButtonSegment(
+                              value: 'worktree',
+                              label: Text(l10n.sessionsWorktree),
+                              icon: const Icon(Icons.account_tree_outlined),
+                            ),
+                          ],
+                          selected: {_sessionType},
+                          onSelectionChanged: (selection) =>
+                              setState(() => _sessionType = selection.first),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      if (spawnBackends.length > 1) ...[
+                        _SpawnBackendPicker(
+                          backends: spawnBackends,
+                          selectedBackend: selectedSpawnBackend,
+                          onSelected: (backend) => setState(() {
+                            _selectedSpawnBackend = backend;
+                            _spawnBackendTouched = true;
+                            _createError = null;
+                          }),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                    ],
+                  ),
+                if (isKubernetes) ...[
+                  _RepositoryUrlField(
+                    machineId: _selectedMachine,
+                    selectedRepoUrl: _selectedRepoUrl,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedRepoUrl = value;
+                        _createError = null;
+                      });
+                    },
+                    onSelected: (value) {
+                      setState(() {
+                        _selectedRepoUrl = value;
+                        _createError = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    initialValue: _selectedRepoRef,
+                    decoration: InputDecoration(
+                      labelText: l10n.newSessionGitRef,
+                      hintText: l10n.newSessionGitRefHint,
+                      prefixIcon: const Icon(Icons.account_tree_outlined),
+                    ),
+                    textInputAction: TextInputAction.next,
+                    onChanged: (value) => setState(() {
+                      _selectedRepoRef = value;
+                      _createError = null;
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+                _AgentPicker(
+                  selectedAgent: _selectedAgent,
+                  onSelected: (agent) => setState(() => _selectedAgent = agent),
                 ),
-                if (selectedMachineOffline ||
-                    createBlocker ==
-                        NewSessionCreateBlocker.offlineMachine) ...[
+                if (_selectedAgent == 'har') ...[
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String>(
+                    initialValue: _harModel,
+                    decoration: const InputDecoration(labelText: 'Har model'),
+                    items: [
+                      for (final model in ChatModelMode.harModels)
+                        DropdownMenuItem(
+                          value: model.modeString,
+                          child: Text(model.label),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setState(() => _harModel = value);
+                    },
+                  ),
                   const SizedBox(height: AppSpacing.sm),
-                  Padding(
-                    padding: const EdgeInsets.only(left: AppSpacing.xl),
+                  Text(
+                    'Host execution · approvals disabled. The model can be '
+                    'changed during the conversation. Requires an installed '
+                    'har binary and a local daemon with Boxy explicitly '
+                    'disabled.',
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
+                  ),
+                  if (isKubernetes)
+                    Text(
+                      'Har is available on the local backend. Select Local '
+                      'to start it.',
+                      style: AppText.secondary(theme, cs.error),
+                    ),
+                ],
+                if (createBlocker != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _DialogRequirementStatus(
+                    blocker: createBlocker,
+                    selectedMachineOffline: selectedMachineOffline,
+                  ),
+                  if (selectedMachineOffline ||
+                      createBlocker ==
+                          NewSessionCreateBlocker.offlineMachine) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xl),
+                      child: Text(
+                        l10n.machineOfflineHelp,
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ],
+                if (createBlocker == null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _DialogRequirementStatus(
+                    blocker: null,
+                    selectedMachineOffline: false,
+                  ),
+                ],
+                if (_createError != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Semantics(
+                    liveRegion: true,
                     child: Text(
-                      l10n.machineOfflineHelp,
-                      style: AppText.secondary(theme, cs.onSurfaceVariant),
+                      _createError!,
+                      style: AppText.secondary(theme, cs.error),
+                    ),
+                  ),
+                ],
+                if (_isCreating && _creationPhase != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Semantics(
+                    liveRegion: true,
+                    child: Row(
+                      children: [
+                        const SizedBox.square(
+                          dimension: AppIconSize.md,
+                          child: AppCircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: Text(_creationPhase!)),
+                      ],
                     ),
                   ),
                 ],
               ],
-              if (createBlocker == null) ...[
-                const SizedBox(height: AppSpacing.md),
-                _DialogRequirementStatus(
-                  blocker: null,
-                  selectedMachineOffline: false,
-                ),
-              ],
-              if (_createError != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _createError!,
-                    style: AppText.secondary(theme, cs.error),
-                  ),
-                ),
-              ],
-              if (_isCreating && _creationPhase != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Semantics(
-                  liveRegion: true,
-                  child: Row(
-                    children: [
-                      const SizedBox.square(
-                        dimension: AppIconSize.md,
-                        child: AppCircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text(_creationPhase!)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
         actions: [

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/components/prime_agent_logo.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/avatars/avatar_bloom.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
@@ -13,6 +12,7 @@ import '../../core/ui/avatars/avatar_prism.dart';
 import '../../core/ui/avatars/avatar_rings.dart';
 import '../../core/ui/avatars/avatar_wave.dart';
 import '../../core/widgets/network_avatar_image.dart';
+import 'harness_logo.dart';
 
 /// Avatar style options for session avatars.
 enum AvatarStyle {
@@ -86,13 +86,8 @@ class SessionAvatar extends StatelessWidget {
 
   Widget _buildImageAvatar(BuildContext context) {
     final effectiveFlavor = flavor ?? 'claude';
-    final effectiveSize = size.toInt();
-    final circleSize = (effectiveSize * 0.35).round();
-    final iconSize = effectiveFlavor == 'codex'
-        ? (effectiveSize * 0.25).round()
-        : effectiveFlavor == 'claude'
-        ? (effectiveSize * 0.28).round()
-        : (effectiveSize * 0.35).round();
+    final circleSize = (size * 0.5).round();
+    final iconSize = (size * 0.36).round();
 
     final avatarWidget = NetworkAvatarImage(
       url: imageUrl!,
@@ -119,13 +114,8 @@ class SessionAvatar extends StatelessWidget {
 
   Widget _buildGeneratedAvatar(BuildContext context) {
     final effectiveFlavor = flavor ?? 'claude';
-    final effectiveSize = size.toInt();
-    final circleSize = (effectiveSize * 0.35).round();
-    final iconSize = effectiveFlavor == 'codex'
-        ? (effectiveSize * 0.25).round()
-        : effectiveFlavor == 'claude'
-        ? (effectiveSize * 0.28).round()
-        : (effectiveSize * 0.35).round();
+    final circleSize = (size * 0.5).round();
+    final iconSize = (size * 0.36).round();
 
     final effectiveStyle = style ?? _getStyleFromHash();
     final rawAvatar = switch (effectiveStyle) {
@@ -170,7 +160,6 @@ class SessionAvatar extends StatelessWidget {
   }
 
   Widget _buildFlavorIcon(String flavorName, int circleSize, int iconSize) {
-    final iconPath = _getFlavorIconPath(flavorName);
     return Builder(
       builder: (context) {
         final theme = Theme.of(context);
@@ -195,64 +184,11 @@ class SessionAvatar extends StatelessWidget {
             ],
           ),
           child: Center(
-            child: flavorName == 'prime-agent'
-                ? PrimeAgentLogo(size: iconSize.toDouble())
-                : flavorName == 'har'
-                ? Icon(
-                    _getFlavorIcon(flavorName),
-                    size: iconSize.toDouble(),
-                    color: theme.colorScheme.onSurface,
-                  )
-                : Image.asset(
-                    iconPath,
-                    width: iconSize.toDouble(),
-                    height: iconSize.toDouble(),
-                    cacheWidth:
-                        (iconSize * MediaQuery.devicePixelRatioOf(context))
-                            .round(),
-                    cacheHeight:
-                        (iconSize * MediaQuery.devicePixelRatioOf(context))
-                            .round(),
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Fallback to icon if image fails
-                      return Icon(
-                        _getFlavorIcon(flavorName),
-                        size: iconSize.toDouble() * 0.7,
-                        color: theme.colorScheme.onSurface,
-                      );
-                    },
-                  ),
+            child: HarnessLogo(flavor: flavorName, size: iconSize.toDouble()),
           ),
         );
       },
     );
-  }
-
-  String _getFlavorIconPath(String flavorName) {
-    return switch (flavorName) {
-      'claude' => 'assets/images/icon-claude.png',
-      'codex' => 'assets/images/icon-gpt.png',
-      'agy' || 'gemini' => 'assets/images/icon-gpt.png',
-      'pi' => 'assets/images/icon-pi.png',
-      'opencode' => 'assets/images/icon-gpt.png',
-      // No dedicated Grok asset yet; reuse the GPT icon as a neutral stand-in.
-      'grok' || 'grok-build' => 'assets/images/icon-gpt.png',
-      _ => 'assets/images/icon-claude.png',
-    };
-  }
-
-  IconData _getFlavorIcon(String flavorName) {
-    return switch (flavorName) {
-      'claude' => Icons.auto_awesome,
-      'codex' => Icons.code,
-      'har' => Icons.hub_outlined,
-      'agy' || 'gemini' => Icons.auto_awesome,
-      'pi' => Icons.psychology_alt_outlined,
-      'opencode' => Icons.smart_toy_outlined,
-      'grok' || 'grok-build' => Icons.rocket_launch_outlined,
-      _ => Icons.auto_awesome,
-    };
   }
 
   Widget _buildFallbackAvatar(BuildContext context) {

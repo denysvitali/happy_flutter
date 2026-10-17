@@ -18,6 +18,17 @@ Codex turns distinguish updates to the running turn from queued follow-ups.
 Web search details show aligned result cards with titles, domains, and snippets;
 tap a result to open its web page in your browser.
 
+Session badges and launch choices share bundled harness marks, including
+OpenAI's published mark for Codex and the official OpenCode and Grok icons.
+The new-session dialog presents readable, touch-friendly harness cards in two
+columns, or one column on narrow screens and at larger text sizes. Recent
+workspaces and backend/worktree controls stay collapsed until needed. Asset
+sources are recorded alongside the shared `HarnessLogo` widget. Local execution
+is preferred
+when available, even on machines advertising Kubernetes as their default;
+Kubernetes-only machines still launch pods, and explicit backend choices remain
+available under Advanced options.
+
 Codex usage shows the account’s reported windows (including weekly and 5-hour
 labels), additional pools when provided, and per-model availability. Usage
 permission and purchased credit availability are shown separately. Available
