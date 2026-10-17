@@ -28,6 +28,7 @@ class BashView extends StatelessWidget {
 
     final command = cleanShellCommand(extractCommand(input));
     final description = input['description'] as String?;
+    final cwd = extractCwd(input);
 
     final stdout = state == 'completed' && result != null
         ? parseStdout(result)
@@ -43,6 +44,7 @@ class BashView extends StatelessWidget {
     return ToolSectionView(
       child: CommandView(
         command: command,
+        cwd: cwd,
         description: description,
         stdout: stdout,
         stderr: stderr,
