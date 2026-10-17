@@ -536,7 +536,15 @@ void main() {
       await tester.pumpWidget(buildHarness(machines: {}));
       await tester.pumpAndSettle();
       expect(find.byType(ChoiceChip), findsNWidgets(8));
-      expect(tester.getSize(find.byType(AlertDialog)).height, lessThan(500));
+      // AlertDialog's outer alignment fills the available viewport; measure
+      // the Material card rather than that full-height wrapper.
+      final dialogCard = find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Material),
+          )
+          .first;
+      expect(tester.getSize(dialogCard).height, lessThan(500));
       expect(
         tester.getBottomRight(find.widgetWithText(TextButton, 'Cancel')).dy,
         lessThanOrEqualTo(544),

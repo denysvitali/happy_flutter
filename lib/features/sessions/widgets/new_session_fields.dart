@@ -281,34 +281,37 @@ class _AgentOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ChoiceChip(
-      label: SizedBox(
-        width: double.infinity,
-        child: Row(
-          children: [
-            Expanded(child: Text(label)),
-            if (selected) ...[
-              const SizedBox(width: AppSpacing.xs),
-              Icon(Icons.check_circle_rounded, size: 18, color: cs.primary),
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      child: ChoiceChip(
+        label: SizedBox(
+          width: double.infinity,
+          child: Row(
+            children: [
+              Expanded(child: Text(label)),
+              if (selected) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Icon(Icons.check_circle_rounded, size: 18, color: cs.primary),
+              ],
             ],
-          ],
+          ),
         ),
+        avatar: ExcludeSemantics(
+          child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
+        ),
+        selected: selected,
+        showCheckmark: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.md,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        side: BorderSide(color: selected ? cs.primary : cs.outlineVariant),
+        selectedColor: cs.primaryContainer,
+        onSelected: (_) => onTap(),
       ),
-      avatar: ExcludeSemantics(
-        child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
-      ),
-      selected: selected,
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.md,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      side: BorderSide(color: selected ? cs.primary : cs.outlineVariant),
-      selectedColor: cs.primaryContainer,
-      onSelected: (_) => onTap(),
     );
   }
 }
