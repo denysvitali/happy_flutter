@@ -129,6 +129,58 @@ void main() {
     expect(failure.toolResults.single['isError'], isTrue);
     expect(failure.toolResults.single['result'], {'detail': 'failed'});
   });
+
+  test('OpenCode execute title becomes the Bash command', () {
+    final result = _process([
+      {
+        'type': 'tool-call',
+        'callId': 'call',
+        'name': 'ls -la',
+        'kind': 'execute',
+        'input': <String, dynamic>{},
+        'status': 'in_progress',
+      },
+    ]);
+    final call = result.messages.single;
+    expect(call['name'], 'Bash');
+    expect(call['input']['command'], 'ls -la');
+
+    final existing = _process([
+      {
+        'type': 'tool-call',
+        'callId': 'call',
+        'name': 'bash',
+        'kind': 'execute',
+        'input': {'command': 'pwd'},
+      },
+    ]);
+    expect(existing.messages.single['name'], 'Bash');
+    expect(existing.messages.single['input']['command'], 'pwd');
+
+    final generic = _process([
+      {
+        'type': 'tool-call',
+        'callId': 'call',
+        'name': 'bash',
+        'kind': 'execute',
+        'input': <String, dynamic>{},
+      },
+    ]);
+    expect(generic.messages.single['name'], 'Bash');
+    expect(generic.messages.single['input']['command'], isNull);
+
+    final read = _process([
+      {
+        'type': 'tool-call',
+        'callId': 'call',
+        'name': 'ls -la',
+        'kind': 'read',
+        'input': {'filePath': '/a'},
+      },
+    ]);
+    expect(read.messages.single['name'], 'Read');
+    expect(read.messages.single['input'].containsKey('command'), isFalse);
+  });
 }
 
 ProcessedMessages _process(List<Map<String, dynamic>> bodies) =>

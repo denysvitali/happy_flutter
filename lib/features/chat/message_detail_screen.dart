@@ -148,8 +148,7 @@ class _ToolDetailView extends StatelessWidget {
     // carries view-only path aliases that are not part of the call.
     final input = SendMessageArguments.isToolName(toolName)
         ? SendMessageArguments.from(data['input']).input
-        : WireParsers.asMap(data['wireInput']) ??
-              WireParsers.asMap(data['input']);
+        : _wireOrNormalizedInput(data);
     final result = data['result'];
     final isSendMessage = SendMessageArguments.isToolName(toolName);
     final permission = WireParsers.asMap(data['permission']);
@@ -387,6 +386,16 @@ bool _hasMeaningfulPayload(dynamic value) {
   if (value is Iterable) return value.isNotEmpty;
   if (value is String) return value.trim().isNotEmpty;
   return true;
+}
+
+/// Prefer the arguments as sent on the wire. An empty `wireInput` is not a
+/// payload: historical OpenCode execute rows recovered the shell command into
+/// normalized `input` only. A non-empty wire map (a Read `filePath`, for
+/// example) still wins over view-only aliases in `input`.
+Map<String, dynamic>? _wireOrNormalizedInput(Map<String, dynamic> data) {
+  final wireInput = WireParsers.asMap(data['wireInput']);
+  if (_hasMeaningfulPayload(wireInput)) return wireInput;
+  return WireParsers.asMap(data['input']);
 }
 
 String? _commandResultText(String toolName, dynamic result) {
@@ -896,9 +905,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = tool['name'] as String? ?? 'Unknown';
     final state = tool['state'] as String? ?? 'pending';
-    final input =
-        WireParsers.asMap(tool['wireInput']) ??
-        WireParsers.asMap(tool['input']);
+    final input = _wireOrNormalizedInput(tool);
     final result = tool['result'];
     final inputText = _commandInputText(toolName, input);
     final resultText = _commandResultText(toolName, result);

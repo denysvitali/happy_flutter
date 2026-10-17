@@ -2,6 +2,7 @@
 library;
 
 import 'grok_acp_normalize.dart';
+import 'tool_input_extractor.dart';
 
 const opencodeToolNameAliases = {
   'read': 'Read',
@@ -42,5 +43,28 @@ GrokToolDispatch normalizeOpenCodeToolCall(
       input.putIfAbsent(alias.value, () => rawInput[alias.key]);
     }
   }
+  // Older CLI rows stored the shell command as the tool title and then
+  // replaced that title with Bash, leaving the terminal card blank.
+  // Recover it only for execute/bash, never from a read/edit title.
+  final kindText = kind?.toString().trim().toLowerCase() ?? '';
+  if (canonical == 'Bash' &&
+      kindText == 'execute' &&
+      name.isNotEmpty &&
+      !_isGenericOpenCodeShellName(name) &&
+      extractCommand(input) == null) {
+    input['command'] = name;
+  }
   return GrokToolDispatch(name: canonical, input: input);
+}
+
+bool _isGenericOpenCodeShellName(String name) {
+  switch (name.trim().toLowerCase()) {
+    case 'bash':
+    case 'shell':
+    case 'execute':
+    case 'terminal':
+      return true;
+    default:
+      return false;
+  }
 }

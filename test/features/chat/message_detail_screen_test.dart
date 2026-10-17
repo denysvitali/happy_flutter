@@ -205,6 +205,60 @@ void main() {
       expect(renderedText, isNot(contains('target_directory')));
     });
 
+    testWidgets('shows a recovered shell command when wire input is empty', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'Bash',
+              'state': 'completed',
+              'input': <String, dynamic>{'command': 'ls -la /workspace'},
+              'wireInput': <String, dynamic>{},
+              'result': <String, dynamic>{'stdout': 'ok\n'},
+            },
+          ),
+        ),
+      );
+
+      expect(_renderedText(tester), contains('ls -la /workspace'));
+    });
+
+    testWidgets('keeps a read tool wire payload when it has no command', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'Read',
+              'state': 'completed',
+              'input': <String, dynamic>{
+                'filePath': '/workspace/note.txt',
+                'file_path': '/workspace/note.txt',
+                'command': 'cat note.txt',
+              },
+              'wireInput': <String, dynamic>{'filePath': '/workspace/note.txt'},
+              'result': 'hello',
+            },
+          ),
+        ),
+      );
+
+      final renderedText = _renderedText(tester);
+      expect(renderedText, contains('filePath'));
+      expect(renderedText, contains('/workspace/note.txt'));
+      expect(renderedText, isNot(contains('file_path')));
+      expect(renderedText, isNot(contains('cat note.txt')));
+    });
+
     testWidgets('renders ANSI in command result details', (tester) async {
       const output =
           '\x1B[36mINFO\x1B[0m[0000] conditions\r\n'
