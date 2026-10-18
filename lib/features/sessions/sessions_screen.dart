@@ -472,7 +472,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             controller: _searchController,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: l10n.commonSearch,
+              hintText: l10n.sessionsBoardSearchHint,
               prefixIcon: const Icon(Icons.search, size: 20),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
@@ -509,8 +509,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return AppBar(
       title: Text(l10n.sessionHistoryTitle),
       actions: [
-        ConnectionStatusBadge(status: connectionStatus),
-        const SessionsViewStyleButton(),
         IconButton(
           icon: const Icon(Icons.search),
           tooltip: l10n.commonSearch,
@@ -522,18 +520,32 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           onPressed: () => _showNewSessionDialog(context),
         ),
       ],
-      bottom: _isScrolled
-          ? PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Divider(
-                height: 1,
-                thickness: 1,
-                color: Theme.of(
-                  context,
-                ).colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-            )
-          : null,
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(
+          (MediaQuery.textScalerOf(context).scale(AppFontSize.sm) * 1.3 +
+                  AppSpacing.md)
+              .clamp(AppTouchTarget.comfortable, double.infinity),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            border: _isScrolled
+                ? Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  )
+                : null,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: Row(
+            children: [
+              const Expanded(child: SessionsViewStyleButton(showLabel: true)),
+              const SizedBox(width: AppSpacing.sm),
+              ConnectionStatusBadge(status: connectionStatus, showLabel: true),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -554,62 +566,77 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         onPressed: _exitSelectionMode,
       ),
       title: Text(l10n.sessionsSelectedCount(sel.selectedIds.length)),
-      actions: [
-        TextButton(
-          onPressed: sel.isBatchDeleting
-              ? null
-              : () => _toggleSelectAll(allIds, allSelected),
-          child: Text(
-            allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(
+          (MediaQuery.textScalerOf(context).scale(AppFontSize.sm) * 1.3 +
+                  AppSpacing.md)
+              .clamp(AppTouchTarget.comfortable, double.infinity),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Row(
+            children: [
+              TextButton(
+                onPressed: sel.isBatchDeleting
+                    ? null
+                    : () => _toggleSelectAll(allIds, allSelected),
+                child: Text(
+                  allSelected
+                      ? l10n.sessionsDeselectAll
+                      : l10n.sessionsSelectAll,
+                ),
+              ),
+              if (hasActiveSelected)
+                IconButton(
+                  icon: sel.isBatchDeleting
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: AppCircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        )
+                      : const Icon(Icons.archive_outlined),
+                  tooltip: l10n.sessionsArchive,
+                  onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                      ? null
+                      : () => _confirmBatchArchive(context, sel),
+                ),
+              IconButton(
+                icon: Icon(
+                  _hasPinnedInSelection(sel)
+                      ? Icons.push_pin
+                      : Icons.push_pin_outlined,
+                ),
+                tooltip: _hasPinnedInSelection(sel)
+                    ? l10n.sessionsUnpin
+                    : l10n.sessionsPin,
+                onPressed: sel.selectedIds.isEmpty
+                    ? null
+                    : () => _pinOrUnpinSelected(sel),
+              ),
+              IconButton(
+                icon: sel.isBatchDeleting
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: AppCircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cs.error,
+                        ),
+                      )
+                    : Icon(Icons.delete_outline, color: cs.error),
+                tooltip: l10n.commonDelete,
+                onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                    ? null
+                    : () => _confirmBatchDelete(context, sel),
+              ),
+            ],
           ),
         ),
-        if (hasActiveSelected)
-          IconButton(
-            icon: sel.isBatchDeleting
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: AppCircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  )
-                : const Icon(Icons.archive_outlined),
-            tooltip: l10n.sessionsArchive,
-            onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-                ? null
-                : () => _confirmBatchArchive(context, sel),
-          ),
-        IconButton(
-          icon: Icon(
-            _hasPinnedInSelection(sel)
-                ? Icons.push_pin
-                : Icons.push_pin_outlined,
-          ),
-          tooltip: _hasPinnedInSelection(sel)
-              ? l10n.sessionsUnpin
-              : l10n.sessionsPin,
-          onPressed: sel.selectedIds.isEmpty
-              ? null
-              : () => _pinOrUnpinSelected(sel),
-        ),
-        IconButton(
-          icon: sel.isBatchDeleting
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: AppCircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: cs.error,
-                  ),
-                )
-              : Icon(Icons.delete_outline, color: cs.error),
-          tooltip: l10n.commonDelete,
-          onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-              ? null
-              : () => _confirmBatchDelete(context, sel),
-        ),
-      ],
+      ),
     );
   }
 
@@ -796,6 +823,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   Set<String> _allSelectableSessionIds() {
+    final scope = _selectionNotifier.value.selectableIds;
+    if (scope != null) {
+      final sessions = ref.read(sessionsNotifierProvider);
+      return scope.where(sessions.containsKey).toSet();
+    }
     return selectableSessionIds(
       sessions: ref.read(sessionsNotifierProvider).values,
       hideInactive: ref.read(settingsNotifierProvider).hideInactiveSessions,

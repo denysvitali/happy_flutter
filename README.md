@@ -20,6 +20,12 @@ tap a result to open its web page in your browser.
 
 Session badges and launch choices share bundled harness marks, including
 OpenAI's published mark for Codex and the official OpenCode and Grok icons.
+The Status board has count-based status filters and collapsible sections, with
+five quiet sessions shown initially. Status and By machine views provide an
+explicit Archived tab. Session rows keep titles and previews above wrapping
+identity and activity details; their menu offers Preview, Select, and Archive.
+Bulk selection stays scoped to the current filtered collection.
+
 The new-session dialog presents readable, touch-friendly harness cards in two
 columns, or one column on narrow screens and at larger text sizes. Recent
 workspaces and backend/worktree controls stay collapsed until needed. Asset

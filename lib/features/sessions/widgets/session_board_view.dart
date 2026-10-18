@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
@@ -11,6 +13,7 @@ import '../../../core/theme/app_tokens.dart';
 import 'mission_control_types.dart';
 import 'mission_control_view.dart' show missionLastActivityAt;
 import 'mission_heartbeat.dart';
+import 'session_board_controls.dart';
 import 'unread_focus_cards.dart' show UnreadFocusListGroup;
 
 /// Quiet rows shown before a long Quiet lane folds behind "Show more".
@@ -221,7 +224,9 @@ class SessionBoardView extends StatefulWidget {
     super.key,
     this.scrollController,
     this.showAllClear = false,
+    this.showStatusFilters = false,
     this.onNewSession,
+    this.onVisibleSessionIdsChanged,
   });
 
   final List<SessionBoardSection> sections;
@@ -231,8 +236,14 @@ class SessionBoardView extends StatefulWidget {
   /// Leads with an "All clear" note when no section needs the user.
   final bool showAllClear;
 
+  /// Enables lane filtering and section disclosure on the Status board only.
+  final bool showStatusFilters;
+
   /// Starts a session on the given machine.
   final ValueChanged<String>? onNewSession;
+
+  /// IDs in the selected lane, including rows hidden by section disclosure.
+  final ValueChanged<Set<String>>? onVisibleSessionIdsChanged;
 
   @override
   State<SessionBoardView> createState() => _SessionBoardViewState();
@@ -240,16 +251,66 @@ class SessionBoardView extends StatefulWidget {
 
 class _SessionBoardViewState extends State<SessionBoardView> {
   final Set<String> _expanded = {};
+  final Set<String> _collapsed = {};
+  final ScrollController _ownScrollController = ScrollController();
+  MissionLane? _selectedLane;
+  Set<String>? _reportedIds;
+  Set<String> _pendingIds = {};
+  bool _reportScheduled = false;
+
+  @override
+  void dispose() {
+    _ownScrollController.dispose();
+    super.dispose();
+  }
+
+  void _selectLane(MissionLane? lane) {
+    setState(() {
+      _selectedLane = lane;
+      // A deliberate filter choice reveals its content again.
+      if (lane != null) _collapsed.remove('lane-${lane.name}');
+    });
+    final controller = widget.scrollController ?? _ownScrollController;
+    if (controller.hasClients) controller.jumpTo(0);
+  }
+
+  void _reportVisibleIds(List<SessionBoardSection> sections) {
+    _pendingIds = {
+      for (final section in sections)
+        for (final row in section.rows) row.session.id,
+    };
+    if (widget.onVisibleSessionIdsChanged == null ||
+        _reportScheduled ||
+        setEquals(_reportedIds, _pendingIds)) {
+      return;
+    }
+    _reportScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reportScheduled = false;
+      if (!mounted || setEquals(_reportedIds, _pendingIds)) return;
+      _reportedIds = Set.unmodifiable(_pendingIds);
+      widget.onVisibleSessionIdsChanged?.call(_reportedIds!);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sections = widget.sections;
-    final live = sections.any(
+    final allSections = widget.sections;
+    final selectedLane = widget.showStatusFilters ? _selectedLane : null;
+    final sections = selectedLane == null
+        ? allSections
+        : allSections
+              .where((section) => section.key == 'lane-${selectedLane.name}')
+              .toList();
+    _reportVisibleIds(sections);
+    final emptyLane = selectedLane != null && sections.isEmpty;
+    final live = allSections.any(
       (section) => section.rows.any((row) => row.lane != MissionLane.quiet),
     );
     final allClear =
         widget.showAllClear &&
-        !sections.any(
+        selectedLane == null &&
+        !allSections.any(
           (section) => section.rows.any(
             (row) =>
                 row.lane == MissionLane.blocked ||
@@ -258,30 +319,49 @@ class _SessionBoardViewState extends State<SessionBoardView> {
           ),
         );
     final leading = allClear ? 1 : 0;
+    final list = ListView.builder(
+      controller: widget.scrollController ?? _ownScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xs,
+        bottom: AppSpacing.xxl,
+      ),
+      addAutomaticKeepAlives: false,
+      itemCount: emptyLane ? 1 : sections.length + leading,
+      itemBuilder: (context, i) {
+        if (emptyLane) {
+          return SessionBoardEmptyLane(
+            lane: selectedLane,
+            onShowAll: () => _selectLane(null),
+          );
+        }
+        if (i < leading) return const SessionsAllClearNote();
+        return _buildSection(context, sections[i - leading]);
+      },
+    );
     return MissionClock(
       active: live,
-      child: ListView.builder(
-        controller: widget.scrollController,
-        padding: const EdgeInsets.only(
-          top: AppSpacing.xs,
-          bottom: AppSpacing.xxl,
-        ),
-        addAutomaticKeepAlives: false,
-        itemCount: sections.length + leading,
-        itemBuilder: (context, i) {
-          if (i < leading) return const SessionsAllClearNote();
-          final section = sections[i - leading];
-          return _buildSection(context, section);
-        },
-      ),
+      child: widget.showStatusFilters
+          ? Column(
+              children: [
+                SessionBoardFilters(
+                  counts: _laneCounts(allSections.expand((s) => s.rows)),
+                  selectedLane: selectedLane,
+                  onSelectLane: _selectLane,
+                ),
+                Expanded(child: list),
+              ],
+            )
+          : list,
     );
   }
 
   Widget _buildSection(BuildContext context, SessionBoardSection section) {
     final limit = section.collapseAfter;
-    // Folding a single row behind "Show 1 more" costs the same space.
-    final foldable = limit != null && section.rows.length > limit + 1;
+    final foldable = limit != null && section.rows.length > limit;
     final expanded = _expanded.contains(section.key);
+    final collapsed =
+        widget.showStatusFilters && _collapsed.contains(section.key);
     final visible = foldable && !expanded
         ? section.rows.take(limit)
         : section.rows;
@@ -292,6 +372,7 @@ class _SessionBoardViewState extends State<SessionBoardView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SessionGroupHeader(
+          key: ValueKey('board-header-${section.key}'),
           title: section.title,
           count: section.rows.length,
           subtitle: section.subtitle,
@@ -299,6 +380,14 @@ class _SessionBoardViewState extends State<SessionBoardView> {
           statusColor: section.statusColor,
           accent: section.accent,
           dimmed: section.dimmed,
+          expanded: !collapsed,
+          onToggle: widget.showStatusFilters
+              ? () => setState(() {
+                  if (!_collapsed.remove(section.key)) {
+                    _collapsed.add(section.key);
+                  }
+                })
+              : null,
           // An idle machine already offers the action as its only row.
           onNewSession:
               machineId != null &&
@@ -307,42 +396,39 @@ class _SessionBoardViewState extends State<SessionBoardView> {
               ? () => onNewSession(machineId)
               : null,
         ),
-        Opacity(
-          opacity: section.dimmed ? 0.6 : 1,
-          child: UnreadFocusListGroup(
-            children: [
-              for (final row in visible)
-                KeyedSubtree(
-                  key: ValueKey('board-${row.session.id}'),
-                  child: widget.rowBuilder(row),
-                ),
-              if (section.rows.isEmpty)
-                SessionBoardHintRow(
-                  icon: Icons.add_rounded,
-                  label: context.l10n.sessionsMachineNewSession,
-                  onTap: machineId != null && onNewSession != null
-                      ? () => onNewSession(machineId)
-                      : null,
-                ),
-              if (foldable)
-                SessionBoardHintRow(
-                  icon: expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.expand_more_rounded,
-                  label: expanded
-                      ? context.l10n.sessionsBoardShowLess
-                      : context.l10n.sessionsBoardShowMore(
-                          section.rows.length - limit,
-                        ),
-                  onTap: () => setState(() {
-                    if (!_expanded.remove(section.key)) {
-                      _expanded.add(section.key);
-                    }
-                  }),
-                ),
-            ],
+        if (foldable && !collapsed)
+          SessionBoardPreviewControl(
+            label: expanded
+                ? context.l10n.sessionsBoardShowLess
+                : context.l10n.sessionsBoardShowMore(
+                    section.rows.length - limit,
+                  ),
+            expanded: expanded,
+            onTap: () => setState(() {
+              if (!_expanded.remove(section.key)) _expanded.add(section.key);
+            }),
           ),
-        ),
+        if (!collapsed)
+          Opacity(
+            opacity: section.dimmed ? 0.6 : 1,
+            child: UnreadFocusListGroup(
+              children: [
+                for (final row in visible)
+                  KeyedSubtree(
+                    key: ValueKey('board-${row.session.id}'),
+                    child: widget.rowBuilder(row),
+                  ),
+                if (section.rows.isEmpty)
+                  SessionBoardHintRow(
+                    icon: Icons.add_rounded,
+                    label: context.l10n.sessionsMachineNewSession,
+                    onTap: machineId != null && onNewSession != null
+                        ? () => onNewSession(machineId)
+                        : null,
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -361,6 +447,8 @@ class SessionGroupHeader extends StatelessWidget {
     this.accent,
     this.dimmed = false,
     this.onNewSession,
+    this.onToggle,
+    this.expanded = true,
   });
 
   final String title;
@@ -371,6 +459,8 @@ class SessionGroupHeader extends StatelessWidget {
   final Color? accent;
   final bool dimmed;
   final VoidCallback? onNewSession;
+  final VoidCallback? onToggle;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +470,7 @@ class SessionGroupHeader extends StatelessWidget {
     final statusColor = this.statusColor;
     final subtitle = this.subtitle;
     final count = this.count;
-    return Padding(
+    final header = Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
@@ -401,7 +491,16 @@ class SessionGroupHeader extends StatelessWidget {
           if (statusColor != null || icon != null)
             const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: subtitle == null
+            child: subtitle == null && onToggle != null
+                ? Wrap(
+                    spacing: AppSpacing.sm,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(title, style: AppText.title(theme, accent)),
+                      if (count != null) AppBadge(label: '$count'),
+                    ],
+                  )
+                : subtitle == null
                 ? Text.rich(
                     TextSpan(
                       children: [
@@ -442,6 +541,12 @@ class SessionGroupHeader extends StatelessWidget {
                     ],
                   ),
           ),
+          if (onToggle != null)
+            Icon(
+              expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              color: cs.onSurfaceVariant,
+              size: AppIconSize.md,
+            ),
           if (onNewSession != null)
             IconButton(
               onPressed: onNewSession,
@@ -449,6 +554,27 @@ class SessionGroupHeader extends StatelessWidget {
               icon: Icon(Icons.add_rounded, color: cs.onSurfaceVariant),
             ),
         ],
+      ),
+    );
+    if (onToggle == null) return header;
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: expanded
+          ? context.l10n.sessionsBoardCollapseSection(title)
+          : context.l10n.sessionsBoardExpandSection(title),
+      value: count == null
+          ? null
+          : context.l10n.missionControlSessionCount(count),
+      onTap: onToggle,
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onToggle,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+            child: header,
+          ),
+        ),
       ),
     );
   }
@@ -460,6 +586,7 @@ class SessionBoardHintRow extends StatelessWidget {
     required this.icon,
     required this.label,
     this.onTap,
+    super.key,
   });
 
   final IconData icon;
@@ -521,17 +648,23 @@ class SessionsAllClearNote extends StatelessWidget {
             color: success,
           ),
           const SizedBox(width: AppSpacing.sm),
-          Text(
-            context.l10n.sessionsBoardAllClear,
-            style: AppText.title(theme, cs.onSurface),
-          ),
-          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(
-              context.l10n.sessionsBoardAllClearHint,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.secondary(theme, cs.onSurfaceVariant),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xxs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  context.l10n.sessionsBoardAllClear,
+                  style: AppText.title(theme, cs.onSurface),
+                ),
+                if (MediaQuery.textScalerOf(context).scale(AppFontSize.sm) <=
+                    AppFontSize.xl)
+                  Text(
+                    context.l10n.sessionsBoardAllClearHint,
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
+                  ),
+              ],
             ),
           ),
         ],

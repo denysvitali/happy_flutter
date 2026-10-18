@@ -39,8 +39,10 @@ class _StubAuthNotifier extends AuthStateNotifier {
 }
 
 class _StubSettingsNotifier extends SettingsNotifier {
+  _StubSettingsNotifier(this.viewStyle);
+  final String viewStyle;
   @override
-  Settings build() => Settings();
+  Settings build() => Settings()..sessionsViewStyle = viewStyle;
   @override
   Future<void> updateSetting<T>(String key, T value) async {}
 }
@@ -145,7 +147,11 @@ Session _session(String id, {required int activeAt, bool archived = false}) {
   );
 }
 
-Widget _app({Map<String, Session> sessions = const {}}) {
+Widget _app({
+  Map<String, Session> sessions = const {},
+  TextScaler textScaler = TextScaler.noScaling,
+  String viewStyle = 'mission_control',
+}) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
@@ -166,7 +172,9 @@ Widget _app({Map<String, Session> sessions = const {}}) {
   return ProviderScope(
     overrides: [
       authStateNotifierProvider.overrideWith(_StubAuthNotifier.new),
-      settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
+      settingsNotifierProvider.overrideWith(
+        () => _StubSettingsNotifier(viewStyle),
+      ),
       sessionsNotifierProvider.overrideWith(
         () => _StubSessionsNotifier(sessions),
       ),
@@ -186,6 +194,10 @@ Widget _app({Map<String, Session> sessions = const {}}) {
       ),
     ],
     child: MaterialApp.router(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child!,
+      ),
       routerConfig: router,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -234,6 +246,27 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+
+  testWidgets('session header fits narrow screens with large text', (
+    tester,
+  ) async {
+    setSize(tester, const Size(320, 900));
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await tester.pumpWidget(
+      _app(
+        sessions: {'one': _session('one', activeAt: now)},
+        textScaler: const TextScaler.linear(2),
+        viewStyle: 'status',
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.text('Status board'), findsOneWidget);
+    await tester.longPress(find.text('app'));
+    await tester.pump();
+    expect(find.text('1 selected'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('tablet sessions tab renders the persisted split view', (
     tester,

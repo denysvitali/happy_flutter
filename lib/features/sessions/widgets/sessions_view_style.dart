@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Layouts the sessions tab can render, keyed by their persisted
 /// `sessionsViewStyle` setting value.
@@ -51,7 +53,9 @@ enum SessionsViewStyle {
 /// The icon mirrors the current layout so the active mode stays visible
 /// without opening Settings.
 class SessionsViewStyleButton extends ConsumerWidget {
-  const SessionsViewStyleButton({super.key});
+  const SessionsViewStyleButton({super.key, this.showLabel = false});
+
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +65,33 @@ class SessionsViewStyleButton extends ConsumerWidget {
     );
     final cs = Theme.of(context).colorScheme;
     return PopupMenuButton<SessionsViewStyle>(
-      icon: Icon(current.icon),
+      icon: showLabel ? null : Icon(current.icon),
+      child: showLabel
+          ? ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(current.icon, size: AppIconSize.md, color: cs.primary),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      current.label(l10n),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.label(Theme.of(context), cs.primary),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    Icons.expand_more,
+                    size: AppIconSize.md,
+                    color: cs.primary,
+                  ),
+                ],
+              ),
+            )
+          : null,
       tooltip: '${l10n.sessionsViewStyleTooltip}: ${current.label(l10n)}',
       initialValue: current,
       onSelected: (style) {

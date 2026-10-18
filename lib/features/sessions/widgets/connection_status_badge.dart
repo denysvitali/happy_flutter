@@ -4,6 +4,7 @@ import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_text.dart';
 
 /// Connection status badge in the app bar.
 ///
@@ -13,7 +14,13 @@ import '../../../core/theme/app_tokens.dart';
 /// perceivable for colourblind users — and carries a localized
 /// [Semantics] label for screen readers.
 class ConnectionStatusBadge extends StatefulWidget {
-  const ConnectionStatusBadge({required this.status, super.key});
+  const ConnectionStatusBadge({
+    required this.status,
+    this.showLabel = false,
+    super.key,
+  });
+
+  final bool showLabel;
 
   /// The current connection status.
   final ConnectionStatus status;
@@ -124,23 +131,37 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
       child: Center(
         child: Semantics(
           label: label,
-          child: animate
-              ? AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    final opacity = 0.35 + 0.65 * _pulseAnimation.value;
-                    final scale = 0.75 + 0.5 * _pulseAnimation.value;
-                    return Transform.scale(
-                      scale: scale,
-                      child: Icon(
-                        icon,
-                        size: AppIconSize.xs,
-                        color: color.withValues(alpha: opacity),
-                      ),
-                    );
-                  },
-                )
-              : Icon(icon, size: AppIconSize.xs, color: color),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              animate
+                  ? AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        final opacity = 0.35 + 0.65 * _pulseAnimation.value;
+                        final scale = 0.75 + 0.5 * _pulseAnimation.value;
+                        return Transform.scale(
+                          scale: scale,
+                          child: Icon(
+                            icon,
+                            size: AppIconSize.xs,
+                            color: color.withValues(alpha: opacity),
+                          ),
+                        );
+                      },
+                    )
+                  : Icon(icon, size: AppIconSize.xs, color: color),
+              if (widget.showLabel) ...[
+                const SizedBox(width: AppSpacing.xs),
+                ExcludeSemantics(
+                  child: Text(
+                    label,
+                    style: AppText.secondary(Theme.of(context)),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

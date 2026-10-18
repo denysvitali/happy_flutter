@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -5,7 +7,6 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
-import 'package:happy_flutter/features/sessions/widgets/mission_control_types.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_board_view.dart';
 
@@ -104,6 +105,46 @@ Future<BuildContext> _context(WidgetTester tester) async {
   );
   return captured;
 }
+
+Future<void> _pumpBoard(
+  WidgetTester tester,
+  List<SessionBoardSection> sections, {
+  bool status = true,
+  ThemeData? theme,
+  double textScale = 1,
+  ValueChanged<String>? onNewSession,
+  ValueChanged<Set<String>>? onVisibleSessionIdsChanged,
+  ValueChanged<String>? onOpenSession,
+}) => tester.pumpWidget(
+  MaterialApp(
+    theme: theme ?? ThemeHelper.buildDarkTheme(),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(textScale)),
+      child: child!,
+    ),
+    home: Scaffold(
+      body: SessionBoardView(
+        sections: sections,
+        showStatusFilters: status,
+        showAllClear: status,
+        onNewSession: onNewSession,
+        onVisibleSessionIdsChanged: onVisibleSessionIdsChanged,
+        rowBuilder: (row) => TextButton(
+          onPressed: () => onOpenSession?.call(row.session.id),
+          child: Text('session ${row.session.id}'),
+        ),
+      ),
+    ),
+  ),
+);
+
+Finder _filter(String lane) => find.byKey(ValueKey('board-filter-$lane'));
+
+Finder _header(String lane) => find.byKey(ValueKey('board-header-lane-$lane'));
 
 void main() {
   testWidgets('status board groups sessions by urgency lane', (tester) async {
@@ -207,6 +248,217 @@ void main() {
     expect(find.text('Show less'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('status filters include counts and preserve row actions', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final sections = buildStatusBoardSections(context, _sessions, _ui);
+    String? opened;
+    await _pumpBoard(tester, sections, onOpenSession: (id) => opened = id);
+    expect(find.byType(ChoiceChip), findsNWidgets(5));
+    expect(tester.getSemantics(_filter('all')).label, 'All, 6');
+    expect(tester.getSemantics(_filter('live')).label, 'Working, 1');
+    expect(find.text('All clear'), findsNothing);
+    expect(_header('error'), findsOneWidget);
+    expect(_header('unread'), findsOneWidget);
+    expect(find.text('session b'), findsOneWidget);
+
+    await tester.tap(_filter('live'));
+    await tester.pump();
+    expect(
+      tester.getSemantics(_filter('live')).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    expect(_header('quiet'), findsNothing);
+    expect(find.text('session a'), findsNothing);
+    expect(find.text('session b'), findsOneWidget);
+    await tester.tap(find.text('session b'));
+    expect(opened, 'b');
+    await tester.tap(_filter('all'));
+    await tester.pump();
+    expect(find.text('session a'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('selected lane stays explicit when its last session changes', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final sections = buildStatusBoardSections(context, _sessions, _ui);
+    final changed = buildStatusBoardSections(
+      context,
+      _sessions.where((session) => session.id != 'b').toList(),
+      _ui,
+    );
+    await _pumpBoard(tester, sections);
+    await tester.tap(_filter('live'));
+    await tester.pump();
+    await _pumpBoard(tester, changed);
+    expect(tester.getSemantics(_filter('live')).label, 'Working, 0');
+    expect(find.text('No sessions in Working'), findsOneWidget);
+    expect(find.text('session a'), findsNothing);
+    expect(find.text('All clear'), findsNothing);
+    await tester.tap(find.text('Show all sessions'));
+    await tester.pump();
+    expect(_filter('live'), findsNothing);
+    expect(find.text('session a'), findsOneWidget);
+    expect(
+      tester.getSemantics(_filter('all')).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('header controls expose disclosure and bound quiet preview', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final quiet = [
+      for (var i = 0; i < 6; i++)
+        s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      quiet,
+      const SessionUiState(),
+    );
+    await _pumpBoard(tester, sections);
+    expect(
+      tester.getSemantics(_header('quiet')).flagsCollection.isExpanded,
+      Tristate.isTrue,
+    );
+    expect(find.text('session q5'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Show 1 more')).dy,
+      lessThan(tester.getTopLeft(find.text('session q0')).dy),
+    );
+    await tester.tap(find.text('Show 1 more'));
+    await tester.pump();
+    expect(find.text('session q5'), findsOneWidget);
+    await tester.tap(find.text('Show less'));
+    await tester.pump();
+    expect(find.text('session q5'), findsNothing);
+
+    await tester.tap(_header('quiet'));
+    await tester.pump();
+    expect(
+      tester.getSemantics(_header('quiet')).flagsCollection.isExpanded,
+      Tristate.isFalse,
+    );
+    expect(tester.getSemantics(_header('quiet')).label, 'Expand Quiet');
+    expect(find.text('session q0'), findsNothing);
+    expect(find.text('Show 1 more'), findsNothing);
+    await tester.tap(_header('quiet'));
+    await tester.pump();
+    expect(find.text('session q0'), findsOneWidget);
+    expect(find.text('session q5'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('bulk selection IDs follow filters and include hidden rows', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final sessions = [
+      s('live', 'working', '/w/live', 'devbox', thinking: true),
+      for (var i = 0; i < 7; i++) s('q$i', 'quiet', '/w/q$i', 'devbox'),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      sessions,
+      const SessionUiState(),
+    );
+    final reports = <Set<String>>[];
+    await _pumpBoard(tester, sections, onVisibleSessionIdsChanged: reports.add);
+    expect(reports, [sessions.map((session) => session.id).toSet()]);
+    await tester.tap(_header('quiet'));
+    await tester.pump();
+    expect(reports, hasLength(1));
+    await tester.tap(_filter('quiet'));
+    await tester.pump();
+    expect(reports.last, {for (var i = 0; i < 7; i++) 'q$i'});
+    expect(find.text('session q0'), findsOneWidget);
+    expect(find.text('session q6'), findsNothing);
+    await tester.tap(_filter('live'));
+    await tester.pump();
+    expect(reports.last, {'live'});
+    await tester.pump();
+    expect(reports, hasLength(3));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('machine board keeps idle and occupied machine actions', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final sections = buildMachineSections(
+      context,
+      [_sessions.first],
+      {'phone': m('phone', true), 'spare': m('spare', true)},
+      const SessionUiState(),
+    );
+    final launched = <String>[];
+    await _pumpBoard(
+      tester,
+      sections,
+      status: false,
+      onNewSession: launched.add,
+    );
+    expect(find.byType(ChoiceChip), findsNothing);
+    await tester.tap(find.byTooltip('New session on this machine'));
+    await tester.tap(find.text('New session on this machine'));
+    expect(launched, ['phone', 'spare']);
+    expect(find.text('session a'), findsOneWidget);
+    expect(
+      tester.widget<ListView>(find.byType(ListView)).physics,
+      isA<AlwaysScrollableScrollPhysics>(),
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final dark in [false, true]) {
+    testWidgets('status controls fit 320px at 2x text, dark=$dark', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final context = await _context(tester);
+      final sections = buildStatusBoardSections(context, [
+        ..._sessions,
+        s(
+          'blocked',
+          'needs approval',
+          '/w/blocked',
+          'devbox',
+          agent: AgentState(
+            requests: {'r': const RequestInfo(tool: 'Bash', createdAt: 1)},
+          ),
+        ),
+      ], _ui);
+      await _pumpBoard(
+        tester,
+        sections,
+        textScale: 2,
+        theme: dark
+            ? ThemeHelper.buildDarkTheme()
+            : ThemeHelper.buildLightTheme(),
+      );
+      expect(tester.takeException(), isNull);
+      expect(_filter('quiet'), findsOneWidget);
+      await tester.tap(_filter('quiet'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('session d'), findsOneWidget);
+      await tester.tap(_header('quiet'));
+      await tester.pump();
+      expect(find.text('session d'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   test('short host keeps the user when the hostname is unset', () {
     expect(missionShortHost('root@(none) (go)'), 'root');

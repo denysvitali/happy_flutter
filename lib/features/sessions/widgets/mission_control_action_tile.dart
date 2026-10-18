@@ -1,27 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../harness_logo.dart';
 import 'inline_permission_actions.dart';
-import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 import 'mission_heartbeat.dart';
 import 'session_cards.dart';
-import 'workspace_identity.dart';
 
-/// Compact operational tile used by Mission Control.
+/// Session content owns its width; identity, status and actions wrap below.
 ///
-/// The title owns the row width on a single ellipsized line. Workspace and the
-/// last message or tool call share one detail line, while the lane-specific
-/// outcome stays in a trailing pill. The pill doubles as a mark-read button
-/// for unread rows; an overflow menu exposes pin and snooze triage actions.
+/// Canonical names and previews stay separate from workspace/host metadata.
+/// The short session ID distinguishes sessions with the same generic name.
 class MissionActionRow extends StatelessWidget {
   const MissionActionRow({
     required this.session,
@@ -39,6 +37,8 @@ class MissionActionRow extends StatelessWidget {
     this.onTogglePin,
     this.onToggleSnooze,
     this.onPeek,
+    this.onArchive,
+    this.onSelect,
     this.showTriageMenu = true,
     this.showInlineApproval = false,
   });
@@ -66,8 +66,12 @@ class MissionActionRow extends StatelessWidget {
   /// Opens the glanceable peek sheet without navigating into the chat.
   final VoidCallback? onPeek;
 
-  /// Mission Control's focus queue owns pin/snooze; grouped boards hide the
-  /// overflow menu so each row stays a single tap target.
+  /// Archive and selection are separate from opening the conversation.
+  final VoidCallback? onArchive;
+  final VoidCallback? onSelect;
+
+  /// Mission Control owns pin/snooze/read triage. Preview, selection and
+  /// archive remain discoverable on grouped boards when supplied.
   final bool showTriageMenu;
 
   /// Renders Allow/Deny under a blocked row. Requires a [ProviderScope].
@@ -79,7 +83,6 @@ class MissionActionRow extends StatelessWidget {
     final cs = theme.colorScheme;
     final status = getSessionStatus(session);
     final laneColor = missionLaneColor(context, lane);
-    final laneLabel = missionLaneLabel(context, lane);
     final activity = getSessionActivity(context, session)?.label;
     final preview = entry.lastMessagePreview;
     // The concrete update outranks the abstract activity label: most queue
@@ -102,17 +105,12 @@ class MissionActionRow extends StatelessWidget {
         ? null
         : missionShortPath(path);
     final name = getSessionName(session);
-    // A session named after its folder would read "fw-analyzer /
-    // git/fw-analyzer"; drop the echo when there is something better to say.
     final workspaceEchoesName =
         workspace != null &&
         workspace.split('/').last.toLowerCase() == name.trim().toLowerCase();
-    final detail = [
-      if (workspace != null && (!workspaceEchoesName || activityText == null))
-        workspace,
-      ?activityText,
-    ].join('  ·  ');
-    final showWorkspaceDot = workspace != null && detail.startsWith(workspace);
+    final host = session.metadata?.host.trim();
+    final showHost = host != null && host.isNotEmpty && host != name.trim();
+    final shortId = '#${session.id.characters.takeLast(8)}';
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
     final nowMs = missionNowOf(context);
@@ -123,199 +121,186 @@ class MissionActionRow extends StatelessWidget {
       lastActivityAt: since,
       live: lane == MissionLane.live,
     );
-    final silenceMs = nowMs - since;
-    final isSilent =
-        lane == MissionLane.live &&
-        silenceMs >= missionSilentThreshold.inMilliseconds;
-    final semanticOutcome = switch (lane) {
-      MissionLane.blocked => context.l10n.missionControlReview,
-      MissionLane.error => laneLabel,
-      MissionLane.unread =>
-        status.state == SessionState.thinking
-            ? context.l10n.chatSessionWorkingUnread(entry.unreadCount)
-            : missionUnreadOutcome(context, entry),
-      MissionLane.live =>
-        isSilent
-            ? context.l10n.missionControlSilent(formatSilenceShort(silenceMs))
-            : formatElapsedShort(silenceMs),
-      MissionLane.quiet => laneLabel,
-    };
-    final detailStyle = MissionType.meta(
-      theme,
-      lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
-    );
+    final showActivityAge =
+        lane != MissionLane.live ||
+        status.state != SessionState.thinking ||
+        freshness != StreamFreshness.silent;
+    final when = DateTime.fromMillisecondsSinceEpoch(since);
+    final now = DateTime.fromMillisecondsSinceEpoch(nowMs);
+    final age = now.difference(when);
+    // Keep old sessions relative too. Future timestamps retain the shared
+    // formatter's clock-skew handling instead of claiming "just now".
+    final ageLabel = age.inDays >= 7
+        ? context.l10n.relativeDaysCompact(age.inDays)
+        : formatRelativeTime(when, now: now, compact: true, l10n: context.l10n);
 
     return Semantics(
-      button: true,
+      container: true,
       selected: selected,
-      label: '$name, $laneLabel, $detail, $semanticOutcome',
-      // Inline approval buttons must stay reachable to screen readers.
-      child: ExcludeSemantics(
-        excluding: !approval,
-        child: AnimatedContainer(
-          duration: AppMotion.duration(context, AppDuration.fast),
-          curve: AppCurve.standard,
-          constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.comfortable,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? cs.primary.withValues(alpha: 0.1)
-                : highlighted
-                ? laneColor.withValues(alpha: 0.06)
-                : Colors.transparent,
-            border: Border(
-              left: BorderSide(
-                color: selected ? cs.primary : Colors.transparent,
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context, AppDuration.fast),
+        curve: AppCurve.standard,
+        constraints: const BoxConstraints(
+          minHeight: AppTouchTarget.comfortable,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? cs.primary.withValues(alpha: 0.1)
+              : highlighted
+              ? laneColor.withValues(alpha: 0.06)
+              : Colors.transparent,
+          border: Border.all(color: selected ? cs.primary : Colors.transparent),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.smd,
+                AppSpacing.xs,
+                AppSpacing.sm,
+                AppSpacing.xs,
               ),
-              top: BorderSide(
-                color: selected ? cs.primary : Colors.transparent,
-              ),
-              right: BorderSide(
-                color: selected ? cs.primary : Colors.transparent,
-              ),
-              bottom: BorderSide(
-                color: selected ? cs.primary : Colors.transparent,
-              ),
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.smd,
-                  AppSpacing.xs,
-                  AppSpacing.xs,
-                  AppSpacing.xs,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 480;
-                    final outcome = _OutcomePill(
-                      compact: compact,
-                      lane: lane,
-                      entry: entry,
-                      since: since,
-                      nowMs: nowMs,
-                      live: status.state == SessionState.thinking,
-                      onMarkRead: lane == MissionLane.unread && !selected
-                          ? onMarkRead
-                          : null,
-                    );
-                    final line = Row(
-                      children: [
-                        _LaneTile(
-                          lane: lane,
-                          flavor: session.metadata?.flavor,
-                          color: laneColor,
-                          freshness: freshness,
-                          // Blocked/error are at-rest lanes: their full
-                          // container color and outcome pill already demand
-                          // attention, so only real agent activity and the
-                          // brief post-update burst animate.
-                          pulse:
-                              animateActivity &&
-                              (status.isPulsing ||
-                                  freshness == StreamFreshness.burst),
-                          selected: selected,
-                        ),
-                        const SizedBox(width: AppSpacing.smd),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ExcludeSemantics(
+                      child: _LaneTile(
+                        lane: lane,
+                        flavor: session.metadata?.flavor,
+                        color: laneColor,
+                        freshness: freshness,
+                        pulse:
+                            animateActivity &&
+                            (status.isPulsing ||
+                                freshness == StreamFreshness.burst),
+                        selected: selected,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.smd),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.title(theme),
+                          ),
+                          if (activityText != null) ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              activityText,
+                              maxLines: lane == MissionLane.error ? 2 : 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.secondary(
+                                theme,
+                                lane == MissionLane.error ? laneColor : null,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.xxs),
+                          Wrap(
+                            spacing: AppSpacing.xsm,
+                            runSpacing: AppSpacing.xxs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: MissionType.title(theme, cs.onSurface),
-                              ),
-                              const SizedBox(height: 1),
-                              Row(
-                                children: [
-                                  if (showWorkspaceDot) ...[
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: workspaceIdentityColor(
-                                          context,
-                                          sessionFolderKey(session),
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.xxs),
-                                  ],
-                                  Expanded(
-                                    child: Text(
-                                      detail.isEmpty ? laneLabel : detail,
-                                      // The error reason is why the user is
-                                      // looking — one extra line beats an
-                                      // elided diagnosis.
-                                      maxLines: lane == MissionLane.error
-                                          ? 2
-                                          : 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: detailStyle,
-                                    ),
+                              if (!approval && lane != MissionLane.quiet)
+                                _OutcomePill(
+                                  compact: constraints.maxWidth < 480,
+                                  lane: lane,
+                                  entry: entry,
+                                  since: since,
+                                  nowMs: nowMs,
+                                  live: status.state == SessionState.thinking,
+                                  onMarkRead:
+                                      lane == MissionLane.unread && !selected
+                                      ? onMarkRead
+                                      : null,
+                                ),
+                              if (showActivityAge)
+                                Tooltip(
+                                  message: when.toLocal().toString(),
+                                  child: Text(
+                                    ageLabel,
+                                    style: AppText.secondary(theme),
                                   ),
-                                ],
+                                ),
+                              if (showHost)
+                                Tooltip(
+                                  message: host,
+                                  child: Text(
+                                    missionShortHost(host),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.secondary(theme),
+                                  ),
+                                ),
+                              if (workspace != null && !workspaceEchoesName)
+                                Text(
+                                  workspace,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.secondary(theme),
+                                ),
+                              Tooltip(
+                                message: session.id,
+                                child: Text(
+                                  shortId,
+                                  style: AppText.mono(theme),
+                                ),
                               ),
+                              if (isPinned)
+                                Icon(
+                                  Icons.push_pin_rounded,
+                                  size: AppIconSize.sm,
+                                  color: cs.onSurfaceVariant,
+                                  semanticLabel:
+                                      context.l10n.missionControlPinToTop,
+                                ),
+                              if (!selected && _hasOverflowMenu)
+                                _TriageMenu(
+                                  isPinned: isPinned,
+                                  isSnoozed: isSnoozed,
+                                  canMarkRead:
+                                      showTriageMenu &&
+                                      lane == MissionLane.unread &&
+                                      entry.unreadCount > 0,
+                                  onMarkRead: showTriageMenu
+                                      ? onMarkRead
+                                      : null,
+                                  onTogglePin: showTriageMenu
+                                      ? onTogglePin
+                                      : null,
+                                  onToggleSnooze: showTriageMenu
+                                      ? onToggleSnooze
+                                      : null,
+                                  onPeek: onPeek,
+                                  onArchive: onArchive,
+                                  onSelect: onSelect,
+                                ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        if (isPinned) ...[
-                          Icon(
-                            Icons.push_pin_rounded,
-                            size: AppIconSize.sm,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
+                          if (approval)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.xs,
+                              ),
+                              child: InlinePermissionActions(
+                                sessionId: session.id,
+                                requests: requests,
+                                isOnline: session.presence == 'online',
+                              ),
+                            ),
                         ],
-                        // Allow/Deny below replaces the "Review" pill.
-                        if (!approval) outcome,
-                        if (showTriageMenu && _hasOverflowMenu) ...[
-                          _TriageMenu(
-                            isPinned: isPinned,
-                            isSnoozed: isSnoozed,
-                            canMarkRead:
-                                lane == MissionLane.unread &&
-                                entry.unreadCount > 0,
-                            onMarkRead: onMarkRead,
-                            onTogglePin: onTogglePin,
-                            onToggleSnooze: onToggleSnooze,
-                            onPeek: onPeek,
-                          ),
-                        ] else
-                          const SizedBox(width: AppSpacing.sm),
-                      ],
-                    );
-                    if (!approval) return line;
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        line,
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: AppControlSize.sm + AppSpacing.smd,
-                            right: AppSpacing.sm,
-                            bottom: AppSpacing.xs,
-                          ),
-                          child: InlinePermissionActions(
-                            sessionId: session.id,
-                            requests: requests,
-                            isOnline: session.presence == 'online',
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -326,10 +311,15 @@ class MissionActionRow extends StatelessWidget {
   }
 
   bool get _hasOverflowMenu =>
-      onTogglePin != null ||
-      onToggleSnooze != null ||
-      onMarkRead != null ||
-      onPeek != null;
+      onArchive != null ||
+      onSelect != null ||
+      onPeek != null ||
+      (showTriageMenu &&
+          (onTogglePin != null ||
+              onToggleSnooze != null ||
+              (onMarkRead != null &&
+                  lane == MissionLane.unread &&
+                  entry.unreadCount > 0)));
 }
 
 class _LaneTile extends StatelessWidget {
@@ -413,13 +403,9 @@ class _OutcomePill extends StatelessWidget {
     required this.since,
     required this.nowMs,
     required this.live,
-    this.compact = false,
+    required this.compact,
     this.onMarkRead,
   });
-
-  /// Narrow layouts trade the long outcome label for a short count so the
-  /// row stays on one line.
-  final bool compact;
 
   final MissionLane lane;
   final SessionUiEntry entry;
@@ -429,6 +415,7 @@ class _OutcomePill extends StatelessWidget {
   /// Whether the agent is still marked as working — gates the "silent"
   /// stall hint, which would be nonsense on a finished session.
   final bool live;
+  final bool compact;
   final VoidCallback? onMarkRead;
 
   @override
@@ -436,74 +423,44 @@ class _OutcomePill extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final color = missionLaneColor(context, lane);
-
-    // MissionActionRow captures the shared clock once and passes it down so
-    // this child does not register a duplicate inherited dependency.
     final silenceMs = nowMs - since;
     final isSilent = live && silenceMs >= missionSilentThreshold.inMilliseconds;
-    final pillColor = isSilent
-        ? missionLaneColor(context, MissionLane.blocked)
-        : color;
-    final pillBg = isSilent
-        ? missionLaneContainerColor(context, MissionLane.blocked)
-        : missionLaneContainerColor(context, lane);
-    if (lane == MissionLane.quiet) {
-      return Text(
-        formatRelativeTime(
-          DateTime.fromMillisecondsSinceEpoch(since),
-          now: DateTime.fromMillisecondsSinceEpoch(nowMs),
-          compact: true,
-          l10n: l10n,
-        ),
-        maxLines: 1,
-        style: MissionType.meta(theme, theme.colorScheme.onSurfaceVariant),
-      );
-    }
-    final child = switch (lane) {
-      MissionLane.blocked => Text(l10n.missionControlReview),
-      MissionLane.error => Text(missionLaneLabel(context, lane)),
-      MissionLane.unread => Text(
+    final displayLane = isSilent ? MissionLane.blocked : lane;
+    final label = switch (lane) {
+      MissionLane.blocked => l10n.missionControlReview,
+      MissionLane.unread =>
         compact
             ? l10n.missionControlNewCount(entry.unreadCount)
             : live
             ? l10n.chatSessionWorkingUnread(entry.unreadCount)
             : missionUnreadOutcome(context, entry),
-      ),
-      MissionLane.live => Text(
+      MissionLane.live =>
         isSilent
             ? l10n.missionControlSilent(formatSilenceShort(silenceMs))
-            : formatElapsedShort(silenceMs),
-      ),
-      MissionLane.quiet => const SizedBox.shrink(),
+            : missionLaneLabel(context, lane),
+      MissionLane.error || MissionLane.quiet => missionLaneLabel(context, lane),
     };
-    final pill = Container(
-      constraints: BoxConstraints(
-        minWidth: compact ? 0 : 72,
-        maxWidth: compact ? 96 : 180,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? AppSpacing.xsm : AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: pillBg,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: DefaultTextStyle(
-        style: MissionType.badge(theme, pillColor),
-        textAlign: TextAlign.center,
-        child: child,
-      ),
+    final pill = AppBadge(
+      label: label,
+      backgroundColor: missionLaneContainerColor(context, displayLane),
+      foregroundColor: isSilent
+          ? missionLaneColor(context, MissionLane.blocked)
+          : color,
+      labelStyle: AppText.badge(theme, missionLaneColor(context, displayLane)),
     );
     if (onMarkRead == null) return pill;
     return Semantics(
       button: true,
-      label: l10n.missionControlMarkRead,
+      label: '$label, ${l10n.missionControlMarkRead}',
+      onTap: onMarkRead,
       child: ExcludeSemantics(
         child: InkWell(
           onTap: onMarkRead,
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: pill,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+            child: Center(widthFactor: 1, heightFactor: 1, child: pill),
+          ),
         ),
       ),
     );
@@ -521,6 +478,8 @@ class _TriageMenu extends StatelessWidget {
     this.onTogglePin,
     this.onToggleSnooze,
     this.onPeek,
+    this.onArchive,
+    this.onSelect,
   });
 
   final bool isPinned;
@@ -530,6 +489,8 @@ class _TriageMenu extends StatelessWidget {
   final VoidCallback? onTogglePin;
   final ValueChanged<bool>? onToggleSnooze;
   final VoidCallback? onPeek;
+  final VoidCallback? onArchive;
+  final VoidCallback? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -546,6 +507,10 @@ class _TriageMenu extends StatelessWidget {
       tooltip: l10n.missionControlTriage,
       onSelected: (action) {
         switch (action) {
+          case 'select':
+            onSelect?.call();
+          case 'archive':
+            onArchive?.call();
           case 'peek':
             onPeek?.call();
           case 'read':
@@ -559,6 +524,13 @@ class _TriageMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => [
+        if (onSelect != null)
+          PopupMenuItem(
+            value: 'select',
+            child: Text(l10n.sessionsSelectSession),
+          ),
+        if (onArchive != null)
+          PopupMenuItem(value: 'archive', child: Text(l10n.sessionsArchive)),
         if (onPeek != null)
           PopupMenuItem(
             value: 'peek',
@@ -570,7 +542,7 @@ class _TriageMenu extends StatelessWidget {
                   color: cs.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(l10n.missionControlPeekQuickLook),
+                Flexible(child: Text(l10n.missionControlPeekQuickLook)),
               ],
             ),
           ),

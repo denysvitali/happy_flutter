@@ -9675,6 +9675,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quiet'**
   String get chatSessionQuiet;
+
+  /// No description provided for @sessionsSelectSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Select session'**
+  String get sessionsSelectSession;
+
+  /// No description provided for @sessionsBoardShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all sessions'**
+  String get sessionsBoardShowAll;
+
+  /// No description provided for @sessionsBoardEmptyLane.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions in {lane}'**
+  String sessionsBoardEmptyLane(String lane);
+
+  /// No description provided for @sessionsBoardCollapseSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse {section}'**
+  String sessionsBoardCollapseSection(String section);
+
+  /// No description provided for @sessionsBoardExpandSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand {section}'**
+  String sessionsBoardExpandSection(String section);
+
+  /// No description provided for @sessionsBoardActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get sessionsBoardActive;
+
+  /// No description provided for @sessionsBoardNoActive.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get sessionsBoardNoActive;
+
+  /// No description provided for @sessionsBoardNoArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'No archived sessions'**
+  String get sessionsBoardNoArchived;
+
+  /// No description provided for @sessionsBoardSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search sessions or projects'**
+  String get sessionsBoardSearchHint;
 }
 
 class _AppLocalizationsDelegate

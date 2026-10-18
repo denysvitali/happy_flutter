@@ -25,6 +25,7 @@ import 'mission_control_view.dart';
 import 'mission_heartbeat.dart';
 import 'session_animations.dart';
 import 'session_board_view.dart';
+import 'session_board_collection.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
 import 'session_headers.dart';
@@ -104,6 +105,11 @@ class SessionsListContent extends ConsumerStatefulWidget {
 class _SessionsListContentState extends ConsumerState<SessionsListContent>
     with SyncSubscriptionMixin {
   bool _hasLoaded = false;
+  bool? _showBoardArchive;
+  Set<String>? _boardSelectableIds;
+  Set<String> _boardArchivedIds = {};
+  bool get _boardArchiveVisible =>
+      _showBoardArchive ?? (_sortedCache?.active.isEmpty ?? false);
   bool _animationTriggered = false;
   String? _selectedFolderKey;
   final Set<String> _expandedArchivedFolders = {};
@@ -295,7 +301,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final current = _sel.value;
     if (!current.isActive) {
       HapticFeedback.mediumImpact();
-      _sel.value = SelectionState(isActive: true, selectedIds: {sessionId});
+      final board =
+          _sessionsViewStyle == 'status' || _sessionsViewStyle == 'machines';
+      _sel.value = SelectionState(
+        isActive: true,
+        selectedIds: {sessionId},
+        selectableIds: board
+            ? (_boardArchiveVisible ? _boardArchivedIds : _boardSelectableIds)
+            : null,
+      );
     }
   }
 
@@ -429,7 +443,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _lastSearchQuery = searchQuery;
 
     final activeSessions = sorted.active;
-    final inactiveSessions = sorted.inactive;
+    final isBoard =
+        sessionsViewStyle == 'status' || sessionsViewStyle == 'machines';
+    final inactiveSessions = isBoard
+        ? boardArchivedSessions(
+            sessions: sessions,
+            inactive: sorted.inactive,
+            archivedIds: orderingProjection.optimisticallyArchivedIds,
+            searchQuery: searchQuery,
+            timestampFor: orderingProjection.timestampFor,
+          )
+        : sorted.inactive;
+    if (isBoard) {
+      _boardArchivedIds = inactiveSessions.map((s) => s.id).toSet();
+    }
     final sessionListCount = activeSessions.length + inactiveSessions.length;
 
     if (!_hasLoaded && (sessionListCount > 0 || sync.isInitialized)) {
@@ -594,34 +621,97 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (sessionsViewStyle == 'status' || sessionsViewStyle == 'machines') {
       final onNewSession = widget.onCreateSessionOnMachine;
-      return SessionBoardView(
-        scrollController: widget.scrollController,
-        showAllClear: sessionsViewStyle == 'status',
-        onNewSession: sessionsViewStyle == 'machines' && onNewSession != null
-            ? (machineId) => unawaited(onNewSession(machineId))
-            : null,
-        sections: sessionsViewStyle == 'status'
-            ? buildStatusBoardSections(
-                context,
-                activeSessions,
-                aggregateUiState!,
-              )
-            : buildMachineSections(
-                context,
-                activeSessions,
-                machines,
-                aggregateUiState!,
-              ),
-        rowBuilder: (row) => _buildMissionActionRow(
-          row.session,
-          row.entry,
-          row.lane,
-          animateActivity: missionControlShouldAnimateActivity(
-            activeSessions.length,
+      final showArchived = _boardArchiveVisible;
+      final Widget board;
+      if (showArchived) {
+        board = inactiveSessions.isEmpty
+            ? const SessionBoardEmpty(archived: true)
+            : ListView.builder(
+                key: const PageStorageKey('board-archive'),
+                controller: widget.scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                itemCount: inactiveSessions.length,
+                itemBuilder: (context, index) {
+                  final session = inactiveSessions[index];
+                  return _buildArchivedCard(
+                    context,
+                    ListItem.archivedSession(
+                      session,
+                      index,
+                      isFirst: index == 0,
+                      isLast: index == inactiveSessions.length - 1,
+                      isSingle: inactiveSessions.length == 1,
+                    ),
+                    session: session,
+                    entry:
+                        aggregateUiState!.bySessionId[session.id] ??
+                        SessionUiEntry.empty,
+                    showFlavorIcons: showFlavorIcons,
+                    avatarStyle: avatarStyle,
+                  );
+                },
+              );
+      } else if (activeSessions.isEmpty && sessionsViewStyle == 'status') {
+        board = SessionBoardEmpty(
+          archived: false,
+          onCreate: widget.onCreateSession == null
+              ? null
+              : () => unawaited(widget.onCreateSession!()),
+        );
+      } else {
+        board = SessionBoardView(
+          key: ValueKey('board-$sessionsViewStyle'),
+          scrollController: widget.scrollController,
+          showAllClear: sessionsViewStyle == 'status',
+          showStatusFilters: sessionsViewStyle == 'status',
+          onVisibleSessionIdsChanged: (ids) {
+            _boardSelectableIds = ids;
+            final selected = _sel.value;
+            if (selected.isActive && !_boardArchiveVisible) {
+              _sel.value = selected.copyWith(
+                selectedIds: selected.selectedIds.intersection(ids),
+                selectableIds: ids,
+              );
+            }
+          },
+          onNewSession: sessionsViewStyle == 'machines' && onNewSession != null
+              ? (machineId) => unawaited(onNewSession(machineId))
+              : null,
+          sections: sessionsViewStyle == 'status'
+              ? buildStatusBoardSections(
+                  context,
+                  activeSessions,
+                  aggregateUiState!,
+                )
+              : buildMachineSections(
+                  context,
+                  activeSessions,
+                  machines,
+                  aggregateUiState!,
+                ),
+          rowBuilder: (row) => _buildMissionActionRow(
+            row.session,
+            row.entry,
+            row.lane,
+            animateActivity: missionControlShouldAnimateActivity(
+              activeSessions.length,
+            ),
+            highlighted: false,
+            showTriageMenu: false,
           ),
-          highlighted: false,
-          showTriageMenu: false,
-        ),
+        );
+      }
+      return SessionBoardCollection(
+        activeCount: activeSessions.length,
+        archivedCount: inactiveSessions.length,
+        showArchived: showArchived,
+        onChanged: (archived) {
+          if (archived == showArchived) return;
+          _sel.value = const SelectionState();
+          setState(() => _showBoardArchive = archived);
+        },
+        child: board,
       );
     }
 
@@ -763,11 +853,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           lane: lane,
           animateActivity: animateActivity,
           highlighted: highlighted,
-          showTriageMenu: showTriageMenu,
+          showTriageMenu: showTriageMenu && !sel.isActive,
           showInlineApproval: !sel.isActive,
+          onSelect: sel.isActive ? null : () => _onSessionLongPress(session.id),
+          onArchive: sel.isActive
+              ? null
+              : () => unawaited(confirmSessionArchive(context, ref, session)),
           isPinned: triage.isPinned(session.id),
           isSnoozed: triage.isSnoozed(session.id),
-          onMarkRead: () => sync.markSessionRead(session.id),
+          onMarkRead: sel.isActive
+              ? null
+              : () => sync.markSessionRead(session.id),
           onTogglePin: () => triageNotifier.togglePin(session.id),
           onToggleSnooze: (snooze) => snooze
               ? triageNotifier.snooze(session.id)

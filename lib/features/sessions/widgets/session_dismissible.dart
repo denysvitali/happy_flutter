@@ -10,6 +10,42 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 
+/// Shared confirmed archive action for swipe and the visible row menu.
+Future<bool> confirmSessionArchive(
+  BuildContext context,
+  WidgetRef ref,
+  Session session,
+) async {
+  // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
+  // See GlitchTip HAPPY_FLUTTER-396.
+  final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+  final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
+  final l10n = context.l10n;
+  final confirmed = await showConfirmDialog(
+    context,
+    title: l10n.sessionsArchiveSession,
+    content: l10n.sessionsArchiveConfirm,
+    confirmLabel: l10n.sessionsArchive,
+    isDestructive: true,
+  );
+
+  if (!confirmed) return false;
+
+  try {
+    await SessionsApi().setSessionArchived(session.id, true);
+    // Mark optimistically archived to prevent reappear during server lag.
+    await sessionsNotifier.markSessionArchived(session.id, true);
+    sessionsNotifier.loadFromSync();
+    return true;
+  } catch (e, st) {
+    logger.error('Failed to archive session: sessionId=${session.id}', e, st);
+    if (context.mounted) {
+      context.showSnack(failedArchiveMsg);
+    }
+    return false;
+  }
+}
+
 enum _SwipeAction { archive, delete }
 
 /// Dismissible wrapper for active sessions (swipe left → shows Archive +
@@ -61,40 +97,8 @@ class _DismissibleActiveSessionState
     return _confirmArchive(context);
   }
 
-  Future<bool> _confirmArchive(BuildContext context) async {
-    // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
-    // See GlitchTip HAPPY_FLUTTER-396.
-    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
-    final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
-    final l10n = context.l10n;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: l10n.sessionsArchiveSession,
-      content: l10n.sessionsArchiveConfirm,
-      confirmLabel: l10n.sessionsArchive,
-      isDestructive: true,
-    );
-
-    if (!confirmed) return false;
-
-    try {
-      await SessionsApi().setSessionArchived(widget.session.id, true);
-      // Mark optimistically archived to prevent reappear during server lag.
-      await sessionsNotifier.markSessionArchived(widget.session.id, true);
-      sessionsNotifier.loadFromSync();
-      return true;
-    } catch (e, st) {
-      logger.error(
-        'Failed to archive session: sessionId=${widget.session.id}',
-        e,
-        st,
-      );
-      if (context.mounted) {
-        context.showSnack(failedArchiveMsg);
-      }
-      return false;
-    }
-  }
+  Future<bool> _confirmArchive(BuildContext context) =>
+      confirmSessionArchive(context, ref, widget.session);
 
   Future<bool> _confirmDelete(BuildContext context) async {
     // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.

@@ -5546,4 +5546,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSessionQuiet => 'Quiet';
+
+  @override
+  String get sessionsSelectSession => 'Select session';
+
+  @override
+  String get sessionsBoardShowAll => 'Show all sessions';
+
+  @override
+  String sessionsBoardEmptyLane(String lane) {
+    return 'No sessions in $lane';
+  }
+
+  @override
+  String sessionsBoardCollapseSection(String section) {
+    return 'Collapse $section';
+  }
+
+  @override
+  String sessionsBoardExpandSection(String section) {
+    return 'Expand $section';
+  }
+
+  @override
+  String get sessionsBoardActive => 'Active';
+
+  @override
+  String get sessionsBoardNoActive => 'No active sessions';
+
+  @override
+  String get sessionsBoardNoArchived => 'No archived sessions';
+
+  @override
+  String get sessionsBoardSearchHint => 'Search sessions or projects';
 }

@@ -83,6 +83,17 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
+Status board filters show counts and retain an empty selected lane with a clear
+return to all sessions. Section headers collapse lanes; Quiet initially shows
+five rows with disclosure near its heading. Active and Archived scopes keep
+history reachable from Status and By machine. Bulk selection includes collapsed
+rows within the selected lane, excludes other lanes, and reconciles when filters
+change. Row menus expose preview, selection and confirmed archive without
+relying on long-press or swipe; selection mode suppresses secondary actions.
+Session titles/previews use their content width, with wrapping activity age,
+workspace, machine and short session identity below. Full IDs/hosts stay in
+tooltips. Layout and connection state have visible labels in the header.
+
 Unread Focus uses neutral session surfaces with a slim accent: primary for
 unread work, error for approvals and failures. Dense cards use 4px vertical
 padding, 6px avatar gaps and 2px gaps between text lines. Selection replaces

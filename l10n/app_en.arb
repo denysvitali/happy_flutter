@@ -3005,5 +3005,35 @@
     }
   },
   "chatSessionFailed": "Failed",
-  "chatSessionQuiet": "Quiet"
+  "chatSessionQuiet": "Quiet",
+  "sessionsSelectSession": "Select session",
+  "sessionsBoardShowAll": "Show all sessions",
+  "sessionsBoardEmptyLane": "No sessions in {lane}",
+  "@sessionsBoardEmptyLane": {
+    "placeholders": {
+      "lane": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsBoardCollapseSection": "Collapse {section}",
+  "@sessionsBoardCollapseSection": {
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsBoardExpandSection": "Expand {section}",
+  "@sessionsBoardExpandSection": {
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsBoardActive": "Active",
+  "sessionsBoardNoActive": "No active sessions",
+  "sessionsBoardNoArchived": "No archived sessions",
+  "sessionsBoardSearchHint": "Search sessions or projects"
 }

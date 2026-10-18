@@ -20,21 +20,28 @@ class SelectionState {
     this.isActive = false,
     this.selectedIds = const {},
     this.isBatchDeleting = false,
+    this.selectableIds,
   });
 
   final bool isActive;
   final Set<String> selectedIds;
   final bool isBatchDeleting;
 
+  /// The filtered collection in which selection started. Null uses the
+  /// legacy folder/list scope. Collapsed rows remain part of the collection.
+  final Set<String>? selectableIds;
+
   SelectionState copyWith({
     bool? isActive,
     Set<String>? selectedIds,
     bool? isBatchDeleting,
+    Set<String>? selectableIds,
   }) {
     return SelectionState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
       isBatchDeleting: isBatchDeleting ?? this.isBatchDeleting,
+      selectableIds: selectableIds ?? this.selectableIds,
     );
   }
 }
@@ -395,14 +402,7 @@ SortedSessions computeSortedSessions(
   final query = searchQuery.toLowerCase().trim();
   var sessionList = sessions.values;
   if (query.isNotEmpty) {
-    sessionList = sessionList.where((s) {
-      final name = (s.metadata?.name ?? '').toLowerCase();
-      final path = (s.metadata?.path ?? '').toLowerCase();
-      final summary = (s.metadata?.summary?.text ?? '').toLowerCase();
-      return name.contains(query) ||
-          path.contains(query) ||
-          summary.contains(query);
-    });
+    sessionList = sessionList.where((s) => sessionMatchesSearch(s, query));
   }
 
   final active = <Session>[];
@@ -459,6 +459,17 @@ SortedSessions computeSortedSessions(
     );
   }
   return result;
+}
+
+/// Shared search predicate for the live list and explicit archive browser.
+bool sessionMatchesSearch(Session session, String query) {
+  final normalized = query.toLowerCase().trim();
+  return normalized.isEmpty ||
+      (session.metadata?.name ?? '').toLowerCase().contains(normalized) ||
+      (session.metadata?.path ?? '').toLowerCase().contains(normalized) ||
+      (session.metadata?.summary?.text ?? '').toLowerCase().contains(
+        normalized,
+      );
 }
 
 int _lastSlowSortLogAtMs = 0;
