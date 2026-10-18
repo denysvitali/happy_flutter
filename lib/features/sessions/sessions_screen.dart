@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
-import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/sidebar/app_sidebar.dart';
 import '../../core/components/tablet/no_session_selected_view.dart';
 import '../../core/components/tablet/resizable_split_view.dart';
@@ -22,7 +21,6 @@ import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
-import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/desktop_update_banner.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
@@ -30,13 +28,10 @@ import '../chat/chat_screen.dart';
 import '../loops/all_loops_screen.dart';
 import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
-import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
-import 'widgets/session_headers.dart';
+import 'widgets/session_collection_app_bar.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
-import 'widgets/sessions_view_style.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Persistence key for the sessions master-pane width in the tablet
 /// split layout.
@@ -173,31 +168,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (mounted) setState(() {});
   }
 
-  AppTab _parseTab(String? tab) {
-    return switch (tab) {
-      'settings' => AppTab.settings,
-      'providers' => AppTab.providers,
-      'loops' => AppTab.loops,
-      'sessions' => AppTab.sessions,
-      _ => AppTab.sessions,
-    };
-  }
-
-  String _tabToString(AppTab tab) {
-    return switch (tab) {
-      AppTab.sessions => 'sessions',
-      AppTab.loops => 'loops',
-      AppTab.providers => 'providers',
-      AppTab.settings => 'settings',
-    };
-  }
+  AppTab _parseTab(String? tab) => AppTab.values.firstWhere(
+    (value) => value.name == tab,
+    orElse: () => AppTab.sessions,
+  );
 
   void _updateUrlTab(AppTab tab) {
     final router = GoRouter.of(context);
     final currentUri = router.routeInformationProvider.value.uri;
 
     if (currentUri.path == '/sessions') {
-      final newTab = _tabToString(tab);
+      final newTab = tab.name;
       final newUri = currentUri.replace(
         queryParameters: newTab == 'sessions' ? {} : {'tab': newTab},
       );
@@ -260,7 +241,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // pane is `ChatScreen`, which has its own AppBar. The outer Scaffold
     // therefore has no AppBar — otherwise we'd render two stacked headers
     // and selection/folder mode would replace the detail pane's header.
-    final appBar = isTablet ? null : _buildAppBar(context, l10n);
+    final appBar = isTablet
+        ? null
+        : switch (_activeTab) {
+            AppTab.sessions => _buildSessionsAppBar(context),
+            AppTab.settings => AppBar(title: Text(l10n.settingsTitle)),
+            AppTab.loops || AppTab.providers => null,
+          };
     final sidebarCollapsed = ref.watch(sidebarCollapsedProvider);
     final badgeCounts = <AppTab, int>{AppTab.loops: totalActiveLoops};
 
@@ -363,264 +350,76 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
   }
 
-  PreferredSizeWidget? _buildAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    if (_activeTab == AppTab.sessions) {
-      return _buildSessionsAppBar(context, l10n);
-    }
-    if (_activeTab == AppTab.settings) {
-      return AppBar(title: Text(l10n.settingsTitle));
-    }
-    // Loops and providers tabs render their own Scaffold+AppBar (the embedded
-    // AllLoopsScreen / ProvidersUsageScreen), so the outer Scaffold must not
-    // add one — otherwise two stacked headers appear on phone layouts.
-    return null;
-  }
-
-  PreferredSizeWidget _buildSessionsAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  PreferredSizeWidget _buildSessionsAppBar(BuildContext context) {
     final sel = _selectionNotifier.value;
     if (sel.isActive) {
-      return _buildSelectionAppBar(context, l10n, sel);
+      return _buildSelectionAppBar(context, sel);
     }
     final folder = _folderNotifier.value;
     if (folder != null) {
-      return _buildFolderAppBar(context, l10n, folder);
-    }
-    return _buildNormalSessionsAppBar(context, l10n);
-  }
-
-  AppBar _buildFolderAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-    SessionFolderHeader folder,
-  ) {
-    // Extract machineId and raw path from folderKey ('machineId:path').
-    final colonIndex = folder.folderKey.indexOf(':');
-    final machineId = colonIndex > 0
-        ? folder.folderKey.substring(0, colonIndex)
-        : null;
-    final rawPath = colonIndex > 0 && colonIndex < folder.folderKey.length - 1
-        ? folder.folderKey.substring(colonIndex + 1)
-        : null;
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        tooltip: l10n.commonBack,
-        onPressed: () => _folderNotifier.value = null,
-      ),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            folder.displayPath,
-            style: AppText.screenTitle(Theme.of(context)),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            '${folder.machineName} • '
-            '${folderBreakdownLabel(context, folder)}',
-            style: AppText.secondary(Theme.of(context)),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.add),
-          tooltip: l10n.sessionsNew,
-          onPressed: () => _showNewSessionDialog(
-            context,
-            initialMachineId: machineId,
-            initialPath: rawPath,
-          ),
+      return SessionFolderAppBar(
+        folder: folder,
+        toolbarHeight: SessionFolderAppBar.heightOf(context),
+        onBack: () => _folderNotifier.value = null,
+        onCreate: (machineId, path) => _showNewSessionDialog(
+          context,
+          initialMachineId: machineId,
+          initialPath: path,
         ),
-      ],
-    );
-  }
-
-  AppBar _buildNormalSessionsAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    final connectionStatus = ref.watch(connectionNotifierProvider);
-
-    if (_isSearching) {
-      return AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: l10n.commonBack,
-          onPressed: () {
-            setState(() {
-              _isSearching = false;
-              _searchController.clear();
-            });
-          },
-        ),
-        title: Container(
-          height: AppControlSize.lg,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: TextField(
-            controller: _searchController,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: l10n.sessionsBoardSearchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.smd,
-              ),
-            ),
-            textInputAction: TextInputAction.search,
-            onChanged: (_) {
-              _searchDebounce?.cancel();
-              _searchDebounce = Timer(const Duration(milliseconds: 250), () {
-                if (mounted) setState(() {});
-              });
-            },
-          ),
-        ),
-        actions: [
-          if (_searchController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.commonClear,
-              onPressed: () {
-                _searchController.clear();
-                setState(() {});
-              },
-            ),
-        ],
       );
     }
-
-    return AppBar(
-      title: const SessionsViewStyleButton(asTitle: true),
-      shape: _isScrolled
-          ? Border(
-              bottom: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-            )
-          : null,
-      actions: [
-        if (connectionStatus != ConnectionStatus.connected)
-          ConnectionStatusBadge(status: connectionStatus),
-        IconButton(
-          icon: const Icon(Icons.search),
-          tooltip: l10n.commonSearch,
-          onPressed: () => setState(() => _isSearching = true),
-        ),
-        IconButton(
-          icon: const Icon(Icons.add),
-          tooltip: l10n.sessionsNew,
-          onPressed: () => _showNewSessionDialog(context),
-        ),
-      ],
-    );
+    return _buildNormalSessionsAppBar(context);
   }
 
-  AppBar _buildSelectionAppBar(
+  PreferredSizeWidget _buildNormalSessionsAppBar(BuildContext context) =>
+      SessionCollectionAppBar(
+        searching: _isSearching,
+        controller: _searchController,
+        connectionStatus: ref.watch(connectionNotifierProvider),
+        scrolled: _isScrolled,
+        toolbarHeight: SessionCollectionAppBar.heightOf(
+          context,
+          searching: _isSearching,
+        ),
+        onStartSearch: () => setState(() => _isSearching = true),
+        onCloseSearch: _clearSearch,
+        onClearSearch: () {
+          _searchDebounce?.cancel();
+          _searchController.clear();
+          setState(() {});
+        },
+        onQueryChanged: (_) {
+          _searchDebounce?.cancel();
+          _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+            if (mounted) setState(() {});
+          });
+        },
+        onSubmitSearch: () {
+          _searchDebounce?.cancel();
+          setState(() {});
+        },
+        onCreate: () => _showNewSessionDialog(context),
+      );
+
+  PreferredSizeWidget _buildSelectionAppBar(
     BuildContext context,
-    AppLocalizations l10n,
     SelectionState sel,
   ) {
-    final cs = Theme.of(context).colorScheme;
     final allIds = _allSelectableSessionIds();
     final allSelected =
         allIds.isNotEmpty && allIds.every(sel.selectedIds.contains);
-    final hasActiveSelected = _hasActiveSessionsInSelection(sel);
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        tooltip: l10n.commonCancel,
-        onPressed: _exitSelectionMode,
-      ),
-      title: Text(l10n.sessionsSelectedCount(sel.selectedIds.length)),
-      bottom: PreferredSize(
-        preferredSize: Size.fromHeight(
-          (MediaQuery.textScalerOf(context).scale(AppFontSize.sm) * 1.3 +
-                  AppSpacing.md)
-              .clamp(AppTouchTarget.comfortable, double.infinity),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Row(
-            children: [
-              TextButton(
-                onPressed: sel.isBatchDeleting
-                    ? null
-                    : () => _toggleSelectAll(allIds, allSelected),
-                child: Text(
-                  allSelected
-                      ? l10n.sessionsDeselectAll
-                      : l10n.sessionsSelectAll,
-                ),
-              ),
-              if (hasActiveSelected)
-                IconButton(
-                  icon: sel.isBatchDeleting
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: AppCircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        )
-                      : const Icon(Icons.archive_outlined),
-                  tooltip: l10n.sessionsArchive,
-                  onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-                      ? null
-                      : () => _confirmBatchArchive(context, sel),
-                ),
-              IconButton(
-                icon: Icon(
-                  _hasPinnedInSelection(sel)
-                      ? Icons.push_pin
-                      : Icons.push_pin_outlined,
-                ),
-                tooltip: _hasPinnedInSelection(sel)
-                    ? l10n.sessionsUnpin
-                    : l10n.sessionsPin,
-                onPressed: sel.selectedIds.isEmpty
-                    ? null
-                    : () => _pinOrUnpinSelected(sel),
-              ),
-              IconButton(
-                icon: sel.isBatchDeleting
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: AppCircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: cs.error,
-                        ),
-                      )
-                    : Icon(Icons.delete_outline, color: cs.error),
-                tooltip: l10n.commonDelete,
-                onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-                    ? null
-                    : () => _confirmBatchDelete(context, sel),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return SessionSelectionAppBar(
+      count: sel.selectedIds.length,
+      allSelected: allSelected,
+      busy: sel.isBatchDeleting,
+      hasActive: _hasActiveSessionsInSelection(sel),
+      hasPinned: _hasPinnedInSelection(sel),
+      actionsHeight: SessionSelectionAppBar.actionsHeightOf(context),
+      onCancel: _exitSelectionMode,
+      onSelectAll: () => _toggleSelectAll(allIds, allSelected),
+      onArchive: () => _confirmBatchArchive(context, sel),
+      onPin: () => _pinOrUnpinSelected(sel),
+      onDelete: () => _confirmBatchDelete(context, sel),
     );
   }
 
@@ -639,7 +438,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         dividerSemanticsLabel: context.l10n.sessionsResizeSidebar,
         master: Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-          appBar: _buildSessionsAppBar(context, context.l10n),
+          appBar: _buildSessionsAppBar(context),
           body: SyncProgressOverlay(
             child: SessionsListContent(
               selectionNotifier: _selectionNotifier,
@@ -684,7 +483,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
     if (isTablet && _activeTab == AppTab.sessions) {
       return Scaffold(
-        appBar: _buildSessionsAppBar(context, context.l10n),
+        appBar: _buildSessionsAppBar(context),
         body: SyncProgressOverlay(
           child: SessionsListContent(
             selectionNotifier: _selectionNotifier,
@@ -802,6 +601,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   // ── Selection helpers ─────────────────────────
 
   void _clearSearch() {
+    _searchDebounce?.cancel();
+    FocusScope.of(context).unfocus();
     _searchController.clear();
     setState(() => _isSearching = false);
   }

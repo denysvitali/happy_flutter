@@ -641,7 +641,7 @@ void main() {
         _app(
           MissionActionRow(
             session: _session(title: 'Semantic session'),
-            entry: SessionUiEntry.empty,
+            entry: const SessionUiEntry(lastMessagePreview: 'Ready for review'),
             lane: MissionLane.quiet,
             animateActivity: false,
             onTap: () => opened++,
@@ -653,6 +653,14 @@ void main() {
       );
       final row = tester.getSemantics(find.byType(MissionActionRow));
       expect(row, containsSemantics(isButton: true, hasTapAction: true));
+      final spokenPreview = find.bySemanticsLabel(RegExp('Ready for review'));
+      expect(spokenPreview, findsOneWidget);
+      expect(
+        'Ready for review'.allMatches(
+          tester.getSemantics(spokenPreview).getSemanticsData().label,
+        ),
+        hasLength(1),
+      );
       tester.binding.pipelineOwner.semanticsOwner!.performAction(
         row.id,
         SemanticsAction.tap,

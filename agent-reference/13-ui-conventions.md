@@ -92,6 +92,12 @@ ten and expand below them. Open and Archived tabs keep history reachable from
 Inbox and By machine. Bulk selection includes collapsed rows in the
 selected lane and reconciles when filters change. Row menus expose preview,
 selection and confirmed archive; selection mode suppresses secondary actions.
+Search-scoped selection in every layout excludes hidden sessions and reconciles
+after sync changes. Session search and folder headers grow with text scale;
+Clear keeps search focused and Escape closes it. The shared bottom navigation
+measures complete labels and uses two rows when enlarged labels need more space.
+Its selection indicator follows reading direction, and keyboard focus is exposed
+on the same semantic button used for touch and screen readers.
 Inbox previews have up to two lines; named conversations retain nonredundant
 workspace context. Missing previews fall back to the provider plus workspace
 or real host. Other layouts retain compact rows. Raw IDs and placeholder hosts

@@ -4,10 +4,15 @@ const _alphaPath = '/home/dev/alpha';
 const _betaPath = '/home/dev/beta';
 
 class _StubSettingsNotifier extends SettingsNotifier {
-  _StubSettingsNotifier(this._viewStyle);
+  _StubSettingsNotifier(this._viewStyle, {this.hideInactive});
   final String _viewStyle;
+  final bool? hideInactive;
   @override
-  Settings build() => Settings()..sessionsViewStyle = _viewStyle;
+  Settings build() {
+    final settings = Settings()..sessionsViewStyle = _viewStyle;
+    if (hideInactive case final value?) settings.hideInactiveSessions = value;
+    return settings;
+  }
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
@@ -190,6 +195,7 @@ Future<_Harness> _pumpHarness(
   required bool tablet,
   Map<String, Session>? sessions,
   String searchQuery = '',
+  bool? hideInactive,
 }) async {
   final performanceContext = PerformanceContextService()
     ..setCurrentRoute('sessions');
@@ -202,7 +208,7 @@ Future<_Harness> _pumpHarness(
   final container = ProviderContainer(
     overrides: [
       settingsNotifierProvider.overrideWith(
-        () => _StubSettingsNotifier(viewStyle),
+        () => _StubSettingsNotifier(viewStyle, hideInactive: hideInactive),
       ),
       sessionsNotifierProvider.overrideWith(
         () => _StubSessionsNotifier(seeded),

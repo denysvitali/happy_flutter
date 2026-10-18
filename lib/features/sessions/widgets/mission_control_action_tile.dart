@@ -322,6 +322,7 @@ class MissionActionRow extends StatelessWidget {
                                   const SizedBox(height: AppSpacing.xxs),
                                   Tooltip(
                                     message: path!,
+                                    excludeFromSemantics: true,
                                     child: Text(
                                       workspaceContext,
                                       maxLines: 1,
@@ -338,6 +339,7 @@ class MissionActionRow extends StatelessWidget {
                                         Expanded(
                                           child: Tooltip(
                                             message: secondaryTooltip,
+                                            excludeFromSemantics: true,
                                             child: Text(
                                               secondary,
                                               maxLines:

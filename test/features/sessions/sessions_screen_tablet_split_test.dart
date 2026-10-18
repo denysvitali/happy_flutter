@@ -39,10 +39,16 @@ class _StubAuthNotifier extends AuthStateNotifier {
 }
 
 class _StubSettingsNotifier extends SettingsNotifier {
-  _StubSettingsNotifier(this.viewStyle);
+  _StubSettingsNotifier(this.viewStyle, {this.hideInactive});
   final String viewStyle;
+  final bool? hideInactive;
   @override
-  Settings build() => Settings()..sessionsViewStyle = viewStyle;
+  Settings build() {
+    final settings = Settings()..sessionsViewStyle = viewStyle;
+    if (hideInactive case final value?) settings.hideInactiveSessions = value;
+    return settings;
+  }
+
   @override
   Future<void> updateSetting<T>(String key, T value) async {}
 }
@@ -151,6 +157,7 @@ Widget _app({
   Map<String, Session> sessions = const {},
   TextScaler textScaler = TextScaler.noScaling,
   String viewStyle = 'mission_control',
+  bool? hideInactive,
 }) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
@@ -173,7 +180,7 @@ Widget _app({
     overrides: [
       authStateNotifierProvider.overrideWith(_StubAuthNotifier.new),
       settingsNotifierProvider.overrideWith(
-        () => _StubSettingsNotifier(viewStyle),
+        () => _StubSettingsNotifier(viewStyle, hideInactive: hideInactive),
       ),
       sessionsNotifierProvider.overrideWith(
         () => _StubSessionsNotifier(sessions),
@@ -314,6 +321,119 @@ void main() {
     expect(find.text('All clear'), findsNothing);
     expect(find.text('Show 2 more'), findsNothing);
     expect(find.text('(none)'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search-scoped Select all includes only matching conversations', (
+    tester,
+  ) async {
+    setSize(tester, const Size(390, 844));
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await tester.pumpWidget(
+      _app(
+        viewStyle: 'unread_focus',
+        sessions: {
+          for (final name in ['Alpha one', 'Alpha two', 'Beta'])
+            name: _session(name, activeAt: now).copyWith(
+              metadata: Metadata(
+                path: '/home/dev/app',
+                summary: Summary(text: name, updatedAt: now),
+              ),
+            ),
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Alpha');
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Beta'), findsNothing);
+    await tester.longPress(find.text('Alpha one'));
+    await tester.pump();
+    await tester.tap(find.text('Select all'));
+    await tester.pump();
+    expect(find.text('2 selected'), findsOneWidget);
+    expect(find.text('3 selected'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('large-text search fits, clears and closes with Escape', (
+    tester,
+  ) async {
+    setSize(tester, const Size(320, 900));
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await tester.pumpWidget(
+      _app(
+        viewStyle: 'status',
+        textScaler: const TextScaler.linear(2),
+        sessions: {'one': _session('one', activeAt: now)},
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    final field = find.byType(TextField);
+    final editable = tester.getRect(find.byType(EditableText));
+    final input = tester.getRect(field);
+    expect(editable.top, greaterThanOrEqualTo(input.top));
+    expect(editable.bottom, lessThanOrEqualTo(input.bottom));
+    await tester.enterText(field, 'missing project');
+    await tester.pump();
+    expect(find.byTooltip('Clear'), findsOneWidget);
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byTooltip('View: Inbox'), findsOneWidget);
+    expect(find.text('app'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('selection excludes conversations hidden by a sync update', (
+    tester,
+  ) async {
+    setSize(tester, const Size(390, 844));
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final sessions = {
+      for (final name in ['Alpha one', 'Alpha two'])
+        name: _session(name, activeAt: now).copyWith(
+          metadata: Metadata(
+            path: '/home/dev/app',
+            summary: Summary(text: name, updatedAt: now),
+          ),
+        ),
+    };
+    await tester.pumpWidget(
+      _app(sessions: sessions, viewStyle: 'unread_focus', hideInactive: true),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.longPress(find.text('Alpha one'));
+    await tester.pump();
+    expect(find.text('Select all'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(SessionsScreen)),
+    );
+    final notifier =
+        container.read(sessionsNotifierProvider.notifier)
+            as _StubSessionsNotifier;
+    notifier.publish({
+      ...sessions,
+      'Alpha two': sessions['Alpha two']!.copyWith(
+        active: false,
+        archived: true,
+        presence: 'offline',
+      ),
+    });
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Alpha two'), findsNothing);
+    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('Select all'), findsNothing);
+    expect(find.text('Deselect all'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

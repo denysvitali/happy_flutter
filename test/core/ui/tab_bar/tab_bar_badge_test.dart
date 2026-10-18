@@ -1,4 +1,8 @@
+import 'dart:ui' show SemanticsAction, Tristate;
+
 import 'package:flutter/material.dart' hide TabBar;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
@@ -11,6 +15,8 @@ Widget _wrap({
   Map<AppTab, int> badgeCounts = const <AppTab, int>{},
   void Function(AppTab)? onTabPress,
   Brightness brightness = Brightness.light,
+  double textScale = 1,
+  TextDirection direction = TextDirection.ltr,
 }) {
   final colorScheme = ColorScheme.fromSeed(
     seedColor: const Color(0xFF6750A4),
@@ -20,6 +26,12 @@ Widget _wrap({
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(textScale)),
+      child: Directionality(textDirection: direction, child: child!),
+    ),
     home: Scaffold(
       body: TabBar(
         activeTab: activeTab,
@@ -32,6 +44,143 @@ Widget _wrap({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'navigation keeps full labels at narrow widths/2x, $brightness',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        for (final width in [300.0, 320.0, 360.0]) {
+          tester.view.physicalSize = Size(width, 900);
+          await tester.pumpWidget(
+            _wrap(
+              activeTab: AppTab.sessions,
+              brightness: brightness,
+              textScale: 2,
+            ),
+          );
+          final bar = tester.getRect(find.byType(TabBar));
+          for (final label in ['Sessions', 'Loops', 'Providers', 'Settings']) {
+            final paragraph = tester.renderObject<RenderParagraph>(
+              find.text(label),
+            );
+            final cell = tester.getRect(
+              find.ancestor(
+                of: find.text(label),
+                matching: find.byType(InkWell),
+              ),
+            );
+            final lastGlyph = paragraph.getBoxesForSelection(
+              TextSelection(
+                baseOffset: label.length - 1,
+                extentOffset: label.length,
+              ),
+            );
+            expect(
+              lastGlyph,
+              isNotEmpty,
+              reason: '$label must not be ellipsized',
+            );
+            for (final box in lastGlyph) {
+              final bottom = paragraph.localToGlobal(box.toRect().bottomRight);
+              expect(bottom.dy, lessThanOrEqualTo(bar.bottom));
+              expect(bottom.dx, lessThanOrEqualTo(bar.right));
+              expect(bottom.dy, lessThanOrEqualTo(cell.bottom));
+              expect(bottom.dx, lessThanOrEqualTo(cell.right));
+            }
+          }
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
+
+  testWidgets('navigation supports Tab, Enter and Space activation', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final selected = <AppTab>[];
+      await tester.pumpWidget(
+        _wrap(activeTab: AppTab.sessions, onTabPress: selected.add),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Sessions'))
+            .flagsCollection
+            .isFocused,
+        Tristate.isTrue,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(selected, [AppTab.sessions]);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Loops'))
+            .flagsCollection
+            .isFocused,
+        Tristate.isTrue,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+      expect(selected, [AppTab.sessions, AppTab.loops]);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('semantic focus enables keyboard activation', (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final selected = <AppTab>[];
+      await tester.pumpWidget(
+        _wrap(activeTab: AppTab.sessions, onTabPress: selected.add),
+      );
+      final settings = tester.getSemantics(find.bySemanticsLabel('Settings'));
+      settings.owner!.performAction(settings.id, SemanticsAction.focus);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(selected, [AppTab.settings]);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets(
+      'RTL selection indicator follows its destination at ${scale}x',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          tester.view.physicalSize = const Size(320, 900);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            _wrap(
+              activeTab: AppTab.sessions,
+              textScale: scale,
+              direction: TextDirection.rtl,
+            ),
+          );
+          expect(
+            tester.getCenter(find.byType(AnimatedPositioned)).dx,
+            closeTo(tester.getCenter(find.bySemanticsLabel('Sessions')).dx, 1),
+          );
+          expect(tester.takeException(), isNull);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
 
   group('TabBar badge counts', () {
     testWidgets('renders no badge when counts map is empty', (tester) async {

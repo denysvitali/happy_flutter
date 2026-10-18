@@ -63,6 +63,54 @@ void main() {
     });
   });
 
+  testWidgets(
+    'Unread Focus selection excludes hidden history and search misses',
+    (tester) async {
+      final harness = await _pumpHarness(
+        tester,
+        viewStyle: 'unread_focus',
+        tablet: true,
+        hideInactive: false,
+        searchQuery: 'Alpha',
+      );
+      await tester.longPress(find.text('Alpha live one'));
+      await tester.pump();
+      expect(harness.selection.value.selectableIds, {
+        'alpha-active-1',
+        'alpha-active-2',
+      });
+      expect(harness.selection.value.selectedIds, {'alpha-active-1'});
+      expect(find.text('Alpha archived one'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('folder selection retains explicitly revealed archived rows', (
+    tester,
+  ) async {
+    final harness = await _pumpHarness(
+      tester,
+      viewStyle: 'folder',
+      tablet: true,
+      hideInactive: true,
+      searchQuery: 'Alpha',
+    );
+    await _openFolder(tester, 'alpha');
+    await _tapButton(tester, 'Show archived (3)');
+    await tester.longPress(find.text('Alpha archived one'));
+    await tester.pump();
+    await tester.pump();
+    expect(harness.selection.value.selectedIds, {'alpha-arch-1'});
+    expect(harness.selection.value.selectableIds, {
+      'alpha-active-1',
+      'alpha-active-2',
+      'alpha-arch-1',
+      'alpha-arch-2',
+      'alpha-arch-3',
+    });
+    expect(tester.takeException(), isNull);
+  });
+
   for (final style in ['status', 'machines']) {
     testWidgets('$style retains confirmed archives during catalog lag', (
       tester,

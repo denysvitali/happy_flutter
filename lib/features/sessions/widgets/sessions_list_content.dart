@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import '../../../core/services/performance_context_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
@@ -24,8 +26,8 @@ import 'folder_view_cards.dart';
 import 'mission_control_view.dart';
 import 'mission_heartbeat.dart';
 import 'session_animations.dart';
-import 'session_board_view.dart';
 import 'session_board_collection.dart';
+import 'session_board_view.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
 import 'session_headers.dart';
@@ -33,7 +35,6 @@ import 'session_list_helpers.dart';
 import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
 import 'unread_focus_cards.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ─── Main widget ──────────────────────────────────────
 
@@ -108,6 +109,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   bool? _showBoardArchive;
   Set<String>? _boardSelectableIds;
   Set<String> _boardArchivedIds = {};
+  Set<String> _pendingLegacySelectableIds = {};
+  bool _legacyScopeUpdateScheduled = false;
   bool get _boardArchiveVisible =>
       _showBoardArchive ?? (_sortedCache?.active.isEmpty ?? false);
   bool _animationTriggered = false;
@@ -303,14 +306,66 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       HapticFeedback.mediumImpact();
       final board =
           _sessionsViewStyle == 'status' || _sessionsViewStyle == 'machines';
+      final sorted = _sortedCache;
       _sel.value = SelectionState(
         isActive: true,
         selectedIds: {sessionId},
         selectableIds: board
             ? (_boardArchiveVisible ? _boardArchivedIds : _boardSelectableIds)
-            : null,
+            : sorted == null
+            ? {sessionId}
+            : _legacySelectionIds(sorted),
       );
     }
+  }
+
+  Set<String> _legacySelectionIds(SortedSessions sorted) {
+    final folderDetail =
+        _selectedFolderKey != null &&
+        (_sessionsViewStyle == 'folder' ||
+            _sessionsViewStyle == 'mission_control');
+    final activeOnly =
+        _sessionsViewStyle == 'unread_focus' ||
+        (_sessionsViewStyle == 'mission_control' && !folderDetail);
+    return selectableSessionIds(
+      sessions: activeOnly
+          ? sorted.active
+          : [...sorted.active, ...sorted.inactive],
+      hideInactive:
+          !folderDetail &&
+          ref.read(settingsNotifierProvider).hideInactiveSessions,
+      folder: folderDetail ? widget.folderNotifier.value : null,
+    );
+  }
+
+  void _reconcileLegacySelection(SortedSessions sorted) {
+    if (!_sel.value.isActive) return;
+    _pendingLegacySelectableIds = _legacySelectionIds(sorted);
+    if (_legacyScopeUpdateScheduled ||
+        (setEquals(_sel.value.selectableIds, _pendingLegacySelectableIds) &&
+            _sel.value.selectedIds.every(
+              _pendingLegacySelectableIds.contains,
+            ))) {
+      return;
+    }
+    _legacyScopeUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _legacyScopeUpdateScheduled = false;
+      if (!mounted || !_isVisible || !_sel.value.isActive) return;
+      if (_sessionsViewStyle == 'status' || _sessionsViewStyle == 'machines') {
+        return;
+      }
+      final current = _sel.value;
+      final ids = _pendingLegacySelectableIds;
+      if (setEquals(current.selectableIds, ids) &&
+          current.selectedIds.every(ids.contains)) {
+        return;
+      }
+      _sel.value = current.copyWith(
+        selectedIds: current.selectedIds.intersection(ids),
+        selectableIds: ids,
+      );
+    });
   }
 
   void _onSessionTapInSelectionMode(String sessionId) {
@@ -456,6 +511,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         : sorted.inactive;
     if (isBoard) {
       _boardArchivedIds = inactiveSessions.map((s) => s.id).toSet();
+    } else {
+      _reconcileLegacySelection(sorted);
     }
     final sessionListCount = activeSessions.length + inactiveSessions.length;
 
