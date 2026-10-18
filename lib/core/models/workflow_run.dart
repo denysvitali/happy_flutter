@@ -550,10 +550,15 @@ class WorkflowTranscriptIndex {
   final Map<String, List<Map<String, dynamic>>> _taggedStepsByRun;
   final List<dynamic>? soleStepOwnerChildren;
 
+  /// Identity first: both `_childrenByRun` and `_taggedStepsByRun` are keyed
+  /// by an explicit run tag, so either beats [soleStepOwnerChildren] — that
+  /// one is a guess for runs whose steps were never tagged at all, and
+  /// letting it outrank a tagged match renders one run's steps under
+  /// another run's id.
   List<dynamic>? childrenForRun(String runId) =>
       _childrenByRun[runId] ??
-      soleStepOwnerChildren ??
-      _taggedStepsByRun[runId];
+      _taggedStepsByRun[runId] ??
+      soleStepOwnerChildren;
 }
 
 /// A Claude Code workflow run mirrored from the daemon.
@@ -1099,11 +1104,12 @@ class WorkflowRun {
   ///     `workflowRunId`, or the run id echoed in its tool result) equals
   ///     [runId] — its `children` are exactly the step events the chat inline
   ///     view and the agent screen render.
-  ///  2. A single `Workflow` tool-call that carries any step event
-  ///     (`workflowProgress` *or* a `task_*` progress chip) — the common
-  ///     one-run-per-session case where no tag has been stamped yet.
-  ///  3. Step events tagged with [runId] that never nested under their tool
+  ///  2. Step events tagged with [runId] that never nested under their tool
   ///     call (orphan `task_*` chips anywhere in the tree).
+  ///  3. A single `Workflow` tool-call that carries any step event
+  ///     (`workflowProgress` *or* a `task_*` progress chip) — the common
+  ///     one-run-per-session case where no tag has been stamped yet. This is
+  ///     a guess, so it only applies when neither tagged form matched.
   ///
   /// Returns `null` when nothing matches. Pure + static for testability.
   static List<dynamic>? childrenForRun(

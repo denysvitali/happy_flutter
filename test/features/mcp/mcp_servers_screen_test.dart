@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -277,6 +279,69 @@ void main() {
 
       expect(find.textContaining('unexpected end'), findsOneWidget);
       expect(find.text('search'), findsOneWidget);
+    });
+
+    testWidgets('a slow snapshot for the previous machine never replaces the '
+        'selected machine\'s server list', (tester) async {
+      // Two online machines; 'm1' sorts first so it is auto-selected.
+      final pending = <String, Completer<Map<String, dynamic>>>{};
+      final rpcMachineIds = <String>[];
+      sync.testMachineRPCOverride = (machineId, method, params) {
+        rpcMachineIds.add(machineId);
+        calls.add((method: method, params: params));
+        if (method != 'mcp-list') {
+          return Future<Map<String, dynamic>>.value(_snapshot());
+        }
+        return (pending[machineId] ??= Completer<Map<String, dynamic>>())
+            .future;
+      };
+
+      await _pumpScreen(
+        tester,
+        machines: {
+          'm1': _onlineMachine(id: 'm1'),
+          'm2': _onlineMachine(id: 'm2'),
+        },
+      );
+
+      // m1's list is still in flight, and the machine picker stays
+      // reachable during the load — so the user can switch away from it.
+      expect(pending.keys, ['m1']);
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+      // The in-flight load keeps a progress indicator ticking, so the tree
+      // never settles — pump the menu route open by hand.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('m2').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // m2 answers first.
+      pending['m2']!.complete(
+        _snapshot(servers: [_stdioServer(name: 'beta-server')]),
+      );
+      await tester.pump();
+      expect(find.text('beta-server'), findsOneWidget);
+
+      // The abandoned m1 request lands afterwards. It must not repaint the
+      // list under the m2 selection: every row action below sends the
+      // selected machine id, so an m1 row here deletes/toggles on m2.
+      pending['m1']!.complete(
+        _snapshot(servers: [_stdioServer(name: 'alpha-server')]),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('alpha-server'), findsNothing);
+      expect(find.text('beta-server'), findsOneWidget);
+
+      // And the row still acts on the machine it is showing.
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(calls.last.method, 'mcp-toggle');
+      expect(calls.last.params['name'], 'beta-server');
+      expect(rpcMachineIds.last, 'm2');
     });
 
     testWidgets('selecting a project re-reads with that projectDir', (

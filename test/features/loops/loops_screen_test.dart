@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/loops/create_loop_sheet.dart';
+import 'package:happy_flutter/features/loops/loop_card.dart';
 import 'package:happy_flutter/features/loops/loops_screen.dart';
 
 import 'loop_notifier_test_helpers.dart';
@@ -20,6 +21,7 @@ Widget _wrap({
   Object? deleteError,
   Object? refreshError,
   List<String>? refreshCalls,
+  List<String>? actionCalls,
   Future<void> Function()? refreshOverride,
 }) {
   return ProviderScope(
@@ -31,6 +33,7 @@ Widget _wrap({
           deleteError: deleteError,
           refreshError: refreshError,
           refreshCalls: refreshCalls,
+          actionCalls: actionCalls,
           refreshOverride: refreshOverride,
         ),
       ),
@@ -181,6 +184,69 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text("Couldn't load loops"), findsOneWidget);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
+    });
+
+    testWidgets('row actions carry the id of the row that was tapped', (
+      tester,
+    ) async {
+      final actionCalls = <String>[];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          loops: {
+            's1': [
+              for (final row in const <({String id, String prompt})>[
+                (id: 'aaa11111', prompt: 'first loop'),
+                (id: 'bbb22222', prompt: 'second loop'),
+                (id: 'ccc33333', prompt: 'third loop'),
+              ])
+                testLoop(
+                  id: row.id,
+                  sessionId: 's1',
+                  prompt: row.prompt,
+                  expiresAt: now + 6 * 24 * 60 * 60 * 1000,
+                ),
+            ],
+          },
+          actionCalls: actionCalls,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Delete the middle row, located by what it renders.
+      final secondCard = find.ancestor(
+        of: find.text('second loop'),
+        matching: find.byType(LoopCard),
+      );
+      await tester.tap(
+        find.descendant(of: secondCard, matching: find.text('Delete')),
+      );
+      await tester.pumpAndSettle();
+      // The confirmation names the loop the row showed, not a neighbour.
+      expect(find.textContaining('bbb22222'), findsOneWidget);
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+
+      // Pause the last row; its id must be its own too.
+      final thirdCard = find.ancestor(
+        of: find.text('third loop'),
+        matching: find.byType(LoopCard),
+      );
+      final pause = find.descendant(
+        of: thirdCard,
+        matching: find.text('Pause'),
+      );
+      // The third card sits below the default 600px test viewport.
+      await tester.ensureVisible(pause);
+      await tester.pumpAndSettle();
+      await tester.tap(pause);
+      await tester.pumpAndSettle();
+
+      expect(actionCalls, <String>[
+        'delete:s1:bbb22222',
+        'pause:s1:ccc33333:true',
+      ]);
     });
 
     testWidgets('shows snackbar when delete fails', (tester) async {

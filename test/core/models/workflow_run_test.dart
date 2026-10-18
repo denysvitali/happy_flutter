@@ -928,4 +928,41 @@ void main() {
       'wf_2',
     );
   });
+
+  test('a tagged run keeps its own steps when another run is the sole '
+      'step-owner tool call', () {
+    // wf_a is a Workflow tool-call whose children carry step events, so
+    // it is the transcript's only "step owner". wf_b's steps arrived as
+    // top-level tagged chips (no tool-call children of their own).
+    final messages = <Map<String, dynamic>>[
+      <String, dynamic>{
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'workflowRunId': 'wf_a',
+        'children': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'taskEvent': true,
+            'event': <String, dynamic>{'message': 'step-of-a'},
+          },
+        ],
+      },
+      <String, dynamic>{
+        'workflowRunId': 'wf_b',
+        'taskEvent': true,
+        'event': <String, dynamic>{'message': 'step-of-b'},
+      },
+    ];
+
+    final index = WorkflowTranscriptIndex.fromMessages(messages);
+    final stepsForB = WorkflowRun.stepChildrenForIndex('wf_b', index);
+
+    // Card/detail for wf_b must never render wf_a's steps: the
+    // sole-step-owner guess exists only for runs with no tag at all.
+    expect(stepsForB, hasLength(1));
+    expect(
+      (stepsForB.single['event']! as Map<String, dynamic>)['message'],
+      'step-of-b',
+    );
+    expect(stepsForB.single['workflowRunId'], 'wf_b');
+  });
 }

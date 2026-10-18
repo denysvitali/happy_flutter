@@ -69,15 +69,23 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
   Future<void> _load() async {
     final machineId = _selectedMachineId;
     if (machineId == null) return;
+    final projectDir = _selectedProjectDir;
     setState(() {
       _isLoading = true;
       _error = null;
     });
     final response = await Sync().machineListMcpServers(
       machineId: machineId,
-      projectDir: _selectedProjectDir,
+      projectDir: projectDir,
     );
     if (!mounted) return;
+    // The picker stays live while a read is in flight, so a slower answer for
+    // an abandoned machine/project can land last. Every row action sends the
+    // *currently selected* machine id, so adopting that snapshot would toggle
+    // or delete another machine's server. The newer read owns the state.
+    if (machineId != _selectedMachineId || projectDir != _selectedProjectDir) {
+      return;
+    }
     setState(() {
       _isLoading = false;
       if (response.success) {

@@ -74,15 +74,25 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
     unawaited(_load());
   }
 
+  /// True while the selection a read was issued for is still the one on
+  /// screen. A read that started before the user switched is abandoned.
+  bool _stillSelected(String machineId, String? directory) =>
+      machineId == _selectedMachineId && directory == _selectedDirectory;
+
   Future<void> _load() async {
     final machineId = _selectedMachineId;
     if (machineId == null) return;
+    final requestedDirectory = _selectedDirectory;
     setState(() {
       _isLoading = true;
       _error = null;
     });
+    // The pickers stay live while a read is in flight, so an abandoned
+    // machine/directory can answer last. Its policy must never be shown (or
+    // read again) under the current selection — every write below sends
+    // `_selectedMachineId` + `_selectedDirectory`. The newer read owns state.
     final list = await Sync().machineListSandboxPolicies(machineId: machineId);
-    if (!mounted) return;
+    if (!mounted || !_stillSelected(machineId, requestedDirectory)) return;
     if (!list.success) {
       setState(() {
         _isLoading = false;
@@ -102,7 +112,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
         machineId: machineId,
         directory: directory,
       );
-      if (!mounted) return;
+      if (!mounted || !_stillSelected(machineId, requestedDirectory)) return;
     }
     setState(() {
       _isLoading = false;
