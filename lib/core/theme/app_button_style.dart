@@ -30,17 +30,29 @@ abstract final class AppButtonStyle {
   );
 
   /// Solid error fill for the confirming button of a destructive dialog.
+  static ButtonStyle destructiveFilled(ColorScheme cs) =>
+      solidFilled(cs, background: cs.error, foreground: cs.onError);
+
+  /// Solid [background] fill for a [FilledButton] whose color carries
+  /// meaning (approve, destroy).
   ///
   /// The themed [FilledButton] paints a primary gradient through
   /// `backgroundBuilder`, which would cover a plain `backgroundColor`, so the
   /// solid fill is supplied through the builder as well.
-  static ButtonStyle destructiveFilled(ColorScheme cs) =>
-      FilledButton.styleFrom(foregroundColor: cs.onError).copyWith(
+  static ButtonStyle solidFilled(
+    ColorScheme cs, {
+    required Color background,
+    required Color foreground,
+  }) =>
+      FilledButton.styleFrom(
+        foregroundColor: foreground,
+        backgroundColor: Colors.transparent,
+      ).copyWith(
         backgroundBuilder: (context, states, child) => Ink(
           decoration: BoxDecoration(
             color: states.contains(WidgetState.disabled)
                 ? cs.onSurface.withValues(alpha: 0.12)
-                : cs.error,
+                : background,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: child,

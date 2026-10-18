@@ -10,6 +10,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/provider_usage.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/theme/app_button_style.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
@@ -143,14 +144,9 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l10n.commonCancel),
           ),
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              foregroundColor: Theme.of(
-                dialogContext,
-              ).colorScheme.onErrorContainer,
-              backgroundColor: Theme.of(
-                dialogContext,
-              ).colorScheme.errorContainer,
+          FilledButton(
+            style: AppButtonStyle.destructiveFilled(
+              Theme.of(dialogContext).colorScheme,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l10n.commonDelete),

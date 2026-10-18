@@ -4,6 +4,8 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
+import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/chat/tools/permission_footer.dart';
 
 Widget _wrap(Widget child) {
@@ -456,6 +458,71 @@ void main() {
       await tester.tap(find.text('More approval options'));
       await tester.pump();
       expect(find.text('For session'), findsOneWidget);
+    });
+  });
+
+  group('PermissionFooter button colors', () {
+    // The themed FilledButton paints a gradient through backgroundBuilder, so
+    // a plain backgroundColor is hidden and a forced onPrimary label (dark in
+    // the dark scheme) became unreadable on it.
+    Widget themed(Widget child) => MaterialApp(
+      theme: ThemeHelper.buildDarkTheme(),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
+
+    Color labelColor(WidgetTester tester, String text) {
+      final element = tester.element(find.text(text));
+      return DefaultTextStyle.of(element).style.color!;
+    }
+
+    testWidgets('Allow keeps a white label in the dark theme', (tester) async {
+      await tester.pumpWidget(
+        themed(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'Bash',
+            onAllow: () async {},
+            onDeny: () async {},
+          ),
+        ),
+      );
+
+      expect(labelColor(tester, 'Allow'), Colors.white);
+    });
+
+    testWidgets('Codex approve paints a solid success fill', (tester) async {
+      await tester.pumpWidget(
+        themed(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'CodexBash',
+            flavor: 'codex',
+            onCodexApprove: () async {},
+            onCodexAbort: () async {},
+          ),
+        ),
+      );
+
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Yes'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      final ink = button.style!.backgroundBuilder!(
+        tester.element(find.text('Yes')),
+        const <WidgetState>{},
+        null,
+      );
+      expect(
+        ((ink as Ink).decoration! as BoxDecoration).color,
+        AppColors.success,
+      );
+      expect(labelColor(tester, 'Yes'), Colors.white);
     });
   });
 }

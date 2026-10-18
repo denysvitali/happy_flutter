@@ -474,6 +474,9 @@ FilledButtonThemeData _buildFilledButtonTheme() {
   return FilledButtonThemeData(
     style: ButtonStyle(
       foregroundColor: const WidgetStatePropertyAll(Colors.white),
+      // backgroundBuilder paints the fill. A visible base color would show
+      // as a rim wherever a call site's shape is less rounded than it.
+      backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
       // White state-layer at M3 pressed opacity (16 %) over the gradient.
       overlayColor: AppMotion.overlayFor(Colors.white),
       elevation: const WidgetStatePropertyAll(AppElevation.none),

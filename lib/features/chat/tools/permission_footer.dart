@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
@@ -475,11 +476,7 @@ class _CodexActionButtons extends StatelessWidget {
               onPressed: enabled ? onCodexApprove : null,
               icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
               label: Text(l10n.permissionYes),
-              style: _primaryButtonStyle(
-                theme,
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-              ),
+              style: _primaryButtonStyle(theme, background: AppColors.success),
             ),
             OutlinedButton.icon(
               onPressed: enabled ? onCodexAbort : null,
@@ -548,14 +545,12 @@ class _AdvancedPermissionDisclosure extends StatelessWidget {
   }
 }
 
-ButtonStyle _primaryButtonStyle(
-  ThemeData theme, {
-  Color? backgroundColor,
-  Color? foregroundColor,
-}) {
-  return FilledButton.styleFrom(
-    backgroundColor: backgroundColor ?? theme.colorScheme.primary,
-    foregroundColor: foregroundColor ?? theme.colorScheme.onPrimary,
+/// Primary permission action. Colors come from the themed [FilledButton]
+/// (gradient fill, white label); a [background] that carries meaning is
+/// painted solid through [AppButtonStyle.solidFilled], because a plain
+/// `backgroundColor` would sit under the theme gradient.
+ButtonStyle _primaryButtonStyle(ThemeData theme, {Color? background}) {
+  final base = FilledButton.styleFrom(
     minimumSize: const Size(0, AppTouchTarget.min),
     padding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.smd,
@@ -568,6 +563,14 @@ ButtonStyle _primaryButtonStyle(
       borderRadius: BorderRadius.circular(AppRadius.sm),
     ),
     elevation: 0,
+  );
+  if (background == null) return base;
+  return base.merge(
+    AppButtonStyle.solidFilled(
+      theme.colorScheme,
+      background: background,
+      foreground: Colors.white,
+    ),
   );
 }
 
@@ -655,8 +658,6 @@ class PermissionButtons extends StatelessWidget {
           icon: const Icon(Icons.check_rounded, size: 14),
           label: Text(AppLocalizations.of(context).permissionAllow),
           style: FilledButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
             elevation: 0,
             minimumSize: const Size(0, AppTouchTarget.min),
             padding: const EdgeInsets.symmetric(
