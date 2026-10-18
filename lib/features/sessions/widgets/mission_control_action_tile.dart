@@ -136,6 +136,9 @@ class MissionActionRow extends StatelessWidget {
 
     return Semantics(
       container: true,
+      button: true,
+      onTap: onTap,
+      onLongPress: onLongPress,
       selected: selected,
       child: AnimatedContainer(
         duration: AppMotion.duration(context, AppDuration.fast),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -338,6 +339,42 @@ void main() {
     expect(actions, ['read', 'peek', 'pin', 'snooze:false']);
   });
 
+  testWidgets('semantic row tap opens only the session', (tester) async {
+    final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
+    var opened = 0;
+    var archived = 0;
+    var selected = 0;
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(title: 'Semantic session'),
+          entry: SessionUiEntry.empty,
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          onTap: () => opened++,
+          onLongPress: () {},
+          onArchive: () => archived++,
+          onSelect: () => selected++,
+        ),
+      ),
+    );
+    final row = tester.getSemantics(find.byType(MissionActionRow));
+    expect(row, containsSemantics(isButton: true, hasTapAction: true));
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      row.id,
+      SemanticsAction.tap,
+    );
+    await tester.pump();
+    expect(opened, 1);
+    expect(archived, 0);
+    expect(selected, 0);
+    expect(
+      tester.getSemantics(find.byTooltip('Session actions')),
+      containsSemantics(isButton: true, hasTapAction: true),
+    );
+  });
+
   testWidgets('screen readers retain triage menu and inline approvals', (
     tester,
   ) async {
@@ -369,7 +406,14 @@ void main() {
           scale: 2,
         ),
       );
-      expect(find.bySemanticsLabel('Session actions'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.byTooltip('Session actions')),
+        containsSemantics(
+          isButton: true,
+          tooltip: 'Session actions',
+          hasTapAction: true,
+        ),
+      );
       if (approvals) {
         expect(find.bySemanticsLabel('Allow'), findsOneWidget);
         expect(find.bySemanticsLabel('Deny'), findsOneWidget);
