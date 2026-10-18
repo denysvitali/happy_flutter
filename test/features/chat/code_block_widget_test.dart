@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/code_viewer_theme.dart';
+import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
 /// Finds the line-number gutter [Text] widget (horizontal-scroll mode).
@@ -257,5 +259,33 @@ void main() {
       expect(_wrappedLine(13), findsNothing);
       expect(_verticalScrollViews(), findsOneWidget);
     });
+  });
+
+  testWidgets('dark header stays a subtle lift over its base', (tester) async {
+    // The glass highlight is translucent; replacing its alpha with 0.5 used
+    // to paint a mid-grey header under dim label text in the dark theme.
+    final theme = ThemeHelper.buildDarkTheme();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
+          body: CodeBlockWidget(code: 'void main() {}', language: 'dart'),
+        ),
+      ),
+    );
+
+    final header = tester.widget<AnimatedContainer>(
+      find
+          .descendant(
+            of: find.byType(CodeBlockWidget),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    final fill = (header.decoration! as BoxDecoration).color!;
+    final base = theme.extension<CodeViewerTheme>()!.headerBackground;
+    expect(fill.computeLuminance() - base.computeLuminance(), lessThan(0.05));
   });
 }

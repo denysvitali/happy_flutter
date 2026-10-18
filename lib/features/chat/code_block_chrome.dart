@@ -5,8 +5,14 @@ part of 'code_block_widget.dart';
 /// A static alpha lift of the glass highlight over the chrome base — no
 /// [BackdropFilter], no per-frame shader — so the strip reads as a separate
 /// translucent pane above the code surface at zero raster cost.
-Color _glassChromeFill(Color base, AppColorScheme glass) =>
-    Color.alphaBlend(glass.glassHighlight.withValues(alpha: 0.5), base);
+///
+/// The highlight token is already translucent, so its alpha is halved rather
+/// than replaced: `withValues(alpha: 0.5)` turned the dark scheme's 16 %
+/// white into 50 % white, a mid-grey bar under dim header text.
+Color _glassChromeFill(Color base, AppColorScheme glass) => Color.alphaBlend(
+  glass.glassHighlight.withValues(alpha: glass.glassHighlight.a * 0.5),
+  base,
+);
 
 /// Resolves the ambient Aurora scheme, falling back to the dark tokens when
 /// the extension is not registered (bare-[MaterialApp] tests).
