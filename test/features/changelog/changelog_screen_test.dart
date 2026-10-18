@@ -14,9 +14,7 @@ import 'package:http/testing.dart';
 /// Returns a canned result and records the range it was asked for.
 class FakeChangelogService extends ChangelogService {
   FakeChangelogService(this._entries, {this.gate})
-    : super(
-        client: MockClient((_) async => http.Response('{}', 404)),
-      );
+    : super(client: MockClient((_) async => http.Response('{}', 404)));
 
   final List<ChangelogEntry> _entries;
   final Future<void>? gate;
@@ -58,10 +56,7 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: ChangelogScreen(
-            fromVersion: fromVersion,
-            toVersion: '1.1.0',
-          ),
+          home: ChangelogScreen(fromVersion: fromVersion, toVersion: '1.1.0'),
         ),
       ),
     );

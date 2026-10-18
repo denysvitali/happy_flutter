@@ -21,7 +21,10 @@ http.Client fakeGithub(Map<String, Object> routes) {
   });
 }
 
-Map<String, Object> commit(String message, {String date = '2026-08-01T10:00:00Z'}) {
+Map<String, Object> commit(
+  String message, {
+  String date = '2026-08-01T10:00:00Z',
+}) {
   return {
     'sha': 'sha-${message.hashCode}',
     'commit': {

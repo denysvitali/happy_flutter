@@ -152,11 +152,10 @@ void main() {
           sessions: sessions,
         ),
       );
-      container
-          .read(todoStateNotifierProvider.notifier)
-          .setItemsForSession(contractAlphaId, [
-            todo(contractAlphaId, 'Fresh live task'),
-          ]);
+      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
+        contractAlphaId,
+        [todo(contractAlphaId, 'Fresh live task')],
+      );
       final router = buildSessionOpenRouter(
         recorder: recorder,
         home: (_) => const ZenHomeScreen(),
@@ -176,21 +175,13 @@ void main() {
       tester,
     ) async {
       await pumpZen(tester, {
-        contractAlphaId: sessionWithTodos(
-          contractAlphaId,
-          contractAlphaLabel,
-          [todo(contractAlphaId, 'Alpha task')],
-          path: '/home/dev/aardvark',
-        ),
-        contractBravoId: sessionWithTodos(
-          contractBravoId,
-          contractBravoLabel,
-          [
-            todo(contractBravoId, 'Bravo task one'),
-            todo(contractBravoId, 'Bravo task two', order: 1),
-          ],
-          path: '/home/dev/zebra',
-        ),
+        contractAlphaId: sessionWithTodos(contractAlphaId, contractAlphaLabel, [
+          todo(contractAlphaId, 'Alpha task'),
+        ], path: '/home/dev/aardvark'),
+        contractBravoId: sessionWithTodos(contractBravoId, contractBravoLabel, [
+          todo(contractBravoId, 'Bravo task one'),
+          todo(contractBravoId, 'Bravo task two', order: 1),
+        ], path: '/home/dev/zebra'),
       });
 
       expect(find.textContaining('aardvark'), findsOneWidget);
@@ -223,25 +214,15 @@ void main() {
     testWidgets('scoped view shows only that session, grouped by priority', (
       tester,
     ) async {
-      await pumpZen(
-        tester,
-        {
-          contractAlphaId: sessionWithTodos(
-            contractAlphaId,
-            contractAlphaLabel,
-            [
-              todo(contractAlphaId, 'Low task', priority: 'low'),
-              todo(contractAlphaId, 'Critical task', priority: 'critical'),
-            ],
-          ),
-          contractBravoId: sessionWithTodos(
-            contractBravoId,
-            contractBravoLabel,
-            [todo(contractBravoId, 'Other session task')],
-          ),
-        },
-        scopedSessionId: contractAlphaId,
-      );
+      await pumpZen(tester, {
+        contractAlphaId: sessionWithTodos(contractAlphaId, contractAlphaLabel, [
+          todo(contractAlphaId, 'Low task', priority: 'low'),
+          todo(contractAlphaId, 'Critical task', priority: 'critical'),
+        ]),
+        contractBravoId: sessionWithTodos(contractBravoId, contractBravoLabel, [
+          todo(contractBravoId, 'Other session task'),
+        ]),
+      }, scopedSessionId: contractAlphaId);
 
       expect(find.text('Other session task'), findsNothing);
       expect(find.text('Critical'), findsOneWidget);
@@ -258,17 +239,11 @@ void main() {
     testWidgets('unknown priority falls back to the low section', (
       tester,
     ) async {
-      await pumpZen(
-        tester,
-        {
-          contractAlphaId: sessionWithTodos(
-            contractAlphaId,
-            contractAlphaLabel,
-            [todo(contractAlphaId, 'Odd task', priority: 'urgent-ish')],
-          ),
-        },
-        scopedSessionId: contractAlphaId,
-      );
+      await pumpZen(tester, {
+        contractAlphaId: sessionWithTodos(contractAlphaId, contractAlphaLabel, [
+          todo(contractAlphaId, 'Odd task', priority: 'urgent-ish'),
+        ]),
+      }, scopedSessionId: contractAlphaId);
 
       expect(find.text('Low'), findsOneWidget);
       expect(find.text('Odd task'), findsOneWidget);

@@ -213,9 +213,7 @@ void main() {
       expect(find.text('alpha body'), findsOneWidget);
       expect(find.text('bravo body'), findsOneWidget);
       final alphaY = tester.getTopLeft(find.text('Release notes alpha')).dy;
-      final charlieY = tester
-          .getTopLeft(find.text('Release notes charlie'))
-          .dy;
+      final charlieY = tester.getTopLeft(find.text('Release notes charlie')).dy;
       final bravoY = tester.getTopLeft(find.text('Release notes bravo')).dy;
       expect(alphaY, lessThan(charlieY));
       expect(charlieY, lessThan(bravoY));
@@ -266,8 +264,10 @@ void main() {
       await tester.pumpWidget(buildApp(artifacts: threeArtifacts()));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), artifactBravoId
-          .toUpperCase());
+      await tester.enterText(
+        find.byType(TextField),
+        artifactBravoId.toUpperCase(),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Release notes bravo'), findsOneWidget);

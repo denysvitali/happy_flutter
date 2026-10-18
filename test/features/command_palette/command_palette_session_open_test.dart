@@ -143,16 +143,13 @@ void main() {
       await pumpPalette(tester);
       await reveal(tester, rowTitled(contractFoxtrotLabel));
 
-      expect(
-        visibleSessionLabels(tester),
-        [
-          contractAlphaLabel,
-          contractBravoLabel,
-          contractCharlieLabel,
-          contractDeltaLabel,
-          contractFoxtrotLabel,
-        ],
-      );
+      expect(visibleSessionLabels(tester), [
+        contractAlphaLabel,
+        contractBravoLabel,
+        contractCharlieLabel,
+        contractDeltaLabel,
+        contractFoxtrotLabel,
+      ]);
       // Echo is the sixth-newest: search-only, never in the shortlist.
       expect(rowTitled(contractEchoLabel), findsNothing);
     });
@@ -235,9 +232,7 @@ void main() {
       expect(recorder.opened, [contractFoxtrotId]);
     });
 
-    testWidgets('enter opens the row the arrow keys landed on', (
-      tester,
-    ) async {
+    testWidgets('enter opens the row the arrow keys landed on', (tester) async {
       await pumpPalette(tester);
       // 'review' matches every session label and no navigation command,
       // so the flat keyboard order is exactly the visible session order.

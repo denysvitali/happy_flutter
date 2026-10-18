@@ -181,9 +181,7 @@ void main() {
       expect(find.text('Draft'), findsOneWidget);
     });
 
-    testWidgets('missing artifact renders the not-found state', (
-      tester,
-    ) async {
+    testWidgets('missing artifact renders the not-found state', (tester) async {
       await pumpDetail(tester, artifacts: const {});
 
       expect(find.text('Not found'), findsOneWidget);
@@ -238,9 +236,7 @@ void main() {
       expect(recorder.opened, [unknownId]);
     });
 
-    testWidgets('no sessions means no source-sessions section', (
-      tester,
-    ) async {
+    testWidgets('no sessions means no source-sessions section', (tester) async {
       final a = detailArtifact();
       await pumpDetail(tester, artifacts: {a.id: a});
 
@@ -407,8 +403,10 @@ void main() {
       final a = detailArtifact();
       await pumpEdit(tester, artifacts: {a.id: a});
 
-      expect(find.widgetWithText(TextFormField, 'Release notes alpha'),
-          findsOneWidget);
+      expect(
+        find.widgetWithText(TextFormField, 'Release notes alpha'),
+        findsOneWidget,
+      );
       expect(find.widgetWithText(TextFormField, 'alpha body'), findsOneWidget);
     });
 
@@ -418,10 +416,7 @@ void main() {
       final a = detailArtifact();
       await pumpEdit(tester, artifacts: {a.id: a});
 
-      await tester.enterText(
-        find.byType(TextFormField).first,
-        'Renamed alpha',
-      );
+      await tester.enterText(find.byType(TextFormField).first, 'Renamed alpha');
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
 
@@ -444,9 +439,7 @@ void main() {
       await drainSnackBar(tester);
     });
 
-    testWidgets('missing artifact renders the not-found state', (
-      tester,
-    ) async {
+    testWidgets('missing artifact renders the not-found state', (tester) async {
       await pumpEdit(tester, artifacts: const {});
 
       expect(find.text('Not found'), findsOneWidget);
