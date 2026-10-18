@@ -24,6 +24,7 @@ import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
 import 'mission_control_view.dart';
 import 'session_animations.dart';
+import 'session_board_view.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
 import 'session_headers.dart';
@@ -340,7 +341,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final usesAggregateRows =
         sessionsViewStyle == 'folder' ||
         sessionsViewStyle == 'mission_control' ||
-        sessionsViewStyle == 'unread_focus';
+        sessionsViewStyle == 'unread_focus' ||
+        sessionsViewStyle == 'status' ||
+        sessionsViewStyle == 'machines';
     final usesMissionControlRoot =
         sessionsViewStyle == 'mission_control' && _selectedFolderKey == null;
     final sessions = usesMissionControlRoot
@@ -363,6 +366,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final needsMachineProjection =
         sessionsViewStyle == 'folder' ||
         sessionsViewStyle == 'mission_control' ||
+        sessionsViewStyle == 'machines' ||
         _archivedGrouping == ArchivedGrouping.folder;
     final machines = usesMissionControlRoot
         ? ref
@@ -581,6 +585,33 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         missionControlUi!,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
+      );
+    }
+
+    if (sessionsViewStyle == 'status' || sessionsViewStyle == 'machines') {
+      return SessionBoardView(
+        scrollController: widget.scrollController,
+        sections: sessionsViewStyle == 'status'
+            ? buildStatusBoardSections(
+                context,
+                activeSessions,
+                aggregateUiState!,
+              )
+            : buildMachineSections(
+                context,
+                activeSessions,
+                machines,
+                aggregateUiState!,
+              ),
+        rowBuilder: (row) => _buildMissionActionRow(
+          row.session,
+          row.entry,
+          row.lane,
+          animateActivity: missionControlShouldAnimateActivity(
+            activeSessions.length,
+          ),
+          highlighted: false,
+        ),
       );
     }
 

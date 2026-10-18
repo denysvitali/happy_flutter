@@ -1121,6 +1121,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleMissionControl => 'Mission Control';
 
   @override
+  String get sessionsViewStyleStatusBoard => 'Status board';
+
+  @override
+  String get sessionsViewStyleMachines => 'By machine';
+
+  @override
+  String get sessionsViewStyleMissionControlHint =>
+      'What needs you, then workspace activity';
+
+  @override
+  String get sessionsViewStyleStatusBoardHint =>
+      'Every session grouped by what it is doing';
+
+  @override
+  String get sessionsViewStyleMachinesHint =>
+      'Sessions grouped by the computer running them';
+
+  @override
+  String get sessionsViewStyleFolderCentricHint =>
+      'Browse sessions by project folder';
+
+  @override
+  String get sessionsViewStyleUnreadFocusHint =>
+      'Unread and blocked first, then the rest';
+
+  @override
+  String get sessionsViewStyleTooltip => 'View';
+
+  @override
+  String get sessionsUnknownMachine => 'Unknown machine';
+
+  @override
   String get missionControlFocusQueue => 'Focus queue';
 
   @override

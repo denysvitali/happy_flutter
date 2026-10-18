@@ -111,6 +111,13 @@ workspaces, Advanced launch controls, and ordered attention reasons are
 implemented. Widget regressions are added; CI and device acceptance remain
 pending. Message delivery and canonical `localId` behavior are unchanged.
 
+Sessions tab: an app-bar view switcher now exposes every layout in one tap,
+plus two new layouts: **Status board** (every live session grouped by
+blocked / failed / unread / working / quiet) and **By machine** (grouped by
+host, online machines first, urgent rows leading). Both reuse the Mission
+Control row. Grouping and render regressions are added; device acceptance is
+pending.
+
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.
 

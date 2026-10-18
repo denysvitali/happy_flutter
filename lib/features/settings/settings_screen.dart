@@ -18,6 +18,7 @@ import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
+import '../sessions/widgets/sessions_view_style.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 part 'settings_screen_search.dart';
@@ -299,18 +300,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    RadioListTile<String>(
-                      value: 'mission_control',
-                      title: Text(l10n.sessionsViewStyleMissionControl),
-                    ),
-                    RadioListTile<String>(
-                      value: 'folder',
-                      title: Text(l10n.sessionsViewStyleFolderCentric),
-                    ),
-                    RadioListTile<String>(
-                      value: 'unread_focus',
-                      title: Text(l10n.sessionsViewStyleUnreadFocus),
-                    ),
+                    for (final style in SessionsViewStyle.values)
+                      RadioListTile<String>(
+                        value: style.wire,
+                        title: Text(style.label(l10n)),
+                        subtitle: Text(style.description(l10n)),
+                      ),
                   ],
                 ),
               ),
@@ -355,10 +350,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {
-    return switch (value) {
-      'folder' => l10n.sessionsViewStyleFolderCentric,
-      'unread_focus' => l10n.sessionsViewStyleUnreadFocus,
-      _ => l10n.sessionsViewStyleMissionControl,
-    };
+    return SessionsViewStyle.fromWire(value).label(l10n);
   }
 }

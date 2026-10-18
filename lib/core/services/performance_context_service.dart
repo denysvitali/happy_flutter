@@ -40,6 +40,8 @@ class PerformanceContextService {
       'mission_control' ||
       'mission_control_folder' ||
       'folder' ||
+      'status' ||
+      'machines' ||
       'unread_focus' => sessionsView,
       _ => 'other',
     };

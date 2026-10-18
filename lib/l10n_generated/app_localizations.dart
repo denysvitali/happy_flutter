@@ -2093,6 +2093,60 @@ abstract class AppLocalizations {
   /// **'Mission Control'**
   String get sessionsViewStyleMissionControl;
 
+  /// No description provided for @sessionsViewStyleStatusBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'Status board'**
+  String get sessionsViewStyleStatusBoard;
+
+  /// No description provided for @sessionsViewStyleMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'By machine'**
+  String get sessionsViewStyleMachines;
+
+  /// No description provided for @sessionsViewStyleMissionControlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs you, then workspace activity'**
+  String get sessionsViewStyleMissionControlHint;
+
+  /// No description provided for @sessionsViewStyleStatusBoardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every session grouped by what it is doing'**
+  String get sessionsViewStyleStatusBoardHint;
+
+  /// No description provided for @sessionsViewStyleMachinesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions grouped by the computer running them'**
+  String get sessionsViewStyleMachinesHint;
+
+  /// No description provided for @sessionsViewStyleFolderCentricHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse sessions by project folder'**
+  String get sessionsViewStyleFolderCentricHint;
+
+  /// No description provided for @sessionsViewStyleUnreadFocusHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread and blocked first, then the rest'**
+  String get sessionsViewStyleUnreadFocusHint;
+
+  /// No description provided for @sessionsViewStyleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get sessionsViewStyleTooltip;
+
+  /// No description provided for @sessionsUnknownMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown machine'**
+  String get sessionsUnknownMachine;
+
   /// No description provided for @missionControlFocusQueue.
   ///
   /// In en, this message translates to:

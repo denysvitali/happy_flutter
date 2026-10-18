@@ -34,6 +34,7 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_headers.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
+import 'widgets/sessions_view_style.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Persistence key for the sessions master-pane width in the tablet
@@ -509,6 +510,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       title: Text(l10n.sessionHistoryTitle),
       actions: [
         ConnectionStatusBadge(status: connectionStatus),
+        const SessionsViewStyleButton(),
         IconButton(
           icon: const Icon(Icons.search),
           tooltip: l10n.commonSearch,
