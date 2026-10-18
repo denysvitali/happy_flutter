@@ -59,8 +59,15 @@ class DiffLine {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(type, content, oldLineNumber, newLineNumber, tokens);
+  int get hashCode => Object.hash(
+    type,
+    content,
+    oldLineNumber,
+    newLineNumber,
+    // Lists hash by identity, so hashing the list itself would give two
+    // equal lines different hash codes and break every set/map lookup.
+    tokens == null ? null : Object.hashAll(tokens!),
+  );
 }
 
 /// Diff hunk containing related changes
@@ -94,8 +101,13 @@ class DiffHunk {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(oldStart, oldLines, newStart, newLines, lines);
+  int get hashCode => Object.hash(
+    oldStart,
+    oldLines,
+    newStart,
+    newLines,
+    Object.hashAll(lines),
+  );
 }
 
 /// Complete diff result
@@ -117,7 +129,7 @@ class DiffResult {
   }
 
   @override
-  int get hashCode => Object.hash(hunks, stats);
+  int get hashCode => Object.hash(Object.hashAll(hunks), stats);
 }
 
 /// Diff statistics

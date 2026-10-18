@@ -355,7 +355,11 @@ class SkeletonTwoColumn extends StatelessWidget {
                           left: col > 0 ? spacing / 2 : 0,
                           right: col == 0 ? spacing / 2 : 0,
                         ),
-                        child: SkeletonCard(height: itemHeight),
+                        // An odd itemCount leaves the trailing slot empty
+                        // instead of rounding the count up to a full row.
+                        child: row * 2 + col < itemCount
+                            ? SkeletonCard(height: itemHeight)
+                            : SizedBox(height: itemHeight),
                       ),
                     ),
                 ],

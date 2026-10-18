@@ -177,9 +177,16 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
                 theme.colorScheme.surfaceContainerHighest,
                 theme.colorScheme.surfaceContainerHigh,
               ]);
-    final effectiveStops = widget.colors != null
-        ? const [0.0, 0.2, 0.5, 0.8, 1.0]
-        : const [0.0, 0.35, 0.65, 1.0];
+    // Stops must match the colour count exactly or the gradient throws.
+    // Custom lists of any other length fall back to even spacing.
+    final List<double>? effectiveStops;
+    if (widget.colors == null) {
+      effectiveStops = const [0.0, 0.35, 0.65, 1.0];
+    } else if (widget.colors!.length == 5) {
+      effectiveStops = const [0.0, 0.2, 0.5, 0.8, 1.0];
+    } else {
+      effectiveStops = null;
+    }
 
     return AnimatedBuilder(
       animation: animation,

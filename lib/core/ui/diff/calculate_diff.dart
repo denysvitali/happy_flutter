@@ -169,9 +169,13 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
       i++;
       j++;
     } else {
-      // Find best match
-      final matchForward = _findBestMatchForward(newLines, j, oldLines[i]);
-      final matchBackward = _findBestMatchBackward(oldLines, i, newLines[j]);
+      // Resynchronise on the nearest *exact* reappearance of the current
+      // line. Fuzzy resynchronisation used to decide this, and in a file
+      // whose lines all resemble each other (numbered rows, imports, list
+      // entries) it locked onto the neighbour of the edited line instead:
+      // a one-line edit then rendered as "everything below this changed".
+      final matchForward = _indexOfLine(newLines, j, oldLines[i]);
+      final matchBackward = _indexOfLine(oldLines, i, newLines[j]);
 
       if (matchForward != -1 &&
           matchForward > j &&
@@ -209,20 +213,10 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
   return changes;
 }
 
-/// Find best matching line forward in newLines
-int _findBestMatchForward(List<String> newLines, int start, String target) {
-  for (var i = start; i < newLines.length; i++) {
-    if (_calculateSimilarity(target, newLines[i]) > 0.3) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-/// Find best matching line backward in oldLines
-int _findBestMatchBackward(List<String> oldLines, int start, String target) {
-  for (var i = start; i < oldLines.length; i++) {
-    if (_calculateSimilarity(target, oldLines[i]) > 0.3) {
+/// Index of the first line equal to [target] at or after [start], or -1.
+int _indexOfLine(List<String> lines, int start, String target) {
+  for (var i = start; i < lines.length; i++) {
+    if (lines[i] == target) {
       return i;
     }
   }
@@ -350,6 +344,10 @@ int _findBestMatch(String target, List<String> candidates) {
   return bestIndex;
 }
 
+/// Longest line length that still gets the common-substring similarity
+/// bonus. Beyond this the scan cost dominates any quality gain.
+const int _kSimilarityScanLimit = 256;
+
 /// Calculate similarity between two strings (0-1)
 double _calculateSimilarity(String str1, String str2) {
   if (str1 == str2) return 1.0;
@@ -368,8 +366,12 @@ double _calculateSimilarity(String str1, String str2) {
     if (chars1[i] == chars2[i]) matches++;
   }
 
-  // Check for common substrings
-  final commonSubstrings = _findCommonSubstrings(str1, str2);
+  // Check for common substrings. The scan is cubic in the line length, so
+  // past the limit only the positional character ratio is used: one
+  // minified 4 kB line otherwise froze the calling isolate for ~a minute.
+  final commonSubstrings = maxLen > _kSimilarityScanLimit
+      ? const <String>[]
+      : _findCommonSubstrings(str1, str2);
   final substringBonus = commonSubstrings.isNotEmpty
       ? commonSubstrings.map((s) => s.length).reduce((a, b) => a + b) / maxLen
       : 0.0;
