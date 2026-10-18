@@ -97,7 +97,9 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
       fontFamily: 'monospace',
       fontFamilyFallback: const ['Courier New', 'Courier'],
       fontSize: AppFontSize.sm,
-      color: isError ? AppColors.error : cs.onSurface,
+      // cs.error is tuned per brightness; the brand red is unreadable on
+      // the dark error tint.
+      color: isError ? cs.error : cs.onSurface,
       height: AppLineHeight.relaxed,
     );
     if (_lastDefaultStyle != defaultStyle) {
@@ -113,7 +115,11 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
 
     final labelColor = isError ? AppColors.error : cs.onSurfaceVariant;
     final borderColor = isError ? AppColors.error : cs.outlineVariant;
-    final bgColor = isError ? cs.errorContainer : cs.surface;
+    // A tint rather than errorContainer, whose dark variant is a saturated
+    // red block that drowns the output text.
+    final bgColor = isError
+        ? Color.alphaBlend(AppColors.error.withValues(alpha: 0.08), cs.surface)
+        : cs.surface;
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.xsm),
