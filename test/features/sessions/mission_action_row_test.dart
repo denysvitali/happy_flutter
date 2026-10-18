@@ -341,84 +341,90 @@ void main() {
 
   testWidgets('semantic row tap opens only the session', (tester) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    var opened = 0;
-    var archived = 0;
-    var selected = 0;
-    await tester.pumpWidget(
-      _app(
-        MissionActionRow(
-          session: _session(title: 'Semantic session'),
-          entry: SessionUiEntry.empty,
-          lane: MissionLane.quiet,
-          animateActivity: false,
-          onTap: () => opened++,
-          onLongPress: () {},
-          onArchive: () => archived++,
-          onSelect: () => selected++,
+    try {
+      var opened = 0;
+      var archived = 0;
+      var selected = 0;
+      await tester.pumpWidget(
+        _app(
+          MissionActionRow(
+            session: _session(title: 'Semantic session'),
+            entry: SessionUiEntry.empty,
+            lane: MissionLane.quiet,
+            animateActivity: false,
+            onTap: () => opened++,
+            onLongPress: () {},
+            onArchive: () => archived++,
+            onSelect: () => selected++,
+          ),
         ),
-      ),
-    );
-    final row = tester.getSemantics(find.byType(MissionActionRow));
-    expect(row, containsSemantics(isButton: true, hasTapAction: true));
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      row.id,
-      SemanticsAction.tap,
-    );
-    await tester.pump();
-    expect(opened, 1);
-    expect(archived, 0);
-    expect(selected, 0);
-    expect(
-      tester.getSemantics(find.byTooltip('Session actions')),
-      containsSemantics(isButton: true, hasTapAction: true),
-    );
+      );
+      final row = tester.getSemantics(find.byType(MissionActionRow));
+      expect(row, containsSemantics(isButton: true, hasTapAction: true));
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        row.id,
+        SemanticsAction.tap,
+      );
+      await tester.pump();
+      expect(opened, 1);
+      expect(archived, 0);
+      expect(selected, 0);
+      expect(
+        tester.getSemantics(find.byTooltip('Session actions')),
+        containsSemantics(isButton: true, hasTapAction: true),
+      );
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('screen readers retain triage menu and inline approvals', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    tester.view.physicalSize = const Size(320, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    for (final approvals in [false, true]) {
-      await tester.pumpWidget(
-        _app(
-          MissionActionRow(
-            session: _session(
-              agentState: AgentState(
-                requests: {
-                  'request': const RequestInfo(tool: 'Bash', createdAt: 1),
-                },
+    try {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final approvals in [false, true]) {
+        await tester.pumpWidget(
+          _app(
+            MissionActionRow(
+              session: _session(
+                agentState: AgentState(
+                  requests: {
+                    'request': const RequestInfo(tool: 'Bash', createdAt: 1),
+                  },
+                ),
               ),
+              entry: SessionUiEntry.empty,
+              lane: MissionLane.blocked,
+              showInlineApproval: approvals,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+              onPeek: () {},
             ),
-            entry: SessionUiEntry.empty,
-            lane: MissionLane.blocked,
-            showInlineApproval: approvals,
-            animateActivity: false,
-            onTap: () {},
-            onLongPress: () {},
-            onPeek: () {},
+            scale: 2,
           ),
-          scale: 2,
-        ),
-      );
-      expect(
-        tester.getSemantics(find.byTooltip('Session actions')),
-        containsSemantics(
-          isButton: true,
-          tooltip: 'Session actions',
-          hasTapAction: true,
-        ),
-      );
-      if (approvals) {
-        expect(find.bySemanticsLabel('Allow'), findsOneWidget);
-        expect(find.bySemanticsLabel('Deny'), findsOneWidget);
+        );
+        expect(
+          tester.getSemantics(find.byTooltip('Session actions')),
+          containsSemantics(
+            isButton: true,
+            tooltip: 'Session actions',
+            hasTapAction: true,
+          ),
+        );
+        if (approvals) {
+          expect(find.bySemanticsLabel('Allow'), findsOneWidget);
+          expect(find.bySemanticsLabel('Deny'), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
       }
-      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
     }
   });
 }
