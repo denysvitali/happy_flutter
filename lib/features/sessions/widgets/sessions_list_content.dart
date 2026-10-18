@@ -1196,8 +1196,23 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       sessionsViewStyle,
       activeSessions.length,
       inactiveSessions.length,
-      for (final session in activeSessions) session.id,
-      for (final session in inactiveSessions) session.id,
+      // Grouping inputs, not identity alone. Ordering can stay identical
+      // while a field the builder reads changes: `presence` feeds the
+      // project header's active badge, `metadata.path`/`machineId` decide
+      // the project, path, and folder groups, and `lastMessageAt`/
+      // `updatedAt` pick the archived date bucket whenever the ordering
+      // projection has no message timestamp. Keying on the id alone
+      // rendered the previous grouping under the new data.
+      for (final session in activeSessions)
+        Object.hash(session.id, session.presence, session.metadata?.path),
+      for (final session in inactiveSessions)
+        Object.hash(
+          session.id,
+          session.metadata?.path,
+          session.metadata?.machineId,
+          session.lastMessageAt,
+          session.updatedAt,
+        ),
       hideInactive,
       _archivedGrouping,
       Object.hashAllUnordered(_collapsedActiveProjects),

@@ -906,6 +906,11 @@ class ApiClient {
       logger.warning('Attempted to set empty auth token');
       return;
     }
+    // The response-cache key is method + path + query: the authenticated
+    // account is not in it. Sign-out and account switches keep this
+    // client alive, so entries fetched as the previous account must be
+    // dropped or they would be served to the next one.
+    if (token != _authToken) _httpCache.clear();
     _authToken = token;
     if (_dio != null) {
       if (token != null) {
@@ -918,6 +923,9 @@ class ApiClient {
 
   /// Clear authentication token
   void clearToken() {
+    // Same reason as [updateToken]: cached responses are account data
+    // under an account-less key.
+    if (_authToken != null) _httpCache.clear();
     _authToken = null;
     if (_dio != null) {
       _dio!.options.headers.remove('Authorization');

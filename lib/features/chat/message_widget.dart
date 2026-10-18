@@ -365,7 +365,23 @@ class _MessageWidgetState extends State<MessageWidget>
     widget.isCompact,
     widget.onOptionPress != null,
     widget.onRetry != null,
+    // Session metadata is a render input, not just a passthrough: tool
+    // subtitles relativise file paths against `path`, the tool header
+    // reads `flavor`, and the read view fetches against `machineId`. The
+    // chat screen rebuilds this map whenever the session changes, so a
+    // metadata arrival on an unchanged row must repaint instead of
+    // serving the cached body built without it.
+    _metadataSignature(widget.metadata),
   );
+
+  static int _metadataSignature(Map<String, dynamic>? metadata) {
+    if (metadata == null) return 0;
+    return Object.hash(
+      metadata['path'],
+      metadata['machineId'],
+      metadata['flavor'],
+    );
+  }
 
   static String? _codexDeliveryMode(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
