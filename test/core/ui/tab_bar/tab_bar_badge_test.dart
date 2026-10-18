@@ -118,6 +118,7 @@ void main() {
       expect(
         tester
             .getSemantics(find.bySemanticsLabel('Sessions'))
+            .getSemanticsData()
             .flagsCollection
             .isFocused,
         Tristate.isTrue,
@@ -128,6 +129,7 @@ void main() {
       expect(
         tester
             .getSemantics(find.bySemanticsLabel('Loops'))
+            .getSemanticsData()
             .flagsCollection
             .isFocused,
         Tristate.isTrue,
