@@ -145,6 +145,19 @@ Finder _filter(String lane) => find.byKey(ValueKey('board-filter-$lane'));
 
 Finder _header(String lane) => find.byKey(ValueKey('board-header-lane-$lane'));
 
+Future<void> _tapVisibleBoardControl(
+  WidgetTester tester,
+  Finder control,
+) async {
+  await tester.ensureVisible(control);
+  // Scrolling updates the layout on the next frame, including after the
+  // expanded section changes the list's scroll extent.
+  await tester.pumpAndSettle();
+  expect(control.hitTestable(), findsOneWidget);
+  await tester.tap(control);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('status board groups sessions by urgency lane', (tester) async {
     final context = await _context(tester);
@@ -226,7 +239,7 @@ void main() {
     for (var i = 0; i < 7; i++) {
       expect(find.text('session q$i'), findsOneWidget);
     }
-    expect(tester.getTopLeft(find.text('session q0')).dy, lessThan(64));
+    expect(tester.getTopLeft(find.text('session q0')).dy, lessThan(80));
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -270,9 +283,7 @@ void main() {
       tester.getTopLeft(find.text('Show 3 more')).dy,
       greaterThan(tester.getBottomLeft(find.byType(MissionActionRow).last).dy),
     );
-    await tester.ensureVisible(find.text('Show 3 more'));
-    await tester.tap(find.text('Show 3 more'));
-    await tester.pump();
+    await _tapVisibleBoardControl(tester, find.text('Show 3 more'));
     expect(find.byType(MissionActionRow), findsNWidgets(13));
     expect(find.text('Show less'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -358,18 +369,12 @@ void main() {
       tester.getTopLeft(find.text('Show 3 more')).dy,
       greaterThan(tester.getBottomLeft(find.text('session q9')).dy),
     );
-    await tester.ensureVisible(find.text('Show 3 more'));
-    await tester.tap(find.text('Show 3 more'));
-    await tester.pump();
+    await _tapVisibleBoardControl(tester, find.text('Show 3 more'));
     expect(find.text('session q12'), findsOneWidget);
-    await tester.ensureVisible(find.text('Show less'));
-    await tester.tap(find.text('Show less'));
-    await tester.pump();
+    await _tapVisibleBoardControl(tester, find.text('Show less'));
     expect(find.text('session q10'), findsNothing);
 
-    await tester.ensureVisible(_header('quiet'));
-    await tester.tap(_header('quiet'));
-    await tester.pump();
+    await _tapVisibleBoardControl(tester, _header('quiet'));
     expect(
       tester.getSemantics(_header('quiet')).flagsCollection.isExpanded,
       Tristate.isFalse,
@@ -377,8 +382,7 @@ void main() {
     expect(tester.getSemantics(_header('quiet')).label, 'Expand Quiet');
     expect(find.text('session q0'), findsNothing);
     expect(find.text('Show 3 more'), findsNothing);
-    await tester.tap(_header('quiet'));
-    await tester.pump();
+    await _tapVisibleBoardControl(tester, _header('quiet'));
     expect(find.text('session q0'), findsOneWidget);
     expect(find.text('session q10'), findsNothing);
     await tester.pumpWidget(const SizedBox());

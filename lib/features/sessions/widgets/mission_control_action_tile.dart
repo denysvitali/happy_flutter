@@ -281,7 +281,10 @@ class MissionActionRow extends StatelessWidget {
                                                 : secondary,
                                             child: Text(
                                               secondary,
-                                              maxLines: 1,
+                                              maxLines:
+                                                  lane == MissionLane.error
+                                                  ? 2
+                                                  : 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: AppText.secondary(
                                                 theme,
