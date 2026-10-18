@@ -64,7 +64,126 @@ Widget _app(Widget child, {bool dark = false, double scale = 1}) =>
     );
 
 void main() {
+  testWidgets('inbox fallback identifies providers sharing a workspace', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Column(
+          children: [
+            for (final flavor in ['codex', 'opencode'])
+              MissionActionRow(
+                inbox: true,
+                session: _session(flavor: flavor),
+                entry: SessionUiEntry.empty,
+                lane: MissionLane.quiet,
+                animateActivity: false,
+                onTap: () {},
+                onLongPress: () {},
+              ),
+          ],
+        ),
+      ),
+    );
+    expect(find.text('pmos-pixel7'), findsNWidgets(2));
+    expect(find.text('Codex · devbox'), findsOneWidget);
+    expect(find.text('OpenCode · devbox'), findsOneWidget);
+    expect(find.textContaining('alpha-session'), findsNothing);
+    expect(find.textContaining('git/pmos-pixel7'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('inbox preserves workspace and readable multiline updates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const longPreview =
+        'The modem is connected and registration completed. '
+        'Checking mobile data routing before restarting the networking '
+        'service on the phone.';
+    for (final preview in [longPreview, 'Mobile data is connected']) {
+      await tester.pumpWidget(
+        _app(
+          MissionActionRow(
+            inbox: true,
+            session: _session(title: 'Repair networking'),
+            entry: SessionUiEntry(lastMessagePreview: preview),
+            lane: MissionLane.quiet,
+            animateActivity: false,
+            onTap: () {},
+            onLongPress: () {},
+            onArchive: () {},
+          ),
+        ),
+      );
+      final update = tester.getRect(find.text(preview));
+      final workspace = tester.getRect(find.text('git/pmos-pixel7'));
+      expect(update.top, greaterThan(workspace.bottom));
+      expect(update.width, greaterThan(350));
+      final height = tester.getSize(find.byType(MissionActionRow)).height;
+      if (preview.startsWith('The modem')) {
+        expect(update.height, greaterThan(25));
+        expect(height, lessThan(100));
+      } else {
+        expect(height, inInclusiveRange(64, 76));
+      }
+      expect(find.text('devbox'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   for (final dark in [false, true]) {
+    testWidgets('inbox protects preview width at 320px/2x, dark=$dark', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var opened = 0;
+      var read = 0;
+      const preview = 'Investigating the modem initialization failure';
+      await tester.pumpWidget(
+        _app(
+          MissionActionRow(
+            inbox: true,
+            session: _session(title: 'Repair mobile networking'),
+            entry: const SessionUiEntry(
+              lastMessagePreview: preview,
+              unreadCount: 23,
+            ),
+            lane: MissionLane.unread,
+            animateActivity: false,
+            onTap: () => opened++,
+            onLongPress: () {},
+            onArchive: () {},
+            onMarkRead: () => read++,
+          ),
+          dark: dark,
+          scale: 2,
+        ),
+      );
+      final update = tester.getRect(find.text(preview));
+      final title = tester.getRect(find.text('Repair mobile networking'));
+      expect(update.width, greaterThan(200));
+      expect(update.width, closeTo(title.width, 1));
+      expect(update.height, greaterThan(50));
+      expect(
+        tester.getRect(find.text('23 new')).top,
+        greaterThan(update.bottom),
+      );
+      expect(
+        tester.getSize(find.byTooltip('Session actions')),
+        const Size(44, 44),
+      );
+      await tester.tap(find.text('23 new'));
+      expect([opened, read], [0, 1]);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       '320px row gives title and preview width at 2x text, dark=$dark',
       (tester) async {
@@ -184,6 +303,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           MissionActionRow(
+            inbox: true,
             session: _session(host: host, flavor: 'opencode'),
             entry: SessionUiEntry.empty,
             lane: MissionLane.quiet,
@@ -212,6 +332,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         MissionActionRow(
+          inbox: true,
           session: _session(title: 'Repair networking', host: '(none)'),
           entry: SessionUiEntry.empty,
           lane: MissionLane.quiet,
@@ -222,7 +343,7 @@ void main() {
       ),
     );
     expect(find.text('Repair networking'), findsOneWidget);
-    expect(find.text('git/pmos-pixel7'), findsOneWidget);
+    expect(find.text('Claude · git/pmos-pixel7'), findsOneWidget);
     expect(find.textContaining('(none)'), findsNothing);
   });
 
@@ -233,6 +354,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         MissionActionRow(
+          inbox: true,
           session: _session(host: host),
           entry: SessionUiEntry.empty,
           lane: MissionLane.quiet,
@@ -242,7 +364,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('devbox-runner'), findsOneWidget);
+    expect(find.text('Claude · devbox-runner'), findsOneWidget);
     expect(find.text(host), findsNothing);
     expect(find.byTooltip(host), findsOneWidget);
   });
@@ -325,6 +447,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         MissionActionRow(
+          inbox: true,
           session: _session(),
           entry: const SessionUiEntry(unreadCount: 3),
           lane: MissionLane.unread,
@@ -397,6 +520,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         MissionActionRow(
+          inbox: true,
           session: _session(),
           entry: const SessionUiEntry(unreadCount: 3),
           lane: MissionLane.unread,
@@ -559,6 +683,7 @@ void main() {
         await tester.pumpWidget(
           _app(
             MissionActionRow(
+              inbox: true,
               session: _session(
                 agentState: AgentState(
                   requests: {

@@ -20,12 +20,15 @@ tap a result to open its web page in your browser.
 
 Session badges and launch choices share bundled harness marks, including
 OpenAI's published mark for Codex and the official OpenCode and Grok icons.
-The Status board shows filters when sessions span multiple states. Quiet lists
-up to twelve sessions stay fully visible; longer lists expand below their rows.
-Status and By machine views provide Active and Archived tabs. Compact session
-rows show a preview or useful workspace context, with time and actions at the
-right. Their menu offers Preview, Select, and Archive. Bulk selection stays
-scoped to the current filtered collection; the Sessions title switches layouts.
+The Inbox puts conversations in a flat list, with attention and working
+sessions first. Quiet-only lists skip the redundant status heading. Open and
+Archived tabs separate ongoing conversations from history; the By machine view
+shares these tabs. Rows show up to two lines of preview, retain workspace
+context for named conversations, and identify the provider when no preview is
+available. Time and actions stay at the right. Lists up to twelve sessions stay
+fully visible; longer quiet lists expand below their rows. Row menus offer
+Preview, Select, and Archive. Bulk selection stays scoped to the current
+filtered collection; the Sessions title switches layouts.
 
 The new-session dialog presents readable, touch-friendly harness cards in two
 columns, or one column on narrow screens and at larger text sizes. Recent

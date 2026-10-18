@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_board_view.dart';
+import 'package:happy_flutter/features/sessions/widgets/unread_focus_cards.dart';
 
 Session s(
   String id,
@@ -219,7 +220,7 @@ void main() {
     expect(sections[2].subtitle, 'Online · No active sessions');
   });
 
-  testWidgets('seven quiet sessions need no filters or disclosure', (
+  testWidgets('seven quiet sessions render flat without a redundant heading', (
     tester,
   ) async {
     final context = await _context(tester);
@@ -234,6 +235,13 @@ void main() {
     );
     await _pumpBoard(tester, sections);
     expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.byType(SessionGroupHeader), findsNothing);
+    expect(find.byType(UnreadFocusListGroup), findsNothing);
+    expect(find.byType(Divider), findsNWidgets(6));
+    for (final divider in tester.widgetList<Divider>(find.byType(Divider))) {
+      expect(divider.indent, greaterThan(0));
+      expect(divider.endIndent, greaterThan(0));
+    }
     expect(find.text('All clear'), findsNothing);
     expect(find.textContaining('Show'), findsNothing);
     for (var i = 0; i < 7; i++) {
@@ -242,6 +250,56 @@ void main() {
     expect(tester.getTopLeft(find.text('session q0')).dy, lessThan(80));
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'quiet-only inbox reveals rows after a mixed lane was collapsed',
+    (tester) async {
+      final context = await _context(tester);
+      final quiet = s('quiet', 'quiet', '/w/quiet', 'devbox');
+      final quietSections = buildStatusBoardSections(context, [
+        quiet,
+      ], const SessionUiState());
+      final mixedSections = buildStatusBoardSections(context, [
+        quiet,
+        s('working', 'working', '/w/working', 'devbox', thinking: true),
+      ], const SessionUiState());
+      await _pumpBoard(tester, quietSections);
+      expect(_header('quiet'), findsNothing);
+      expect(find.text('session quiet'), findsOneWidget);
+
+      await _pumpBoard(tester, mixedSections);
+      expect(_header('quiet'), findsOneWidget);
+      expect(_header('live'), findsOneWidget);
+      expect(find.byType(UnreadFocusListGroup), findsNothing);
+      await tester.tap(_header('quiet'));
+      await tester.pump();
+      expect(find.text('session quiet'), findsNothing);
+
+      await _pumpBoard(tester, quietSections);
+      expect(_header('quiet'), findsNothing);
+      expect(find.byType(ChoiceChip), findsNothing);
+      expect(find.text('session quiet'), findsOneWidget);
+
+      await _pumpBoard(tester, mixedSections);
+      await tester.tap(_filter('quiet'));
+      await tester.pump();
+      await tester.tap(_header('quiet'));
+      await tester.pump();
+      expect(find.text('session quiet'), findsNothing);
+      await _pumpBoard(tester, quietSections);
+      expect(_header('quiet'), findsNothing);
+      expect(find.text('session quiet'), findsOneWidget);
+      expect(
+        tester.getSemantics(_filter('quiet')).flagsCollection.isSelected,
+        Tristate.isTrue,
+      );
+      await tester.tap(_filter('all'));
+      await tester.pump();
+      expect(find.byType(ChoiceChip), findsNothing);
+      expect(find.text('session quiet'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets('long quiet lane folds behind a footer after its rows', (
     tester,
@@ -264,6 +322,7 @@ void main() {
         home: Scaffold(
           body: SessionBoardView(
             sections: sections,
+            showStatusFilters: true,
             rowBuilder: (row) => MissionActionRow(
               session: row.session,
               entry: row.entry,
@@ -278,6 +337,8 @@ void main() {
     );
     await tester.pump();
     expect(find.text('All clear'), findsNothing);
+    expect(_header('quiet'), findsNothing);
+    expect(find.byType(UnreadFocusListGroup), findsNothing);
     expect(find.byType(MissionActionRow), findsNWidgets(10));
     expect(
       tester.getTopLeft(find.text('Show 3 more')).dy,
@@ -354,11 +415,10 @@ void main() {
       for (var i = 0; i < 13; i++)
         s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
     ];
-    final sections = buildStatusBoardSections(
-      context,
-      quiet,
-      const SessionUiState(),
-    );
+    final sections = buildStatusBoardSections(context, [
+      s('live', 'working', '/w/live', 'devbox', thinking: true),
+      ...quiet,
+    ], const SessionUiState());
     await _pumpBoard(tester, sections);
     expect(
       tester.getSemantics(_header('quiet')).flagsCollection.isExpanded,
@@ -439,6 +499,7 @@ void main() {
       onNewSession: launched.add,
     );
     expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.byType(UnreadFocusListGroup), findsNWidgets(2));
     await tester.tap(find.byTooltip('New session on this machine'));
     await tester.tap(find.text('New session on this machine'));
     expect(launched, ['phone', 'spare']);

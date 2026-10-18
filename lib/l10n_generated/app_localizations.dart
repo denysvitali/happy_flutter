@@ -2096,7 +2096,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsViewStyleStatusBoard.
   ///
   /// In en, this message translates to:
-  /// **'Status board'**
+  /// **'Inbox'**
   String get sessionsViewStyleStatusBoard;
 
   /// No description provided for @sessionsViewStyleMachines.
@@ -2114,7 +2114,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsViewStyleStatusBoardHint.
   ///
   /// In en, this message translates to:
-  /// **'Every session grouped by what it is doing'**
+  /// **'Recent conversations, with attention and activity first'**
   String get sessionsViewStyleStatusBoardHint;
 
   /// No description provided for @sessionsViewStyleMachinesHint.
@@ -9709,13 +9709,13 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsBoardActive.
   ///
   /// In en, this message translates to:
-  /// **'Active'**
+  /// **'Open'**
   String get sessionsBoardActive;
 
   /// No description provided for @sessionsBoardNoActive.
   ///
   /// In en, this message translates to:
-  /// **'No active sessions'**
+  /// **'No open sessions'**
   String get sessionsBoardNoActive;
 
   /// No description provided for @sessionsBoardNoArchived.

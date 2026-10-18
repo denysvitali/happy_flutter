@@ -482,10 +482,10 @@
   "sessionsViewStyleFolderCentric": "Folder-centric",
   "sessionsViewStyleUnreadFocus": "Unread Focus",
   "sessionsViewStyleMissionControl": "Mission Control",
-  "sessionsViewStyleStatusBoard": "Status board",
+  "sessionsViewStyleStatusBoard": "Inbox",
   "sessionsViewStyleMachines": "By machine",
   "sessionsViewStyleMissionControlHint": "What needs you, then workspace activity",
-  "sessionsViewStyleStatusBoardHint": "Every session grouped by what it is doing",
+  "sessionsViewStyleStatusBoardHint": "Recent conversations, with attention and activity first",
   "sessionsViewStyleMachinesHint": "Sessions grouped by the computer running them",
   "sessionsViewStyleFolderCentricHint": "Browse sessions by project folder",
   "sessionsViewStyleUnreadFocusHint": "Unread and blocked first, then the rest",
@@ -3032,8 +3032,8 @@
       }
     }
   },
-  "sessionsBoardActive": "Active",
-  "sessionsBoardNoActive": "No active sessions",
+  "sessionsBoardActive": "Open",
+  "sessionsBoardNoActive": "No open sessions",
   "sessionsBoardNoArchived": "No archived sessions",
   "sessionsBoardSearchHint": "Search sessions or projects"
 }

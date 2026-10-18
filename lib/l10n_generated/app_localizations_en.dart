@@ -1121,7 +1121,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleMissionControl => 'Mission Control';
 
   @override
-  String get sessionsViewStyleStatusBoard => 'Status board';
+  String get sessionsViewStyleStatusBoard => 'Inbox';
 
   @override
   String get sessionsViewStyleMachines => 'By machine';
@@ -1132,7 +1132,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsViewStyleStatusBoardHint =>
-      'Every session grouped by what it is doing';
+      'Recent conversations, with attention and activity first';
 
   @override
   String get sessionsViewStyleMachinesHint =>
@@ -5569,10 +5569,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sessionsBoardActive => 'Active';
+  String get sessionsBoardActive => 'Open';
 
   @override
-  String get sessionsBoardNoActive => 'No active sessions';
+  String get sessionsBoardNoActive => 'No open sessions';
 
   @override
   String get sessionsBoardNoArchived => 'No archived sessions';

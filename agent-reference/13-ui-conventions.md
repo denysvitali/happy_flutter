@@ -83,16 +83,20 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
-Status board filters appear for multiple occupied lanes or an existing selected
-lane, with an explicit return from an empty filter. Quiet lists up to twelve
-show all rows; longer lists preview ten and expand below them. No all-clear
-banner repeats an idle section. Active and Archived tabs keep history reachable
-from Status and By machine. Bulk selection includes collapsed rows in the
+Inbox (persisted as `status`) filters appear for multiple occupied lanes or an
+existing selected lane, with an explicit return from an empty filter. Inbox
+rows use a flat surface with inset dividers; By machine retains grouped cards.
+Quiet-only lists omit the redundant section heading and ignore an earlier
+collapsed state. Quiet lists up to twelve show all rows; longer lists preview
+ten and expand below them. Open and Archived tabs keep history reachable from
+Inbox and By machine. Bulk selection includes collapsed rows in the
 selected lane and reconciles when filters change. Row menus expose preview,
 selection and confirmed archive; selection mode suppresses secondary actions.
-Rows use two compact lines with preview, workspace, real host or harness as
-context. Raw IDs and placeholder hosts stay out of the list. Time and a 44px
-menu sit at the right; larger text moves the time to protect title width.
+Inbox previews have up to two lines; named conversations retain nonredundant
+workspace context. Missing previews fall back to the provider plus workspace
+or real host. Other layouts retain compact rows. Raw IDs and placeholder hosts
+stay out of the list. Time and a 44px menu sit at the right; larger text moves
+the time to protect title width.
 The Sessions title opens the layout picker in the single-row app bar.
 Connection problems have an indicator; a healthy connection adds no extra row.
 

@@ -308,6 +308,10 @@ class _SessionBoardViewState extends State<SessionBoardView> {
               .toList();
     _reportVisibleIds(sections);
     final emptyLane = selectedLane != null && sections.isEmpty;
+    final quietOnly =
+        widget.showStatusFilters &&
+        counts.length == 1 &&
+        counts.containsKey(MissionLane.quiet);
     final live = allSections.any(
       (section) => section.rows.any((row) => row.lane != MissionLane.quiet),
     );
@@ -327,7 +331,7 @@ class _SessionBoardViewState extends State<SessionBoardView> {
             onShowAll: () => _selectLane(null),
           );
         }
-        return _buildSection(context, sections[i]);
+        return _buildSection(context, sections[i], showHeader: !quietOnly);
       },
     );
     return MissionClock(
@@ -348,66 +352,96 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     );
   }
 
-  Widget _buildSection(BuildContext context, SessionBoardSection section) {
+  Widget _buildSection(
+    BuildContext context,
+    SessionBoardSection section, {
+    required bool showHeader,
+  }) {
     final limit = section.collapseAfter;
     final foldable = limit != null && section.rows.length > limit;
     final expanded = _expanded.contains(section.key);
     final collapsed =
-        widget.showStatusFilters && _collapsed.contains(section.key);
+        showHeader &&
+        widget.showStatusFilters &&
+        _collapsed.contains(section.key);
     final visible = foldable && !expanded
         ? section.rows.take(limit)
         : section.rows;
     final machineId = section.machineId;
     final onNewSession = widget.onNewSession;
+    final rows = collapsed
+        ? const <Widget>[]
+        : <Widget>[
+            for (final row in visible)
+              KeyedSubtree(
+                key: ValueKey('board-${row.session.id}'),
+                child: widget.rowBuilder(row),
+              ),
+            if (section.rows.isEmpty)
+              SessionBoardHintRow(
+                icon: Icons.add_rounded,
+                label: context.l10n.sessionsMachineNewSession,
+                onTap: machineId != null && onNewSession != null
+                    ? () => onNewSession(machineId)
+                    : null,
+              ),
+          ];
     return Column(
       key: ValueKey(section.key),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SessionGroupHeader(
-          key: ValueKey('board-header-${section.key}'),
-          title: section.title,
-          count: section.rows.length,
-          subtitle: section.subtitle,
-          icon: section.icon,
-          statusColor: section.statusColor,
-          accent: section.accent,
-          dimmed: section.dimmed,
-          expanded: !collapsed,
-          onToggle: widget.showStatusFilters
-              ? () => setState(() {
-                  if (!_collapsed.remove(section.key)) {
-                    _collapsed.add(section.key);
-                  }
-                })
-              : null,
-          // An idle machine already offers the action as its only row.
-          onNewSession:
-              machineId != null &&
-                  onNewSession != null &&
-                  section.rows.isNotEmpty
-              ? () => onNewSession(machineId)
-              : null,
-        ),
+        if (showHeader)
+          SessionGroupHeader(
+            key: ValueKey('board-header-${section.key}'),
+            title: section.title,
+            count: section.rows.length,
+            subtitle: section.subtitle,
+            icon: section.icon,
+            statusColor: section.statusColor,
+            accent: section.accent,
+            dimmed: section.dimmed,
+            expanded: !collapsed,
+            onToggle: widget.showStatusFilters
+                ? () => setState(() {
+                    if (!_collapsed.remove(section.key)) {
+                      _collapsed.add(section.key);
+                    }
+                  })
+                : null,
+            // An idle machine already offers the action as its only row.
+            onNewSession:
+                machineId != null &&
+                    onNewSession != null &&
+                    section.rows.isNotEmpty
+                ? () => onNewSession(machineId)
+                : null,
+          ),
         if (!collapsed)
           Opacity(
             opacity: section.dimmed ? 0.6 : 1,
-            child: UnreadFocusListGroup(
-              children: [
-                for (final row in visible)
-                  KeyedSubtree(
-                    key: ValueKey('board-${row.session.id}'),
-                    child: widget.rowBuilder(row),
-                  ),
-                if (section.rows.isEmpty)
-                  SessionBoardHintRow(
-                    icon: Icons.add_rounded,
-                    label: context.l10n.sessionsMachineNewSession,
-                    onTap: machineId != null && onNewSession != null
-                        ? () => onNewSession(machineId)
-                        : null,
-                  ),
-              ],
-            ),
+            child: widget.showStatusFilters
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < rows.length; i++) ...[
+                        rows[i],
+                        if (i < rows.length - 1)
+                          Divider(
+                            height: 1,
+                            thickness: AppBorder.hairline,
+                            indent:
+                                AppSpacing.lg +
+                                AppAvatarSize.small +
+                                AppSpacing.xsm,
+                            endIndent: AppSpacing.lg,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.08),
+                          ),
+                      ],
+                    ],
+                  )
+                : UnreadFocusListGroup(children: rows),
           ),
         if (foldable && !collapsed)
           SessionBoardPreviewControl(

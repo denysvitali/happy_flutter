@@ -263,15 +263,15 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 600));
       expect(tester.widget<AppBar>(find.byType(AppBar)).bottom, isNull);
-      expect(find.byTooltip('View: Status board'), findsOneWidget);
+      expect(find.byTooltip('View: Inbox'), findsOneWidget);
       expect(
-        tester.getSemantics(find.byTooltip('View: Status board')),
+        tester.getSemantics(find.byTooltip('View: Inbox')),
         containsSemantics(isButton: true, hasTapAction: true),
       );
-      await tester.tap(find.byTooltip('View: Status board'));
+      await tester.tap(find.byTooltip('View: Inbox'));
       await tester.pumpAndSettle();
-      expect(find.text('Status board'), findsOneWidget);
-      await tester.tap(find.text('Status board'));
+      expect(find.text('Inbox'), findsOneWidget);
+      await tester.tap(find.text('Inbox'));
       await tester.pumpAndSettle();
       await tester.longPress(find.text('app'));
       await tester.pump();

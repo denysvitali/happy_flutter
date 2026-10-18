@@ -40,6 +40,7 @@ class MissionActionRow extends StatelessWidget {
     this.onSelect,
     this.showTriageMenu = true,
     this.showInlineApproval = false,
+    this.inbox = false,
   });
 
   final Session session;
@@ -75,6 +76,9 @@ class MissionActionRow extends StatelessWidget {
 
   /// Renders Allow/Deny under a blocked row. Requires a [ProviderScope].
   final bool showInlineApproval;
+
+  /// Gives inbox previews more room while retaining compact grouped rows.
+  final bool inbox;
 
   @override
   Widget build(BuildContext context) {
@@ -128,11 +132,42 @@ class MissionActionRow extends StatelessWidget {
       'har' => 'Har',
       _ => context.l10n.sessionsAgent,
     };
+    final inboxHost = switch (hostName) {
+      'localhost' || '127.0.0.1' || '::1' => null,
+      _ => host,
+    };
+    final inboxWorkspace = switch (workspace?.trim().toLowerCase()) {
+      '' || '(none)' || 'none' || 'null' || '(null)' => null,
+      _ => workspace,
+    };
+    final inboxFallback = [
+      harnessName,
+      if (inboxWorkspace != null && !workspaceEchoesName) inboxWorkspace,
+      if (inboxHost != null &&
+          inboxHost.toLowerCase() != name.trim().toLowerCase() &&
+          inboxHost.toLowerCase() !=
+              inboxWorkspace?.split('/').last.toLowerCase())
+        inboxHost,
+    ].join(' · ');
+    final workspaceContext =
+        inbox &&
+            preview?.isNotEmpty == true &&
+            inboxWorkspace != null &&
+            !workspaceEchoesName
+        ? inboxWorkspace
+        : null;
     final secondary = activityText?.trim().isNotEmpty == true
         ? activityText!.trim()
+        : inbox
+        ? inboxFallback
         : fallback.isNotEmpty
         ? fallback
         : harnessName;
+    final secondaryTooltip =
+        secondary == (inbox ? inboxFallback : fallback) &&
+            (inbox ? inboxHost : host) != null
+        ? rawHost!
+        : secondary;
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
     final nowMs = missionNowOf(context);
@@ -172,8 +207,10 @@ class MissionActionRow extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.duration(context, AppDuration.fast),
         curve: AppCurve.standard,
-        constraints: const BoxConstraints(
-          minHeight: AppTouchTarget.comfortable,
+        constraints: BoxConstraints(
+          minHeight: inbox
+              ? AppTouchTarget.comfortable + AppSpacing.lg
+              : AppTouchTarget.comfortable,
         ),
         decoration: BoxDecoration(
           color: selected
@@ -189,9 +226,9 @@ class MissionActionRow extends StatelessWidget {
             onTap: onTap,
             onLongPress: onLongPress,
             child: Padding(
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.smd,
-                vertical: AppSpacing.xs,
+                vertical: inbox ? AppSpacing.sm : AppSpacing.xs,
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -202,6 +239,20 @@ class MissionActionRow extends StatelessWidget {
                       MediaQuery.textScalerOf(context).scale(AppFontSize.base) >
                           AppFontSize.base * 1.3;
                   final hasMenu = !selected && _hasOverflowMenu;
+                  // Large text needs the entire preview column. Put the
+                  // outcome underneath instead of squeezing the update.
+                  final stackOutcome = inbox && trailingAge;
+                  final outcome = _OutcomePill(
+                    compact: constraints.maxWidth < 480,
+                    lane: lane,
+                    entry: entry,
+                    since: since,
+                    nowMs: nowMs,
+                    live: status.state == SessionState.thinking,
+                    onMarkRead: lane == MissionLane.unread && !selected
+                        ? onMarkRead
+                        : null,
+                  );
                   final ageWidget = Tooltip(
                     message: when.toLocal().toString(),
                     child: Text(
@@ -267,6 +318,18 @@ class MissionActionRow extends StatelessWidget {
                                     ],
                                   ],
                                 ),
+                                if (workspaceContext != null) ...[
+                                  const SizedBox(height: AppSpacing.xxs),
+                                  Tooltip(
+                                    message: path!,
+                                    child: Text(
+                                      workspaceContext,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppText.secondary(theme),
+                                    ),
+                                  ),
+                                ],
                                 if (secondary.isNotEmpty || showOutcome) ...[
                                   const SizedBox(height: AppSpacing.xxs),
                                   Row(
@@ -274,15 +337,12 @@ class MissionActionRow extends StatelessWidget {
                                       if (secondary.isNotEmpty)
                                         Expanded(
                                           child: Tooltip(
-                                            message:
-                                                secondary == fallback &&
-                                                    host != null
-                                                ? rawHost!
-                                                : secondary,
+                                            message: secondaryTooltip,
                                             child: Text(
                                               secondary,
                                               maxLines:
-                                                  lane == MissionLane.error
+                                                  inbox ||
+                                                      lane == MissionLane.error
                                                   ? 2
                                                   : 1,
                                               overflow: TextOverflow.ellipsis,
@@ -295,7 +355,7 @@ class MissionActionRow extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                      if (showOutcome) ...[
+                                      if (showOutcome && !stackOutcome) ...[
                                         if (secondary.isNotEmpty)
                                           const SizedBox(width: AppSpacing.xsm),
                                         ConstrainedBox(
@@ -303,25 +363,15 @@ class MissionActionRow extends StatelessWidget {
                                             maxWidth:
                                                 constraints.maxWidth * 0.35,
                                           ),
-                                          child: _OutcomePill(
-                                            compact: constraints.maxWidth < 480,
-                                            lane: lane,
-                                            entry: entry,
-                                            since: since,
-                                            nowMs: nowMs,
-                                            live:
-                                                status.state ==
-                                                SessionState.thinking,
-                                            onMarkRead:
-                                                lane == MissionLane.unread &&
-                                                    !selected
-                                                ? onMarkRead
-                                                : null,
-                                          ),
+                                          child: outcome,
                                         ),
                                       ],
                                     ],
                                   ),
+                                ],
+                                if (showOutcome && stackOutcome) ...[
+                                  const SizedBox(height: AppSpacing.xs),
+                                  outcome,
                                 ],
                               ],
                             ),

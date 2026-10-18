@@ -698,6 +698,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ),
             highlighted: false,
             showTriageMenu: false,
+            inbox: sessionsViewStyle == 'status',
           ),
         );
       }
@@ -839,6 +840,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool animateActivity,
     required bool highlighted,
     bool showTriageMenu = true,
+    bool inbox = false,
   }) {
     return Consumer(
       builder: (context, ref, _) {
@@ -853,6 +855,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           animateActivity: animateActivity,
           highlighted: highlighted,
           showTriageMenu: showTriageMenu && !sel.isActive,
+          inbox: inbox,
           showInlineApproval: !sel.isActive,
           onSelect: sel.isActive ? null : () => _onSessionLongPress(session.id),
           onArchive: sel.isActive
