@@ -36,7 +36,7 @@ class _ChangelogScreenState extends ConsumerState<ChangelogScreen> {
   @override
   void initState() {
     super.initState();
-    _changelogService = ChangelogService();
+    _changelogService = ref.read(changelogServiceProvider);
     _loadChangelog();
   }
 

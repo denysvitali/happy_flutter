@@ -192,10 +192,14 @@ class _SessionOpenChatStubState extends State<SessionOpenChatStub> {
 
 /// Router with `/` → [home] and the named `chat` route
 /// (`/chat/:sessionId`) → [SessionOpenChatStub].
+///
+/// [extraRoutes] appends entry points a caller needs beyond chat (e.g. a
+/// recording `/settings` stub for command-palette navigation commands).
 GoRouter buildSessionOpenRouter({
   required SessionOpenRecorder recorder,
   required WidgetBuilder home,
   String initialLocation = '/',
+  List<GoRoute> extraRoutes = const [],
 }) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -210,7 +214,23 @@ GoRouter buildSessionOpenRouter({
           recorder: recorder,
         ),
       ),
+      ...extraRoutes,
     ],
+  );
+}
+
+/// Records the location of any non-chat route the harness router opened.
+///
+/// Pair with [buildSessionOpenRouter]'s `extraRoutes` to assert that a
+/// navigation command reached the destination it advertises.
+GoRoute recordingRoute(String path, List<String> sink, {String? name}) {
+  return GoRoute(
+    path: path,
+    name: name,
+    builder: (_, state) {
+      sink.add(state.uri.path);
+      return Scaffold(body: Center(child: Text('route:${state.uri.path}')));
+    },
   );
 }
 

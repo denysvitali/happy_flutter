@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:riverpod/riverpod.dart';
 
 import 'logger_service.dart' show logger;
 
@@ -62,8 +63,9 @@ class ChangelogService {
 
   /// Regex for conventional commit prefix: type(scope)!: subject
   /// Examples: feat:, fix(scope):, chore!:, docs:!
+  /// Groups: 1 type, 2 scope (optional), 3 breaking marker, 4 subject.
   static final RegExp _conventionalPrefix = RegExp(
-    r'^(\w+)(?:\([^)]+\))?!?:\s+(.*)$',
+    r'^(\w+)(?:\(([^)]+)\))?(!)?:\s+(.*)$',
   );
 
   /// Fetch the changelog between [fromVersion] and [toVersion].
@@ -220,10 +222,11 @@ class ChangelogService {
         return [];
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(response.body);
 
       if (fromSha != null) {
         // Compare response: { ..., "commits": [...] }
+        final data = decoded as Map<String, dynamic>;
         final commits = data['commits'] as List<dynamic>? ?? [];
         return commits
             .where((c) {
@@ -233,8 +236,8 @@ class ChangelogService {
             .map((c) => c as Map<String, dynamic>)
             .toList();
       } else {
-        // Commits list response: directly the array
-        final commits = data as List<dynamic>? ?? [];
+        // Commits list response: the array is the whole body.
+        final commits = decoded as List<dynamic>;
         return commits.map((c) => c as Map<String, dynamic>).toList();
       }
     } catch (e) {
@@ -248,9 +251,8 @@ class ChangelogService {
   ChangelogEntry? _parseCommit(Map<String, dynamic> commit) {
     try {
       final commitData = commit['commit'] as Map<String, dynamic>? ?? commit;
-      final message = (commitData['message'] as String? ?? '')
-          .split('\n')
-          .first;
+      final fullMessage = commitData['message'] as String? ?? '';
+      final message = fullMessage.split('\n').first;
       final dateStr =
           (commitData['committer'] as Map<String, dynamic>?)?['date']
               as String? ??
@@ -260,17 +262,21 @@ class ChangelogService {
       if (match == null) return null;
 
       final type = match.group(1)!;
-      final subject = match.group(2)!;
+      final scope = match.group(2);
+      final subject = match.group(4)!;
 
-      // Detect breaking change
+      // Detect breaking change: the conventional `!` marker, or a
+      // BREAKING CHANGE footer anywhere in the commit body.
       final isBreaking =
+          match.group(3) != null ||
           subject.contains('BREAKING CHANGE') ||
-          message.contains('BREAKING CHANGE:');
+          fullMessage.contains('BREAKING CHANGE:');
 
       return ChangelogEntry(
         date: dateStr,
         message: subject,
         type: type,
+        scope: scope,
         isBreaking: isBreaking,
       );
     } catch (e) {
@@ -284,3 +290,9 @@ class ChangelogService {
     // 'Authorization': 'token ...',
   };
 }
+
+/// Injectable changelog service so screens can be rendered (and tested)
+/// without reaching the GitHub API.
+final changelogServiceProvider = Provider<ChangelogService>(
+  (ref) => ChangelogService(),
+);
