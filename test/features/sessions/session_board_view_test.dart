@@ -130,7 +130,6 @@ Future<void> _pumpBoard(
       body: SessionBoardView(
         sections: sections,
         showStatusFilters: status,
-        showAllClear: status,
         onNewSession: onNewSession,
         onVisibleSessionIdsChanged: onVisibleSessionIdsChanged,
         rowBuilder: (row) => TextButton(
@@ -207,10 +206,36 @@ void main() {
     expect(sections[2].subtitle, 'Online · No active sessions');
   });
 
-  testWidgets('long quiet lane folds behind show more', (tester) async {
+  testWidgets('seven quiet sessions need no filters or disclosure', (
+    tester,
+  ) async {
     final context = await _context(tester);
     final quiet = [
-      for (var i = 0; i < 9; i++)
+      for (var i = 0; i < 7; i++)
+        s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      quiet,
+      const SessionUiState(),
+    );
+    await _pumpBoard(tester, sections);
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.text('All clear'), findsNothing);
+    expect(find.textContaining('Show'), findsNothing);
+    for (var i = 0; i < 7; i++) {
+      expect(find.text('session q$i'), findsOneWidget);
+    }
+    expect(tester.getTopLeft(find.text('session q0')).dy, lessThan(64));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('long quiet lane folds behind a footer after its rows', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final quiet = [
+      for (var i = 0; i < 13; i++)
         s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
     ];
     final sections = buildStatusBoardSections(
@@ -226,7 +251,6 @@ void main() {
         home: Scaffold(
           body: SessionBoardView(
             sections: sections,
-            showAllClear: true,
             rowBuilder: (row) => MissionActionRow(
               session: row.session,
               entry: row.entry,
@@ -240,11 +264,16 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('All clear'), findsOneWidget);
-    expect(find.byType(MissionActionRow), findsNWidgets(5));
-    await tester.tap(find.text('Show 4 more'));
+    expect(find.text('All clear'), findsNothing);
+    expect(find.byType(MissionActionRow), findsNWidgets(10));
+    expect(
+      tester.getTopLeft(find.text('Show 3 more')).dy,
+      greaterThan(tester.getBottomLeft(find.byType(MissionActionRow).last).dy),
+    );
+    await tester.ensureVisible(find.text('Show 3 more'));
+    await tester.tap(find.text('Show 3 more'));
     await tester.pump();
-    expect(find.byType(MissionActionRow), findsNWidgets(9));
+    expect(find.byType(MissionActionRow), findsNWidgets(13));
     expect(find.text('Show less'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
@@ -257,6 +286,7 @@ void main() {
     String? opened;
     await _pumpBoard(tester, sections, onOpenSession: (id) => opened = id);
     expect(find.byType(ChoiceChip), findsNWidgets(5));
+    expect(tester.getTopLeft(_filter('all')).dx, lessThan(32));
     expect(tester.getSemantics(_filter('all')).label, 'All, 6');
     expect(tester.getSemantics(_filter('live')).label, 'Working, 1');
     expect(find.text('All clear'), findsNothing);
@@ -286,11 +316,9 @@ void main() {
   ) async {
     final context = await _context(tester);
     final sections = buildStatusBoardSections(context, _sessions, _ui);
-    final changed = buildStatusBoardSections(
-      context,
-      _sessions.where((session) => session.id != 'b').toList(),
-      _ui,
-    );
+    final changed = buildStatusBoardSections(context, [
+      s('quiet', 'quiet', '/w/quiet', 'devbox'),
+    ], const SessionUiState());
     await _pumpBoard(tester, sections);
     await tester.tap(_filter('live'));
     await tester.pump();
@@ -302,20 +330,17 @@ void main() {
     await tester.tap(find.text('Show all sessions'));
     await tester.pump();
     expect(_filter('live'), findsNothing);
-    expect(find.text('session a'), findsOneWidget);
-    expect(
-      tester.getSemantics(_filter('all')).flagsCollection.isSelected,
-      Tristate.isTrue,
-    );
+    expect(find.text('session quiet'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('header controls expose disclosure and bound quiet preview', (
+  testWidgets('header controls expose disclosure and preserve quiet preview', (
     tester,
   ) async {
     final context = await _context(tester);
     final quiet = [
-      for (var i = 0; i < 6; i++)
+      for (var i = 0; i < 13; i++)
         s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
     ];
     final sections = buildStatusBoardSections(
@@ -328,18 +353,21 @@ void main() {
       tester.getSemantics(_header('quiet')).flagsCollection.isExpanded,
       Tristate.isTrue,
     );
-    expect(find.text('session q5'), findsNothing);
+    expect(find.text('session q10'), findsNothing);
     expect(
-      tester.getTopLeft(find.text('Show 1 more')).dy,
-      lessThan(tester.getTopLeft(find.text('session q0')).dy),
+      tester.getTopLeft(find.text('Show 3 more')).dy,
+      greaterThan(tester.getBottomLeft(find.text('session q9')).dy),
     );
-    await tester.tap(find.text('Show 1 more'));
+    await tester.ensureVisible(find.text('Show 3 more'));
+    await tester.tap(find.text('Show 3 more'));
     await tester.pump();
-    expect(find.text('session q5'), findsOneWidget);
+    expect(find.text('session q12'), findsOneWidget);
+    await tester.ensureVisible(find.text('Show less'));
     await tester.tap(find.text('Show less'));
     await tester.pump();
-    expect(find.text('session q5'), findsNothing);
+    expect(find.text('session q10'), findsNothing);
 
+    await tester.ensureVisible(_header('quiet'));
     await tester.tap(_header('quiet'));
     await tester.pump();
     expect(
@@ -348,11 +376,11 @@ void main() {
     );
     expect(tester.getSemantics(_header('quiet')).label, 'Expand Quiet');
     expect(find.text('session q0'), findsNothing);
-    expect(find.text('Show 1 more'), findsNothing);
+    expect(find.text('Show 3 more'), findsNothing);
     await tester.tap(_header('quiet'));
     await tester.pump();
     expect(find.text('session q0'), findsOneWidget);
-    expect(find.text('session q5'), findsNothing);
+    expect(find.text('session q10'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -362,7 +390,8 @@ void main() {
     final context = await _context(tester);
     final sessions = [
       s('live', 'working', '/w/live', 'devbox', thinking: true),
-      for (var i = 0; i < 7; i++) s('q$i', 'quiet', '/w/q$i', 'devbox'),
+      for (var i = 0; i < 13; i++)
+        s('q$i', 'quiet', '/w/q$i', 'devbox', ageMin: 10 + i),
     ];
     final sections = buildStatusBoardSections(
       context,
@@ -377,9 +406,9 @@ void main() {
     expect(reports, hasLength(1));
     await tester.tap(_filter('quiet'));
     await tester.pump();
-    expect(reports.last, {for (var i = 0; i < 7; i++) 'q$i'});
+    expect(reports.last, {for (var i = 0; i < 13; i++) 'q$i'});
     expect(find.text('session q0'), findsOneWidget);
-    expect(find.text('session q6'), findsNothing);
+    expect(find.text('session q12'), findsNothing);
     await tester.tap(_filter('live'));
     await tester.pump();
     expect(reports.last, {'live'});
@@ -448,6 +477,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(_filter('quiet'), findsOneWidget);
+      await tester.ensureVisible(_filter('quiet'));
       await tester.tap(_filter('quiet'));
       await tester.pump();
       expect(tester.takeException(), isNull);

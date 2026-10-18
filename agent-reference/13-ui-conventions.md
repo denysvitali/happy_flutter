@@ -83,16 +83,18 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
-Status board filters show counts and retain an empty selected lane with a clear
-return to all sessions. Section headers collapse lanes; Quiet initially shows
-five rows with disclosure near its heading. Active and Archived scopes keep
-history reachable from Status and By machine. Bulk selection includes collapsed
-rows within the selected lane, excludes other lanes, and reconciles when filters
-change. Row menus expose preview, selection and confirmed archive without
-relying on long-press or swipe; selection mode suppresses secondary actions.
-Session titles/previews use their content width, with wrapping activity age,
-workspace, machine and short session identity below. Full IDs/hosts stay in
-tooltips. Layout and connection state have visible labels in the header.
+Status board filters appear for multiple occupied lanes or an existing selected
+lane, with an explicit return from an empty filter. Quiet lists up to twelve
+show all rows; longer lists preview ten and expand below them. No all-clear
+banner repeats an idle section. Active and Archived tabs keep history reachable
+from Status and By machine. Bulk selection includes collapsed rows in the
+selected lane and reconciles when filters change. Row menus expose preview,
+selection and confirmed archive; selection mode suppresses secondary actions.
+Rows use two compact lines with preview, workspace, real host or harness as
+context. Raw IDs and placeholder hosts stay out of the list. Time and a 44px
+menu sit at the right; larger text moves the time to protect title width.
+The Sessions title opens the layout picker in the single-row app bar.
+Connection problems have an indicator; a healthy connection adds no extra row.
 
 Unread Focus uses neutral session surfaces with a slim accent: primary for
 unread work, error for approvals and failures. Dense cards use 4px vertical

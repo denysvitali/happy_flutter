@@ -250,21 +250,70 @@ void main() {
   testWidgets('session header fits narrow screens with large text', (
     tester,
   ) async {
-    setSize(tester, const Size(320, 900));
+    final semantics = tester.ensureSemantics();
+    try {
+      setSize(tester, const Size(320, 900));
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await tester.pumpWidget(
+        _app(
+          sessions: {'one': _session('one', activeAt: now)},
+          textScaler: const TextScaler.linear(2),
+          viewStyle: 'status',
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.widget<AppBar>(find.byType(AppBar)).bottom, isNull);
+      expect(find.byTooltip('View: Status board'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.byTooltip('View: Status board')),
+        containsSemantics(isButton: true, hasTapAction: true),
+      );
+      await tester.tap(find.byTooltip('View: Status board'));
+      await tester.pumpAndSettle();
+      expect(find.text('Status board'), findsOneWidget);
+      await tester.tap(find.text('Status board'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('app'));
+      await tester.pump();
+      expect(find.text('1 selected'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('quiet sessions occupy the phone instead of redundant controls', (
+    tester,
+  ) async {
+    setSize(tester, const Size(360, 800));
     final now = DateTime.now().millisecondsSinceEpoch;
     await tester.pumpWidget(
       _app(
-        sessions: {'one': _session('one', activeAt: now)},
-        textScaler: const TextScaler.linear(2),
         viewStyle: 'status',
+        sessions: {
+          for (var i = 0; i < 7; i++)
+            'quiet-$i': _session('quiet-$i', activeAt: now - i * 60000)
+                .copyWith(
+                  metadata: Metadata(
+                    path: '/home/dev/app',
+                    host: '(none)',
+                    flavor: 'codex',
+                    summary: Summary(text: 'Recent session $i', updatedAt: now),
+                  ),
+                ),
+        },
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Online'), findsOneWidget);
-    expect(find.text('Status board'), findsOneWidget);
-    await tester.longPress(find.text('app'));
-    await tester.pump();
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('Recent session 0')).dy, lessThan(180));
+    expect(find.text('Recent session 6'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(find.text('Recent session 6')).dy,
+      lessThan(720),
+    );
+    expect(find.text('All clear'), findsNothing);
+    expect(find.text('Show 2 more'), findsNothing);
+    expect(find.text('(none)'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

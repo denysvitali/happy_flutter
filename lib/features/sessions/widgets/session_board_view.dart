@@ -17,7 +17,10 @@ import 'session_board_controls.dart';
 import 'unread_focus_cards.dart' show UnreadFocusListGroup;
 
 /// Quiet rows shown before a long Quiet lane folds behind "Show more".
-const int statusBoardQuietPreview = 5;
+const int statusBoardQuietPreview = 10;
+
+/// Modest Quiet lanes stay fully visible without an extra disclosure.
+const int statusBoardQuietFoldThreshold = 12;
 
 /// One titled group of sessions on a board layout.
 class SessionBoardSection {
@@ -111,7 +114,9 @@ List<SessionBoardSection> buildStatusBoardSections(
           icon: missionLaneIcon(lane),
           accent: missionLaneColor(context, lane),
           rows: rows..sort(_byActivity),
-          collapseAfter: lane == MissionLane.quiet
+          collapseAfter:
+              lane == MissionLane.quiet &&
+                  rows.length > statusBoardQuietFoldThreshold
               ? statusBoardQuietPreview
               : null,
         ),
@@ -223,7 +228,6 @@ class SessionBoardView extends StatefulWidget {
     required this.rowBuilder,
     super.key,
     this.scrollController,
-    this.showAllClear = false,
     this.showStatusFilters = false,
     this.onNewSession,
     this.onVisibleSessionIdsChanged,
@@ -232,9 +236,6 @@ class SessionBoardView extends StatefulWidget {
   final List<SessionBoardSection> sections;
   final Widget Function(SessionBoardRow row) rowBuilder;
   final ScrollController? scrollController;
-
-  /// Leads with an "All clear" note when no section needs the user.
-  final bool showAllClear;
 
   /// Enables lane filtering and section disclosure on the Status board only.
   final bool showStatusFilters;
@@ -297,6 +298,9 @@ class _SessionBoardViewState extends State<SessionBoardView> {
   Widget build(BuildContext context) {
     final allSections = widget.sections;
     final selectedLane = widget.showStatusFilters ? _selectedLane : null;
+    final counts = _laneCounts(allSections.expand((section) => section.rows));
+    final showFilters =
+        widget.showStatusFilters && (counts.length > 1 || selectedLane != null);
     final sections = selectedLane == null
         ? allSections
         : allSections
@@ -307,18 +311,6 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     final live = allSections.any(
       (section) => section.rows.any((row) => row.lane != MissionLane.quiet),
     );
-    final allClear =
-        widget.showAllClear &&
-        selectedLane == null &&
-        !allSections.any(
-          (section) => section.rows.any(
-            (row) =>
-                row.lane == MissionLane.blocked ||
-                row.lane == MissionLane.error ||
-                row.lane == MissionLane.unread,
-          ),
-        );
-    final leading = allClear ? 1 : 0;
     final list = ListView.builder(
       controller: widget.scrollController ?? _ownScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -327,7 +319,7 @@ class _SessionBoardViewState extends State<SessionBoardView> {
         bottom: AppSpacing.xxl,
       ),
       addAutomaticKeepAlives: false,
-      itemCount: emptyLane ? 1 : sections.length + leading,
+      itemCount: emptyLane ? 1 : sections.length,
       itemBuilder: (context, i) {
         if (emptyLane) {
           return SessionBoardEmptyLane(
@@ -335,17 +327,17 @@ class _SessionBoardViewState extends State<SessionBoardView> {
             onShowAll: () => _selectLane(null),
           );
         }
-        if (i < leading) return const SessionsAllClearNote();
-        return _buildSection(context, sections[i - leading]);
+        return _buildSection(context, sections[i]);
       },
     );
     return MissionClock(
       active: live,
-      child: widget.showStatusFilters
+      child: showFilters
           ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SessionBoardFilters(
-                  counts: _laneCounts(allSections.expand((s) => s.rows)),
+                  counts: counts,
                   selectedLane: selectedLane,
                   onSelectLane: _selectLane,
                 ),
@@ -396,18 +388,6 @@ class _SessionBoardViewState extends State<SessionBoardView> {
               ? () => onNewSession(machineId)
               : null,
         ),
-        if (foldable && !collapsed)
-          SessionBoardPreviewControl(
-            label: expanded
-                ? context.l10n.sessionsBoardShowLess
-                : context.l10n.sessionsBoardShowMore(
-                    section.rows.length - limit,
-                  ),
-            expanded: expanded,
-            onTap: () => setState(() {
-              if (!_expanded.remove(section.key)) _expanded.add(section.key);
-            }),
-          ),
         if (!collapsed)
           Opacity(
             opacity: section.dimmed ? 0.6 : 1,
@@ -428,6 +408,18 @@ class _SessionBoardViewState extends State<SessionBoardView> {
                   ),
               ],
             ),
+          ),
+        if (foldable && !collapsed)
+          SessionBoardPreviewControl(
+            label: expanded
+                ? context.l10n.sessionsBoardShowLess
+                : context.l10n.sessionsBoardShowMore(
+                    section.rows.length - limit,
+                  ),
+            expanded: expanded,
+            onTap: () => setState(() {
+              if (!_expanded.remove(section.key)) _expanded.add(section.key);
+            }),
           ),
       ],
     );
@@ -473,7 +465,7 @@ class SessionGroupHeader extends StatelessWidget {
     final header = Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.lg,
+        AppSpacing.sm,
         onNewSession != null ? AppSpacing.xs : AppSpacing.lg,
         AppSpacing.xs,
       ),
@@ -623,7 +615,7 @@ class SessionBoardHintRow extends StatelessWidget {
   }
 }
 
-/// Reassurance shown above an all-quiet status board.
+/// Reassurance used by the legacy session list.
 class SessionsAllClearNote extends StatelessWidget {
   const SessionsAllClearNote({super.key});
 

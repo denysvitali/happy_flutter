@@ -6,7 +6,7 @@ import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'mission_control_types.dart';
 
-/// Always-visible status choices, including a selected lane that became empty.
+/// Useful status choices, including a selected lane that became empty.
 class SessionBoardFilters extends StatelessWidget {
   const SessionBoardFilters({
     required this.counts,
@@ -31,6 +31,7 @@ class SessionBoardFilters extends StatelessWidget {
         AppSpacing.xs,
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _StatusFilter(
             key: const ValueKey('board-filter-all'),
@@ -120,7 +121,7 @@ class _StatusFilter extends StatelessWidget {
   }
 }
 
-/// Preview disclosure stays near its heading, even when all rows are shown.
+/// Compact disclosure footer after a long section's visible rows.
 class SessionBoardPreviewControl extends StatelessWidget {
   const SessionBoardPreviewControl({
     required this.label,

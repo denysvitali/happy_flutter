@@ -32,7 +32,7 @@ List<Session> boardArchivedSessions({
 }
 
 /// Keeps archived conversations reachable without mixing them with live work.
-class SessionBoardCollection extends StatelessWidget {
+class SessionBoardCollection extends StatefulWidget {
   const SessionBoardCollection({
     required this.activeCount,
     required this.archivedCount,
@@ -49,37 +49,64 @@ class SessionBoardCollection extends StatelessWidget {
   final Widget child;
 
   @override
+  State<SessionBoardCollection> createState() => _SessionBoardCollectionState();
+}
+
+class _SessionBoardCollectionState extends State<SessionBoardCollection>
+    with SingleTickerProviderStateMixin {
+  late final TabController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.showArchived ? 1 : 0,
+    );
+  }
+
+  @override
+  void didUpdateWidget(SessionBoardCollection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final index = widget.showArchived ? 1 : 0;
+    if (_controller.index != index) _controller.index = index;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              ChoiceChip(
-                key: const ValueKey('sessions-active-scope'),
-                label: Text('${l10n.sessionsBoardActive} $activeCount'),
-                selected: !showArchived,
-                onSelected: (_) => onChanged(false),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              ChoiceChip(
-                key: const ValueKey('sessions-archived-scope'),
-                avatar: const Icon(
-                  Icons.archive_outlined,
-                  size: AppIconSize.md,
-                ),
-                label: Text('${l10n.sessionsArchivedLabel} $archivedCount'),
-                selected: showArchived,
-                onSelected: (_) => onChanged(true),
-              ),
-            ],
-          ),
+        TabBar(
+          controller: _controller,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: AppText.label(theme),
+          unselectedLabelStyle: AppText.secondary(theme),
+          labelPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          onTap: (index) => widget.onChanged(index == 1),
+          tabs: [
+            Tab(
+              key: const ValueKey('sessions-active-scope'),
+              text: '${l10n.sessionsBoardActive} ${widget.activeCount}',
+            ),
+            Tab(
+              key: const ValueKey('sessions-archived-scope'),
+              text: '${l10n.sessionsArchivedLabel} ${widget.archivedCount}',
+            ),
+          ],
         ),
-        Expanded(child: child),
+        Expanded(child: widget.child),
       ],
     );
   }

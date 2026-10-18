@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
+import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/sidebar/app_sidebar.dart';
 import '../../core/components/tablet/no_session_selected_view.dart';
 import '../../core/components/tablet/resizable_split_view.dart';
@@ -507,8 +508,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
 
     return AppBar(
-      title: Text(l10n.sessionHistoryTitle),
+      title: const SessionsViewStyleButton(asTitle: true),
+      shape: _isScrolled
+          ? Border(
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            )
+          : null,
       actions: [
+        if (connectionStatus != ConnectionStatus.connected)
+          ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.search),
           tooltip: l10n.commonSearch,
@@ -520,32 +530,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           onPressed: () => _showNewSessionDialog(context),
         ),
       ],
-      bottom: PreferredSize(
-        preferredSize: Size.fromHeight(
-          (MediaQuery.textScalerOf(context).scale(AppFontSize.sm) * 1.3 +
-                  AppSpacing.md)
-              .clamp(AppTouchTarget.comfortable, double.infinity),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            border: _isScrolled
-                ? Border(
-                    bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  )
-                : null,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Row(
-            children: [
-              const Expanded(child: SessionsViewStyleButton(showLabel: true)),
-              const SizedBox(width: AppSpacing.sm),
-              ConnectionStatusBadge(status: connectionStatus, showLabel: true),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

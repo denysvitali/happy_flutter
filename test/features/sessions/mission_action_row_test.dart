@@ -13,7 +13,9 @@ import 'package:happy_flutter/features/sessions/widgets/mission_control_types.da
 Session _session({
   String id = 'alpha-session',
   String? title,
-  String host = 'devbox',
+  String? host = 'devbox',
+  String? flavor,
+  String path = '/home/dev/git/pmos-pixel7',
   bool thinking = false,
   int? timestamp,
   AgentState? agentState,
@@ -36,8 +38,9 @@ Session _session({
     presence: 'online',
     agentState: agentState,
     metadata: Metadata(
-      host: host,
-      path: '/home/dev/git/pmos-pixel7',
+      host: host ?? '',
+      flavor: flavor,
+      path: path,
       summary: title == null ? null : Summary(text: title, updatedAt: at),
     ),
   );
@@ -95,47 +98,133 @@ void main() {
         );
         final titleRect = tester.getRect(title);
         final previewRect = tester.getRect(preview);
-        expect(titleRect.width, greaterThan(240));
-        expect(previewRect.width, titleRect.width);
+        expect(titleRect.width, greaterThan(180));
+        expect(previewRect.width, greaterThan(80));
+        expect(previewRect.top, greaterThan(titleRect.top));
+        expect(
+          tester.getSize(find.byType(MissionActionRow)).height,
+          lessThan(110),
+        );
         expect(tester.widget<Text>(title).maxLines, 1);
         expect(
-          tester.getTopLeft(find.text('23 new')).dy,
-          greaterThan(previewRect.top),
+          tester.getCenter(find.text('23 new')).dy,
+          closeTo(previewRect.center.dy, 1),
         );
+        final menuRect = tester.getRect(find.byTooltip('Session actions'));
+        expect(menuRect.size, const Size(44, 44));
+        expect(menuRect.left, greaterThan(titleRect.right));
         expect(find.byTooltip('Session actions'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
   }
 
-  testWidgets(
-    'duplicate generic names keep actual titles and distinct identity',
-    (tester) async {
+  testWidgets('duplicate generic names omit raw session identifiers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Column(
+          children: [
+            for (final id in ['same-prefix-aaaa1111', 'same-prefix-bbbb2222'])
+              MissionActionRow(
+                session: _session(id: id),
+                entry: SessionUiEntry.empty,
+                lane: MissionLane.quiet,
+                animateActivity: false,
+                onTap: () {},
+                onLongPress: () {},
+              ),
+          ],
+        ),
+      ),
+    );
+    expect(find.text('pmos-pixel7'), findsNWidgets(2));
+    expect(find.text('devbox'), findsNWidgets(2));
+    expect(find.textContaining('aaaa1111'), findsNothing);
+    expect(find.textContaining('bbbb2222'), findsNothing);
+    expect(find.byTooltip('same-prefix-aaaa1111'), findsNothing);
+    expect(find.textContaining('git/pmos-pixel7'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ordinary two-line row has no footer or empty action space', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(title: 'Fix mobile networking'),
+          entry: const SessionUiEntry(lastMessagePreview: 'Modem is connected'),
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          onTap: () {},
+          onLongPress: () {},
+          onArchive: () {},
+        ),
+      ),
+    );
+    final row = tester.getRect(find.byType(MissionActionRow));
+    final title = tester.getRect(find.text('Fix mobile networking'));
+    final preview = tester.getRect(find.text('Modem is connected'));
+    final menu = tester.getRect(find.byTooltip('Session actions'));
+    expect(row.height, lessThanOrEqualTo(64));
+    expect(preview.top - title.bottom, closeTo(2, 1));
+    expect(menu.size, const Size(44, 44));
+    expect(menu.center.dy, closeTo(row.center.dy, 1));
+    expect(find.text('devbox'), findsNothing);
+    expect(find.textContaining('alpha-session'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fallback omits placeholder hosts and repeated workspace', (
+    tester,
+  ) async {
+    for (final host in [null, '', '(none)', 'null', 'dev@(none)']) {
       await tester.pumpWidget(
         _app(
-          Column(
-            children: [
-              for (final id in ['same-prefix-aaaa1111', 'same-prefix-bbbb2222'])
-                MissionActionRow(
-                  session: _session(id: id),
-                  entry: SessionUiEntry.empty,
-                  lane: MissionLane.quiet,
-                  animateActivity: false,
-                  onTap: () {},
-                  onLongPress: () {},
-                ),
-            ],
+          MissionActionRow(
+            session: _session(host: host, flavor: 'opencode'),
+            entry: SessionUiEntry.empty,
+            lane: MissionLane.quiet,
+            animateActivity: false,
+            onTap: () {},
+            onLongPress: () {},
           ),
         ),
       );
-      expect(find.text('pmos-pixel7'), findsNWidgets(2));
-      expect(find.text('devbox'), findsNWidgets(2));
-      expect(find.text('#aaaa1111'), findsOneWidget);
-      expect(find.text('#bbbb2222'), findsOneWidget);
+      expect(find.text('pmos-pixel7'), findsOneWidget);
+      expect(find.text('OpenCode'), findsOneWidget);
+      expect(find.textContaining('(none)'), findsNothing);
+      expect(find.text('null'), findsNothing);
       expect(find.textContaining('git/pmos-pixel7'), findsNothing);
+      expect(
+        tester.getSize(find.byType(MissionActionRow)).height,
+        lessThanOrEqualTo(64),
+      );
       expect(tester.takeException(), isNull);
-    },
-  );
+    }
+  });
+
+  testWidgets('workspace supplements a summary when there is no preview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(title: 'Repair networking', host: '(none)'),
+          entry: SessionUiEntry.empty,
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          onTap: () {},
+          onLongPress: () {},
+        ),
+      ),
+    );
+    expect(find.text('Repair networking'), findsOneWidget);
+    expect(find.text('git/pmos-pixel7'), findsOneWidget);
+    expect(find.textContaining('(none)'), findsNothing);
+  });
 
   testWidgets('host display omits pod noise and retains full identity', (
     tester,
@@ -278,6 +367,28 @@ void main() {
     expect([selected, archived, previewed, opened], [1, 1, 1, 0]);
   });
 
+  testWidgets('row tap and long press preserve their callbacks', (
+    tester,
+  ) async {
+    final actions = <String>[];
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(title: 'Open this conversation'),
+          entry: SessionUiEntry.empty,
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          onTap: () => actions.add('open'),
+          onLongPress: () => actions.add('select'),
+          onArchive: () => actions.add('archive'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open this conversation'));
+    await tester.longPress(find.text('Open this conversation'));
+    expect(actions, ['open', 'select']);
+  });
+
   testWidgets('selection hides session actions and cannot mark read', (
     tester,
   ) async {
@@ -303,6 +414,63 @@ void main() {
     await tester.tap(find.text('pmos-pixel7'));
     expect(opened, 1);
     expect(acted, 0);
+  });
+
+  testWidgets('inline unread action marks read without opening the row', (
+    tester,
+  ) async {
+    var opened = 0;
+    var read = 0;
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(),
+          entry: const SessionUiEntry(unreadCount: 3),
+          lane: MissionLane.unread,
+          animateActivity: false,
+          onTap: () => opened++,
+          onLongPress: () {},
+          onMarkRead: () => read++,
+        ),
+      ),
+    );
+    await tester.tap(find.text('3 new'));
+    expect(read, 1);
+    expect(opened, 0);
+  });
+
+  testWidgets('pinned row retains unpin and snooze menu actions', (
+    tester,
+  ) async {
+    final actions = <String>[];
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(),
+          entry: SessionUiEntry.empty,
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          isPinned: true,
+          onTap: () => actions.add('open'),
+          onLongPress: () {},
+          onTogglePin: () => actions.add('unpin'),
+          onToggleSnooze: (value) => actions.add('snooze:$value'),
+        ),
+      ),
+    );
+    expect(find.byIcon(Icons.push_pin_rounded), findsOneWidget);
+    for (final value in ['pin', 'snooze']) {
+      await tester.tap(find.byTooltip('Session actions'));
+      await tester.pumpAndSettle();
+      expect(find.text('Unpin'), findsOneWidget);
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) => widget is PopupMenuItem<String> && widget.value == value,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(actions, ['unpin', 'snooze:true']);
   });
 
   testWidgets('triage callbacks remain separate from opening a session', (

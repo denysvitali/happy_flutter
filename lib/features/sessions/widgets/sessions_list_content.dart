@@ -663,7 +663,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         board = SessionBoardView(
           key: ValueKey('board-$sessionsViewStyle'),
           scrollController: widget.scrollController,
-          showAllClear: sessionsViewStyle == 'status',
           showStatusFilters: sessionsViewStyle == 'status',
           onVisibleSessionIdsChanged: (ids) {
             _boardSelectableIds = ids;

@@ -53,9 +53,14 @@ enum SessionsViewStyle {
 /// The icon mirrors the current layout so the active mode stays visible
 /// without opening Settings.
 class SessionsViewStyleButton extends ConsumerWidget {
-  const SessionsViewStyleButton({super.key, this.showLabel = false});
+  const SessionsViewStyleButton({
+    super.key,
+    this.showLabel = false,
+    this.asTitle = false,
+  });
 
   final bool showLabel;
+  final bool asTitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,30 +69,32 @@ class SessionsViewStyleButton extends ConsumerWidget {
       ref.watch(settingsNotifierProvider.select((s) => s.sessionsViewStyle)),
     );
     final cs = Theme.of(context).colorScheme;
-    return PopupMenuButton<SessionsViewStyle>(
-      icon: showLabel ? null : Icon(current.icon),
-      child: showLabel
+    final hasLabel = showLabel || asTitle;
+    final color = asTitle ? cs.onSurface : cs.primary;
+    final menu = PopupMenuButton<SessionsViewStyle>(
+      icon: hasLabel ? null : Icon(current.icon),
+      child: hasLabel
           ? ConstrainedBox(
               constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(current.icon, size: AppIconSize.md, color: cs.primary),
-                  const SizedBox(width: AppSpacing.sm),
+                  if (!asTitle) ...[
+                    Icon(current.icon, size: AppIconSize.md, color: color),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
                   Flexible(
                     child: Text(
-                      current.label(l10n),
+                      asTitle ? l10n.sessionHistoryTitle : current.label(l10n),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.label(Theme.of(context), cs.primary),
+                      style: asTitle
+                          ? AppText.screenTitle(Theme.of(context))
+                          : AppText.label(Theme.of(context), color),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Icon(
-                    Icons.expand_more,
-                    size: AppIconSize.md,
-                    color: cs.primary,
-                  ),
+                  Icon(Icons.expand_more, size: AppIconSize.md, color: color),
                 ],
               ),
             )
@@ -121,5 +128,8 @@ class SessionsViewStyleButton extends ConsumerWidget {
           ),
       ],
     );
+    return asTitle
+        ? Semantics(container: true, button: true, child: menu)
+        : menu;
   }
 }
