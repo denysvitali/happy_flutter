@@ -54,7 +54,7 @@ class MissionControlFilters extends StatelessWidget {
           final selected = selectedLane == lane;
           return _FocusFilterChip(
             key: ValueKey('mission-filter-${lane.name}'),
-            label: missionLaneLabel(context, lane),
+            label: missionLaneTitle(context, lane),
             count: counts[lane]!,
             lane: lane,
             selected: selected,

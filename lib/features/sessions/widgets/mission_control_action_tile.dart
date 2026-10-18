@@ -7,6 +7,9 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/utils/utils.dart' show formatRelativeTime;
+import '../harness_logo.dart';
+import 'inline_permission_actions.dart';
 import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 import 'mission_heartbeat.dart';
@@ -36,6 +39,8 @@ class MissionActionRow extends StatelessWidget {
     this.onTogglePin,
     this.onToggleSnooze,
     this.onPeek,
+    this.showTriageMenu = true,
+    this.showInlineApproval = false,
   });
 
   final Session session;
@@ -61,6 +66,13 @@ class MissionActionRow extends StatelessWidget {
   /// Opens the glanceable peek sheet without navigating into the chat.
   final VoidCallback? onPeek;
 
+  /// Mission Control's focus queue owns pin/snooze; grouped boards hide the
+  /// overflow menu so each row stays a single tap target.
+  final bool showTriageMenu;
+
+  /// Renders Allow/Deny under a blocked row. Requires a [ProviderScope].
+  final bool showInlineApproval;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -73,17 +85,34 @@ class MissionActionRow extends StatelessWidget {
     // The concrete update outranks the abstract activity label: most queue
     // entries are progress reports, and "Used Grep · rg foo" tells the user
     // more than another "thinking" badge.
+    final requests = session.agentState?.requests;
+    final approval =
+        showInlineApproval &&
+        !selected &&
+        lane == MissionLane.blocked &&
+        requests != null &&
+        requests.isNotEmpty;
+    // With inline approval the strip below already names the tool, so the
+    // "<tool> needs approval" activity label would only repeat it.
     final activityText =
         (preview != null && preview.isNotEmpty ? preview : null) ??
-        activity ??
-        laneLabel;
+        (approval ? null : activity);
     final path = session.metadata?.path;
     final workspace = path == null || path.isEmpty
         ? null
         : missionShortPath(path);
-    final detail = workspace == null
-        ? activityText
-        : '$workspace  ·  $activityText';
+    final name = getSessionName(session);
+    // A session named after its folder would read "fw-analyzer /
+    // git/fw-analyzer"; drop the echo when there is something better to say.
+    final workspaceEchoesName =
+        workspace != null &&
+        workspace.split('/').last.toLowerCase() == name.trim().toLowerCase();
+    final detail = [
+      if (workspace != null && (!workspaceEchoesName || activityText == null))
+        workspace,
+      ?activityText,
+    ].join('  ·  ');
+    final showWorkspaceDot = workspace != null && detail.startsWith(workspace);
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
     final nowMs = missionNowOf(context);
@@ -111,7 +140,6 @@ class MissionActionRow extends StatelessWidget {
             : formatElapsedShort(silenceMs),
       MissionLane.quiet => laneLabel,
     };
-    final name = getSessionName(session);
     final detailStyle = MissionType.meta(
       theme,
       lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
@@ -121,7 +149,9 @@ class MissionActionRow extends StatelessWidget {
       button: true,
       selected: selected,
       label: '$name, $laneLabel, $detail, $semanticOutcome',
+      // Inline approval buttons must stay reachable to screen readers.
       child: ExcludeSemantics(
+        excluding: !approval,
         child: AnimatedContainer(
           duration: AppMotion.duration(context, AppDuration.fast),
           curve: AppCurve.standard,
@@ -175,10 +205,11 @@ class MissionActionRow extends StatelessWidget {
                           ? onMarkRead
                           : null,
                     );
-                    return Row(
+                    final line = Row(
                       children: [
                         _LaneTile(
                           lane: lane,
+                          flavor: session.metadata?.flavor,
                           color: laneColor,
                           freshness: freshness,
                           // Blocked/error are at-rest lanes: their full
@@ -206,7 +237,7 @@ class MissionActionRow extends StatelessWidget {
                               const SizedBox(height: 1),
                               Row(
                                 children: [
-                                  if (workspace != null) ...[
+                                  if (showWorkspaceDot) ...[
                                     Container(
                                       width: 6,
                                       height: 6,
@@ -222,7 +253,7 @@ class MissionActionRow extends StatelessWidget {
                                   ],
                                   Expanded(
                                     child: Text(
-                                      detail,
+                                      detail.isEmpty ? laneLabel : detail,
                                       // The error reason is why the user is
                                       // looking — one extra line beats an
                                       // elided diagnosis.
@@ -247,8 +278,9 @@ class MissionActionRow extends StatelessWidget {
                           ),
                           const SizedBox(width: AppSpacing.xs),
                         ],
-                        outcome,
-                        if (_hasOverflowMenu) ...[
+                        // Allow/Deny below replaces the "Review" pill.
+                        if (!approval) outcome,
+                        if (showTriageMenu && _hasOverflowMenu) ...[
                           _TriageMenu(
                             isPinned: isPinned,
                             isSnoozed: isSnoozed,
@@ -260,14 +292,27 @@ class MissionActionRow extends StatelessWidget {
                             onToggleSnooze: onToggleSnooze,
                             onPeek: onPeek,
                           ),
-                        ] else ...[
-                          const SizedBox(width: AppSpacing.xxs),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: AppIconSize.md,
-                            color: cs.onSurfaceVariant,
+                        ] else
+                          const SizedBox(width: AppSpacing.sm),
+                      ],
+                    );
+                    if (!approval) return line;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        line,
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: AppControlSize.sm + AppSpacing.smd,
+                            right: AppSpacing.sm,
+                            bottom: AppSpacing.xs,
                           ),
-                        ],
+                          child: InlinePermissionActions(
+                            sessionId: session.id,
+                            requests: requests,
+                            isOnline: session.presence == 'online',
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -294,9 +339,11 @@ class _LaneTile extends StatelessWidget {
     required this.freshness,
     required this.pulse,
     required this.selected,
+    this.flavor,
   });
 
   final MissionLane lane;
+  final String? flavor;
   final Color color;
   final StreamFreshness freshness;
   final bool pulse;
@@ -331,11 +378,22 @@ class _LaneTile extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(
-            selected ? Icons.check_rounded : missionLaneIcon(lane),
-            size: AppIconSize.md,
-            color: color,
-          ),
+          // A quiet row has no state worth an icon; the harness mark tells
+          // the user which agent they would be talking to.
+          if (lane == MissionLane.quiet && !selected)
+            Opacity(
+              opacity: 0.85,
+              child: HarnessLogo(
+                flavor: flavor ?? 'claude',
+                size: AppIconSize.md,
+              ),
+            )
+          else
+            Icon(
+              selected ? Icons.check_rounded : missionLaneIcon(lane),
+              size: AppIconSize.md,
+              color: color,
+            ),
           if (pulse)
             Positioned(
               right: AppSpacing.xxs,
@@ -389,6 +447,18 @@ class _OutcomePill extends StatelessWidget {
     final pillBg = isSilent
         ? missionLaneContainerColor(context, MissionLane.blocked)
         : missionLaneContainerColor(context, lane);
+    if (lane == MissionLane.quiet) {
+      return Text(
+        formatRelativeTime(
+          DateTime.fromMillisecondsSinceEpoch(since),
+          now: DateTime.fromMillisecondsSinceEpoch(nowMs),
+          compact: true,
+          l10n: l10n,
+        ),
+        maxLines: 1,
+        style: MissionType.meta(theme, theme.colorScheme.onSurfaceVariant),
+      );
+    }
     final child = switch (lane) {
       MissionLane.blocked => Text(l10n.missionControlReview),
       MissionLane.error => Text(missionLaneLabel(context, lane)),
@@ -404,7 +474,7 @@ class _OutcomePill extends StatelessWidget {
             ? l10n.missionControlSilent(formatSilenceShort(silenceMs))
             : formatElapsedShort(silenceMs),
       ),
-      MissionLane.quiet => Text(missionLaneLabel(context, lane)),
+      MissionLane.quiet => const SizedBox.shrink(),
     };
     final pill = Container(
       constraints: BoxConstraints(

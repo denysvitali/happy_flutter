@@ -392,7 +392,7 @@ class _LaneBadge extends StatelessWidget {
           Icon(missionLaneIcon(lane), size: 12, color: color),
           const SizedBox(width: AppSpacing.xxxs),
           Text(
-            missionLaneLabel(context, lane),
+            missionLaneTitle(context, lane),
             style: AppText.badge(theme, color),
           ),
         ],

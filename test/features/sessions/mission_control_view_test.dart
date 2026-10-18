@@ -529,7 +529,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('happy_flutter'), findsOneWidget);
-    expect(find.textContaining('dev/happy_flutter'), findsOneWidget);
+    // The workspace only repeats the title here, so the update wins the line.
+    expect(find.text('Running the analyzer'), findsOneWidget);
+    expect(find.textContaining('dev/happy_flutter'), findsNothing);
     expect(
       tester.getSize(find.byType(MissionActionRow)).height,
       greaterThanOrEqualTo(48),

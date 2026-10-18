@@ -48,7 +48,7 @@ void main() {
       );
 
       expect(find.text('happy'), findsOneWidget);
-      expect(find.text('2 active • 2 archived'), findsOneWidget);
+      expect(find.text('Work Mac · 2 active • 2 archived'), findsOneWidget);
       expect(find.text('4 sessions'), findsNothing);
       expect(find.text('Work Mac • 4 sessions'), findsNothing);
       expect(find.text('3'), findsOneWidget);
@@ -100,7 +100,7 @@ void main() {
         ),
       );
 
-      expect(find.text('3 active'), findsOneWidget);
+      expect(find.text('Work Mac · 3 active'), findsOneWidget);
       expect(find.textContaining('archived'), findsNothing);
     });
   });

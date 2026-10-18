@@ -637,6 +637,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               onClearSearch: _clearSearch,
               scrollController: _scrollController,
               onCreateSession: () => _showNewSessionDialog(context),
+              onCreateSessionOnMachine: (machineId) =>
+                  _showNewSessionDialog(context, initialMachineId: machineId),
               onSessionTap: (sessionId) {
                 setState(() {
                   _selectedSessionId = sessionId;
@@ -681,6 +683,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             isVisible: true,
             scrollController: _scrollController,
             onCreateSession: () => _showNewSessionDialog(context),
+            onCreateSessionOnMachine: (machineId) =>
+                _showNewSessionDialog(context, initialMachineId: machineId),
           ),
         ),
       );
@@ -702,6 +706,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             isVisible: _activeTab == AppTab.sessions,
             scrollController: _scrollController,
             onCreateSession: () => _showNewSessionDialog(context),
+            onCreateSessionOnMachine: (machineId) =>
+                _showNewSessionDialog(context, initialMachineId: machineId),
           ),
         ),
         TickerMode(

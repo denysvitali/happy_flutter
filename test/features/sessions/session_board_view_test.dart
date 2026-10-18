@@ -140,7 +140,77 @@ void main() {
     ]);
     // Urgent rows lead inside a machine.
     expect(sections[1].rows.first.lane, MissionLane.error);
-    expect(sections.last.subtitle, 'Offline');
+    expect(sections.last.subtitle, 'Offline · 1 session');
+    expect(sections[1].subtitle, 'Online · 1 error');
+    // Only online machines accept a new session.
+    expect(sections.first.machineId, 'phone');
+    expect(sections.last.machineId, isNull);
+    expect(sections.last.dimmed, isTrue);
+  });
+
+  testWidgets('machine board lists idle online machines last', (tester) async {
+    final context = await _context(tester);
+    final sections = buildMachineSections(context, _sessions, {
+      'phone': m('phone', true),
+      'devbox': m('devbox', true),
+      'spare': m('spare', true),
+      'laptop': m('laptop', false),
+    }, _ui);
+    expect(sections.map((s) => s.key), [
+      'machine-phone',
+      'machine-devbox',
+      'machine-spare',
+      'machine-laptop',
+    ]);
+    expect(sections[2].rows, isEmpty);
+    expect(sections[2].subtitle, 'Online · No active sessions');
+  });
+
+  testWidgets('long quiet lane folds behind show more', (tester) async {
+    final context = await _context(tester);
+    final quiet = [
+      for (var i = 0; i < 9; i++)
+        s('q$i', 'quiet $i', '/w/q$i', 'devbox', ageMin: 10 + i),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      quiet,
+      const SessionUiState(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeHelper.buildDarkTheme(),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SessionBoardView(
+            sections: sections,
+            showAllClear: true,
+            rowBuilder: (row) => MissionActionRow(
+              session: row.session,
+              entry: row.entry,
+              lane: row.lane,
+              onTap: () {},
+              onLongPress: () {},
+              animateActivity: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('All clear'), findsOneWidget);
+    expect(find.byType(MissionActionRow), findsNWidgets(5));
+    await tester.tap(find.text('Show 4 more'));
+    await tester.pump();
+    expect(find.byType(MissionActionRow), findsNWidgets(9));
+    expect(find.text('Show less'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('short host keeps the user when the hostname is unset', () {
+    expect(missionShortHost('root@(none) (go)'), 'root');
+    expect(missionShortHost('root@OpenWrt (go)'), 'OpenWrt');
   });
 
   testWidgets('board renders headers and every row', (tester) async {
@@ -168,7 +238,10 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(MissionActionRow), findsNWidgets(6));
-    expect(find.text('QUIET'), findsOneWidget);
+    expect(find.text('Quiet  3'), findsOneWidget);
+    // Quiet rows show their age instead of repeating the lane name.
+    expect(find.text('Quiet'), findsNothing);
+    expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 }

@@ -1874,13 +1874,13 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsNeedsAttention.
   ///
   /// In en, this message translates to:
-  /// **'NEEDS ATTENTION'**
+  /// **'Needs you'**
   String get sessionsNeedsAttention;
 
   /// No description provided for @sessionsAllSessions.
   ///
   /// In en, this message translates to:
-  /// **'ALL SESSIONS'**
+  /// **'Everything else'**
   String get sessionsAllSessions;
 
   /// No description provided for @sessionsArchivedLabel.
@@ -2206,6 +2206,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'idle'**
   String get missionControlStatIdle;
+
+  /// No description provided for @missionLaneTitleBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs approval'**
+  String get missionLaneTitleBlocked;
+
+  /// No description provided for @missionLaneTitleError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get missionLaneTitleError;
+
+  /// No description provided for @missionLaneTitleUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get missionLaneTitleUnread;
+
+  /// No description provided for @missionLaneTitleLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get missionLaneTitleLive;
+
+  /// No description provided for @missionLaneTitleQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet'**
+  String get missionLaneTitleQuiet;
+
+  /// No description provided for @sessionsBoardShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} more'**
+  String sessionsBoardShowMore(int count);
+
+  /// No description provided for @sessionsBoardShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get sessionsBoardShowLess;
+
+  /// No description provided for @sessionsBoardAllClear.
+  ///
+  /// In en, this message translates to:
+  /// **'All clear'**
+  String get sessionsBoardAllClear;
+
+  /// No description provided for @sessionsBoardAllClearHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is waiting on you'**
+  String get sessionsBoardAllClearHint;
+
+  /// No description provided for @sessionsMachineIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get sessionsMachineIdle;
+
+  /// No description provided for @sessionsMachineNewSession.
+  ///
+  /// In en, this message translates to:
+  /// **'New session on this machine'**
+  String get sessionsMachineNewSession;
+
+  /// No description provided for @sessionsFolderActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active workspaces'**
+  String get sessionsFolderActive;
+
+  /// No description provided for @sessionsFolderArchivedOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived only'**
+  String get sessionsFolderArchivedOnly;
 
   /// No description provided for @missionControlMarkRead.
   ///

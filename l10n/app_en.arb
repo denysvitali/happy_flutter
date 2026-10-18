@@ -403,8 +403,8 @@
   "dateGroupThisMonth": "This Month",
   "dateGroupOlder": "Older",
   "sessionsActiveSessions": "Active sessions",
-  "sessionsNeedsAttention": "NEEDS ATTENTION",
-  "sessionsAllSessions": "ALL SESSIONS",
+  "sessionsNeedsAttention": "Needs you",
+  "sessionsAllSessions": "Everything else",
   "sessionsArchivedLabel": "Archived",
   "sessionsShowArchived": "Show archived ({count})",
   "@sessionsShowArchived": {
@@ -509,6 +509,26 @@
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
+  "missionLaneTitleBlocked": "Needs approval",
+  "missionLaneTitleError": "Failed",
+  "missionLaneTitleUnread": "Unread",
+  "missionLaneTitleLive": "Working",
+  "missionLaneTitleQuiet": "Quiet",
+  "sessionsBoardShowMore": "Show {count} more",
+  "@sessionsBoardShowMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsBoardShowLess": "Show less",
+  "sessionsBoardAllClear": "All clear",
+  "sessionsBoardAllClearHint": "Nothing is waiting on you",
+  "sessionsMachineIdle": "No active sessions",
+  "sessionsMachineNewSession": "New session on this machine",
+  "sessionsFolderActive": "Active workspaces",
+  "sessionsFolderArchivedOnly": "Archived only",
   "missionControlMarkRead": "Mark read",
   "missionControlTriage": "Session actions",
   "missionControlPinToTop": "Pin to top",

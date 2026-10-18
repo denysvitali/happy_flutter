@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/components/app_status_dot.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'mission_control_types.dart';
 import 'session_headers.dart';
+import 'workspace_identity.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 const double _folderStatusDotSlotSize = 17;
@@ -227,79 +231,126 @@ class FolderSessionRow extends StatelessWidget {
   }
 }
 
+/// One workspace in the folder overview: identity-tinted folder tile, name,
+/// what its sessions are doing and where they run.
+///
+/// Renders as a borderless row; place it in an `UnreadFocusListGroup`.
 class FolderOverviewCard extends StatelessWidget {
   const FolderOverviewCard({
     required this.header,
     required this.onTap,
     super.key,
+    this.laneCounts = const {},
   });
 
   final SessionFolderHeader header;
   final VoidCallback onTap;
+
+  /// Active sessions in this folder per Mission Control lane.
+  final Map<MissionLane, int> laneCounts;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final latestActivity = header.latestActivityAt > 0
-        ? formatTimestamp(header.latestActivityAt, relative: true)
+        ? formatRelativeTime(
+            DateTime.fromMillisecondsSinceEpoch(header.latestActivityAt),
+            compact: true,
+            l10n: context.l10n,
+          )
         : null;
+    final identity = workspaceIdentityColor(context, header.folderKey);
+    final topLane = missionTopLane(laneCounts);
+    final laneSummary = missionLaneSummary(context, laneCounts);
+    final host = missionShortHost(header.machineName);
+    final archivedOnly = header.activeSessionCount == 0;
+    final detail = [
+      if (host.isNotEmpty) host,
+      folderBreakdownLabel(context, header),
+    ].join(' · ');
 
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        color: cs.primary.withValues(alpha: 0.04),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.12),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.hardEdge,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTarget.comfortable,
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.smd,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
             child: Row(
               children: [
                 Container(
-                  width: AppControlSize.lg,
-                  height: AppControlSize.lg,
+                  width: AppControlSize.sm,
+                  height: AppControlSize.sm,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    color: Color.alphaBlend(
+                      identity.withValues(alpha: archivedOnly ? 0.06 : 0.16),
+                      cs.surfaceContainerLow,
+                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.smd),
                   ),
-                  child: Icon(
-                    Icons.folder_outlined,
-                    color: cs.primary,
-                    size: 22,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        archivedOnly
+                            ? Icons.folder_outlined
+                            : Icons.folder_rounded,
+                        size: AppIconSize.md,
+                        color: archivedOnly ? cs.onSurfaceVariant : identity,
+                      ),
+                      if (topLane != MissionLane.quiet)
+                        Positioned(
+                          right: AppSpacing.xxs,
+                          top: AppSpacing.xxs,
+                          child: AppStatusDot(
+                            color: missionLaneColor(context, topLane),
+                            pulse: topLane == MissionLane.live,
+                            size: 7,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
+                const SizedBox(width: AppSpacing.smd),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _folderName(header.displayPath),
-                        style: AppText.title(theme),
+                        style: AppText.title(
+                          theme,
+                          archivedOnly ? cs.onSurfaceVariant : cs.onSurface,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        folderBreakdownLabel(context, header),
-                        style: AppText.secondary(
-                          theme,
-                          cs.onSurfaceVariant.withValues(alpha: 0.7),
+                      const SizedBox(height: 1),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            if (laneSummary != null)
+                              TextSpan(
+                                text: '$laneSummary  ·  ',
+                                style: AppText.label(
+                                  theme,
+                                  missionLaneColor(context, topLane),
+                                ),
+                              ),
+                            TextSpan(text: detail),
+                          ],
                         ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -316,7 +367,6 @@ class FolderOverviewCard extends StatelessWidget {
                         latestActivity,
                         style: AppText.secondary(theme, cs.onSurfaceVariant),
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     if (header.unreadCount > 0)
                       Padding(

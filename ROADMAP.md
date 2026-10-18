@@ -111,12 +111,16 @@ workspaces, Advanced launch controls, and ordered attention reasons are
 implemented. Widget regressions are added; CI and device acceptance remain
 pending. Message delivery and canonical `localId` behavior are unchanged.
 
-Sessions tab: an app-bar view switcher now exposes every layout in one tap,
-plus two new layouts: **Status board** (every live session grouped by
-blocked / failed / unread / working / quiet) and **By machine** (grouped by
-host, online machines first, urgent rows leading). Both reuse the Mission
-Control row. Grouping and render regressions are added; device acceptance is
-pending.
+Sessions tab: an app-bar view switcher exposes every layout in one tap. All
+five layouts now share one visual language: sentence-case group headers, the
+compact Mission Control row (harness mark and age for quiet rows instead of a
+redundant "Quiet" pill, no workspace echo of the title) and inline Allow/Deny
+on blocked rows. **Status board** folds long Quiet lanes and says "All clear"
+when nothing waits on the user; **By machine** shows clean host names with a
+lane summary, lists idle online machines, and starts a session on a machine
+in one tap; **Folders** split active from archived-only workspaces with lane
+summaries; **Unread focus** keeps rich attention cards over compact rows.
+Regressions are updated; device acceptance is pending.
 
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.

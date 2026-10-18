@@ -984,10 +984,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsActiveSessions => 'Active sessions';
 
   @override
-  String get sessionsNeedsAttention => 'NEEDS ATTENTION';
+  String get sessionsNeedsAttention => 'Needs you';
 
   @override
-  String get sessionsAllSessions => 'ALL SESSIONS';
+  String get sessionsAllSessions => 'Everything else';
 
   @override
   String get sessionsArchivedLabel => 'Archived';
@@ -1183,6 +1183,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get missionControlStatIdle => 'idle';
+
+  @override
+  String get missionLaneTitleBlocked => 'Needs approval';
+
+  @override
+  String get missionLaneTitleError => 'Failed';
+
+  @override
+  String get missionLaneTitleUnread => 'Unread';
+
+  @override
+  String get missionLaneTitleLive => 'Working';
+
+  @override
+  String get missionLaneTitleQuiet => 'Quiet';
+
+  @override
+  String sessionsBoardShowMore(int count) {
+    return 'Show $count more';
+  }
+
+  @override
+  String get sessionsBoardShowLess => 'Show less';
+
+  @override
+  String get sessionsBoardAllClear => 'All clear';
+
+  @override
+  String get sessionsBoardAllClearHint => 'Nothing is waiting on you';
+
+  @override
+  String get sessionsMachineIdle => 'No active sessions';
+
+  @override
+  String get sessionsMachineNewSession => 'New session on this machine';
+
+  @override
+  String get sessionsFolderActive => 'Active workspaces';
+
+  @override
+  String get sessionsFolderArchivedOnly => 'Archived only';
 
   @override
   String get missionControlMarkRead => 'Mark read';

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/components/app_badge.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
@@ -23,6 +22,7 @@ import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
 import 'mission_control_view.dart';
+import 'mission_heartbeat.dart';
 import 'session_animations.dart';
 import 'session_board_view.dart';
 import 'session_cards.dart';
@@ -50,6 +50,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
     /// (for example, tablet master-detail).
     this.onSessionTap,
     this.onCreateSession,
+    this.onCreateSessionOnMachine,
     this.scrollController,
     this.isVisible = true,
     super.key,
@@ -77,6 +78,9 @@ class SessionsListContent extends ConsumerStatefulWidget {
 
   /// Parent-owned create flow so empty-state success can open the new chat.
   final Future<void> Function()? onCreateSession;
+
+  /// Starts a new session preselected to a machine (By machine layout).
+  final Future<void> Function(String machineId)? onCreateSessionOnMachine;
 
   /// Optional scroll controller forwarded to the primary list view so that
   /// a parent can observe the scroll offset (e.g. to show/hide an AppBar
@@ -589,8 +593,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     if (sessionsViewStyle == 'status' || sessionsViewStyle == 'machines') {
+      final onNewSession = widget.onCreateSessionOnMachine;
       return SessionBoardView(
         scrollController: widget.scrollController,
+        showAllClear: sessionsViewStyle == 'status',
+        onNewSession: sessionsViewStyle == 'machines' && onNewSession != null
+            ? (machineId) => unawaited(onNewSession(machineId))
+            : null,
         sections: sessionsViewStyle == 'status'
             ? buildStatusBoardSections(
                 context,
@@ -611,6 +620,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             activeSessions.length,
           ),
           highlighted: false,
+          showTriageMenu: false,
         ),
       );
     }
@@ -739,6 +749,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     MissionLane lane, {
     required bool animateActivity,
     required bool highlighted,
+    bool showTriageMenu = true,
   }) {
     return Consumer(
       builder: (context, ref, _) {
@@ -752,6 +763,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           lane: lane,
           animateActivity: animateActivity,
           highlighted: highlighted,
+          showTriageMenu: showTriageMenu,
+          showInlineApproval: !sel.isActive,
           isPinned: triage.isPinned(session.id),
           isSnoozed: triage.isSnoozed(session.id),
           onMarkRead: () => sync.markSessionRead(session.id),
@@ -821,14 +834,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (needsAttention.isNotEmpty) {
       items.add(
-        SectionHeader(
+        SessionGroupHeader(
           title: l10n.sessionsNeedsAttention,
-          trailing: AppBadge(
-            label: '${needsAttention.length}',
-            foregroundColor: cs.primary,
-            backgroundColor: cs.primary.withValues(alpha: 0.10),
-            labelStyle: AppText.badge(theme, cs.primary),
-          ),
+          count: needsAttention.length,
+          icon: Icons.priority_high_rounded,
+          accent: cs.primary,
         ),
       );
 
@@ -843,31 +853,42 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ),
         );
       }
+    } else if (allOthers.isNotEmpty) {
+      items.add(const SessionsAllClearNote());
     }
 
     if (allOthers.isNotEmpty) {
-      if (needsAttention.isNotEmpty) {
-        items.add(const SizedBox(height: AppSpacing.xs));
-      }
+      final animate = missionControlShouldAnimateActivity(allOthers.length);
       items
         ..add(
-          SectionHeader(
+          SessionGroupHeader(
             title: l10n.sessionsAllSessions,
-            trailing: Text('${allOthers.length}', style: AppText.badge(theme)),
+            count: allOthers.length,
+            accent: cs.onSurfaceVariant,
           ),
         )
         ..add(
-          UnreadFocusListGroup(
-            children: [
-              for (final session in allOthers)
-                _buildUnreadFocusListRow(
-                  session,
-                  entry:
+          MissionClock(
+            active: allOthers.any((session) => session.thinking),
+            child: UnreadFocusListGroup(
+              children: [
+                for (final session in allOthers)
+                  KeyedSubtree(
+                    key: ValueKey('focus-${session.id}'),
+                    child: _buildMissionActionRow(
+                      session,
                       uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
-                  showFlavorIcons: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                ),
-            ],
+                      missionLaneFor(
+                        session,
+                        uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
+                      ),
+                      animateActivity: animate,
+                      highlighted: false,
+                      showTriageMenu: false,
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
     }
@@ -911,33 +932,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         : DismissibleActiveSession(session: session, child: card);
   }
 
-  Widget _buildUnreadFocusListRow(
-    Session session, {
-    required SessionUiEntry entry,
-    required bool showFlavorIcons,
-    required AvatarStyle? avatarStyle,
-  }) {
-    final sel = _sel.value;
-    final row = UnreadFocusListRow(
-      session: session,
-      onTap: sel.isActive
-          ? () => _onSessionTapInSelectionMode(session.id)
-          : () => _navigateToChat(session.id),
-      onLongPress: () => _onSessionLongPress(session.id),
-      showFlavorIcon: showFlavorIcons,
-      avatarStyle: avatarStyle,
-      lastMessageTimestamp: entry.lastMessageTimestamp,
-      lastMessagePreview: entry.lastMessagePreview,
-      lastMessageRole: entry.lastMessageRole,
-      isSelected: sel.selectedIds.contains(session.id),
-      selectionMode: sel.isActive,
-      unreadCount: entry.unreadCount,
-    );
-    return sel.isActive
-        ? row
-        : DismissibleActiveSession(session: session, child: row);
-  }
-
   Widget _buildFolderModeView(
     BuildContext context,
     List<Session> activeSessions,
@@ -979,28 +973,61 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     if (selectedFolder == null) {
-      return ListView.builder(
+      Widget folderRow(SessionFolderGroup folder) {
+        final counts = <MissionLane, int>{};
+        for (final session in folder.activeSessions) {
+          final lane = missionLaneFor(
+            session,
+            uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
+          );
+          counts[lane] = (counts[lane] ?? 0) + 1;
+        }
+        return FolderOverviewCard(
+          key: ValueKey('folder-${folder.header.folderKey}'),
+          header: folder.header,
+          laneCounts: counts,
+          onTap: () => _openFolder(folder.header.folderKey, folder.header),
+        );
+      }
+
+      final live = [
+        for (final folder in folders)
+          if (folder.header.activeSessionCount > 0) folder,
+      ];
+      final archivedOnly = [
+        for (final folder in folders)
+          if (folder.header.activeSessionCount == 0) folder,
+      ];
+      final l10n = context.l10n;
+      return ListView(
         controller: widget.scrollController,
         padding: const EdgeInsets.only(
           top: AppSpacing.xs,
-          bottom: AppSpacing.lg,
+          bottom: AppSpacing.xxl,
         ),
-        addAutomaticKeepAlives: false,
-        addRepaintBoundaries: false,
-        itemCount: folders.length,
-        itemBuilder: (ctx, i) {
-          final folder = folders[i];
-          final child = FolderOverviewCard(
-            header: folder.header,
-            onTap: () => _openFolder(folder.header.folderKey, folder.header),
-          );
-          return StaggeredSlideIn(
-            key: ValueKey('folder-${folder.header.folderKey}'),
-            index: i,
-            animate: triggerStagger,
-            child: child,
-          );
-        },
+        children: [
+          if (live.isNotEmpty) ...[
+            SessionGroupHeader(
+              title: l10n.sessionsFolderActive,
+              count: live.length,
+              icon: Icons.folder_open_rounded,
+            ),
+            UnreadFocusListGroup(
+              children: [for (final f in live) folderRow(f)],
+            ),
+          ],
+          if (archivedOnly.isNotEmpty) ...[
+            SessionGroupHeader(
+              title: l10n.sessionsFolderArchivedOnly,
+              count: archivedOnly.length,
+              icon: Icons.inventory_2_outlined,
+              accent: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            UnreadFocusListGroup(
+              children: [for (final f in archivedOnly) folderRow(f)],
+            ),
+          ],
+        ],
       );
     }
 

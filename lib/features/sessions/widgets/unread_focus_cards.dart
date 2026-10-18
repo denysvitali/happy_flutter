@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
-import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/snack.dart';
-import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../session_avatar.dart';
+import 'inline_permission_actions.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
 import 'session_list_details.dart';
@@ -223,7 +219,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                           widget.permissionRequests!.isNotEmpty &&
                           !widget.selectionMode) ...[
                         const SizedBox(height: AppSpacing.sm),
-                        _CardPermissionRow(
+                        InlinePermissionActions(
                           sessionId: session.id,
                           requests: widget.permissionRequests!,
                           isOnline: session.presence == 'online',
@@ -237,107 +233,6 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Inline Allow/Deny for the oldest pending permission request, so a
-/// blocked agent unblocks without opening the chat. Mirrors the
-/// handler in `PendingPermissionBar`.
-class _CardPermissionRow extends ConsumerStatefulWidget {
-  const _CardPermissionRow({
-    required this.sessionId,
-    required this.requests,
-    required this.isOnline,
-  });
-
-  final String sessionId;
-  final Map<String, RequestInfo> requests;
-  final bool isOnline;
-
-  @override
-  ConsumerState<_CardPermissionRow> createState() => _CardPermissionRowState();
-}
-
-class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
-  bool _busy = false;
-
-  Future<void> _act(bool allow) async {
-    if (_busy || !widget.isOnline || widget.requests.isEmpty) return;
-    final requestId = widget.requests.keys.first;
-    setState(() => _busy = true);
-    await HapticFeedback.mediumImpact();
-    try {
-      final notifier = ref.read(permissionsNotifierProvider.notifier);
-      if (allow) {
-        await notifier.allow(widget.sessionId, requestId);
-      } else {
-        await notifier.deny(widget.sessionId, requestId);
-      }
-    } catch (_) {
-      if (mounted) context.showSnack(context.l10n.permissionActionFailed);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final first = widget.requests.entries.first;
-    final count = widget.requests.length;
-    final label = count > 1
-        ? '${first.value.tool} · +${count - 1}'
-        : first.value.tool;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.shield_outlined, size: AppIconSize.sm, color: cs.error),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.secondary(theme, cs.error),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        if (_busy)
-          const SizedBox(
-            width: AppIconSize.md,
-            height: AppIconSize.md,
-            child: AppCircularProgressIndicator(strokeWidth: 2),
-          )
-        else
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: [
-              TextButton(
-                onPressed: widget.isOnline ? () => _act(false) : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.onSurfaceVariant,
-                ).merge(AppButtonStyle.compact),
-                child: Text(l10n.permissionDeny),
-              ),
-              FilledButton(
-                onPressed: widget.isOnline ? () => _act(true) : null,
-                style: AppButtonStyle.destructiveFilled(
-                  cs,
-                ).merge(AppButtonStyle.compact),
-                child: Text(l10n.permissionAllow),
-              ),
-            ],
-          ),
-      ],
     );
   }
 }

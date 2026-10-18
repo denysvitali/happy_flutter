@@ -71,7 +71,7 @@ IconData missionLaneIcon(MissionLane lane) => switch (lane) {
   MissionLane.error => Icons.error_outline_rounded,
   MissionLane.unread => Icons.mark_chat_unread_rounded,
   MissionLane.live => Icons.auto_awesome_rounded,
-  MissionLane.quiet => Icons.horizontal_rule_rounded,
+  MissionLane.quiet => Icons.bedtime_outlined,
 };
 
 /// Localized, sentence-case label for a Mission Control lane.
@@ -84,6 +84,40 @@ String missionLaneLabel(BuildContext context, MissionLane lane) {
     MissionLane.live => l10n.missionControlStatWorking,
     MissionLane.quiet => l10n.chatSessionQuiet,
   };
+}
+
+/// Sentence-case title for a lane used as a heading or filter label.
+///
+/// [missionLaneLabel] stays lowercase because it also reads inside counts
+/// such as "2 working".
+String missionLaneTitle(BuildContext context, MissionLane lane) {
+  final l10n = context.l10n;
+  return switch (lane) {
+    MissionLane.blocked => l10n.missionLaneTitleBlocked,
+    MissionLane.error => l10n.missionLaneTitleError,
+    MissionLane.unread => l10n.missionLaneTitleUnread,
+    MissionLane.live => l10n.missionLaneTitleLive,
+    MissionLane.quiet => l10n.missionLaneTitleQuiet,
+  };
+}
+
+/// Lowercase "1 blocked · 2 working" summary of the non-quiet lanes, in
+/// urgency order. Returns null when every session is quiet.
+String? missionLaneSummary(BuildContext context, Map<MissionLane, int> counts) {
+  final parts = [
+    for (final lane in MissionLane.values)
+      if (lane != MissionLane.quiet && (counts[lane] ?? 0) > 0)
+        '${counts[lane]} ${lane == MissionLane.error ? context.l10n.missionControlStatError : missionLaneLabel(context, lane)}',
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
+/// Most urgent lane present in [counts], or [MissionLane.quiet].
+MissionLane missionTopLane(Map<MissionLane, int> counts) {
+  for (final lane in MissionLane.values) {
+    if ((counts[lane] ?? 0) > 0) return lane;
+  }
+  return MissionLane.quiet;
 }
 
 /// Only assistant activity can be presented as a result ready to review.
@@ -124,7 +158,12 @@ String missionShortHost(String machineName) {
   if (paren > 0) name = name.substring(0, paren);
   final at = name.lastIndexOf('@');
   if (at >= 0 && at < name.length - 1) {
-    name = name.substring(at + 1);
+    final host = name.substring(at + 1);
+    // Devices without a hostname report `user@(none)`; the user is the only
+    // meaningful part left.
+    final unnamed =
+        host.startsWith('(') || host == 'localhost' || host == 'none';
+    name = unnamed && at > 0 ? name.substring(0, at) : host;
   }
   final parts = name.split('-').where((part) => part.isNotEmpty).toList();
   if (parts.length >= 3 && name.length > 14) {
