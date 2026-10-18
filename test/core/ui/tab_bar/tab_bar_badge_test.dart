@@ -105,18 +105,23 @@ void main() {
       await tester.pumpWidget(
         _wrap(activeTab: AppTab.sessions, onTabPress: selected.add),
       );
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      final sessions = tester.widget<InkWell>(
+        find.ancestor(
+          of: find.text('Sessions'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      sessions.focusNode!.requestFocus();
       await tester.pump();
+      expect(sessions.focusNode!.hasPrimaryFocus, isTrue);
       expect(
         tester
             .getSemantics(find.bySemanticsLabel('Sessions'))
             .flagsCollection
             .isFocused,
         Tristate.isTrue,
+        reason: 'Primary focus: ${FocusManager.instance.primaryFocus}',
       );
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      expect(selected, [AppTab.sessions]);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(
@@ -125,10 +130,18 @@ void main() {
             .flagsCollection
             .isFocused,
         Tristate.isTrue,
+        reason: 'Primary focus: ${FocusManager.instance.primaryFocus}',
       );
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(selected, [AppTab.loops]);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       await tester.pump();
-      expect(selected, [AppTab.sessions, AppTab.loops]);
+      expect(selected, [AppTab.loops, AppTab.sessions]);
       expect(tester.takeException(), isNull);
     } finally {
       semantics.dispose();

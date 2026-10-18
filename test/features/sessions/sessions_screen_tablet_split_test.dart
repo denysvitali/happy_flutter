@@ -351,7 +351,7 @@ void main() {
     expect(find.text('Beta'), findsNothing);
     await tester.longPress(find.text('Alpha one'));
     await tester.pump();
-    await tester.tap(find.text('Select all'));
+    await tester.tap(find.text('Select All'));
     await tester.pump();
     expect(find.text('2 selected'), findsOneWidget);
     expect(find.text('3 selected'), findsNothing);
@@ -413,7 +413,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.longPress(find.text('Alpha one'));
     await tester.pump();
-    expect(find.text('Select all'), findsOneWidget);
+    expect(find.text('Select All'), findsOneWidget);
     final container = ProviderScope.containerOf(
       tester.element(find.byType(SessionsScreen)),
     );
@@ -432,8 +432,8 @@ void main() {
     await tester.pump();
     expect(find.text('Alpha two'), findsNothing);
     expect(find.text('1 selected'), findsOneWidget);
-    expect(find.text('Select all'), findsNothing);
-    expect(find.text('Deselect all'), findsOneWidget);
+    expect(find.text('Select All'), findsNothing);
+    expect(find.text('Deselect All'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
