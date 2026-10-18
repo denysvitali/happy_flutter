@@ -112,7 +112,8 @@ void main() {
         ),
       );
       sessions.focusNode!.requestFocus();
-      await tester.pump();
+      // Applying focus can schedule the semantics frame from a microtask.
+      await tester.pumpAndSettle();
       expect(sessions.focusNode!.hasPrimaryFocus, isTrue);
       expect(
         tester
@@ -123,7 +124,7 @@ void main() {
         reason: 'Primary focus: ${FocusManager.instance.primaryFocus}',
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(
         tester
             .getSemantics(find.bySemanticsLabel('Loops'))
@@ -138,7 +139,7 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pump();
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       await tester.pump();
       expect(selected, [AppTab.loops, AppTab.sessions]);
