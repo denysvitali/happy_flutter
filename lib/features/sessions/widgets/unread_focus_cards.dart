@@ -133,17 +133,20 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: widget.isSelected
-                ? cs.primary.withValues(alpha: 0.4)
-                : cs.outlineVariant.withValues(alpha: 0.45),
-            width: AppBorder.hairline,
-          ),
+          boxShadow: AppElevationShadow.card(theme.brightness),
         ),
         child: Material(
           color: bgColor,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          clipBehavior: Clip.hardEdge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            side: widget.isSelected
+                ? BorderSide(
+                    color: cs.primary.withValues(alpha: 0.4),
+                    width: AppBorder.hairline,
+                  )
+                : _groupBorderSide(cs),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () {
               HapticFeedback.lightImpact();
@@ -471,14 +474,14 @@ class UnreadFocusListGroup extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
+      clipBehavior: Clip.antiAlias,
+      decoration: ShapeDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.45),
-          width: AppBorder.hairline,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: _groupBorderSide(cs),
         ),
+        shadows: AppElevationShadow.card(Theme.of(context).brightness),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -491,7 +494,7 @@ class UnreadFocusListGroup extends StatelessWidget {
                 thickness: AppBorder.hairline,
                 indent: AppSpacing.sm + AppAvatarSize.small + AppSpacing.xsm,
                 endIndent: AppSpacing.sm,
-                color: cs.outlineVariant.withValues(alpha: 0.35),
+                color: cs.onSurface.withValues(alpha: 0.08),
               ),
           ],
         ],
@@ -499,3 +502,12 @@ class UnreadFocusListGroup extends StatelessWidget {
     );
   }
 }
+
+/// Faint edge shared by the attention cards and the All Sessions group;
+/// light mode leans on the card shadow, dark mode on the outline.
+BorderSide _groupBorderSide(ColorScheme cs) => BorderSide(
+  color: cs.onSurface.withValues(
+    alpha: cs.brightness == Brightness.dark ? 0.10 : 0.05,
+  ),
+  width: AppBorder.hairline,
+);
