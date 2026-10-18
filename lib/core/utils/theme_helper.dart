@@ -408,6 +408,9 @@ ChipThemeData _buildChipTheme({required bool dark}) {
       fontSize: AppFontSize.sm,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.1,
+      // A theme labelStyle replaces the Material default, so it must carry
+      // its own color; null falls back to white text on a light chip.
+      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
     // Full pill, like AppBadge and the composer chips.
     shape: const StadiumBorder(),
