@@ -67,6 +67,26 @@ void main() {
       expect(find.text('  1'), findsOneWidget);
     });
 
+    testWidgets('numbers context after an addition by the new file', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          const UnifiedDiffView(
+            oldText: 'a\nc\nd',
+            newText: 'a\nb\nc\nd',
+            showLineNumbers: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Old-file numbering for context used to repeat 2 (a=1, +b=2, c=2).
+      for (final n in ['  1', '  2', '  3', '  4']) {
+        expect(find.text(n), findsOneWidget, reason: 'gutter $n');
+      }
+    });
+
     testWidgets('hides line numbers when disabled', (tester) async {
       await tester.pumpWidget(
         wrap(

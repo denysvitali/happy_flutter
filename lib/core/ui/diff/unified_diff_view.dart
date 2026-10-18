@@ -322,11 +322,12 @@ class _LineNumber extends StatelessWidget {
     final colors = context.diffTheme;
     final isAdded = line.type == DiffLineType.add;
     final isRemoved = line.type == DiffLineType.remove;
+    // One gutter: removed lines keep their old-file number, everything else
+    // follows the resulting file. Numbering context by the old file repeated
+    // a number after every addition (1, 2+, 2, 3).
     final number = isRemoved
         ? line.oldLineNumber
-        : isAdded
-        ? line.newLineNumber
-        : line.oldLineNumber;
+        : line.newLineNumber ?? line.oldLineNumber;
     final bgColor = isAdded
         ? colors.addedBg
         : isRemoved
