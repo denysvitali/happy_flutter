@@ -46,11 +46,20 @@ void main() {
           final asset = image.image as ResizeImage;
           final path = (asset.imageProvider as AssetImage).assetName;
           expect(path, switch (flavor) {
-            'codex' => 'assets/images/icon-codex.png',
+            'codex' => 'assets/images/icon-gpt.png',
             'agy' || 'gemini' => 'assets/images/icon-gemini.png',
             'grok-build' => 'assets/images/icon-grok.png',
             _ => 'assets/images/icon-$flavor.png',
           });
+          // The monochrome OpenAI mark must follow the theme, not stay black.
+          expect(
+            image.color,
+            flavor == 'codex'
+                ? Theme.of(
+                    tester.element(find.byType(Image)),
+                  ).colorScheme.onSurface
+                : isNull,
+          );
         }
         expect(tester.takeException(), isNull);
       });

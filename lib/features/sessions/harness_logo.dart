@@ -5,7 +5,7 @@ import '../../core/components/prime_agent_logo.dart';
 /// Shared harness identity for session badges and launch choices.
 ///
 /// Brand assets are bundled from their publishers, not approximated with icons:
-/// - Codex: openai/codex, skills/openai-docs/assets/openai.png (OpenAI mark).
+/// - Codex: the monochrome OpenAI mark (`icon-gpt.png`), tinted to the theme.
 /// - OpenCode: https://opencode.ai/favicon-96x96-v3.png
 /// - Grok: https://grok.com/images/android-chrome-192x192.png
 /// Existing Claude, Gemini, Pi and Prime assets retain their original marks.
@@ -20,7 +20,7 @@ class HarnessLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final asset = switch (flavor) {
       'claude' => 'assets/images/icon-claude.png',
-      'codex' => 'assets/images/icon-codex.png',
+      'codex' => 'assets/images/icon-gpt.png',
       'agy' || 'gemini' => 'assets/images/icon-gemini.png',
       'pi' => 'assets/images/icon-pi.png',
       'opencode' => 'assets/images/icon-opencode.png',
@@ -36,6 +36,11 @@ class HarnessLogo extends StatelessWidget {
             height: size,
             cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
             fit: BoxFit.contain,
+            // The OpenAI mark is black-on-transparent; follow the theme so it
+            // stays visible on dark surfaces.
+            color: flavor == 'codex'
+                ? Theme.of(context).colorScheme.onSurface
+                : null,
             errorBuilder: (_, error, stack) => _fallback(context),
           )
         : _fallback(context);
