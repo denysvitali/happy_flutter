@@ -11,6 +11,8 @@ import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
+import '../helpers/test_helpers.dart';
+
 class _CapturingSessionEncryption implements SessionEncryption {
   Map<String, dynamic>? lastRawRecord;
 
@@ -211,6 +213,7 @@ void main() {
     });
 
     tearDown(() {
+      Sync.testResetTimingOverrides();
       ApiClient().dispose();
       messageOutbox.dispose();
       messageOutbox.testStorage = MMKVStorage.testConstructor();
@@ -937,6 +940,11 @@ void main() {
     });
 
     test('visible connected session delays post-send catch-up probe', () async {
+      // The assertion is the ORDER (no eager fetch, then a fallback
+      // probe), not the production 2 s spacing.
+      Sync.testVisiblePostSendProbeDelayOverride = const Duration(
+        milliseconds: 300,
+      );
       final fetchCalls = <int>[];
       instance.testVisibleSessionId = 'sess-1';
       instance.testSocketConnectedOverride = true;
@@ -956,7 +964,9 @@ void main() {
       await instance.lastCompleteSendFuture;
       final fetchCountAfterSend = fetchCalls.length;
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      // Deliberately shorter than the (overridden) probe delay: this
+      // assertion is that NOTHING fetched yet, so it has to wait.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(
         fetchCalls.length,
         fetchCountAfterSend,
@@ -965,7 +975,10 @@ void main() {
             'post-send history fetch',
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 2300));
+      await settleUntil(
+        () => fetchCalls.length > fetchCountAfterSend,
+        timeout: const Duration(seconds: 3),
+      );
       expect(
         fetchCalls.length,
         greaterThan(fetchCountAfterSend),

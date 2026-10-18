@@ -72,13 +72,15 @@ class _FakeEncryption implements Encryption {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Scaled-down (10x) send budgets so the readiness wait still runs its
+/// Scaled-down (30x) send budgets so the readiness wait still runs its
 /// real timer path — including the "spawned sends are exempt from the
 /// POST-window clamp" branch — without burning 15 s per test. Ratios match
-/// production: wait 15 s / deadline 12 s / POST window 6 s.
-const int _kTestSpawnWaitMs = 1500;
-const Duration _kTestSendDeadline = Duration(milliseconds: 1200);
-const Duration _kTestSendMinPostWindow = Duration(milliseconds: 600);
+/// production: wait 15 s / deadline 12 s / POST window 6 s. The clamped
+/// branch would stop at [_kTestSendMinPostWindow], which stays well below
+/// the elapsed-wait assertion's floor, so the scale still discriminates.
+const int _kTestSpawnWaitMs = 500;
+const Duration _kTestSendDeadline = Duration(milliseconds: 400);
+const Duration _kTestSendMinPostWindow = Duration(milliseconds: 200);
 
 void _stubAllSyncs(Sync instance) {
   instance.sessionsSync = InvalidateSync(() async {});
@@ -398,7 +400,7 @@ void main() {
       // stop at 600 ms, an exempt one runs the full 1 500 ms.
       expect(
         stopwatch.elapsedMilliseconds,
-        greaterThanOrEqualTo(_kTestSpawnWaitMs - 150),
+        greaterThanOrEqualTo(_kTestSpawnWaitMs - 50),
         reason:
             'the readiness wait must not be clamped below '
             'Sync.recentlySpawnedWaitMs for a freshly-spawned session',

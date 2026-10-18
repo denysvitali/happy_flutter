@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 import '../helpers/test_helpers.dart';
 
@@ -28,9 +29,18 @@ void main() {
     sync.testIsInitialized = true;
     sync.testSocketConnectedOverride = true;
     sync.testSocketSendOverride = (_, __) {};
+    // The resume batch normally waits 2 s of wall clock before it builds
+    // the per-session messagesSync. The behaviour under test is which
+    // instance the batch creates, not how long it waits.
+    Sync.testResumeMessageBatchDelayOverride = const Duration(milliseconds: 10);
+    // These tests assert THAT a stalled page is retried, never the shape
+    // of the 1–5 s backoff curve (invalidate_sync_test.dart owns that).
+    InvalidateSync.testRetryDelayScale = 0.01;
   });
 
   tearDown(() {
+    Sync.testResetTimingOverrides();
+    InvalidateSync.testRetryDelayScale = 1.0;
     sync.testFetchMessagesOverride = null;
     sync.testSocketConnectedOverride = null;
     sync.testSocketSendOverride = null;
@@ -125,7 +135,7 @@ void main() {
       // Build the instance via the resume path, NOT via onSessionVisible.
       sync.testSetPendingSocketMessages({sessionId});
       sync.testScheduleResumeMessageBatch();
-      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      await settleUntil(() => sync.messagesSync.containsKey(sessionId));
       final messagesSync = sync.messagesSync[sessionId];
       expect(
         messagesSync,

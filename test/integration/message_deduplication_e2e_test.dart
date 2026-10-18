@@ -8,6 +8,8 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+
+import '../helpers/test_helpers.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// E2E tests for message deduplication in Sync.
@@ -75,7 +77,7 @@ void main() {
 
       await sync.fetchMessages(sessionId);
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -107,7 +109,7 @@ void main() {
 
         await sync.fetchMessages(sessionId);
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
         final msgs = sync.testSessionMessages(sessionId);
         expect(msgs, isNotNull);
@@ -191,7 +193,7 @@ void main() {
         'message': encMsg,
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -242,7 +244,7 @@ void main() {
         'message': updatedMsg,
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -331,7 +333,7 @@ void main() {
 
         await sync.fetchMessages(sessionId);
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
         final msgs = sync.testSessionMessages(sessionId);
         expect(msgs, isNotNull);
@@ -701,7 +703,7 @@ void main() {
 
       // Trigger fetch first
       await sync.fetchMessages(sessionId);
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       // Now inject the same message via socket
       final encMsg = _makeEncryptedMessage(
@@ -715,7 +717,7 @@ void main() {
         'message': encMsg,
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -749,7 +751,7 @@ void main() {
         sync.fetchMessages(sessionId),
       ]);
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -804,7 +806,7 @@ void main() {
         ),
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);
@@ -852,7 +854,7 @@ void main() {
       };
 
       await sync.fetchMessages(sessionId);
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(() => !sync.testInlineQueueBusy(sessionId));
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull);

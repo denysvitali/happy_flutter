@@ -118,6 +118,15 @@ class InlineMessageProcessor {
   bool contains(String sessionId) =>
       _queue.containsKey(sessionId) || _batches.containsKey(sessionId);
 
+  /// Whether [sessionId] has work queued, buffered, OR draining.
+  ///
+  /// [contains] goes false during the window where [_runBatchDrain] has
+  /// already taken its items out of `_batches` and is awaiting `process`.
+  /// That is exactly the window in which a caller polling for "the inline
+  /// pipeline has settled" would read a false idle.
+  bool isBusy(String sessionId) =>
+      contains(sessionId) || _activeBatches.contains(sessionId);
+
   /// The number of sessions with active queues.
   @visibleForTesting
   int get length => _queue.length;

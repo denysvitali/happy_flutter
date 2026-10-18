@@ -10,6 +10,8 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
+import '../helpers/test_helpers.dart';
+
 /// E2E tests for non-visible session message accumulation.
 ///
 /// Exercises the lifecycle where socket events arrive for sessions the
@@ -71,7 +73,9 @@ void main() {
           ),
         );
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await settleUntil(
+          () => (sync.testSessionMessages(sessionId)?.length ?? 0) >= 3,
+        );
 
         // Embedded messages are now processed inline even for
         // non-visible sessions so they are available immediately
@@ -113,7 +117,7 @@ void main() {
           ),
         );
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await settleUntil(() => sync.testSessions[sessionId]?.lastSeq == 6);
 
         // lastSeq should be updated so the gap is detected later.
         final session = sync.testSessions[sessionId];
@@ -149,7 +153,7 @@ void main() {
         ),
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await settleUntil(() => sync.testHasPendingUpdate(sessA));
 
       // Embedded messages are processed inline so the pending
       // socket flag is NOT set.  But the pending *updates* flag
@@ -177,7 +181,7 @@ void main() {
         ),
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await settleUntil(() => sync.testHasPendingUpdate(sessB));
 
       expect(
         sync.testHasPendingUpdate(sessA),
@@ -235,7 +239,7 @@ void main() {
         // Signal that the user navigated to the session.
         await sync.onSessionVisible(sessionId);
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await settleUntil(() => fetchCalled.contains(sessionId));
 
         expect(
           fetchCalled,
@@ -386,7 +390,9 @@ void main() {
           ),
         );
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await settleUntil(
+          () => (sync.sessionMessageCursors[sessionId] ?? 0) >= 10,
+        );
 
         final cursor = sync.sessionMessageCursors[sessionId] ?? 0;
         // Cursor now advances for non-visible sessions because
@@ -442,7 +448,9 @@ void main() {
 
       await sync.onSessionVisible(sessionId);
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(
+        () => (sync.sessionMessageCursors[sessionId] ?? 0) >= 15,
+      );
 
       final cursor = sync.sessionMessageCursors[sessionId] ?? 0;
       // After a successful fetch the cursor should be at or

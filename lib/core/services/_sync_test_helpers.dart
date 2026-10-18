@@ -601,6 +601,14 @@ extension SyncTestHelpers on Sync {
   bool testInlineQueueContains(String sessionId) =>
       _inlineProcessor.contains(sessionId);
 
+  /// Test helper: whether inline work is queued, buffered or draining.
+  ///
+  /// Lets a test poll for "the inline pipeline settled for this session"
+  /// instead of sleeping a fixed worst-case interval after `handleUpdate`.
+  @visibleForTesting
+  bool testInlineQueueBusy(String sessionId) =>
+      _inlineProcessor.isBusy(sessionId);
+
   /// Test helper: get pending tool results for a session.
   @visibleForTesting
   List<Map<String, dynamic>> testPendingToolResults(String sessionId) =>

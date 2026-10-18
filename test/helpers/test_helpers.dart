@@ -106,3 +106,24 @@ void resetTestSync(Sync sync) {
   // per-session fields cleared by Sync.shutdown()).
   sync.testClearAllSessionMessageState();
 }
+
+/// Yields the event loop until [condition] holds, or [timeout] elapses.
+///
+/// Replacement for fixed `await Future.delayed(...)` sleeps in async
+/// (non-`testWidgets`) tests that wait for an asynchronous pipeline to
+/// settle. The happy path costs one or two poll steps instead of the
+/// worst-case wait, while a condition that never becomes true still burns
+/// the full budget so the assertion after the call fails exactly as it
+/// did with the sleep. Never shortens what the test asserts — only how
+/// long it waits for it.
+Future<void> settleUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 5),
+  Duration step = const Duration(milliseconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (!DateTime.now().isBefore(deadline)) return;
+    await Future<void>.delayed(step);
+  }
+}

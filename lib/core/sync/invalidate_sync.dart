@@ -103,6 +103,16 @@ class InvalidateSync {
   @visibleForTesting
   static int backgroundedSkipCount = 0;
 
+  /// Test-only multiplier for the retry backoff delay (production 1.0).
+  ///
+  /// Tests that exercise the retry *path* — "a failed page is retried and
+  /// eventually succeeds" — pay 1–5 s of real wall clock per cycle for a
+  /// curve they are not asserting. Scaling it down keeps the same number
+  /// of retries and the same ordering, only compressed. Tests that assert
+  /// the curve itself must leave this at 1.0. Reset in `tearDown`.
+  @visibleForTesting
+  static double testRetryDelayScale = 1.0;
+
   /// Invalidate the current operation and schedule a retry
   void invalidate() {
     // dispose() is teardown-only and terminal. Temporary lifecycle pauses use
@@ -370,7 +380,10 @@ class InvalidateSync {
 
     final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
     final jitter = _jitterRng.nextInt(251); // 0–250ms
-    final clampedDelay = min(delay + jitter, maxDelayMs);
+    final clampedDelay = max(
+      1,
+      (min(delay + jitter, maxDelayMs) * testRetryDelayScale).round(),
+    );
     logger.debug('InvalidateSync: retry $_retryCount in ${clampedDelay}ms');
 
     // Add Sentry breadcrumb for retry tracking

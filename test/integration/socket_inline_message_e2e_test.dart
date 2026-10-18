@@ -9,6 +9,8 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+
+import '../helpers/test_helpers.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// E2E tests for the socket inline message processing fast path.
@@ -86,7 +88,9 @@ void main() {
       });
 
       // Allow inline decryption to complete
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(
+        () => sync.testSessionMessages(sessionId)?.isNotEmpty ?? false,
+      );
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(
@@ -123,7 +127,9 @@ void main() {
         'message': encMsg,
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(
+        () => (sync.sessionMessageCursors[sessionId] ?? 0) >= 6,
+      );
 
       // Cursor should have advanced to at least seq 6
       final cursors = sync.sessionMessageCursors;
@@ -159,7 +165,9 @@ void main() {
         });
       }
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await settleUntil(
+        () => (sync.testSessionMessages(sessionId)?.length ?? 0) >= 3,
+      );
 
       final msgs = sync.testSessionMessages(sessionId);
       expect(msgs, isNotNull, reason: 'Messages should be present');
@@ -232,7 +240,12 @@ void main() {
           ),
         });
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await settleUntil(() {
+          final pending = sync.testSessionMessages(sessionId);
+          return pending != null &&
+              pending.length == 1 &&
+              pending.single['state'] == 'completed';
+        });
 
         final msgs = sync.testSessionMessages(sessionId);
         expect(msgs, isNotNull);
@@ -274,7 +287,7 @@ void main() {
         });
 
         // Wait for: async inline decryption + 200ms debounce timer
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await settleUntil(() => notifiedIds.contains(sessionId));
 
         await sub.cancel();
 
@@ -411,7 +424,7 @@ void main() {
         });
 
         // Allow inline processing
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await settleUntil(() => sync.testHasPendingUpdate(sessionId));
 
         // Embedded messages are now processed inline for
         // non-visible sessions.  The pending socket flag is only
@@ -463,6 +476,16 @@ void main() {
         });
 
         await sessionsEvent;
+        // The two domain notifications are independently debounced, so
+        // the sessions event does not imply the messages event has been
+        // delivered yet. Wait for the set this test asserts instead of
+        // for whatever a fixed sleep happened to cover.
+        await settleUntil(
+          () => seenDomains.containsAll(<SyncDomain>{
+            SyncDomain.messages,
+            SyncDomain.sessions,
+          }),
+        );
         await sub.cancel();
 
         expect(
@@ -519,7 +542,9 @@ void main() {
         'message': encMsg,
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await settleUntil(
+        () => (sync.testSessionMessages(sessionId)?.length ?? 0) >= 2,
+      );
 
       // Non-visible sessions now process embedded messages
       // inline so they are available immediately on navigation.
@@ -610,7 +635,7 @@ void main() {
         await sync.onSessionVisible(sessionId);
 
         // Allow fetch to complete
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await settleUntil(() => fetchedSessions.contains(sessionId));
 
         expect(
           fetchedSessions.contains(sessionId),
@@ -650,7 +675,7 @@ void main() {
           content: 'Arrived after the gap',
         ),
       });
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await settleUntil(() => sync.testGetSessionLastSeq(sessionId) == 12);
       expect(sync.testGetSessionLastSeq(sessionId), 12);
 
       final requestedAfterSeqs = <int>[];
@@ -674,7 +699,13 @@ void main() {
       };
 
       await sync.onSessionVisible(sessionId);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await settleUntil(
+        () =>
+            requestedAfterSeqs.isNotEmpty &&
+            (sync.testSessionMessages(sessionId) ?? const []).any(
+              (message) => message['id'] == 'msg-11',
+            ),
+      );
 
       expect(
         requestedAfterSeqs,
@@ -742,7 +773,13 @@ void main() {
       };
 
       await sync.onSessionVisible(sessionId);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await settleUntil(
+        () =>
+            requestedAfterSeqs.isNotEmpty &&
+            (sync.testSessionMessages(sessionId) ?? const []).any(
+              (message) => message['id'] == 'msg-4',
+            ),
+      );
 
       expect(
         requestedAfterSeqs,

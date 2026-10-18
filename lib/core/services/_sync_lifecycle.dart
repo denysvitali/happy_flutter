@@ -368,7 +368,7 @@ extension SyncLifecycle on Sync {
     //  - the case where the socket takes longer to connect
     _deferredResumeInvalidationTimer?.cancel();
     _deferredResumeInvalidationTimer = Timer(
-      const Duration(milliseconds: 500),
+      Sync._resumeDeferredInvalidationDelay,
       () {
         if (runtimeGeneration != _runtimeGeneration) return;
         _deferredResumeInvalidationTimer = null;
@@ -783,7 +783,7 @@ extension SyncLifecycle on Sync {
   /// sessions beyond the cap.
   void _scheduleResumeMessageBatch() {
     _resumeBatchTimer?.cancel();
-    _resumeBatchTimer = Timer(const Duration(seconds: 2), () {
+    _resumeBatchTimer = Timer(Sync._resumeMessageBatchDelay, () {
       _resumeBatchTimer = null;
       if (!isInitialized || InvalidateSync.isBackgrounded) return;
       if (_sessionsWithPendingSocketMessages.isEmpty) return;

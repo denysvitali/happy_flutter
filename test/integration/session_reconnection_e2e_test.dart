@@ -12,6 +12,18 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 void main() {
+  // resume() defers its invalidation batch by 500 ms of wall clock so a
+  // 1-second foreground/background flap does not fire aborted HTTP. These
+  // tests assert WHAT resume refreshes, not that spacing, so every wait
+  // below used to sit at 700 ms purely to clear the production timer.
+  setUp(() {
+    Sync.testResumeDeferredInvalidationDelayOverride = const Duration(
+      milliseconds: 20,
+    );
+  });
+
+  tearDown(Sync.testResetTimingOverrides);
+
   group('reconnection triggers data refresh', () {
     late Sync sync;
 
@@ -512,7 +524,7 @@ void main() {
       );
 
       sync.resume();
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       await sync.messagesSync[sessionId]?.awaitQueue();
 
       expect(
@@ -571,7 +583,7 @@ void main() {
         sync.suspend();
         sync.resume();
 
-        await Future<void>.delayed(const Duration(milliseconds: 700));
+        await Future<void>.delayed(const Duration(milliseconds: 60));
         expect(
           messageFetchStarted.isCompleted,
           isTrue,
@@ -631,7 +643,7 @@ void main() {
 
       sync.suspend();
       sync.resume();
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       await sync.messagesSync[sessionId]?.awaitQueue();
 
       expect(
@@ -699,7 +711,7 @@ void main() {
 
       sync.suspend();
       sync.resume();
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       await sync.messagesSync[sessionId]?.awaitQueue();
 
       expect(

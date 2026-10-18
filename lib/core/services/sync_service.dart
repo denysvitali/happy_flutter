@@ -252,6 +252,19 @@ class Sync {
   @visibleForTesting
   static Duration? testSessionsRefreshDebounceOverride;
 
+  /// Override for the resume batch timer that fetches messages for
+  /// sessions with pending socket events (2 s).
+  @visibleForTesting
+  static Duration? testResumeMessageBatchDelayOverride;
+
+  /// Override for the deferred resume invalidation timer (500 ms).
+  @visibleForTesting
+  static Duration? testResumeDeferredInvalidationDelayOverride;
+
+  /// Override for [_visiblePostSendProbeDelay] (2 s).
+  @visibleForTesting
+  static Duration? testVisiblePostSendProbeDelayOverride;
+
   /// Clears every timing override above. Call from `tearDown`.
   @visibleForTesting
   static void testResetTimingOverrides() {
@@ -261,7 +274,17 @@ class Sync {
     testWebhookTimeoutRecoveryDelayOverride = null;
     testSpawnHydrateRetryDelaysOverride = null;
     testSessionsRefreshDebounceOverride = null;
+    testResumeMessageBatchDelayOverride = null;
+    testResumeDeferredInvalidationDelayOverride = null;
+    testVisiblePostSendProbeDelayOverride = null;
   }
+
+  static Duration get _resumeMessageBatchDelay =>
+      testResumeMessageBatchDelayOverride ?? const Duration(seconds: 2);
+
+  static Duration get _resumeDeferredInvalidationDelay =>
+      testResumeDeferredInvalidationDelayOverride ??
+      const Duration(milliseconds: 500);
 
   static int get _recentlySpawnedWaitBudgetMs =>
       testRecentlySpawnedWaitMsOverride ?? recentlySpawnedWaitMs;
@@ -449,7 +472,8 @@ class Sync {
   /// blew the whole budget; 40 s fits a handful of healthy pages while
   /// still capping how long one session can pin the fetcher.
   static const Duration _messageFetchBudget = Duration(seconds: 40);
-  static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
+  static Duration get _visiblePostSendProbeDelay =>
+      testVisiblePostSendProbeDelayOverride ?? const Duration(seconds: 2);
 
   /// How long post-send catch-up polling keeps probing for the agent's
   /// reply before giving up.
