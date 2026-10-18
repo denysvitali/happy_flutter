@@ -192,9 +192,7 @@ void main() {
       0,
     );
 
-    harness.sessions.replaceAll({
-      live.id: live.copyWith(presence: 'online'),
-    });
+    harness.sessions.replaceAll({live.id: live.copyWith(presence: 'online')});
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -246,9 +244,9 @@ void main() {
     final harness = await _pumpHarness(tester, {archived.id: archived});
 
     expect(
-      tester.widget<CollapsibleDateHeader>(
-        find.byType(CollapsibleDateHeader),
-      ).date,
+      tester
+          .widget<CollapsibleDateHeader>(find.byType(CollapsibleDateHeader))
+          .date,
       'This Week',
     );
 
@@ -259,11 +257,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
-      tester.widget<CollapsibleDateHeader>(
-        find.byType(CollapsibleDateHeader),
-      ).date,
+      tester
+          .widget<CollapsibleDateHeader>(find.byType(CollapsibleDateHeader))
+          .date,
       'Today',
-      reason: 'updatedAt is the date-group input when no message timestamp '
+      reason:
+          'updatedAt is the date-group input when no message timestamp '
           'exists',
     );
   });

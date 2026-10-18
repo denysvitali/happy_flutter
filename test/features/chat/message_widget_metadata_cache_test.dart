@@ -80,10 +80,7 @@ void main() {
     metadata.value = const <String, dynamic>{'path': '/home/dev/proj'};
     await settle(tester);
 
-    expect(
-      find.textContaining('lib/a.dart', findRichText: true),
-      findsWidgets,
-    );
+    expect(find.textContaining('lib/a.dart', findRichText: true), findsWidgets);
     expect(
       find.textContaining('/home/dev/proj/lib/a.dart', findRichText: true),
       findsNothing,
