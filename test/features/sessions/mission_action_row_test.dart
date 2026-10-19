@@ -184,6 +184,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('phone-width row keeps age off the title and wraps preview', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        _app(
+          MissionActionRow(
+            session: _session(title: 'Investigate and fix charging gaps'),
+            entry: SessionUiEntry(
+              lastMessagePreview:
+                  'The battery logo was from the CPU I think, not the '
+                  'charger, so the earlier fix did not apply here',
+              lastMessageTimestamp: DateTime.now().millisecondsSinceEpoch,
+              unreadCount: 2,
+            ),
+            lane: MissionLane.unread,
+            animateActivity: false,
+            onTap: () {},
+            onLongPress: () {},
+            onArchive: () {},
+          ),
+          dark: dark,
+        ),
+      );
+      final title = tester.getRect(
+        find.text('Investigate and fix charging gaps'),
+      );
+      final age = tester.getRect(find.text('Just now'));
+      final preview = find.textContaining('battery logo');
+      expect(age.left, greaterThan(title.right));
+      expect(tester.widget<Text>(preview).maxLines, 2);
+      expect(tester.getSize(preview).height, greaterThan(20));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       '320px row gives title and preview width at 2x text, dark=$dark',
       (tester) async {

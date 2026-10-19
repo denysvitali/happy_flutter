@@ -232,16 +232,17 @@ class MissionActionRow extends StatelessWidget {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Larger text gets the title's full content column. The age
-                  // shares the trailing action column rather than a footer.
-                  final trailingAge =
-                      constraints.maxWidth < 400 &&
+                  // Phone-width rows give the title its full content column.
+                  // The age shares the trailing action column rather than
+                  // the title row, where it clipped long names.
+                  final trailingAge = constraints.maxWidth < 400;
+                  final largeText =
                       MediaQuery.textScalerOf(context).scale(AppFontSize.base) >
-                          AppFontSize.base * 1.3;
+                      AppFontSize.base * 1.3;
                   final hasMenu = !selected && _hasOverflowMenu;
                   // Large text needs the entire preview column. Put the
                   // outcome underneath instead of squeezing the update.
-                  final stackOutcome = inbox && trailingAge;
+                  final stackOutcome = inbox && trailingAge && largeText;
                   final outcome = _OutcomePill(
                     compact: constraints.maxWidth < 480,
                     lane: lane,
@@ -344,6 +345,8 @@ class MissionActionRow extends StatelessWidget {
                                               secondary,
                                               maxLines:
                                                   inbox ||
+                                                      (trailingAge &&
+                                                          !largeText) ||
                                                       lane == MissionLane.error
                                                   ? 2
                                                   : 1,
