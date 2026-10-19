@@ -693,7 +693,8 @@ class _ActionSection extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: 1,
-                indent: 58,
+                // Align with the title column: row padding + lane tile + gap.
+                indent: AppSpacing.smd + AppControlSize.sm + AppSpacing.xsm,
                 color: cs.outlineVariant,
               ),
             children[i],

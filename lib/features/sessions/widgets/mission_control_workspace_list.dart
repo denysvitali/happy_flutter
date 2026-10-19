@@ -67,7 +67,8 @@ class MissionWorkspaceList extends StatelessWidget {
                     Divider(
                       height: 1,
                       thickness: 1,
-                      indent: 48,
+                      // Row padding + folder tile + gap: under the title.
+                      indent: AppSpacing.smd + 26 + AppSpacing.smd,
                       color: cs.outlineVariant,
                     ),
                   _WorkspaceTile(
@@ -236,12 +237,6 @@ class _WorkspaceTile extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    if (!muted)
-                      _WorkspaceSignal(
-                        lane: leadingLane,
-                        count: counts[leadingLane]!,
-                      ),
                   ],
                 ),
               ),
@@ -249,30 +244,6 @@ class _WorkspaceTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _WorkspaceSignal extends StatelessWidget {
-  const _WorkspaceSignal({required this.lane, required this.count});
-
-  final MissionLane lane;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    if (lane == MissionLane.quiet) {
-      return const SizedBox.shrink();
-    }
-    final theme = Theme.of(context);
-    final color = missionLaneColor(context, lane);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _WorkspaceStatusDot(color: color, size: 5),
-        const SizedBox(width: AppSpacing.xxxs),
-        Text('$count', style: MissionType.badge(theme, color)),
-      ],
     );
   }
 }

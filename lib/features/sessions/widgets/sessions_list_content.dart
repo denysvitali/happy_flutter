@@ -261,14 +261,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _syncPerformanceContext();
   }
 
-  void _closeFolder() {
-    if (_sel.value.isBatchDeleting) return;
-    _sel.value = const SelectionState();
-    setState(() => _selectedFolderKey = null);
-    widget.folderNotifier.value = null;
-    _syncPerformanceContext();
-  }
-
   void _syncPerformanceContext() {
     PerformanceContextService().setCurrentSessionsView(
       _isVisible
@@ -1226,109 +1218,101 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       ...folder.inactiveSessions,
     ]);
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          _closeFolder();
-        }
-      },
-      child: CustomScrollView(
-        controller: widget.scrollController,
-        slivers: [
-          const SliverPadding(padding: EdgeInsets.only(top: AppSpacing.xs)),
-          if (folder.activeSessions.isNotEmpty)
-            SliverToBoxAdapter(
-              child: FolderSectionHeader(
-                title: context.l10n.sessionsActiveSessions,
-                count: folder.activeSessions.length,
+    // SessionsScreen owns Back so selection and folders unwind separately.
+    return CustomScrollView(
+      controller: widget.scrollController,
+      slivers: [
+        const SliverPadding(padding: EdgeInsets.only(top: AppSpacing.xs)),
+        if (folder.activeSessions.isNotEmpty)
+          SliverToBoxAdapter(
+            child: FolderSectionHeader(
+              title: context.l10n.sessionsActiveSessions,
+              count: folder.activeSessions.length,
+            ),
+          ),
+        if (folder.activeSessions.isNotEmpty)
+          _buildFolderSessionSliver(
+            folder.activeSessions,
+            uiState: uiState,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            displayNames: displayNames,
+          ),
+        if (folder.inactiveSessions.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
               ),
-            ),
-          if (folder.activeSessions.isNotEmpty)
-            _buildFolderSessionSliver(
-              folder.activeSessions,
-              uiState: uiState,
-              showFlavorIcons: showFlavorIcons,
-              avatarStyle: avatarStyle,
-              displayNames: displayNames,
-            ),
-          if (folder.inactiveSessions.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
+              child: TextButton.icon(
+                onPressed: () => _toggleArchivedFolder(folder.header.folderKey),
+                icon: Icon(
+                  isArchivedExpanded ? Icons.expand_less : Icons.expand_more,
                 ),
-                child: TextButton.icon(
-                  onPressed: () =>
-                      _toggleArchivedFolder(folder.header.folderKey),
-                  icon: Icon(
-                    isArchivedExpanded ? Icons.expand_less : Icons.expand_more,
-                  ),
-                  label: Text(
-                    isArchivedExpanded
-                        ? context.l10n.sessionsHideArchived
-                        : context.l10n.sessionsShowArchived(
-                            folder.inactiveSessions.length,
-                          ),
-                  ),
+                label: Text(
+                  isArchivedExpanded
+                      ? context.l10n.sessionsHideArchived
+                      : context.l10n.sessionsShowArchived(
+                          folder.inactiveSessions.length,
+                        ),
                 ),
               ),
             ),
-          if (isArchivedExpanded && recentArchived.isNotEmpty)
-            SliverToBoxAdapter(
-              child: FolderSectionHeader(
-                title: context.l10n.sessionsArchivedLabel,
-                count: recentArchived.length,
+          ),
+        if (isArchivedExpanded && recentArchived.isNotEmpty)
+          SliverToBoxAdapter(
+            child: FolderSectionHeader(
+              title: context.l10n.sessionsArchivedLabel,
+              count: recentArchived.length,
+            ),
+          ),
+        if (isArchivedExpanded && recentArchived.isNotEmpty)
+          _buildFolderSessionSliver(
+            recentArchived,
+            uiState: uiState,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            displayNames: displayNames,
+            archived: true,
+          ),
+        if (isArchivedExpanded && olderArchived.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: TextButton(
+                onPressed: () =>
+                    _toggleOlderArchivedFolder(folder.header.folderKey),
+                child: Text(
+                  isOlderArchivedExpanded
+                      ? context.l10n.sessionsHideOlderArchived
+                      : context.l10n.sessionsShowOlderArchived(
+                          olderArchived.length,
+                        ),
+                ),
               ),
             ),
-          if (isArchivedExpanded && recentArchived.isNotEmpty)
-            _buildFolderSessionSliver(
-              recentArchived,
-              uiState: uiState,
-              showFlavorIcons: showFlavorIcons,
-              avatarStyle: avatarStyle,
-              displayNames: displayNames,
-              archived: true,
-            ),
-          if (isArchivedExpanded && olderArchived.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: TextButton(
-                  onPressed: () =>
-                      _toggleOlderArchivedFolder(folder.header.folderKey),
-                  child: Text(
-                    isOlderArchivedExpanded
-                        ? context.l10n.sessionsHideOlderArchived
-                        : context.l10n.sessionsShowOlderArchived(
-                            olderArchived.length,
-                          ),
-                  ),
-                ),
-              ),
-            ),
-          if (isArchivedExpanded &&
-              olderArchived.isNotEmpty &&
-              isOlderArchivedExpanded)
-            _buildFolderSessionSliver(
-              olderArchived,
-              uiState: uiState,
-              showFlavorIcons: showFlavorIcons,
-              avatarStyle: avatarStyle,
-              displayNames: displayNames,
-              archived: true,
-            ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: AppSpacing.lg)),
-        ],
-      ),
+          ),
+        if (isArchivedExpanded &&
+            olderArchived.isNotEmpty &&
+            isOlderArchivedExpanded)
+          _buildFolderSessionSliver(
+            olderArchived,
+            uiState: uiState,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            displayNames: displayNames,
+            archived: true,
+          ),
+        const SliverPadding(padding: EdgeInsets.only(bottom: AppSpacing.lg)),
+      ],
     );
   }
 

@@ -1,7 +1,10 @@
 part of 'sessions_screen_tablet_split_test.dart';
 
 Map<String, Session> _batchSessions() {
-  final now = DateTime.now().millisecondsSinceEpoch;
+  // Quiet fixtures do not need the six-second fresh-activity pulse.
+  final now = DateTime.now()
+      .subtract(const Duration(minutes: 1))
+      .millisecondsSinceEpoch;
   return {
     for (final name in ['Alpha one', 'Alpha two'])
       name: _session(name, activeAt: now).copyWith(
@@ -63,8 +66,11 @@ void _registerBatchActionTests() {
           matching: find.widgetWithText(TextButton, 'Delete'),
         ),
       );
-      // The pending operation owns an indeterminate progress animation.
-      await tester.pump(const Duration(milliseconds: 200));
+      // Finish the dialog transition without settling the pending progress.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
 
       expect(captured, hasLength(1));
       expect(captured.single, unorderedEquals(sessions.keys));
@@ -197,7 +203,10 @@ void _registerArchiveBatchTests() {
           matching: find.widgetWithText(TextButton, 'Archive'),
         ),
       );
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
       expect(captured, hasLength(1));
       expect(find.text('2 selected'), findsOneWidget);
       final container = ProviderScope.containerOf(
