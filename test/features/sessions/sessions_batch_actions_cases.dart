@@ -157,7 +157,13 @@ void _registerBatchActionTests() {
       expect(find.text('1 selected'), findsOneWidget);
       expect(tester.widget<SessionSelectionAppBar>(appBar).busy, isFalse);
       expect(
-        tester.widget<IconButton>(find.byTooltip('Cancel')).onPressed,
+        tester
+            .widget<IconButton>(
+              find.byWidgetPredicate(
+                (widget) => widget is IconButton && widget.tooltip == 'Cancel',
+              ),
+            )
+            .onPressed,
         isNotNull,
       );
       expect(tester.takeException(), isNull);
