@@ -39,134 +39,145 @@ void _registerBatchActionTests() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
-      final pending = Completer<int>();
-      final captured = <List<String>>[];
-      final sessions = _batchSessions();
-      await tester.pumpWidget(
-        _app(
-          sessions: sessions,
-          viewStyle: view,
-          onBatchDelete: (ids) {
-            captured.add(List.of(ids));
-            return pending.future;
-          },
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      await tester.longPress(find.text('Alpha one'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Select All'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Delete'));
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.widgetWithText(TextButton, 'Delete'),
-        ),
-      );
-      // Finish the dialog transition without settling the pending progress.
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump();
-      expect(find.byType(AlertDialog), findsNothing);
-
-      expect(captured, hasLength(1));
-      expect(captured.single, unorderedEquals(sessions.keys));
-      final appBar = find.byType(SessionSelectionAppBar);
-      expect(tester.widget<SessionSelectionAppBar>(appBar).busy, isTrue);
-      expect(
-        find.descendant(
-          of: appBar,
-          matching: find.byType(AppLinearProgressIndicator),
-        ),
-        findsOneWidget,
-      );
-      final buttons = tester.widgetList<IconButton>(
-        find.descendant(of: appBar, matching: find.byType(IconButton)),
-      );
-      expect(buttons, isNotEmpty);
-      expect(buttons.every((button) => button.onPressed == null), isTrue);
-      expect(
-        tester
-            .widget<TextButton>(find.widgetWithText(TextButton, 'Deselect All'))
-            .onPressed,
-        isNull,
-      );
-      final row = tester
-          .getSemantics(
-            find.ancestor(
-              of: find.text('Alpha one'),
-              matching: find.byType(MissionActionRow),
-            ),
-          )
-          .getSemanticsData();
-      expect(row.hasAction(SemanticsAction.tap), isFalse);
-      expect(row.hasAction(SemanticsAction.longPress), isFalse);
-      expect(row.hasAction(SemanticsAction.focus), isFalse);
-
-      await tester.tap(find.text('Alpha one'), warnIfMissed: false);
-      await tester.tap(find.byTooltip('Cancel'), warnIfMissed: false);
-      if (view == 'status') {
-        await tester.tap(
-          find.byKey(const ValueKey('sessions-archived-scope')),
-          warnIfMissed: false,
+      try {
+        final pending = Completer<int>();
+        final captured = <List<String>>[];
+        final sessions = _batchSessions();
+        await tester.pumpWidget(
+          _app(
+            sessions: sessions,
+            viewStyle: view,
+            onBatchDelete: (ids) {
+              captured.add(List.of(ids));
+              return pending.future;
+            },
+          ),
         );
-      }
-      await tester.binding.handlePopRoute();
-      await tester.pump();
-      expect(find.text('2 selected'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.longPress(find.text('Alpha one'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Select All'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Delete'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.widgetWithText(TextButton, 'Delete'),
+          ),
+        );
+        // Finish the dialog transition without settling the pending progress.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        expect(find.byType(AlertDialog), findsNothing);
 
-      final list = tester.widget<SessionsListContent>(
-        find.byType(SessionsListContent),
-      );
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(SessionsScreen)),
-      );
-      // Optimistic removal and catalog updates must not edit the batch IDs.
-      (container.read(sessionsNotifierProvider.notifier)
-              as _StubSessionsNotifier)
-          .publish({'Alpha two': sessions['Alpha two']!});
-      await tester.pump();
-      await tester.pump();
-      expect(list.selectionNotifier.value.selectedIds, sessions.keys.toSet());
-      expect(list.selectionNotifier.value.selectableIds, sessions.keys.toSet());
-      expect(find.text('2 selected'), findsOneWidget);
-      expect(captured, hasLength(1));
-
-      if (result == null) {
-        pending.completeError(StateError('delete unavailable'));
-      } else {
-        pending.complete(result);
-      }
-      await tester.pump();
-      await tester.pumpAndSettle();
-      expect(find.byType(SessionSelectionAppBar), findsNothing);
-      expect(list.selectionNotifier.value.isActive, isFalse);
-      if (result != 0) {
-        final l10n = tester.element(find.byType(SessionsScreen)).l10n;
+        expect(captured, hasLength(1));
+        expect(captured.single, unorderedEquals(sessions.keys));
+        final appBar = find.byType(SessionSelectionAppBar);
+        expect(tester.widget<SessionSelectionAppBar>(appBar).busy, isTrue);
         expect(
-          find.text(l10n.sessionsDeletePartialFail(result ?? sessions.length)),
+          find.descendant(
+            of: appBar,
+            matching: find.byType(AppLinearProgressIndicator),
+          ),
           findsOneWidget,
         );
-      }
-
-      await tester.longPress(find.text('Alpha two'));
-      await tester.pumpAndSettle();
-      expect(find.text('1 selected'), findsOneWidget);
-      expect(tester.widget<SessionSelectionAppBar>(appBar).busy, isFalse);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) => widget is IconButton && widget.tooltip == 'Cancel',
+        final buttons = tester.widgetList<IconButton>(
+          find.descendant(of: appBar, matching: find.byType(IconButton)),
+        );
+        expect(buttons, isNotEmpty);
+        expect(buttons.every((button) => button.onPressed == null), isTrue);
+        expect(
+          tester
+              .widget<TextButton>(
+                find.widgetWithText(TextButton, 'Deselect All'),
+              )
+              .onPressed,
+          isNull,
+        );
+        final row = tester
+            .getSemantics(
+              find.ancestor(
+                of: find.text('Alpha one'),
+                matching: find.byType(MissionActionRow),
               ),
             )
-            .onPressed,
-        isNotNull,
-      );
-      expect(tester.takeException(), isNull);
+            .getSemanticsData();
+        expect(row.hasAction(SemanticsAction.tap), isFalse);
+        expect(row.hasAction(SemanticsAction.longPress), isFalse);
+        expect(row.hasAction(SemanticsAction.focus), isFalse);
+
+        await tester.tap(find.text('Alpha one'), warnIfMissed: false);
+        await tester.tap(find.byTooltip('Cancel'), warnIfMissed: false);
+        if (view == 'status') {
+          await tester.tap(
+            find.byKey(const ValueKey('sessions-archived-scope')),
+            warnIfMissed: false,
+          );
+        }
+        await tester.binding.handlePopRoute();
+        await tester.pump();
+        expect(find.text('2 selected'), findsOneWidget);
+
+        final list = tester.widget<SessionsListContent>(
+          find.byType(SessionsListContent),
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SessionsScreen)),
+        );
+        // Optimistic removal and catalog updates must not edit the batch IDs.
+        (container.read(sessionsNotifierProvider.notifier)
+                as _StubSessionsNotifier)
+            .publish({'Alpha two': sessions['Alpha two']!});
+        await tester.pump();
+        await tester.pump();
+        expect(list.selectionNotifier.value.selectedIds, sessions.keys.toSet());
+        expect(
+          list.selectionNotifier.value.selectableIds,
+          sessions.keys.toSet(),
+        );
+        expect(find.text('2 selected'), findsOneWidget);
+        expect(captured, hasLength(1));
+
+        if (result == null) {
+          pending.completeError(StateError('delete unavailable'));
+        } else {
+          pending.complete(result);
+        }
+        await tester.pump();
+        await tester.pumpAndSettle();
+        expect(find.byType(SessionSelectionAppBar), findsNothing);
+        expect(list.selectionNotifier.value.isActive, isFalse);
+        if (result != 0) {
+          final l10n = tester.element(find.byType(SessionsScreen)).l10n;
+          expect(
+            find.text(
+              l10n.sessionsDeletePartialFail(result ?? sessions.length),
+            ),
+            findsOneWidget,
+          );
+        }
+
+        await tester.longPress(find.text('Alpha two'));
+        await tester.pumpAndSettle();
+        expect(find.text('1 selected'), findsOneWidget);
+        expect(tester.widget<SessionSelectionAppBar>(appBar).busy, isFalse);
+        expect(
+          tester
+              .widget<IconButton>(
+                find.byWidgetPredicate(
+                  (widget) =>
+                      widget is IconButton && widget.tooltip == 'Cancel',
+                ),
+              )
+              .onPressed,
+          isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
     });
   }
 }

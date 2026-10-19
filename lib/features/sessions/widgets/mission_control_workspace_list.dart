@@ -230,8 +230,7 @@ class _WorkspaceTile extends StatelessWidget {
                           Text(
                             '${missionShortHost(header.machineName)}'
                             '  ·  $breakdown',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
                             style: MissionType.meta(theme, cs.onSurfaceVariant),
                           ),
                         ],

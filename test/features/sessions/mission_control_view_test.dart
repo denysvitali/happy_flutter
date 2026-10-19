@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -775,6 +776,9 @@ void main() {
   testWidgets('workspace rows show lane composition, not archive counts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final now = DateTime.now().millisecondsSinceEpoch;
     final blocked = _session(
       id: 'ws-blocked',
@@ -791,7 +795,19 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        activeSessions: [blocked, working],
+        activeSessions: [
+          for (final session in [blocked, working])
+            session.copyWith(
+              metadata: const Metadata(
+                host: 'a-workstation-with-a-long-hostname',
+                path: '/home/dev/proj',
+              ),
+            ),
+        ],
+        mediaQueryData: const MediaQueryData(
+          size: Size(320, 900),
+          textScaler: TextScaler.linear(2),
+        ),
         uiState: SessionUiState(
           bySessionId: {
             'ws-blocked': SessionUiEntry(lastMessageTimestamp: now),
@@ -805,6 +821,13 @@ void main() {
     expect(find.textContaining('1 blocked'), findsOneWidget);
     expect(find.textContaining('1 working'), findsOneWidget);
     expect(find.textContaining('archived'), findsNothing);
+    expect(
+      tester
+          .renderObject<RenderParagraph>(find.textContaining('1 blocked'))
+          .didExceedMaxLines,
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a session becoming actionable after quiet is highlighted', (
