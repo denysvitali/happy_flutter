@@ -8,7 +8,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../../core/widgets/app_linear_progress_indicator.dart';
 import 'connection_status_badge.dart';
 import 'session_headers.dart' show folderBreakdownLabel;
 import 'sessions_view_style.dart';
@@ -258,62 +258,75 @@ class SessionSelectionAppBar extends StatelessWidget
   );
 
   @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight + actionsHeight);
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + actionsHeight + AppSpacing.xxs);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    Widget progress(Color color) => SizedBox.square(
-      dimension: AppIconSize.md,
-      child: AppCircularProgressIndicator(strokeWidth: 2, color: color),
-    );
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
         tooltip: l10n.commonCancel,
-        onPressed: onCancel,
+        onPressed: busy ? null : onCancel,
       ),
       title: Text(l10n.sessionsSelectedCount(count)),
       bottom: PreferredSize(
-        preferredSize: Size.fromHeight(actionsHeight),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Row(
-            children: [
-              TextButton(
-                onPressed: busy ? null : onSelectAll,
-                child: Text(
-                  allSelected
-                      ? l10n.sessionsDeselectAll
-                      : l10n.sessionsSelectAll,
-                ),
+        preferredSize: Size.fromHeight(actionsHeight + AppSpacing.xxs),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: busy ? null : onSelectAll,
+                    child: Text(
+                      allSelected
+                          ? l10n.sessionsDeselectAll
+                          : l10n.sessionsSelectAll,
+                    ),
+                  ),
+                  if (hasActive)
+                    IconButton(
+                      icon: const Icon(Icons.archive_outlined),
+                      tooltip: l10n.sessionsArchive,
+                      onPressed: count == 0 || busy ? null : onArchive,
+                    ),
+                  IconButton(
+                    icon: Icon(
+                      hasPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    ),
+                    tooltip: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
+                    onPressed: count == 0 || busy ? null : onPin,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: busy ? null : cs.error,
+                    ),
+                    tooltip: l10n.commonDelete,
+                    onPressed: count == 0 || busy ? null : onDelete,
+                  ),
+                ],
               ),
-              if (hasActive)
-                IconButton(
-                  icon: busy
-                      ? progress(cs.onSurfaceVariant)
-                      : const Icon(Icons.archive_outlined),
-                  tooltip: l10n.sessionsArchive,
-                  onPressed: count == 0 || busy ? null : onArchive,
-                ),
-              IconButton(
-                icon: Icon(
-                  hasPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                ),
-                tooltip: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
-                onPressed: count == 0 ? null : onPin,
-              ),
-              IconButton(
-                icon: busy
-                    ? progress(cs.error)
-                    : Icon(Icons.delete_outline, color: cs.error),
-                tooltip: l10n.commonDelete,
-                onPressed: count == 0 || busy ? null : onDelete,
-              ),
-            ],
-          ),
+            ),
+            SizedBox(
+              height: AppSpacing.xxs,
+              child: busy
+                  ? Semantics(
+                      liveRegion: true,
+                      child: AppLinearProgressIndicator(
+                        minHeight: AppSpacing.xxs,
+                        semanticsLabel: l10n.commonLoading,
+                      ),
+                    )
+                  : null,
+            ),
+          ],
         ),
       ),
     );

@@ -33,6 +33,8 @@ import 'widgets/session_collection_app_bar.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
+part 'session_batch_actions.dart';
+
 /// Persistence key for the sessions master-pane width in the tablet
 /// split layout.
 const String sessionsPaneId = 'sessions';
@@ -47,9 +49,10 @@ enum _NavigationAction {
 /// Sessions list screen with date grouping and enhanced
 /// status display.
 class SessionsScreen extends ConsumerStatefulWidget {
-  const SessionsScreen({super.key, this.initialTab});
+  const SessionsScreen({super.key, this.initialTab, this.sessionsApi});
 
   final String? initialTab;
+  final SessionsApi? sessionsApi;
 
   @override
   ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
@@ -283,7 +286,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           !isTablet &&
           _pendingNav == null &&
           _activeTab == AppTab.sessions &&
-          _folderNotifier.value == null,
+          _folderNotifier.value == null &&
+          !_selectionNotifier.value.isActive,
       onPopInvokedWithResult: (didPop, _) {
         if (_pendingNav != null) return;
         final currentTab = _activeTab;
@@ -295,6 +299,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             _pendingNav = null;
           });
           _updateUrlTab(AppTab.sessions);
+        } else if (!didPop && _selectionNotifier.value.isActive) {
+          _exitSelectionMode();
         } else if (!didPop &&
             isTablet &&
             currentTab == AppTab.sessions &&
@@ -633,118 +639,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return sel.selectedIds.any((id) => sessions[id]?.pinned ?? false);
   }
 
-  Future<void> _pinOrUnpinSelected(SelectionState sel) async {
-    final sessions = ref.read(sessionsNotifierProvider);
-    final notifier = ref.read(sessionsNotifierProvider.notifier);
-    final hasPinned = _hasPinnedInSelection(sel);
-    for (final id in sel.selectedIds) {
-      final session = sessions[id];
-      if (session == null) continue;
-      if (hasPinned) {
-        if (session.pinned) await notifier.unpinSession(id);
-      } else {
-        if (!session.pinned) await notifier.pinSession(id);
-      }
-    }
-  }
-
-  void _exitSelectionMode() {
+  void _exitSelectionMode({bool completed = false}) {
+    if (_selectionNotifier.value.isBatchDeleting && !completed) return;
     _selectionNotifier.value = const SelectionState();
   }
 
   void _toggleSelectAll(Set<String> allIds, bool currentlyAllSelected) {
     final current = _selectionNotifier.value;
+    if (current.isBatchDeleting) return;
     _selectionNotifier.value = current.copyWith(
       selectedIds: currentlyAllSelected ? {} : Set<String>.of(allIds),
     );
-  }
-
-  Future<void> _confirmBatchArchive(
-    BuildContext context,
-    SelectionState sel,
-  ) async {
-    final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
-    final sessions = ref.read(sessionsNotifierProvider);
-    final activeIds = sel.selectedIds.where((id) {
-      final s = sessions[id];
-      return s != null && isSessionActive(s);
-    }).toList();
-    if (activeIds.isEmpty) return;
-
-    final count = activeIds.length;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: l10n.sessionsArchiveSession,
-      content: l10n.sessionsArchiveNConfirm(count),
-      confirmLabel: l10n.sessionsArchive,
-    );
-    if (!confirmed) return;
-
-    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
-
-    var failCount = 0;
-    for (final id in activeIds) {
-      try {
-        await SessionsApi().setSessionArchived(id, true);
-        await ref
-            .read(sessionsNotifierProvider.notifier)
-            .markSessionArchived(id, true);
-      } catch (e, st) {
-        logger.error(
-          'Failed to archive session in batch: '
-          'sessionId=$id',
-          e,
-          st,
-        );
-        failCount++;
-      }
-    }
-
-    if (mounted) {
-      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-    }
-
-    _exitSelectionMode();
-
-    if (failCount > 0 && mounted) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.sessionsArchivePartialFail(failCount))),
-      );
-    }
-  }
-
-  Future<void> _confirmBatchDelete(
-    BuildContext context,
-    SelectionState sel,
-  ) async {
-    final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
-    final count = sel.selectedIds.length;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: l10n.chatDeleteSession,
-      content: l10n.sessionsDeleteNConfirm(count),
-      confirmLabel: l10n.commonDelete,
-      isDestructive: true,
-    );
-    if (!confirmed) return;
-
-    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
-
-    final ids = List<String>.from(sel.selectedIds);
-
-    final failCount = await ref
-        .read(sessionsNotifierProvider.notifier)
-        .optimisticBatchDelete(ids);
-
-    _exitSelectionMode();
-
-    if (failCount > 0 && mounted) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.sessionsDeletePartialFail(failCount))),
-      );
-    }
   }
 
   Future<void> _showNewSessionDialog(

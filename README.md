@@ -29,6 +29,8 @@ available. Time and actions stay at the right. Lists up to twelve sessions stay
 fully visible; longer quiet lists expand below their rows. Row menus offer
 Preview, Select, and Archive. Bulk selection stays scoped to the current
 filtered collection; the Sessions title switches layouts.
+Confirmed bulk archive/delete keeps its selection stable while a shared
+progress bar runs, then restores the controls with any failure feedback.
 Search and folder headers adapt to larger text. Bottom navigation keeps full
 labels visible and supports keyboard activation.
 

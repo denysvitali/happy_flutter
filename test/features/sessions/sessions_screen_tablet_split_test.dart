@@ -7,11 +7,15 @@
 // detail pane is a `NoSessionSelectedView` whose call to action opens the
 // new-session dialog.
 
+import 'dart:async';
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:happy_flutter/core/api/sessions_api.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/components/components.dart'
@@ -27,11 +31,16 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/ui/tab_bar/tab_bar.dart' show AppTab;
+import 'package:happy_flutter/core/widgets/app_linear_progress_indicator.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_control_action_tile.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
+import 'package:happy_flutter/features/sessions/widgets/session_collection_app_bar.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
+
+part 'sessions_batch_actions_cases.dart';
 
 class _StubAuthNotifier extends AuthStateNotifier {
   @override
@@ -54,9 +63,12 @@ class _StubSettingsNotifier extends SettingsNotifier {
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
-  _StubSessionsNotifier([this._initial = const {}]);
+  _StubSessionsNotifier([this._initial = const {}, this.onBatchDelete]);
 
   final Map<String, Session> _initial;
+  final Future<int> Function(List<String>)? onBatchDelete;
+  final archivedIds = <String>[];
+  int refreshCount = 0;
 
   @override
   Map<String, Session> build() => SessionCollectionSnapshot(_initial);
@@ -66,9 +78,18 @@ class _StubSessionsNotifier extends SessionsNotifier {
   }
 
   @override
-  void loadFromSync() {}
+  void loadFromSync() => refreshCount++;
   @override
   Future<void> refreshFromSync({bool includeMachines = false}) async {}
+
+  @override
+  Future<int> optimisticBatchDelete(List<String> ids) =>
+      onBatchDelete?.call(ids) ?? Future<int>.value(0);
+
+  @override
+  Future<void> markSessionArchived(String id, bool archived) async {
+    if (archived) archivedIds.add(id);
+  }
 }
 
 class _StubMachinesNotifier extends MachinesNotifier {
@@ -158,12 +179,17 @@ Widget _app({
   TextScaler textScaler = TextScaler.noScaling,
   String viewStyle = 'mission_control',
   bool? hideInactive,
+  Future<int> Function(List<String>)? onBatchDelete,
+  SessionsApi? sessionsApi,
 }) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
     routes: [
-      GoRoute(path: '/', builder: (_, _) => const SessionsScreen()),
+      GoRoute(
+        path: '/',
+        builder: (_, _) => SessionsScreen(sessionsApi: sessionsApi),
+      ),
       GoRoute(
         path: '/link',
         name: 'link',
@@ -183,7 +209,7 @@ Widget _app({
         () => _StubSettingsNotifier(viewStyle, hideInactive: hideInactive),
       ),
       sessionsNotifierProvider.overrideWith(
-        () => _StubSessionsNotifier(sessions),
+        () => _StubSessionsNotifier(sessions, onBatchDelete),
       ),
       machinesNotifierProvider.overrideWith(_StubMachinesNotifier.new),
       connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
@@ -214,6 +240,7 @@ Widget _app({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  _registerBatchActionTests();
   const recordChannel = MethodChannel('com.llfbandit.record/messages');
   const ttsChannel = MethodChannel('flutter_tts');
 

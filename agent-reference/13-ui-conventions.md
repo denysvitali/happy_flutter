@@ -92,6 +92,9 @@ ten and expand below them. Open and Archived tabs keep history reachable from
 Inbox and By machine. Bulk selection includes collapsed rows in the
 selected lane and reconciles when filters change. Row menus expose preview,
 selection and confirmed archive; selection mode suppresses secondary actions.
+Confirmed bulk archive/delete keeps its captured selection and one shared
+progress bar until completion. Selection controls and Back cannot dismiss or
+change a pending batch; failures restore the controls and show feedback.
 Search-scoped selection in every layout excludes hidden sessions and reconciles
 after sync changes. Session search and folder headers grow with text scale;
 Clear keeps search focused and Escape closes it. The shared bottom navigation
