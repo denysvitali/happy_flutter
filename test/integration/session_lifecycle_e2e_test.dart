@@ -815,14 +815,20 @@ void main() {
               harDurableResumeSupported: true,
             ),
           );
+          var spawns = 0;
           var sends = 0;
           sync.testSocketSendOverride = (_, __) {
             sends++;
           };
-          sync.testMachineRPCOverride = (_, __, ___) async => {
-            'type': failure == 'spawn' ? 'error' : 'success',
-            'errorMessage': 'private evidence unresolved',
-            'sessionId': failure == 'redirect' ? 'other-session' : sessionId,
+          sync.testMachineRPCOverride = (_, _, params) async {
+            spawns++;
+            expect(params['sessionId'], sessionId);
+            expect(params['isRestore'], isTrue);
+            return {
+              'type': failure == 'spawn' ? 'error' : 'success',
+              'errorMessage': 'private evidence unresolved',
+              'sessionId': failure == 'redirect' ? 'other-session' : sessionId,
+            };
           };
           var fetches = 0;
           sync.testFetchSingleSessionOverride = (_) async {
@@ -866,6 +872,7 @@ void main() {
             ),
           );
           await sync.lastCompleteSendFuture;
+          expect(spawns, 1, reason: 'Send must attempt saved startup');
           expect(sends, 0);
           expect(messageOutbox.entries, isEmpty);
           final rows = sync.testSessionMessages(sessionId)!;
@@ -877,6 +884,7 @@ void main() {
             sync.retryFailedMessage(sessionId, localId),
             throwsStateError,
           );
+          expect(spawns, 2, reason: 'Retry must attempt saved startup');
           expect(messageOutbox.entries, isEmpty);
           expect(sync.testSessionMessages(sessionId), hasLength(1));
           expect(sends, 0);
@@ -884,9 +892,9 @@ void main() {
           // Retry must perform the same confirmation before durable delivery,
           // keeping the single failed row and the original admission identity.
           var retryConfirmed = false;
-          sync.testMachineRPCOverride = (_, _, _) async => {
-            'type': 'success',
-            'sessionId': sessionId,
+          sync.testMachineRPCOverride = (_, _, _) async {
+            spawns++;
+            return {'type': 'success', 'sessionId': sessionId};
           };
           sync.testFetchSingleSessionOverride = (_) async {
             final snapshot = seed.copyWith(
@@ -902,6 +910,7 @@ void main() {
             return snapshot;
           };
           final retry = await sync.retryFailedMessage(sessionId, localId);
+          expect(spawns, 3);
           expect(retryConfirmed, isTrue);
           expect(retry.isQueued, isTrue);
           expect(messageOutbox.entries.single.localId, localId);
@@ -1227,6 +1236,8 @@ Session _makeSession(
       machineId: machineId,
       path: path,
       flavor: flavor,
+      // Har publishes the confirmed model alongside checkpoint metadata.
+      model: flavor == 'har' ? modelMode ?? 'codex/gpt-6-luna' : null,
       lifecycleState: lifecycleState,
       lifecycleStateError: lifecycleStateError,
       lifecycleStateSince: lifecycleStateSince,
