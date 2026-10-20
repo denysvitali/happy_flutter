@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
@@ -721,6 +723,43 @@ void main() {
         sync.testSessions[sessionId] = seed.copyWith(metadata: savedMetadata);
         var confirmed = false;
         var sends = 0;
+        final storedLocalIds = <String>[];
+        final apiClient = ApiClient();
+        await apiClient.initialize(serverUrl: 'http://localhost');
+        addTearDown(apiClient.dispose);
+        apiClient.testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              expect(
+                confirmed,
+                isTrue,
+                reason: 'checkpoint confirmation must precede REST storage',
+              );
+              expect(options.method, 'POST');
+              expect(options.path, '/v3/sessions/$sessionId/messages');
+              final body = options.data as Map<String, dynamic>;
+              final message = (body['messages'] as List).single as Map;
+              final localId = message['localId'] as String;
+              storedLocalIds.add(localId);
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: <String, dynamic>{
+                    'messages': <Map<String, dynamic>>[
+                      {
+                        'id': 'stored-$localId',
+                        'seq': storedLocalIds.length,
+                        'localId': localId,
+                        'createdAt': DateTime.now().millisecondsSinceEpoch,
+                      },
+                    ],
+                  },
+                ),
+              );
+            },
+          ),
+        );
         sync.testSocketSendOverride = (_, __) {
           expect(
             confirmed,
@@ -736,6 +775,7 @@ void main() {
           // The daemon reads authoritative checkpoint identity from metadata.
           expect(params, isNot(contains('harSessionId')));
           expect(sends, 0);
+          expect(storedLocalIds, isEmpty);
           return {'type': 'success', 'sessionId': sessionId};
         };
         sync.testFetchSingleSessionOverride = (_) async {
@@ -756,6 +796,12 @@ void main() {
             ),
           );
           sync.testSessions[sessionId] = snapshot;
+          // Checkpoint identity confirms recovery; the live agent also emits
+          // session-alive before it is ready to receive the stored message.
+          sync.testSetLastEphemeralAt(
+            sessionId,
+            DateTime.now().millisecondsSinceEpoch,
+          );
           confirmed = true;
           return snapshot;
         };
@@ -767,6 +813,8 @@ void main() {
         await sync.lastCompleteSendFuture;
         expect(confirmed, isTrue);
         expect(sends, 1);
+        expect(storedLocalIds, ['first-id']);
+        expect(messageOutbox.entries, isEmpty);
         await sync.sendMessage(
           sessionId,
           'same text',
@@ -778,11 +826,17 @@ void main() {
           2,
           reason: 'intentional repeated text is a new admission',
         );
-        final ids = sync
-            .testSessionMessages(sessionId)!
-            .map((row) => row['localId'])
-            .toSet();
-        expect(ids, containsAll(['first-id', 'second-id']));
+        expect(storedLocalIds, ['first-id', 'second-id']);
+        expect(messageOutbox.entries, isEmpty);
+        final rows = sync.testSessionMessages(sessionId)!;
+        expect(rows, hasLength(2));
+        expect(rows.every((row) => row['sendStatus'] == 'sent'), isTrue);
+        expect(rows.map((row) => row['id']), [
+          'stored-first-id',
+          'stored-second-id',
+        ]);
+        final ids = rows.map((row) => row['localId']).toSet();
+        expect(ids, {'first-id', 'second-id'});
       },
     );
 
