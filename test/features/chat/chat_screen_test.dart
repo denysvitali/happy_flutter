@@ -503,6 +503,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Har conversation stopped'), findsOneWidget);
     expect(
+      find.textContaining('No supported saved checkpoint'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('cannot be resumed'), findsNothing);
+    expect(
       find.textContaining(
         'The machine daemon restarted without this Har process',
       ),
@@ -513,6 +518,57 @@ void main() {
       findsNothing,
     );
   });
+
+  for (final missingTarget in [false, true]) {
+    testWidgets('saved Har checkpoint '
+        '${missingTarget ? 'needs target details' : 'allows recovery'}', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(flavor: 'har').copyWith(
+        metadata: Metadata(
+          host: '',
+          flavor: 'har',
+          lifecycleState: 'errored',
+          lifecycleStateError: 'private checkpoint diagnostic',
+          machineId: missingTarget ? null : 'machine-1',
+          path: '/repo',
+          harSessionId: 'checkpoint-1',
+          harResumeProtocol: 'happy-private-v1',
+          harDurableResumeSupported: true,
+        ),
+      );
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      final banner = tester.widget<SessionIssueBanner>(
+        find.byType(SessionIssueBanner),
+      );
+      expect(
+        banner.issue.title,
+        missingTarget
+            ? 'Har recovery details missing'
+            : 'Har conversation needs recovery',
+      );
+      expect(banner.issue.message, contains('saved checkpoint'));
+      expect(banner.issue.blocksSend, missingTarget);
+      expect(
+        tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+        missingTarget,
+      );
+      expect(find.textContaining('cannot be resumed'), findsNothing);
+      expect(
+        find.textContaining('private checkpoint diagnostic'),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
+  }
 
   for (final rejects in [false, true]) {
     testWidgets(

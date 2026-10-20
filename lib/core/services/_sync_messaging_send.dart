@@ -2010,7 +2010,8 @@ extension SyncMessagingSend on Sync {
     final entry = messageOutbox.deadEntry(localId);
     if (entry == null || entry.sessionId != sessionId) return false;
     final session = _sessions[sessionId];
-    if (session?.canRestorePrimeAgent == true) {
+    if (session?.canRestorePrimeAgent == true ||
+        session?.canRestoreHar == true) {
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) return false;
       final meta = entry.rawRecord['meta'] is Map<String, dynamic>
@@ -2247,11 +2248,13 @@ extension SyncMessagingSend on Sync {
       );
     }
 
-    // A failed provider/model replacement must be retried before the
+    // Confirm saved-agent recovery and pending configuration before the
     // encrypted payload enters the outbox. Otherwise Retry bypasses target
-    // resolution and silently delivers to the old provider.
+    // resolution and delivers to a stopped process or the previous provider.
     final pendingSelection = PendingSessionConfiguration().read(sessionId);
-    if (pendingSelection != null || session?.canRestorePrimeAgent == true) {
+    if (pendingSelection != null ||
+        session?.canRestorePrimeAgent == true ||
+        session?.canRestoreHar == true) {
       final session = _sessions[sessionId];
       if (session == null) {
         return const MessageRetryResult(MessageRetryOutcome.sessionUnavailable);

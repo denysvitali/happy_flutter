@@ -730,7 +730,11 @@ void main() {
           sends++;
         };
         sync.testMachineRPCOverride = (_, __, params) async {
-          expect(params['harSessionId'], 'checkpoint-1');
+          expect(params['sessionId'], sessionId);
+          expect(params['isRestore'], isTrue);
+          expect(params['agent'], 'har');
+          // The daemon reads authoritative checkpoint identity from metadata.
+          expect(params, isNot(contains('harSessionId')));
           expect(sends, 0);
           return {'type': 'success', 'sessionId': sessionId};
         };
@@ -782,7 +786,16 @@ void main() {
       },
     );
 
-    for (final failure in ['spawn', 'redirect', 'confirmation']) {
+    for (final failure in [
+      'spawn',
+      'redirect',
+      'confirmation',
+      'terminal-confirmation',
+      'wrong-session-confirmation',
+      'changed-checkpoint',
+      'stale-runtime-confirmation',
+      'archived-confirmation',
+    ]) {
       test(
         'qualified Har $failure failure never sends to the old process',
         () async {
@@ -811,21 +824,217 @@ void main() {
             'errorMessage': 'private evidence unresolved',
             'sessionId': failure == 'redirect' ? 'other-session' : sessionId,
           };
+          var fetches = 0;
           sync.testFetchSingleSessionOverride = (_) async {
+            if (fetches++ == 0 &&
+                const {
+                  'terminal-confirmation',
+                  'wrong-session-confirmation',
+                  'changed-checkpoint',
+                  'stale-runtime-confirmation',
+                  'archived-confirmation',
+                }.contains(failure)) {
+              return seed.copyWith(
+                id: failure == 'wrong-session-confirmation'
+                    ? 'other-session'
+                    : sessionId,
+                archived: failure == 'archived-confirmation',
+                metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+                  lifecycleState: failure == 'terminal-confirmation'
+                      ? 'errored'
+                      : 'running',
+                  harSessionId: failure == 'changed-checkpoint'
+                      ? 'different-checkpoint'
+                      : 'checkpoint-1',
+                  harRuntimeId: failure == 'stale-runtime-confirmation'
+                      ? 'old-runtime'
+                      : 'new-runtime',
+                ),
+              );
+            }
             throw StateError('checkpoint startup not confirmed');
           };
           const localId = 'saved-har-stable-id';
           await expectLater(
             sync.sendMessage(sessionId, 'same text', clientLocalId: localId),
-            throwsA(isA<StateError>()),
+            throwsA(
+              isA<StateError>().having(
+                (error) => error.message,
+                'agent recovery error',
+                contains('Could not resume Har'),
+              ),
+            ),
           );
           await sync.lastCompleteSendFuture;
           expect(sends, 0);
+          expect(messageOutbox.entries, isEmpty);
           final rows = sync.testSessionMessages(sessionId)!;
           expect(rows, hasLength(1));
           expect(rows.single['localId'], localId);
           expect(rows.single['sendStatus'], 'failed');
           expect(sync.testAutoRestoreInFlight, isEmpty);
+          await expectLater(
+            sync.retryFailedMessage(sessionId, localId),
+            throwsStateError,
+          );
+          expect(messageOutbox.entries, isEmpty);
+          expect(sync.testSessionMessages(sessionId), hasLength(1));
+          expect(sends, 0);
+
+          // Retry must perform the same confirmation before durable delivery,
+          // keeping the single failed row and the original admission identity.
+          var retryConfirmed = false;
+          sync.testMachineRPCOverride = (_, _, _) async => {
+            'type': 'success',
+            'sessionId': sessionId,
+          };
+          sync.testFetchSingleSessionOverride = (_) async {
+            final snapshot = seed.copyWith(
+              presence: 'online',
+              metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+                lifecycleState: 'running',
+                harSessionId: 'checkpoint-1',
+                harRuntimeId: 'retry-runtime',
+              ),
+            );
+            sync.testSessions[sessionId] = snapshot;
+            retryConfirmed = true;
+            return snapshot;
+          };
+          final retry = await sync.retryFailedMessage(sessionId, localId);
+          expect(retryConfirmed, isTrue);
+          expect(retry.isQueued, isTrue);
+          expect(messageOutbox.entries.single.localId, localId);
+          expect(sync.testSessionMessages(sessionId), hasLength(1));
+          expect(
+            sync.testSessionMessages(sessionId)!.single['localId'],
+            localId,
+          );
+          expect(sends, 0, reason: 'Retry queues only after confirmation');
+        },
+      );
+    }
+
+    for (final cacheState in ['cold-start', 'evicted-row', 'missing-raw']) {
+      test(
+        'saved Har $cacheState dead-letter Retry confirms recovery',
+        () async {
+          final sessionId = 'har-dead-letter-$cacheState';
+          const localId = 'canonical-har-dead-letter';
+          final seed = _makeSession(
+            sessionId,
+            machineId: 'machine-1',
+            path: '/project',
+            flavor: 'har',
+            lifecycleState: 'errored',
+          );
+          final saved = seed.copyWith(
+            metadata: seed.metadata!.copyWith(
+              harSessionId: 'checkpoint-1',
+              harRuntimeId: 'old-runtime',
+              harResumeProtocol: 'happy-private-v1',
+              harDurableResumeSupported: true,
+            ),
+          );
+          sync.testSessions[sessionId] = saved;
+          if (cacheState != 'cold-start') {
+            sync.testSetSessionMessages(sessionId, [
+              if (cacheState == 'missing-raw')
+                <String, dynamic>{
+                  'id': localId,
+                  'localId': localId,
+                  'role': 'user',
+                  'content': 'continue',
+                  'sendStatus': 'failed',
+                },
+            ]);
+          }
+          final entry = OutboxEntry(
+            localId: localId,
+            sessionId: sessionId,
+            text: 'continue',
+            encryptedContent: 'preserved-har-ciphertext',
+            rawRecord: const {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'continue'},
+              'meta': <String, dynamic>{},
+            },
+            queuedAt: 1,
+          );
+          messageOutbox.testInsertDead(entry);
+          var spawns = 0;
+          var sends = 0;
+          sync.testSocketSendOverride = (_, _) => sends++;
+          sync.testMachineRPCOverride = (_, _, params) async {
+            spawns++;
+            expect(params['sessionId'], sessionId);
+            expect(params['isRestore'], isTrue);
+            return {'type': 'error', 'errorMessage': 'checkpoint unavailable'};
+          };
+          await expectLater(
+            sync.retryFailedMessage(sessionId, localId),
+            throwsStateError,
+          );
+          expect(spawns, 1);
+          expect(messageOutbox.entries, isEmpty);
+          expect(messageOutbox.deadEntry(localId)?.localId, localId);
+          expect(sends, 0);
+
+          // A spawn ACK without runtime confirmation must also leave the
+          // original dead-letter payload untouched.
+          sync.testMachineRPCOverride = (_, _, _) async {
+            spawns++;
+            return {'type': 'success', 'sessionId': sessionId};
+          };
+          sync.testFetchSingleSessionOverride = (_) async =>
+              throw StateError('checkpoint runtime not confirmed');
+          await expectLater(
+            sync.retryFailedMessage(sessionId, localId),
+            throwsStateError,
+          );
+          expect(spawns, 2);
+          expect(messageOutbox.entries, isEmpty);
+          expect(messageOutbox.deadEntry(localId)?.localId, localId);
+          expect(sends, 0);
+
+          var confirmed = false;
+          sync.testMachineRPCOverride = (_, _, _) async {
+            spawns++;
+            expect(confirmed, isFalse);
+            expect(messageOutbox.entries, isEmpty);
+            expect(messageOutbox.deadEntry(localId), isNotNull);
+            return {'type': 'success', 'sessionId': sessionId};
+          };
+          sync.testFetchSingleSessionOverride = (_) async {
+            expect(messageOutbox.entries, isEmpty);
+            expect(messageOutbox.deadEntry(localId), isNotNull);
+            final snapshot = saved.copyWith(
+              presence: 'online',
+              metadata: saved.metadata!.copyWith(
+                lifecycleState: 'running',
+                harRuntimeId: 'restored-runtime',
+              ),
+            );
+            sync.testSessions[sessionId] = snapshot;
+            confirmed = true;
+            return snapshot;
+          };
+          final retry = await sync.retryFailedMessage(sessionId, localId);
+          expect(confirmed, isTrue);
+          expect(spawns, 3);
+          expect(retry.isQueued, isTrue);
+          expect(messageOutbox.deadEntry(localId), isNull);
+          expect(messageOutbox.entries.single.localId, localId);
+          expect(
+            messageOutbox.entries.single.encryptedContent,
+            entry.encryptedContent,
+          );
+          expect(messageOutbox.entries.single.rawRecord, entry.rawRecord);
+          expect(
+            sync.testSessionMessages(sessionId) ?? [],
+            hasLength(cacheState == 'missing-raw' ? 1 : 0),
+          );
+          expect(sends, 0);
         },
       );
     }

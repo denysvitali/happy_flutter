@@ -58,6 +58,18 @@ The cap is 3 retries (in the current production config). The backoff is `1s → 
 - A periodic background timer (every 30s while the app is foregrounded)
 - An explicit "retry" tap from the user
 
+### Saved Har conversation retries
+
+Explicit Send and Retry use the same recovery gate before enqueueing a message
+for a stopped Har conversation. A candidate needs the saved checkpoint ID,
+`happy-private-v1` support, and its machine/project target. The daemon owns the
+checkpoint identity; the spawn request names the existing Happy session.
+Flutter requires a fresh runtime ID for that same checkpoint and session, with
+an active lifecycle, before delivery. Failed recovery preserves the original
+`localId` and single failed row without adding it to the outbox. Runtime
+confirmation does not reconcile host effects: Har may still require `/recovery`
+or `/reconcile` before accepting ordinary work.
+
 ### Persistence
 
 The outbox uses the encrypted `outbox-entries` MMKV value. A versioned envelope

@@ -1720,23 +1720,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   _SessionSendIssue? get _sessionSendIssue {
     final session = _session;
     if (session?.metadata?.flavor == 'har' &&
-        !session!.canRestoreHar &&
-        (session.hasLifecycleError ||
+        (session!.archived ||
+            session.hasLifecycleError ||
             const {
               'exited',
               'stopped',
               'failed',
               'error',
+              'archived',
             }.contains(session.effectiveLifecycleState))) {
+      if (session.canRestoreHar) {
+        return const _SessionSendIssue(
+          title: 'Har conversation needs recovery',
+          message:
+              'This conversation has a saved checkpoint. Send or Retry will '
+              'ask the machine to recover it before delivering your message. '
+              'Unfinished work may need /recovery before you can continue. '
+              'If recovery stays blocked, start a new Har session; '
+              'this conversation remains available.',
+          snackBarText: 'Retry to recover the saved conversation.',
+          blocksSend: false,
+          startNewSession: true,
+        );
+      }
+      final metadata = session.metadata!;
+      if ((metadata.harSessionId?.isNotEmpty ?? false) &&
+          metadata.harResumeProtocol == 'happy-private-v1' &&
+          metadata.harDurableResumeSupported == true) {
+        return const _SessionSendIssue(
+          title: 'Har recovery details missing',
+          message:
+              'This conversation has a saved checkpoint, but the machine or '
+              'project details needed to recover it are missing. '
+              'View computers to check the machine.',
+          snackBarText: 'Check the machine details before recovering.',
+          blocksSend: true,
+        );
+      }
       final daemonLostProcess =
-          session.metadata?.lifecycleStateError ==
+          metadata.lifecycleStateError ==
           'daemon started without a live local process for this running session';
       return _SessionSendIssue(
         title: 'Har conversation stopped',
         message:
             '${daemonLostProcess ? 'The machine daemon restarted without this Har process. ' : 'The Har process for this conversation ended. '}'
-            'This session keeps its conversation only while that process runs; '
-            'it cannot be resumed after the process stops. Start a new Har session.',
+            'No supported saved checkpoint is available to recover this '
+            'conversation. Start a new Har session; '
+            'this conversation remains available.',
         snackBarText: 'Start a new Har session to continue.',
         blocksSend: true,
         startNewSession: true,

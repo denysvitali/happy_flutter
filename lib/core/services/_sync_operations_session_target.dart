@@ -567,7 +567,15 @@ extension SyncSendTargetResolution on Sync {
           ).timeout(const Duration(seconds: 5));
           checkRuntime();
           final runtime = current?.metadata?.harRuntimeId;
-          if (current?.canRestoreHar == true &&
+          if (current?.id == sessionId &&
+              current?.canRestoreHar == true &&
+              current?.archived == false &&
+              current?.hasLifecycleError == false &&
+              const {
+                'starting',
+                'running',
+                'ready',
+              }.contains(current?.effectiveLifecycleState) &&
               current?.metadata?.harSessionId == savedHar &&
               runtime != null &&
               runtime.isNotEmpty &&
@@ -729,7 +737,7 @@ extension SyncSendTargetResolution on Sync {
       restoreClearedSpawnTracking();
       if (restorePrime) {
         final failure = StateError(
-          'Could not resume Prime Agent. Your message has not been sent. '
+          'Could not resume $savedAgentName. Your message has not been sent. '
           'Retry to resume the saved conversation. $error',
         );
         if (!completer.isCompleted) completer.completeError(failure, stack);
