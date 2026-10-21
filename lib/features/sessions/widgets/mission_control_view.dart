@@ -873,7 +873,8 @@ class _QuietDrawer extends StatelessWidget {
         label: label,
         child: ExcludeSemantics(
           child: Material(
-            color: cs.surface,
+            // Match the workspace pulse card above it.
+            color: cs.surfaceContainerLow,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               side: BorderSide(color: cs.outlineVariant),
@@ -883,20 +884,21 @@ class _QuietDrawer extends StatelessWidget {
               onTap: onTap,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  minHeight: AppTouchTarget.comfortable,
+                  minHeight: AppTouchTarget.min,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
+                    horizontal: AppSpacing.smd,
+                    vertical: AppSpacing.xs,
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: AppControlSize.md,
-                        height: AppControlSize.md,
+                        width: 26,
+                        height: 26,
                         decoration: BoxDecoration(
                           color: cs.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          borderRadius: BorderRadius.circular(AppRadius.smd),
                         ),
                         child: Icon(
                           Icons.bedtime_outlined,
@@ -919,7 +921,7 @@ class _QuietDrawer extends StatelessWidget {
                         ),
                         child: Icon(
                           Icons.chevron_right_rounded,
-                          size: AppIconSize.lg,
+                          size: AppIconSize.md,
                           color: cs.onSurfaceVariant,
                         ),
                       ),

@@ -280,11 +280,11 @@ class MissionActionRow extends StatelessWidget {
                       onSelect: onSelect,
                     ),
                   );
-                  // Side-by-side costs the age width plus the menu box from
-                  // the title column. Measure the rendered age the same way
-                  // the row caps it and demand the readable minimum the
-                  // pinned narrow tests enforce; otherwise stack the age
-                  // above the menu instead of crushing the title.
+                  // The age normally ends the title line so it shares the
+                  // right edge with the outcome pill below it. Only large
+                  // text that would crush the title below the readable
+                  // minimum the pinned narrow tests enforce stacks the age
+                  // above the menu instead.
                   final ageTextWidth = showActivityAge && trailingAge
                       ? (TextPainter(
                           text: TextSpan(
@@ -295,10 +295,9 @@ class MissionActionRow extends StatelessWidget {
                           textScaler: MediaQuery.textScalerOf(context),
                         )..layout(maxWidth: constraints.maxWidth * 0.2)).width
                       : 0.0;
-                  final sideBySideTrailing =
-                      showActivityAge &&
-                      trailingAge &&
-                      hasMenu &&
+                  final inlineAge =
+                      !trailingAge ||
+                      !largeText ||
                       constraints.maxWidth -
                               AppSpacing.smd * 2 -
                               AppControlSize.sm -
@@ -366,7 +365,7 @@ class MissionActionRow extends StatelessWidget {
                                               .missionControlPinToTop,
                                         ),
                                       ],
-                                      if (showActivityAge && !trailingAge) ...[
+                                      if (showActivityAge && inlineAge) ...[
                                         const SizedBox(width: AppSpacing.sm),
                                         ConstrainedBox(
                                           constraints: BoxConstraints(
@@ -443,70 +442,28 @@ class MissionActionRow extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            if (hasMenu ||
-                                (showActivityAge && trailingAge)) ...[
+                            if (hasMenu || (showActivityAge && !inlineAge)) ...[
                               const SizedBox(width: AppSpacing.xxs),
-                              // Narrow rows put the age beside the menu on
-                              // the title line pinned to the row top; stacked
-                              // in a column, the menu drifted into the
-                              // preview/pill line. When large text would
-                              // squeeze the title column below a readable
-                              // minimum (the width the pinned narrow tests
-                              // protect), fall back to the age-over-menu
-                              // stack instead of shrinking the content.
-                              // Wide rows keep the age inside the title row,
-                              // so the menu alone stays vertically centered
-                              // like a list tile.
+                              // Phone-width rows pin the menu to the row top
+                              // so tall previews cannot drag it down; wide
+                              // rows keep it centered like a list tile.
                               Align(
                                 alignment: trailingAge
                                     ? Alignment.topRight
                                     : Alignment.centerRight,
-                                child: !trailingAge
-                                    ? Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [if (hasMenu) menu],
-                                      )
-                                    : sideBySideTrailing
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          if (showActivityAge) ...[
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: AppSpacing.xxs,
-                                              ),
-                                              child: ConstrainedBox(
-                                                constraints: BoxConstraints(
-                                                  maxWidth:
-                                                      constraints.maxWidth *
-                                                      0.2,
-                                                ),
-                                                child: ageWidget,
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              width: AppSpacing.xs,
-                                            ),
-                                          ],
-                                          if (hasMenu) menu,
-                                        ],
-                                      )
-                                    : Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (showActivityAge)
-                                            ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth:
-                                                    constraints.maxWidth * 0.2,
-                                              ),
-                                              child: ageWidget,
-                                            ),
-                                          if (hasMenu) menu,
-                                        ],
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (showActivityAge && !inlineAge)
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: constraints.maxWidth * 0.2,
+                                        ),
+                                        child: ageWidget,
                                       ),
+                                    if (hasMenu) menu,
+                                  ],
+                                ),
                               ),
                             ],
                           ],
