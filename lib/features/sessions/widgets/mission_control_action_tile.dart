@@ -12,6 +12,7 @@ import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../harness_logo.dart';
 import 'inline_permission_actions.dart';
+import 'mission_control_triage_menu.dart';
 import 'mission_control_types.dart';
 import 'mission_heartbeat.dart';
 import 'session_cards.dart';
@@ -243,17 +244,6 @@ class MissionActionRow extends StatelessWidget {
                   // Large text needs the entire preview column. Put the
                   // outcome underneath instead of squeezing the update.
                   final stackOutcome = inbox && trailingAge && largeText;
-                  final outcome = _OutcomePill(
-                    compact: constraints.maxWidth < 480,
-                    lane: lane,
-                    entry: entry,
-                    since: since,
-                    nowMs: nowMs,
-                    live: status.state == SessionState.thinking,
-                    onMarkRead: lane == MissionLane.unread && !selected
-                        ? onMarkRead
-                        : null,
-                  );
                   final ageWidget = Tooltip(
                     message: when.toLocal().toString(),
                     child: Text(
@@ -263,21 +253,27 @@ class MissionActionRow extends StatelessWidget {
                       style: AppText.secondary(theme),
                     ),
                   );
-                  final menu = SizedBox.square(
-                    dimension: AppTouchTarget.min,
-                    child: _TriageMenu(
-                      isPinned: isPinned,
-                      isSnoozed: isSnoozed,
-                      canMarkRead:
-                          showTriageMenu &&
-                          lane == MissionLane.unread &&
-                          entry.unreadCount > 0,
-                      onMarkRead: showTriageMenu ? onMarkRead : null,
-                      onTogglePin: showTriageMenu ? onTogglePin : null,
-                      onToggleSnooze: showTriageMenu ? onToggleSnooze : null,
-                      onPeek: onPeek,
-                      onArchive: onArchive,
-                      onSelect: onSelect,
+                  final menu = Transform.translate(
+                    // more_vert's dots sit inside the glyph box, so nudge the
+                    // button until the dots (not the box) mirror the tile's
+                    // left inset.
+                    offset: const Offset(_menuGlyphInset, 0),
+                    child: SizedBox.square(
+                      dimension: AppTouchTarget.min,
+                      child: MissionTriageMenu(
+                        isPinned: isPinned,
+                        isSnoozed: isSnoozed,
+                        canMarkRead:
+                            showTriageMenu &&
+                            lane == MissionLane.unread &&
+                            entry.unreadCount > 0,
+                        onMarkRead: showTriageMenu ? onMarkRead : null,
+                        onTogglePin: showTriageMenu ? onTogglePin : null,
+                        onToggleSnooze: showTriageMenu ? onToggleSnooze : null,
+                        onPeek: onPeek,
+                        onArchive: onArchive,
+                        onSelect: onSelect,
+                      ),
                     ),
                   );
                   // The age normally ends the title line so it shares the
@@ -301,72 +297,201 @@ class MissionActionRow extends StatelessWidget {
                       constraints.maxWidth -
                               AppSpacing.smd * 2 -
                               AppControlSize.sm -
-                              AppSpacing.xsm -
+                              missionRowTextGap -
                               ageTextWidth -
                               AppSpacing.xs -
                               AppTouchTarget.min -
                               AppSpacing.xxs >=
                           180;
+                  // Phone rows keep the title and update lines tight and center
+                  // the menu on that block like a list tile; every update line
+                  // is at least the pill's tap height so rows share a rhythm.
+                  final phoneRow = trailingAge && inlineAge;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      IntrinsicHeight(
-                        child: Row(
-                          // Stretch so the trailing age/menu column pins to
-                          // the row top; centered, it drifted per row height.
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              // Pin the harness mark to the title line:
-                              // centered, it drifts onto the preview
-                              // paragraph and reads as its icon.
-                              alignment: Alignment.topLeft,
-                              widthFactor: 1,
-                              child: ExcludeSemantics(
-                                child: _LaneTile(
-                                  lane: lane,
-                                  flavor: session.metadata?.flavor,
-                                  color: laneColor,
-                                  freshness: freshness,
-                                  pulse:
-                                      animateActivity &&
-                                      (status.isPulsing ||
-                                          freshness == StreamFreshness.burst),
-                                  selected: selected,
+                  final outcome = _OutcomePill(
+                    compact: constraints.maxWidth < 480,
+                    tapHeight: phoneRow ? _pillTapHeight : AppTouchTarget.min,
+                    lane: lane,
+                    entry: entry,
+                    since: since,
+                    nowMs: nowMs,
+                    live: status.state == SessionState.thinking,
+                    onMarkRead: lane == MissionLane.unread && !selected
+                        ? onMarkRead
+                        : null,
+                  );
+                  return Padding(
+                    // The title's glyphs start below its line box; balance it
+                    // so the ink has the same gap above as the update below.
+                    padding: EdgeInsets.only(
+                      top: phoneRow ? _titleInkInset : 0,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IntrinsicHeight(
+                          child: Row(
+                            // Stretch so the trailing age/menu column pins to
+                            // the row top; centered, it drifted per row height.
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                // Pin the mark's top edge to the title's glyph
+                                // top: centered, it drifts onto the preview
+                                // paragraph and reads as its icon.
+                                alignment: Alignment.topLeft,
+                                widthFactor: 1,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: _titleInkInset,
+                                  ),
+                                  child: ExcludeSemantics(
+                                    child: _LaneTile(
+                                      lane: lane,
+                                      flavor: session.metadata?.flavor,
+                                      color: laneColor,
+                                      freshness: freshness,
+                                      pulse:
+                                          animateActivity &&
+                                          (status.isPulsing ||
+                                              freshness ==
+                                                  StreamFreshness.burst),
+                                      selected: selected,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: AppSpacing.xsm),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
+                              const SizedBox(width: missionRowTextGap),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppText.title(theme),
+                                          ),
+                                        ),
+                                        if (isPinned) ...[
+                                          const SizedBox(width: AppSpacing.xs),
+                                          Icon(
+                                            Icons.push_pin_rounded,
+                                            size: AppIconSize.sm,
+                                            color: cs.onSurfaceVariant,
+                                            semanticLabel: context
+                                                .l10n
+                                                .missionControlPinToTop,
+                                          ),
+                                        ],
+                                        if (showActivityAge && inlineAge) ...[
+                                          const SizedBox(width: AppSpacing.sm),
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth:
+                                                  constraints.maxWidth * 0.2,
+                                            ),
+                                            child: ageWidget,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (workspaceContext != null) ...[
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      Tooltip(
+                                        message: path!,
+                                        excludeFromSemantics: true,
                                         child: Text(
-                                          name,
+                                          workspaceContext,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: AppText.title(theme),
+                                          style: AppText.secondary(theme),
                                         ),
                                       ),
-                                      if (isPinned) ...[
-                                        const SizedBox(width: AppSpacing.xs),
-                                        Icon(
-                                          Icons.push_pin_rounded,
-                                          size: AppIconSize.sm,
-                                          color: cs.onSurfaceVariant,
-                                          semanticLabel: context
-                                              .l10n
-                                              .missionControlPinToTop,
+                                    ],
+                                    if (secondary.isNotEmpty ||
+                                        showOutcome) ...[
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minHeight: phoneRow
+                                              ? _pillTapHeight
+                                              : 0,
                                         ),
-                                      ],
-                                      if (showActivityAge && inlineAge) ...[
-                                        const SizedBox(width: AppSpacing.sm),
+                                        child: Row(
+                                          children: [
+                                            if (secondary.isNotEmpty)
+                                              Expanded(
+                                                child: Tooltip(
+                                                  message: secondaryTooltip,
+                                                  excludeFromSemantics: true,
+                                                  child: Text(
+                                                    secondary,
+                                                    maxLines:
+                                                        inbox ||
+                                                            (trailingAge &&
+                                                                !largeText) ||
+                                                            lane ==
+                                                                MissionLane
+                                                                    .error
+                                                        ? 2
+                                                        : 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: AppText.secondary(
+                                                      theme,
+                                                      lane == MissionLane.error
+                                                          ? laneColor
+                                                          : null,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            if (showOutcome &&
+                                                !stackOutcome) ...[
+                                              if (secondary.isNotEmpty)
+                                                const SizedBox(
+                                                  width: AppSpacing.xsm,
+                                                ),
+                                              ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                  maxWidth:
+                                                      constraints.maxWidth *
+                                                      0.35,
+                                                ),
+                                                child: outcome,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    if (showOutcome && stackOutcome) ...[
+                                      const SizedBox(height: AppSpacing.xs),
+                                      outcome,
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (hasMenu ||
+                                  (showActivityAge && !inlineAge)) ...[
+                                const SizedBox(width: AppSpacing.xxs),
+                                // Only the stacked large-text layout pins the
+                                // trailing column to the row top; every other
+                                // row centers it like a list tile.
+                                Align(
+                                  alignment: trailingAge && !phoneRow
+                                      ? Alignment.topRight
+                                      : Alignment.centerRight,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (showActivityAge && !inlineAge)
                                         ConstrainedBox(
                                           constraints: BoxConstraints(
                                             maxWidth:
@@ -374,111 +499,25 @@ class MissionActionRow extends StatelessWidget {
                                           ),
                                           child: ageWidget,
                                         ),
-                                      ],
+                                      if (hasMenu) menu,
                                     ],
                                   ),
-                                  if (workspaceContext != null) ...[
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    Tooltip(
-                                      message: path!,
-                                      excludeFromSemantics: true,
-                                      child: Text(
-                                        workspaceContext,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppText.secondary(theme),
-                                      ),
-                                    ),
-                                  ],
-                                  if (secondary.isNotEmpty || showOutcome) ...[
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    Row(
-                                      children: [
-                                        if (secondary.isNotEmpty)
-                                          Expanded(
-                                            child: Tooltip(
-                                              message: secondaryTooltip,
-                                              excludeFromSemantics: true,
-                                              child: Text(
-                                                secondary,
-                                                maxLines:
-                                                    inbox ||
-                                                        (trailingAge &&
-                                                            !largeText) ||
-                                                        lane ==
-                                                            MissionLane.error
-                                                    ? 2
-                                                    : 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: AppText.secondary(
-                                                  theme,
-                                                  lane == MissionLane.error
-                                                      ? laneColor
-                                                      : null,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        if (showOutcome && !stackOutcome) ...[
-                                          if (secondary.isNotEmpty)
-                                            const SizedBox(
-                                              width: AppSpacing.xsm,
-                                            ),
-                                          ConstrainedBox(
-                                            constraints: BoxConstraints(
-                                              maxWidth:
-                                                  constraints.maxWidth * 0.35,
-                                            ),
-                                            child: outcome,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                  if (showOutcome && stackOutcome) ...[
-                                    const SizedBox(height: AppSpacing.xs),
-                                    outcome,
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (hasMenu || (showActivityAge && !inlineAge)) ...[
-                              const SizedBox(width: AppSpacing.xxs),
-                              // Phone-width rows pin the menu to the row top
-                              // so tall previews cannot drag it down; wide
-                              // rows keep it centered like a list tile.
-                              Align(
-                                alignment: trailingAge
-                                    ? Alignment.topRight
-                                    : Alignment.centerRight,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (showActivityAge && !inlineAge)
-                                      ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: constraints.maxWidth * 0.2,
-                                        ),
-                                        child: ageWidget,
-                                      ),
-                                    if (hasMenu) menu,
-                                  ],
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                      ),
-                      if (approval)
-                        Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.xs),
-                          child: InlinePermissionActions(
-                            sessionId: session.id,
-                            requests: requests,
-                            isOnline: session.presence == 'online',
                           ),
                         ),
-                    ],
+                        if (approval)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.xs),
+                            child: InlinePermissionActions(
+                              sessionId: session.id,
+                              requests: requests,
+                              isOnline: session.presence == 'online',
+                            ),
+                          ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -500,6 +539,17 @@ class MissionActionRow extends StatelessWidget {
                   lane == MissionLane.unread &&
                   entry.unreadCount > 0)));
 }
+
+/// Gap between the more_vert glyph box and its dots: the dots are 4/24 wide
+/// and centered, so at [AppIconSize.md] each side holds 10/24 of the box.
+const double _menuGlyphInset = AppIconSize.md * 10 / 24;
+
+/// Distance from the title's line box to the top of its glyphs.
+const double _titleInkInset = 3;
+
+/// Tap height of the unread pill on phone rows. WCAG 2.2 (2.5.8) asks for
+/// 24dp; the taller 44dp target used to double the update line's height.
+const double _pillTapHeight = 24;
 
 class _LaneTile extends StatelessWidget {
   const _LaneTile({
@@ -583,6 +633,7 @@ class _OutcomePill extends StatelessWidget {
     required this.nowMs,
     required this.live,
     required this.compact,
+    required this.tapHeight,
     this.onMarkRead,
   });
 
@@ -595,6 +646,10 @@ class _OutcomePill extends StatelessWidget {
   /// stall hint, which would be nonsense on a finished session.
   final bool live;
   final bool compact;
+
+  /// Minimum tap-target height; it also sets the height of the line the pill
+  /// sits on, so phone rows pass their band height to keep padding even.
+  final double tapHeight;
   final VoidCallback? onMarkRead;
 
   @override
@@ -637,116 +692,11 @@ class _OutcomePill extends StatelessWidget {
           onTap: onMarkRead,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+            constraints: BoxConstraints(minHeight: tapHeight),
             child: Center(widthFactor: 1, heightFactor: 1, child: pill),
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Overflow triage menu for one action row: quick look, mark read, pin,
-/// snooze.
-class _TriageMenu extends StatelessWidget {
-  const _TriageMenu({
-    required this.isPinned,
-    required this.isSnoozed,
-    required this.canMarkRead,
-    this.onMarkRead,
-    this.onTogglePin,
-    this.onToggleSnooze,
-    this.onPeek,
-    this.onArchive,
-    this.onSelect,
-  });
-
-  final bool isPinned;
-  final bool isSnoozed;
-  final bool canMarkRead;
-  final VoidCallback? onMarkRead;
-  final VoidCallback? onTogglePin;
-  final ValueChanged<bool>? onToggleSnooze;
-  final VoidCallback? onPeek;
-  final VoidCallback? onArchive;
-  final VoidCallback? onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final l10n = context.l10n;
-    return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert_rounded,
-        size: AppIconSize.md,
-        color: cs.onSurfaceVariant,
-      ),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: AppTouchTarget.min),
-      tooltip: l10n.missionControlTriage,
-      onSelected: (action) {
-        switch (action) {
-          case 'select':
-            onSelect?.call();
-          case 'archive':
-            onArchive?.call();
-          case 'peek':
-            onPeek?.call();
-          case 'read':
-            onMarkRead?.call();
-          case 'pin':
-            onTogglePin?.call();
-          case 'snooze':
-            onToggleSnooze?.call(true);
-          case 'unsnooze':
-            onToggleSnooze?.call(false);
-        }
-      },
-      itemBuilder: (context) => [
-        if (onSelect != null)
-          PopupMenuItem(
-            value: 'select',
-            child: Text(l10n.sessionsSelectSession),
-          ),
-        if (onArchive != null)
-          PopupMenuItem(value: 'archive', child: Text(l10n.sessionsArchive)),
-        if (onPeek != null)
-          PopupMenuItem(
-            value: 'peek',
-            child: Row(
-              children: [
-                Icon(
-                  Icons.visibility_outlined,
-                  size: AppIconSize.sm,
-                  color: cs.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(child: Text(l10n.missionControlPeekQuickLook)),
-              ],
-            ),
-          ),
-        if (canMarkRead && onMarkRead != null)
-          PopupMenuItem(
-            value: 'read',
-            child: Text(l10n.missionControlMarkRead),
-          ),
-        if (onTogglePin != null)
-          PopupMenuItem(
-            value: 'pin',
-            child: Text(
-              isPinned ? l10n.missionControlUnpin : l10n.missionControlPinToTop,
-            ),
-          ),
-        if (onToggleSnooze != null)
-          PopupMenuItem(
-            value: isSnoozed ? 'unsnooze' : 'snooze',
-            child: Text(
-              isSnoozed
-                  ? l10n.missionControlUnsnooze
-                  : l10n.missionControlSnooze,
-            ),
-          ),
-      ],
     );
   }
 }

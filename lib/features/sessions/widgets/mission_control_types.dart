@@ -4,7 +4,12 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
+
+/// Horizontal gap between a Mission Control row's lane tile and its text
+/// column; dividers that align with the text use it too.
+const double missionRowTextGap = AppSpacing.smd;
 
 /// How a session is triaged in Mission Control.
 enum MissionLane {

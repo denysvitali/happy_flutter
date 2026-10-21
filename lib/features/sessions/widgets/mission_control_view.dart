@@ -694,7 +694,7 @@ class _ActionSection extends StatelessWidget {
                 height: 1,
                 thickness: 1,
                 // Align with the title column: row padding + lane tile + gap.
-                indent: AppSpacing.smd + AppControlSize.sm + AppSpacing.xsm,
+                indent: AppSpacing.smd + AppControlSize.sm + missionRowTextGap,
                 color: cs.outlineVariant,
               ),
             children[i],
