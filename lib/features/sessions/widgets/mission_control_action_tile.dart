@@ -307,6 +307,21 @@ class MissionActionRow extends StatelessWidget {
                   // the menu on that block like a list tile; every update line
                   // is at least the pill's tap height so rows share a rhythm.
                   final phoneRow = trailingAge && inlineAge;
+                  // Phone rows reserve only a 24dp target at the edge (WCAG
+                  // 2.5.8) so the age and pill sit close to the dots instead
+                  // of floating a full 44dp target away.
+                  final trailingMenu = phoneRow
+                      ? SizedBox(
+                          width: _phoneMenuWidth,
+                          height: AppTouchTarget.min,
+                          child: OverflowBox(
+                            alignment: Alignment.centerRight,
+                            minWidth: AppTouchTarget.min,
+                            maxWidth: AppTouchTarget.min,
+                            child: menu,
+                          ),
+                        )
+                      : menu;
 
                   final outcome = _OutcomePill(
                     compact: constraints.maxWidth < 480,
@@ -369,6 +384,11 @@ class MissionActionRow extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
+                                      // The smaller age shares the title's
+                                      // baseline; centered boxes float it up.
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
                                       children: [
                                         Expanded(
                                           child: Text(
@@ -380,13 +400,18 @@ class MissionActionRow extends StatelessWidget {
                                         ),
                                         if (isPinned) ...[
                                           const SizedBox(width: AppSpacing.xs),
-                                          Icon(
-                                            Icons.push_pin_rounded,
-                                            size: AppIconSize.sm,
-                                            color: cs.onSurfaceVariant,
-                                            semanticLabel: context
-                                                .l10n
-                                                .missionControlPinToTop,
+                                          Baseline(
+                                            baseline: _pinBaseline,
+                                            baselineType:
+                                                TextBaseline.alphabetic,
+                                            child: Icon(
+                                              Icons.push_pin_rounded,
+                                              size: AppIconSize.sm,
+                                              color: cs.onSurfaceVariant,
+                                              semanticLabel: context
+                                                  .l10n
+                                                  .missionControlPinToTop,
+                                            ),
                                           ),
                                         ],
                                         if (showActivityAge && inlineAge) ...[
@@ -499,7 +524,7 @@ class MissionActionRow extends StatelessWidget {
                                           ),
                                           child: ageWidget,
                                         ),
-                                      if (hasMenu) menu,
+                                      if (hasMenu) trailingMenu,
                                     ],
                                   ),
                                 ),
@@ -541,8 +566,15 @@ class MissionActionRow extends StatelessWidget {
 }
 
 /// Gap between the more_vert glyph box and its dots: the dots are 4/24 wide
-/// and centered, so at [AppIconSize.md] each side holds 10/24 of the box.
-const double _menuGlyphInset = AppIconSize.md * 10 / 24;
+/// and centered, so each side holds 10/24 of the box.
+const double _menuGlyphInset = missionMenuIconSize * 10 / 24;
+
+/// Distance from the pin's top to the title baseline: centers the glyph on the
+/// title's cap height instead of resting it on the baseline.
+const double _pinBaseline = AppIconSize.sm - 3;
+
+/// Width a phone row reserves for the menu at its trailing edge.
+const double _phoneMenuWidth = 24;
 
 /// Distance from the title's line box to the top of its glyphs.
 const double _titleInkInset = 3;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
@@ -98,6 +99,26 @@ void main() {
     // 10/24 of its width of empty space either side of the dots).
     final dotsRight = dots.right - dots.width * 10 / 24;
     expect(row.right - dotsRight, closeTo(tile.left - row.left, 1));
+    // The smaller age shares the title's baseline instead of floating above
+    // it, and the age sits a short step from the menu's dots, not a whole
+    // 44dp target away.
+    double baseline(Finder text) {
+      final paragraph = tester.renderObject<RenderParagraph>(text);
+      final painter = TextPainter(
+        text: paragraph.text,
+        textDirection: paragraph.textDirection,
+        textScaler: paragraph.textScaler,
+      )..layout(maxWidth: paragraph.size.width);
+      return tester.getRect(text).top +
+          painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+    }
+
+    expect(
+      baseline(find.text('Just now')),
+      closeTo(baseline(find.text('fw-analyzer')), 0.5),
+    );
+    final dotsLeft = dots.left + dots.width * 10 / 24;
+    expect(dotsLeft - age.right, inInclusiveRange(12, 28));
     expect(tester.takeException(), isNull);
   });
 

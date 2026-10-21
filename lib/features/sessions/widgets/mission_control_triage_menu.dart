@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 
+/// Glyph size of the overflow menu; big enough that its dots read next to the
+/// row title.
+const double missionMenuIconSize = AppIconSize.xl;
+
 /// Overflow triage menu for one action row: quick look, mark read, pin,
 /// snooze.
 class MissionTriageMenu extends StatelessWidget {
@@ -36,7 +40,7 @@ class MissionTriageMenu extends StatelessWidget {
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_vert_rounded,
-        size: AppIconSize.md,
+        size: missionMenuIconSize,
         color: cs.onSurfaceVariant,
       ),
       padding: EdgeInsets.zero,

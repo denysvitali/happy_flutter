@@ -122,7 +122,8 @@ in one tap; **Folders** split active from archived-only workspaces with lane
 summaries; **Unread focus** keeps rich attention cards over compact rows.
 Phone-width rows put the tile's top edge on the title's glyph top, keep the
 title and update lines tight, center the menu with its glyph mirroring the
-tile's left inset, and widen the tile-to-text gap to 10dp.
+tile's left inset, share the title's baseline with the age, and widen the
+tile-to-text gap to 10dp.
 Regressions are updated; device acceptance is pending.
 
 Keep this file to live priorities, open production bugs, and status. Git history
