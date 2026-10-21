@@ -280,6 +280,35 @@ class MissionActionRow extends StatelessWidget {
                       onSelect: onSelect,
                     ),
                   );
+                  // Side-by-side costs the age width plus the menu box from
+                  // the title column. Measure the rendered age the same way
+                  // the row caps it and demand the readable minimum the
+                  // pinned narrow tests enforce; otherwise stack the age
+                  // above the menu instead of crushing the title.
+                  final ageTextWidth = showActivityAge && trailingAge
+                      ? (TextPainter(
+                          text: TextSpan(
+                            text: ageLabel,
+                            style: AppText.secondary(theme),
+                          ),
+                          textDirection: Directionality.of(context),
+                          textScaler: MediaQuery.textScalerOf(context),
+                        )..layout(maxWidth: constraints.maxWidth * 0.2)).width
+                      : 0.0;
+                  final sideBySideTrailing =
+                      showActivityAge &&
+                      trailingAge &&
+                      hasMenu &&
+                      constraints.maxWidth -
+                              AppSpacing.smd * 2 -
+                              AppControlSize.sm -
+                              AppSpacing.xsm -
+                              ageTextWidth -
+                              AppSpacing.xs -
+                              AppTouchTarget.min -
+                              AppSpacing.xxs >=
+                          180;
+
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,9 +449,11 @@ class MissionActionRow extends StatelessWidget {
                               // Narrow rows put the age beside the menu on
                               // the title line pinned to the row top; stacked
                               // in a column, the menu drifted into the
-                              // preview/pill line. Large text keeps the old
-                              // stack: its age is wide and the whole content
-                              // column must stay readable (pinned by tests).
+                              // preview/pill line. When large text would
+                              // squeeze the title column below a readable
+                              // minimum (the width the pinned narrow tests
+                              // protect), fall back to the age-over-menu
+                              // stack instead of shrinking the content.
                               // Wide rows keep the age inside the title row,
                               // so the menu alone stays vertically centered
                               // like a list tile.
@@ -435,22 +466,8 @@ class MissionActionRow extends StatelessWidget {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [if (hasMenu) menu],
                                       )
-                                    : largeText
-                                    ? Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (showActivityAge)
-                                            ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth:
-                                                    constraints.maxWidth * 0.2,
-                                              ),
-                                              child: ageWidget,
-                                            ),
-                                          if (hasMenu) menu,
-                                        ],
-                                      )
-                                    : Row(
+                                    : sideBySideTrailing
+                                    ? Row(
                                         mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -473,6 +490,20 @@ class MissionActionRow extends StatelessWidget {
                                               width: AppSpacing.xs,
                                             ),
                                           ],
+                                          if (hasMenu) menu,
+                                        ],
+                                      )
+                                    : Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (showActivityAge)
+                                            ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxWidth:
+                                                    constraints.maxWidth * 0.2,
+                                              ),
+                                              child: ageWidget,
+                                            ),
                                           if (hasMenu) menu,
                                         ],
                                       ),
