@@ -1812,19 +1812,9 @@ extension SyncMessagingMerge on Sync {
     }
     // Ensure repeated incoming rows sharing a canonical localId collapse to one,
     // so prompt echoes and retried sends never create duplicate bubbles.
-    // Sidechain rows are exempt: sub-agent tool calls and sidechain-root
-    // prompts share the parent wire message's localId by design (see the
-    // isSidechainMsg guard in the merge loop) while being distinct logical
-    // messages.
     final seenLocalIds = <String>{};
     final dedupedMessages = messages
         .where((message) {
-          final isSidechainMsg =
-              message['isSidechain'] == true ||
-              message['kind'] == 'sidechain-root';
-          if (isSidechainMsg) {
-            return true;
-          }
           final localId = message['localId'];
           if (localId is String && localId.isNotEmpty) {
             if (!seenLocalIds.add(localId)) {

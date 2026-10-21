@@ -297,7 +297,7 @@ CI and affected-device acceptance remain required; no rollout or performance
 improvement is asserted from source inspection.
 
 Outstanding: provision read-only `HAPPY_CLI_GO_READ_TOKEN` for the required pinned
-Go lane (without it, CI skips the lane with a warning instead of failing); implement safe explicit recovery of encrypted legacy ownerless outbox
+Go lane; implement safe explicit recovery of encrypted legacy ownerless outbox
 entries (retained and counted, never auto-retried); verify bounded scrollback
 pixel anchoring, oversize-envelope pagination errors, and cache/native memory on
 devices. Existing retention/retry/cache
