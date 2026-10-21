@@ -296,8 +296,8 @@ New contract and widget regressions are added but have not been run locally.
 CI and affected-device acceptance remain required; no rollout or performance
 improvement is asserted from source inspection.
 
-Outstanding: provision read-only `HAPPY_CLI_GO_READ_TOKEN` for the required pinned
-Go lane; implement safe explicit recovery of encrypted legacy ownerless outbox
+`HAPPY_CLI_GO_READ_TOKEN` is provisioned (2026-10-21) for the required pinned
+Go lane. Outstanding: implement safe explicit recovery of encrypted legacy ownerless outbox
 entries (retained and counted, never auto-retried); verify bounded scrollback
 pixel anchoring, oversize-envelope pagination errors, and cache/native memory on
 devices. Existing retention/retry/cache
