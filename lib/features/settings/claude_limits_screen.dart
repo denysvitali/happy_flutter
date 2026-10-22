@@ -28,7 +28,7 @@ class ClaudeLimitsScreen extends ConsumerStatefulWidget {
 }
 
 class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
-  // Local-usage state (scraped from ~/.claude/stats-cache.json).
+  // Local-usage state (stats-cache.json plus live transcripts).
   // Loaded in parallel with the OAuth limits; failures here do NOT
   // block the OAuth limits from rendering.
   ClaudeLocalUsage? _localUsage;
@@ -213,8 +213,8 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
   }
 }
 
-/// Section rendering the local token usage scraped from
-/// `~/.claude/stats-cache.json` on the selected machine.
+/// Section rendering the local token usage the daemon computes from
+/// `~/.claude/stats-cache.json` and live transcripts on the selected machine.
 class _LocalUsageSection extends StatelessWidget {
   const _LocalUsageSection({
     required this.usage,

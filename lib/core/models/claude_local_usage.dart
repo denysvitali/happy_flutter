@@ -1,5 +1,6 @@
-/// Model for aggregated Claude Code token usage derived from the local
-/// `~/.claude/stats-cache.json` file (scraped by the daemon).
+/// Model for aggregated Claude Code token usage computed by the daemon from
+/// `~/.claude/stats-cache.json`, extended with the live transcripts for days
+/// after the cache's `lastComputedDate` (Claude only refreshes the cache lazily).
 ///
 /// Distinct from `ClaudeUsageLimits`, which is the OAuth rate-limit
 /// response (5-hour/7-day windows as percentages). This model is the

@@ -275,7 +275,8 @@ extension SyncMachineRpcOperations on Sync {
   }
 
   /// Fetch aggregated local Claude Code token usage (lifetime + per-day
-  /// per-model) scraped from `~/.claude/stats-cache.json` on the machine.
+  /// per-model) from `~/.claude/stats-cache.json` plus live transcripts on the
+  /// machine.
   /// Distinct from [machineGetClaudeUsageLimits] which is the OAuth
   /// rate-limit response (5-hour/7-day windows as percentages).
   Future<ClaudeLocalUsageResponse> machineGetClaudeLocalUsage({
