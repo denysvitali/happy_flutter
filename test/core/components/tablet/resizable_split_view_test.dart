@@ -93,7 +93,6 @@ void main() {
   ) async {
     setViewport(tester, const Size(1024, 768));
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
     final master = GlobalKey();
     final detail = GlobalKey();
     await tester.pumpWidget(
@@ -163,6 +162,7 @@ void main() {
     expect(master.currentState, same(masterState));
     expect(detail.currentState, same(detailState));
     expect(find.text('draft'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('default master pane keeps the detail visually dominant', (
