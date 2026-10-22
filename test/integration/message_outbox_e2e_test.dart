@@ -11,6 +11,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:happy_flutter/core/services/server_config.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -399,6 +400,50 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
     });
 
+    test(
+      'confirmed recovery restores one failed row but never sends',
+      () async {
+        sync.anonID = 'recovery-account';
+        final storage = _FakeMMKVStorage();
+        storage._outboxData = jsonEncode([
+          const OutboxEntry(
+            localId: 'recovered-id',
+            sessionId: 'sess-3',
+            text: 'continue',
+            encryptedContent: 'encrypted',
+            rawRecord: {'role': 'user', 'content': 'continue'},
+            queuedAt: 1000,
+          ).toJson(),
+        ]);
+        messageOutbox.testStorage = storage;
+        messageOutbox.configure(
+          ownerScope: MessageOutbox.ownerScope(
+            accountId: sync.anonID,
+            serverUrl: getServerUrl(),
+          ),
+          deliver: (_) async => fail('recovery must not send'),
+        );
+        expect(await sync.previewLegacyOutbox('foreign-session'), isNull);
+        final preview = await sync.previewLegacyOutbox('sess-3');
+        expect(preview?.count, 1);
+        expect(sync.testSessionMessages('sess-3'), isEmpty);
+        expect(await messageOutbox.recoverLegacy(preview!), isTrue);
+        sync.reconcileOutboxStatuses('sess-3');
+        sync.reconcileOutboxStatuses('sess-3');
+        final row = sync.testSessionMessages('sess-3')!.single;
+        expect(row['localId'], 'recovered-id');
+        expect(row['sendStatus'], 'failed');
+        expect(row['raw'], {'role': 'user', 'content': 'continue'});
+        expect(interceptor.capturedLocalIds, isEmpty);
+        sync.testUpsertSessionMessages('sess-3', [
+          {...row, 'id': 'server-id', 'seq': 1, 'sendStatus': 'sent'},
+        ]);
+        sync.reconcileOutboxStatuses('sess-3');
+        expect(sync.testSessionMessages('sess-3'), hasLength(1));
+        expect(sync.testSessionMessages('sess-3')!.single['id'], 'server-id');
+      },
+    );
+
     test('second manual send succeeds after initial failure', () async {
       // First call fails (interceptor rejects first request).
       await sync.sendMessage('sess-3', 'First attempt');
@@ -457,6 +502,81 @@ void main() {
             'Second message should succeed after '
             'interceptor no longer rejects',
       );
+    });
+
+    test('identical sends retain distinct identities through disconnect, '
+        'retry, ACK and reordered echo/fetch merges', () async {
+      final forwarded = <String>[];
+      sync.testSocketSendOverride = (event, dynamic payload) {
+        if (event == 'message') {
+          forwarded.add((payload as Map<String, dynamic>)['localId'] as String);
+        }
+      };
+      messageOutbox.configure(
+        deliver: (_) async => const OutboxDeliveryFailure.readiness(),
+        onStatusChanged: (sid, lid, status) =>
+            _applyOutboxStatus(sync, sid, lid, status),
+      );
+      await sync.sendMessage('sess-3', 'continue');
+      await sync.lastCompleteSendFuture;
+      await _waitUntil(
+        () => _firstSendStatus(sync, 'sess-3') == 'pending',
+        reason: 'disconnect failure must preserve its outbox payload',
+      );
+      final first = sync.testSessionMessages('sess-3')!.single;
+      final firstId = first['localId'] as String;
+      expect(messageOutbox.contains(firstId), isTrue);
+
+      sync.testSocketConnectedOverride = false;
+      await sync.sendMessage('sess-3', 'continue');
+      await sync.lastCompleteSendFuture;
+      final optimistic = sync.testSessionMessages('sess-3')!;
+      expect(optimistic, hasLength(2));
+      final ids = optimistic.map((row) => row['localId']).toSet();
+      expect(ids, hasLength(2));
+      expect(ids, contains(firstId));
+      await _waitUntil(
+        () => ids.cast<String>().every(messageOutbox.contains),
+        reason: 'both identical messages must remain independently queued',
+      );
+
+      messageOutbox.configure(
+        deliver: sync.testDeliverOutboxEntryClassified,
+        onStatusChanged: (sid, lid, status) =>
+            _applyOutboxStatus(sync, sid, lid, status),
+      );
+      sync.testSocketConnectedOverride = true;
+      for (final id in ids.cast<String>()) {
+        await messageOutbox.testAttemptNow(id);
+      }
+      await _waitUntil(
+        () => sync
+            .testSessionMessages('sess-3')!
+            .every((row) => row['sendStatus'] == 'sent'),
+        reason: 'reconnected outbox must finish both sends',
+      );
+      final acknowledged = sync
+          .testSessionMessages('sess-3')!
+          .map((row) => Map<String, dynamic>.of(row))
+          .toList();
+      expect(acknowledged, hasLength(2));
+      expect(acknowledged.map((row) => row['localId']).toSet(), ids);
+      expect(forwarded.toSet(), ids);
+      expect(
+        interceptor.capturedLocalIds.where((id) => id == firstId).length,
+        greaterThanOrEqualTo(2),
+      );
+
+      // The socket and history paths share this canonical merge entry point.
+      // Replay both orders, including repeated authoritative records.
+      sync.testUpsertSessionMessages('sess-3', acknowledged.reversed.toList());
+      sync.testUpsertSessionMessages('sess-3', acknowledged);
+      sync.testUpsertSessionMessages('sess-3', acknowledged.reversed.toList());
+      final merged = sync.testSessionMessages('sess-3')!;
+      expect(merged, hasLength(2));
+      expect(merged.map((row) => row['localId']).toSet(), ids);
+      expect(merged.every((row) => row['id'] != row['localId']), isTrue);
+      expect(messageOutbox.entries, isEmpty);
     });
 
     test('manual retry keeps the canonical localId and does not create a '

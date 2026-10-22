@@ -554,6 +554,49 @@ void main() {
     final live = _session('live', activeAt: 2000);
     final archived = _session('archived', activeAt: 1000, archived: true);
 
+    testWidgets(
+      'list toggle keeps selected chat mounted on desktop and tablet',
+      (tester) async {
+        setTabletLandscape(tester);
+        await pumpScreen(tester, sessions: {live.id: live});
+        final chatState = tester.state(find.byType(ChatScreen));
+        final listState = tester.state(find.byType(SessionsListContent));
+        final split = tester.widget<ResizableSplitView>(
+          find.byType(ResizableSplitView),
+        );
+        expect(split.collapseBreakpoint, 736);
+        await tester.tap(find.widgetWithText(TextButton, 'Hide sessions'));
+        await tester.pump();
+        expect(find.byType(SessionsListContent), findsNothing);
+        expect(tester.state(find.byType(ChatScreen)), same(chatState));
+        tester.view.physicalSize = const Size(800 * 2, 768 * 2);
+        await tester.pump();
+        await tester.tap(find.widgetWithText(TextButton, 'Show sessions'));
+        await tester.pump();
+        expect(tester.state(find.byType(SessionsListContent)), same(listState));
+        expect(tester.state(find.byType(ChatScreen)), same(chatState));
+        expect(
+          tester.widget<ChatScreen>(find.byType(ChatScreen)).sessionId,
+          'live',
+        );
+
+        // Phone navigation owns the conversation below the split breakpoint;
+        // returning to a wide layout retains the shell's selected session.
+        tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+        await tester.pump();
+        expect(find.byType(ResizableSplitView), findsNothing);
+        expect(find.widgetWithText(TextButton, 'Hide sessions'), findsNothing);
+        tester.view.physicalSize = const Size(1024 * 2, 768 * 2);
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(
+          tester.widget<ChatScreen>(find.byType(ChatScreen)).sessionId,
+          'live',
+        );
+      },
+    );
+
     testWidgets('auto-selects the most recent live session on entry', (
       tester,
     ) async {

@@ -139,6 +139,17 @@ The current test count is not enough if this contract can break without failing 
 
 ### Immediate Test Priorities
 
+Batch 1 implementation, CI qualification pending: Settings now offers count-only,
+explicit current-account/server/session legacy outbox recovery. Cancel is inert;
+confirmation preserves `localId` and restores permanent failed rows without
+sending or automatic retry. Invalid bytes, identity conflicts, stale reviews and
+runtime/account changes fail closed. Added contracts cover inert preview,
+confirmation, restart, concurrent persistence, rejected recovery, and repeated
+`continue` sends through transport failure/retry/ACK and reordered merge replay.
+These tests have not been executed locally, per repository policy. Actual socket
+and history event ordering retain the existing dedicated integration suites;
+the new cohesive test replays their shared merge entry point.
+
 | Task | Status | Description |
 |------|--------|-------------|
 | Canonical message identity contract tests | In Progress | Add a dedicated suite that asserts a single `localId` survives optimistic UI, REST send, socket forwarding, outbox retry, server ack, and merge. |
@@ -239,7 +250,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Collapsible sidebar | Not Started | Tab bar exists but no sidebar for tablet/desktop layouts. Referenced in multiple RN components. |
+| Collapsible session list | Implemented — CI pending | Show/Hide sessions now works throughout tablet/desktop master-detail layouts (≥736px), independently of the navigation rail. List and chat remain mounted across toggles and desktop/tablet resizing; narrow screens retain phone navigation and returning wide preserves the selected conversation. Added component and screen wiring contracts; CI execution pending. |
 
 ---
 
@@ -308,6 +319,24 @@ devices. Existing retention/retry/cache
 budgets are unchanged. Explicit scrollback retains at most twice the settled-row
 cap while active; unresolved sends remain exempt to preserve retry identity.
 
+## Reliability qualification batch — CI/device evidence pending
+
+- Added an explicit CI acceptance lane for HTTP header/body/callback boundaries,
+  drain-before-retire transport recovery, scroll-anchor/pagination contracts,
+  bounded history and canonical outbox identity. These tests are not a live
+  server or physical-device qualification and have not been executed locally.
+- Added `scripts/memory_profile.py`: fixed workload/cycle manifest, timestamped
+  pre/post-workload and post-requested-GC heap/external/RSS/cache/resident samples,
+  private exclusive-create JSONL and incomplete-run detection. A loopback VM
+  service plus real workload/metrics drivers are required. Drivers, device
+  traces and before/after captures are still pending; no reduction is measured.
+  Native attribution and GC counts are explicitly unknown; RSS minus heap is
+  only an estimate and overlapping cache/external gauges must not be summed.
+- Real-server retry/reorder/repeated-identical-send qualification is blocked on
+  disposable backend provisioning, authenticated fixture/session lifecycle and
+  controlled failure/reorder hooks. The Go read token is not such a backend:
+  the current pinned Go lane checks source/fixtures, never live delivery.
+
 ## Next Steps
 
 1. **Note**: Releases are automatic — every commit to `main` publishes a GitHub Release. A fix on `main` has shipped; there is no tagging step.
@@ -315,7 +344,8 @@ cap while active; unresolved sends remain exempt to preserve retry identity.
 3. **Verify after rollout**: the "Verify" rows in Open production bugs.
 4. **P1 investigations**: DNS/transport recovery with preserved outbox identity (8916–8918), history response-body timeout (5048), slow/offline daemon RPCs (3632/3794/3661/8785). Progress-bar 3604 and WASM 8914 latest reports predate their fixes; verify updated-device/web behavior before calling them regressions.
 5. **Other open investigations**: model/profile mismatch (8875), default-profile respawn (5198), `CryptoSecretBox.decrypt failed` telemetry, resident-row memory (RSS 1.8GB).
-6. **Later**: sidebar navigation for tablet/desktop.
+6. **Qualify in CI**: tablet/desktop session-list collapse/expand, keyboard access,
+   selected conversation retention, and narrow-layout navigation contracts.
 
 ---
 

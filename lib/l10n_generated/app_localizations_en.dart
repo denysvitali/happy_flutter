@@ -9,6 +9,37 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get legacyOutboxTitle => 'Recover older queued messages';
+
+  @override
+  String get legacyOutboxExplanation =>
+      'Older messages have no account information. Only recover messages you know belong to the signed-in account and this server. Select an existing conversation; message contents remain hidden.';
+
+  @override
+  String get legacyOutboxPreview => 'Review queued message count';
+
+  @override
+  String legacyOutboxConfirm(
+    int count,
+    String session,
+    String account,
+    String server,
+  ) {
+    return 'Recover $count messages into conversation $session for account $account on $server? Only confirm if these are your messages for this account. Recovery does not send anything. Open the original conversation and retry each message separately.';
+  }
+
+  @override
+  String get legacyOutboxRecover => 'Recover without sending';
+
+  @override
+  String get legacyOutboxSuccess =>
+      'Recovered without sending. Retry messages individually in the original conversation.';
+
+  @override
+  String get legacyOutboxUnavailable =>
+      'No recoverable messages for this conversation, or the account, stored data, or runtime changed. Nothing was sent. Try reviewing again.';
+
+  @override
   String get chatModelFixed => 'This session has one available model.';
 
   @override

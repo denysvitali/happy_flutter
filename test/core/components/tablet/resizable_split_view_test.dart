@@ -88,6 +88,83 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  testWidgets('session toggle preserves mounted panes across resize', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(1024, 768));
+    final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
+    final master = GlobalKey();
+    final detail = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ResizableSplitView(
+            paneId: 'sessions',
+            storage: storage,
+            collapsibleOnDesktop: true,
+            collapseBreakpoint: 736,
+            master: TextField(key: master),
+            detail: TextField(key: detail),
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byKey(master), 'selected session');
+    await tester.enterText(find.byKey(detail), 'draft');
+    final masterState = master.currentState;
+    final detailState = detail.currentState;
+    final hide = find.widgetWithText(TextButton, 'Hide sessions');
+    expect(
+      tester
+          .getSemantics(hide)
+          .getSemanticsData()
+          .hasAction(SemanticsAction.tap),
+      isTrue,
+    );
+    await tester.tap(hide);
+    await tester.pump();
+    expect(find.byKey(master), findsNothing);
+    expect(detail.currentState, same(detailState));
+    expect(tester.getSize(find.byKey(detail)).width, 1024);
+
+    // Tablet master-detail layouts can expand too, without resetting draft
+    // or the hidden list's selection/scroll state.
+    tester.view.physicalSize = const Size(800, 768);
+    await tester.pump();
+    final show = find.widgetWithText(TextButton, 'Show sessions');
+    expect(show, findsOneWidget);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(find.byKey(master), findsOneWidget);
+    expect(master.currentState, same(masterState));
+    expect(detail.currentState, same(detailState));
+    expect(find.text('selected session'), findsOneWidget);
+    expect(find.text('draft'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Hide sessions'));
+    await tester.pump();
+    tester.view.physicalSize = const Size(700, 768);
+    await tester.pump();
+    expect(find.byType(TextButton), findsNothing);
+    expect(find.byKey(master), findsOneWidget);
+    expect(detail.currentState, same(detailState));
+    tester.view.physicalSize = const Size(1024, 768);
+    await tester.pump();
+    expect(find.byKey(master), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Show sessions'));
+    await tester.pump();
+    expect(master.currentState, same(masterState));
+    expect(detail.currentState, same(detailState));
+    expect(find.text('draft'), findsOneWidget);
+  });
+
   testWidgets('default master pane keeps the detail visually dominant', (
     tester,
   ) async {

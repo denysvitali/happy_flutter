@@ -13,6 +13,7 @@ import '../../core/theme/app_tokens.dart';
 import 'settings_section_registry.dart';
 import 'widgets/danger_zone.dart';
 import 'widgets/inline_theme_picker.dart';
+import 'widgets/legacy_outbox_recovery_tile.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
@@ -194,6 +195,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ..add(const SizedBox(height: AppSpacing.xl))
             ..add(DangerZone(onSignOut: () => _confirmSignOut(context)));
         }
+        children.add(const LegacyOutboxRecoveryTile());
         children.add(const SizedBox(height: AppSpacing.xxxl));
 
         return ListView(

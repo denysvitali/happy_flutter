@@ -441,6 +441,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       return ResizableSplitView(
         paneId: sessionsPaneId,
         collapsibleOnDesktop: true,
+        collapseBreakpoint: AppBreakpoint.masterDetail,
         dividerSemanticsLabel: context.l10n.sessionsResizeSidebar,
         master: Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,

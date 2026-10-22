@@ -17,6 +17,26 @@ class _Transport implements HttpClientAdapter {
 }
 
 void main() {
+  test('header wait is not reported as server processing time', () {
+    final timing = HttpTransportTiming('native', 'active')
+      ..headersUs = 250000
+      ..bodyDoneUs = 300000
+      ..callbackUs = 310000;
+    final attributes = timing.attributes();
+    expect(attributes['http.transport.headers_ms'], 250);
+    expect(attributes['http.transport.body_ms'], 50);
+    expect(attributes['http.transport.callback_ms'], 10);
+    // The adapter has no DNS/TLS/server-processing timing source. Header wait
+    // includes transport, pool/scheduler delay and server work; never relabel it.
+    for (final name in [
+      'http.server.duration_ms',
+      'http.transport.dns_ms',
+      'http.transport.tls_ms',
+    ]) {
+      expect(attributes.containsKey(name), isFalse);
+    }
+  });
+
   test(
     'separates header wait, body and callback without altering bytes',
     () async {

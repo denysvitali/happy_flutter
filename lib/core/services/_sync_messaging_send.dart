@@ -1964,6 +1964,7 @@ extension SyncMessagingSend on Sync {
   /// Call this whenever a session's messages become visible/loaded.
   /// Returns the number of rows whose status changed.
   int reconcileOutboxStatuses(String sessionId) {
+    _restoreRecoveredOutboxRows(sessionId);
     final msgs = _sessionMessages[sessionId];
     if (msgs == null || msgs.isEmpty) return 0;
     var changed = 0;

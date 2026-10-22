@@ -138,6 +138,7 @@ part '_sync_operations_session_target.dart';
 part '_sync_operations_session_model_env.dart';
 part '_sync_operations_machine_rpc.dart';
 part '_sync_machine_rpc_retry.dart';
+part '_sync_outbox_recovery.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';

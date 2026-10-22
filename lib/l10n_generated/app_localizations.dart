@@ -94,6 +94,53 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @legacyOutboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover older queued messages'**
+  String get legacyOutboxTitle;
+
+  /// No description provided for @legacyOutboxExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Older messages have no account information. Only recover messages you know belong to the signed-in account and this server. Select an existing conversation; message contents remain hidden.'**
+  String get legacyOutboxExplanation;
+
+  /// No description provided for @legacyOutboxPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review queued message count'**
+  String get legacyOutboxPreview;
+
+  /// No description provided for @legacyOutboxConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover {count} messages into conversation {session} for account {account} on {server}? Only confirm if these are your messages for this account. Recovery does not send anything. Open the original conversation and retry each message separately.'**
+  String legacyOutboxConfirm(
+    int count,
+    String session,
+    String account,
+    String server,
+  );
+
+  /// No description provided for @legacyOutboxRecover.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover without sending'**
+  String get legacyOutboxRecover;
+
+  /// No description provided for @legacyOutboxSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered without sending. Retry messages individually in the original conversation.'**
+  String get legacyOutboxSuccess;
+
+  /// No description provided for @legacyOutboxUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No recoverable messages for this conversation, or the account, stored data, or runtime changed. Nothing was sent. Try reviewing again.'**
+  String get legacyOutboxUnavailable;
+
   /// No description provided for @chatModelFixed.
   ///
   /// In en, this message translates to:

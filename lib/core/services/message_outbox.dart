@@ -11,6 +11,8 @@ import 'logger_service.dart';
 import 'mmkv_storage.dart';
 import 'power_diagnostics_service.dart';
 
+part '_message_outbox_recovery.dart';
+
 /// Whether a delivery failure may succeed on a later attempt.
 enum OutboxFailureClass {
   /// Timeout, unreachable network, 5xx, 429 — the server may accept the
@@ -288,6 +290,7 @@ class MessageOutbox {
   OutboxStatusChangedFn? _onStatusChanged;
 
   final Map<String, OutboxEntry> _entries = {};
+  final Set<String> _legacyRecoveryIds = {};
 
   /// Dead-letter bucket: entries that exhausted [_maxRetries]. They are
   /// persisted alongside the live entries so the encrypted payload
@@ -488,10 +491,18 @@ class MessageOutbox {
 
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
+    // Do not wait behind recovery's persistence barrier: by the time restore
+    // completes its reservation may be gone, allowing an automatic resend.
+    if (_legacyRecoveryIds.contains(entry.localId)) {
+      throw StateError('Legacy recovery is still committing this identity');
+    }
     final generation = _generation;
     if (_ownerScope != 'unowned') {
       await prepareDelivery();
       if (generation != _generation) return;
+    }
+    if (_legacyRecoveryIds.contains(entry.localId)) {
+      throw StateError('Legacy recovery is still committing this identity');
     }
     final previousPending = _entries[entry.localId];
     final previousDead = _dead.remove(entry.localId);
@@ -793,6 +804,7 @@ class MessageOutbox {
     _sessionDeliveryTails.clear();
     _readinessDeferredEntries.clear();
     _entries.clear();
+    _legacyRecoveryIds.clear();
     _dead.clear();
     _unownedEntryCount = 0;
     _initialized = false;
@@ -1045,10 +1057,6 @@ class MessageOutbox {
   Future<bool> _persistCurrentSnapshot() {
     final generation = _generation;
     final owner = _ownerScope;
-    final list = <dynamic>[
-      ..._entries.values.map((e) => e.toJson()),
-      ..._dead.values.map((e) => e.toJson()),
-    ];
     final result = Completer<bool>();
     // Read/modify/write the shared envelope in one lane. A new runtime drains
     // an already-started old write before loading or updating its own bucket.
@@ -1079,6 +1087,12 @@ class MessageOutbox {
           if (plaintext == null) throw StateError('Outbox cannot be decrypted');
           buckets.addAll(_decodeBuckets(plaintext));
         }
+        // Capture inside the storage lane so a confirmed recovery cannot be
+        // overwritten by a snapshot queued while its atomic write was pending.
+        final list = <dynamic>[
+          ..._entries.values.map((e) => e.toJson()),
+          ..._dead.values.map((e) => e.toJson()),
+        ];
         buckets[owner] = list;
         final payload = owner == 'unowned' && buckets.length == 1
             ? jsonEncode(list)

@@ -282,6 +282,40 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  reliability-acceptance:
+    name: Transport and bounded-history acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-flutter
+        with:
+          cache-write: 'false'
+      - run: mise exec -- flutter pub get
+      - name: Check memory capture schema
+        run: python3 -m unittest discover -s scripts -p test_memory_profile.py
+      - name: Require transport, pagination, anchors and recovery contracts
+        run: |
+          set -o pipefail
+          mise exec -- flutter test --no-pub --concurrency=1 \
+            --file-reporter=json:reliability-results.json \
+            test/core/api/timed_http_adapter_test.dart \
+            test/core/api/renewable_http_adapter_test.dart \
+            test/core/api/api_client_resume_transport_test.dart \
+            test/services/user_scrollback_retention_test.dart \
+            test/integration/fetch_messages_pagination_e2e_test.dart \
+            test/features/chat/chat_screen_test.dart \
+            test/features/chat/chat_switch_performance_contract_test.dart \
+            test/integration/message_outbox_e2e_test.dart
+      - name: Preserve acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reliability-acceptance
+          path: reliability-results.json
+          if-no-files-found: warn
+          retention-days: 14
+
   native-contract:
     name: Native/Dart compatibility contracts
     runs-on: ubuntu-latest

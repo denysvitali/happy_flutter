@@ -26,6 +26,7 @@ class ResizableSplitView extends StatefulWidget {
     this.storage,
     this.dividerSemanticsLabel,
     this.collapsibleOnDesktop = false,
+    this.collapseBreakpoint = AppBreakpoint.desktop,
   });
 
   /// Stable identifier used as the persistence key (e.g. `'sessions'`).
@@ -45,6 +46,10 @@ class ResizableSplitView extends StatefulWidget {
 
   /// Keep the list mounted while giving the detail all available space.
   final bool collapsibleOnDesktop;
+
+  /// Minimum viewport width that exposes the list toggle. Session lists use
+  /// the master-detail breakpoint so tablets can hide the pane too.
+  final double collapseBreakpoint;
 
   @override
   State<ResizableSplitView> createState() => _ResizableSplitViewState();
@@ -106,54 +111,67 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
     final max = ResizablePaneDivider.maxWidth(context);
     final collapsible =
         widget.collapsibleOnDesktop &&
-        MediaQuery.sizeOf(context).width >= AppBreakpoint.desktop;
+        MediaQuery.sizeOf(context).width >= widget.collapseBreakpoint;
     final hidden = collapsible && _masterHidden;
     final split = Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Offstage(
           offstage: hidden,
-          child: SizedBox(width: masterWidth, child: widget.master),
+          child: ExcludeFocus(
+            excluding: hidden,
+            child: SizedBox(width: masterWidth, child: widget.master),
+          ),
         ),
         Offstage(
           offstage: hidden,
-          child: ResizablePaneDivider(
-            semanticsLabel: label,
-            semanticsValue: label == null
-                ? null
-                : context.l10n.paneWidthPixels(masterWidth.round()),
-            semanticsIncreasedValue: label == null
-                ? null
-                : context.l10n.paneWidthPixels(
-                    (masterWidth + step).clamp(min, max).round(),
-                  ),
-            semanticsDecreasedValue: label == null
-                ? null
-                : context.l10n.paneWidthPixels(
-                    (masterWidth - step).clamp(min, max).round(),
-                  ),
-            onResize: (delta) => _onResize(delta, context),
-            onResizeEnd: _persist,
+          child: ExcludeFocus(
+            excluding: hidden,
+            child: ResizablePaneDivider(
+              semanticsLabel: label,
+              semanticsValue: label == null
+                  ? null
+                  : context.l10n.paneWidthPixels(masterWidth.round()),
+              semanticsIncreasedValue: label == null
+                  ? null
+                  : context.l10n.paneWidthPixels(
+                      (masterWidth + step).clamp(min, max).round(),
+                    ),
+              semanticsDecreasedValue: label == null
+                  ? null
+                  : context.l10n.paneWidthPixels(
+                      (masterWidth - step).clamp(min, max).round(),
+                    ),
+              onResize: (delta) => _onResize(delta, context),
+              onResizeEnd: _persist,
+            ),
           ),
         ),
         Expanded(child: widget.detail),
       ],
     );
-    if (!collapsible) return split;
+    // Keep the same tree at the breakpoint: replacing Column with Row
+    // remounts ChatScreen, dropping its draft and visibility ownership.
     return Column(
       children: [
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton.icon(
-            onPressed: () => setState(() => _masterHidden = !_masterHidden),
-            icon: Icon(
-              hidden ? Icons.view_sidebar_outlined : Icons.view_sidebar,
-              size: 18,
-            ),
-            label: Text(
-              hidden
-                  ? context.l10n.desktopShowSessions
-                  : context.l10n.desktopHideSessions,
+        Offstage(
+          offstage: !collapsible,
+          child: ExcludeFocus(
+            excluding: !collapsible,
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _masterHidden = !_masterHidden),
+                icon: Icon(
+                  hidden ? Icons.view_sidebar_outlined : Icons.view_sidebar,
+                  size: 18,
+                ),
+                label: Text(
+                  hidden
+                      ? context.l10n.desktopShowSessions
+                      : context.l10n.desktopHideSessions,
+                ),
+              ),
             ),
           ),
         ),

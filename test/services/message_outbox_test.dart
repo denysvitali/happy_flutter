@@ -454,6 +454,247 @@ void main() {
       expect(outbox.entries, isEmpty);
     });
 
+    test(
+      'legacy preview is inert and confirmed recovery never sends',
+      () async {
+        storage._outboxData = jsonEncode([_makeEntry().toJson()]);
+        outbox.configure(
+          ownerScope: 'account-a',
+          deliver: (_) async {
+            fail('recovery must not deliver');
+          },
+        );
+        await outbox.restoreAndFlush();
+        final before = storage._outboxData;
+        final preview = await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        );
+        expect(preview?.count, 1);
+        expect(storage._outboxData, before);
+        expect(outbox.entries, isEmpty);
+        expect(await outbox.recoverLegacy(preview!), isTrue);
+        expect(outbox.deadEntries.single.localId, 'local-1');
+        expect(
+          outbox.deadEntries.single.failureClass,
+          OutboxFailureClass.permanent,
+        );
+        expect(outbox.unownedEntryCount, 0);
+        expect(await outbox.recoverLegacy(preview), isFalse);
+      },
+    );
+
+    test(
+      'stale runtime and changed legacy bytes cannot be recovered',
+      () async {
+        storage._outboxData = jsonEncode([_makeEntry().toJson()]);
+        outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+        var current = true;
+        final preview = await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => current,
+        );
+        final before = storage._outboxData;
+        current = false;
+        expect(await outbox.recoverLegacy(preview!), isFalse);
+        expect(storage._outboxData, before);
+        current = true;
+        outbox.configure(ownerScope: 'account-b', deliver: (_) async => null);
+        expect(await outbox.recoverLegacy(preview), isFalse);
+        expect(storage._outboxData, before);
+      },
+    );
+
+    test('malformed legacy data is preserved byte for byte', () async {
+      storage._outboxData = '[{"sessionId":"session-a"}]';
+      outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+      final before = storage._outboxData;
+      expect(
+        await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        ),
+        isNull,
+      );
+      expect(storage._outboxData, before);
+    });
+
+    test(
+      'recovery fails closed on changed bytes, collisions and write errors',
+      () async {
+        storage._outboxData = jsonEncode([_makeEntry().toJson()]);
+        outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+        final preview = await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        );
+        final original = storage._outboxData!;
+        storage._outboxData = '$original ';
+        expect(await outbox.recoverLegacy(preview!), isFalse);
+        expect(storage._outboxData, '$original ');
+        storage._outboxData = original;
+        storage.failWrites = true;
+        expect(await outbox.recoverLegacy(preview), isFalse);
+        expect(storage._outboxData, original);
+        expect(outbox.deadEntries, isEmpty);
+        storage.failWrites = false;
+        await outbox.add(_makeEntry());
+        final collision = await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        );
+        final before = storage._outboxData;
+        expect(await outbox.recoverLegacy(collision!), isFalse);
+        expect(storage._outboxData, before);
+      },
+    );
+
+    test(
+      'recovered IDs survive restart exactly once without automatic delivery',
+      () async {
+        storage._outboxData = jsonEncode([
+          _makeEntry(localId: 'one', text: 'continue').toJson(),
+          _makeEntry(localId: 'two', text: 'continue').toJson(),
+        ]);
+        outbox.configure(
+          ownerScope: 'account-a',
+          deliver: (_) async {
+            fail('recovered messages must require individual retry');
+          },
+        );
+        final preview = await outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        );
+        expect(await outbox.recoverLegacy(preview!), isTrue);
+        outbox.dispose();
+        outbox.configure(
+          ownerScope: 'account-a',
+          deliver: (_) async {
+            fail('restart must not send recovered messages');
+          },
+        );
+        await outbox.restoreAndFlush();
+        expect(outbox.entries, isEmpty);
+        expect(outbox.deadEntries.map((entry) => entry.localId), [
+          'one',
+          'two',
+        ]);
+        expect(
+          await outbox.previewLegacyRecovery(
+            sessionId: 'session-a',
+            isCurrent: () => true,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'runtime change during preview read leaves legacy bytes intact',
+      () async {
+        final blocking = _BlockingReadMMKVStorage();
+        blocking._outboxData = jsonEncode([_makeEntry().toJson()]);
+        final before = blocking._outboxData;
+        outbox.testStorage = blocking;
+        outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+        blocking.blockReads = true;
+        final preview = outbox.previewLegacyRecovery(
+          sessionId: 'session-a',
+          isCurrent: () => true,
+        );
+        await blocking.readStarted.future;
+        outbox.configure(ownerScope: 'account-b', deliver: (_) async => null);
+        blocking.allowRead.complete();
+        expect(await preview, isNull);
+        expect(blocking._outboxData, before);
+        expect(outbox.entries, isEmpty);
+        expect(outbox.deadEntries, isEmpty);
+      },
+    );
+
+    test('uninitialized same-ID add rejects before recovery commits', () async {
+      final blocking = _BlockingMMKVStorage();
+      blocking._outboxData = jsonEncode([_makeEntry().toJson()]);
+      outbox.testStorage = blocking;
+      final delivered = <String>[];
+      outbox.configure(
+        ownerScope: 'account-a',
+        deliver: (entry) async {
+          delivered.add(entry.localId);
+          return null;
+        },
+      );
+      final preview = await outbox.previewLegacyRecovery(
+        sessionId: 'session-a',
+        isCurrent: () => true,
+      );
+      final recovery = outbox.recoverLegacy(preview!);
+      await blocking.saveStarted.future;
+      // Rejection must happen while the first write is still blocked, not
+      // after prepareDelivery restores the newly recovered dead letter.
+      // Ensure a failing regression releases the storage barrier on teardown.
+      addTearDown(() {
+        if (!blocking.allowSave.isCompleted) blocking.allowSave.complete();
+      });
+      await expectLater(
+        outbox.add(_makeEntry(text: 'replacement')),
+        throwsStateError,
+      );
+      blocking.allowSave.complete();
+      expect(await recovery, isTrue);
+      await outbox.restoreAndFlush();
+      await outbox.testAttemptNow('local-1');
+      expect(outbox.entries, isEmpty);
+      expect(outbox.deadEntries.single.text, 'hello');
+      expect(outbox.deadEntries.single.localId, 'local-1');
+      expect(delivered, isEmpty);
+    });
+
+    test('same-ID add cannot race a confirmed recovery write', () async {
+      outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+      await outbox.restoreAndFlush();
+      final blocking = _BlockingMMKVStorage();
+      blocking._outboxData = jsonEncode([_makeEntry().toJson()]);
+      outbox.testStorage = blocking;
+      final preview = await outbox.previewLegacyRecovery(
+        sessionId: 'session-a',
+        isCurrent: () => true,
+      );
+      final recovery = outbox.recoverLegacy(preview!);
+      await blocking.saveStarted.future;
+      await expectLater(
+        outbox.add(_makeEntry(text: 'different')),
+        throwsStateError,
+      );
+      blocking.allowSave.complete();
+      expect(await recovery, isTrue);
+      expect(outbox.entries, isEmpty);
+      expect(outbox.deadEntries.single.text, 'hello');
+    });
+
+    test('concurrent add cannot overwrite a recovered identity', () async {
+      final blocking = _BlockingMMKVStorage();
+      blocking._outboxData = jsonEncode([_makeEntry().toJson()]);
+      outbox.testStorage = blocking;
+      outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+      final preview = await outbox.previewLegacyRecovery(
+        sessionId: 'session-a',
+        isCurrent: () => true,
+      );
+      final recovery = outbox.recoverLegacy(preview!);
+      await blocking.saveStarted.future;
+      final add = outbox.add(_makeEntry(localId: 'new'));
+      blocking.allowSave.complete();
+      expect(await recovery, isTrue);
+      await add;
+      outbox.dispose();
+      outbox.configure(ownerScope: 'account-a', deliver: (_) async => null);
+      await outbox.restoreAndFlush();
+      expect(outbox.deadEntries.single.localId, 'local-1');
+      expect(outbox.entries.single.localId, 'new');
+    });
+
     test('scoped restore never claims unowned legacy sends', () async {
       storage._outboxData = jsonEncode([_makeEntry().toJson()]);
       outbox.configure(

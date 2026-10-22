@@ -152,7 +152,11 @@ pane edge and full-width tool details keep a 4px gutter. The composer gives
 the draft its full width with expand on the first line; attach, approvals,
 model and options lead the toolbar, dictate and send close it.
 The session pane can be hidden without losing its selection or scroll state;
-dragging its divider resizes it. Chat inspectors allocate space only when
+dragging its divider resizes it. On tablet/desktop master-detail layouts
+(736px and wider), Show/Hide sessions toggles the list independently of the
+navigation rail and keeps the active chat mounted. Narrow layouts retain phone
+navigation. Resize and toggle widget contracts await CI qualification.
+Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer
 share an 880px maximum reading width on desktop. Opening and closing an
 inspector keeps the conversation mounted, preserving composer focus, draft
@@ -393,6 +397,16 @@ Spacing and radius tokens are defined in `lib/core/theme/app_tokens.dart`:
 | `Sync` | Singleton | Central in-memory data hub with all server state |
 | `Storage` | Singleton | MMKV wrapper for user data (cleared on logout) |
 
+### Older queued messages
+
+Settings offers a count-only recovery review for a selected conversation in the
+current account/server. Older ownerless messages are never automatically adopted
+or sent, and their text is not shown during review. Confirm ownership explicitly;
+recovered messages retain their original `localId` and appear as failed rows in
+the original conversation. Retry each individually. Canceling review does nothing;
+unreadable data and stale-runtime reviews stay untouched. This recovery path and
+its new identity contracts still require CI qualification (tests are CI-only).
+
 ### State Management
 
 Providers live in `lib/core/providers/`, one notifier per file. `app_providers.dart` is a barrel that re-exports them:
@@ -449,6 +463,36 @@ can be filtered by agent.
 - **Integration / e2e**: ~18 e2e files in `test/integration/` covering session spawning, message dedup, pagination, cold starts, reconnection, concurrent sends. Backed by `mock_sync_server.dart` and `fake_session_encryption.dart`, plus replay fixtures in `test/integration/jsonl_replay/`.
 - **Mock generation**: Mockito for `ApiClient` mocking; `.mocks.dart` files sit next to each test
 - **Test command**: `mise exec -- flutter test`
+
+### Reliability acceptance and memory evidence
+
+CI's **Transport and bounded-history acceptance** lane explicitly runs header
+wait/body/callback timing, transport drain-on-resume, bounded history,
+pagination/scroll-anchor and canonical outbox identity contracts. Header wait
+includes network/pool/scheduler delay; it is not server processing duration.
+These are client/mock-server contracts, not real-server qualification.
+
+`scripts/memory_profile.py --help` describes the Linux profile capture contract.
+It runs five fixed cycles of long-chat, session-switch and background/resume
+workloads (defaults: 12 sessions, 1,000 rows), recording UTC before/after-workload
+and post-requested-GC samples. Supply a loopback Dart VM service, its matching
+Linux PID, a deterministic fixture/revision, a synchronous workload executable
+and an executable reporting image/encryption cache bytes and resident rows and
+sessions from that running app. The VM supplies heap used/capacity and external
+bytes; `/proc` supplies RSS. Output is exclusive-create JSONL with a completion
+marker; partial files are not successful experiments. Authenticated service URLs
+must remain private. Capture identical workloads/build mode before and after a
+change. RSS minus heap is only an estimate, **not native allocation ownership**;
+cache/external bytes can overlap, and GC counts remain unknown. Driver execution
+and sampling are not atomic. Device traces/automated drivers and actual baseline
+captures remain required; no measured memory improvement is claimed by this
+harness. It does not support Android/iOS RSS attribution.
+
+Real-server repeated-send/retry/reorder acceptance also remains unqualified:
+the existing pinned Go lane only inspects source/fixtures. A disposable live
+backend, isolated authenticated account/session, reset/cleanup contract and
+controlled delivery-failure/reordering hooks must be provisioned before that
+lane can claim real Flutter → Go/backend → Flutter delivery coverage.
 
 ### Test Structure
 
