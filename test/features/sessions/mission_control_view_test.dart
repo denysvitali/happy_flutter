@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/services/mission_triage_storage.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
 
 /// Mission Control is an action radar, not a session archive.
 ///
@@ -200,17 +201,32 @@ void main() {
         _session(id: 's$i', thinking: true, path: '/home/dev/p$i'),
     ];
 
-    await tester.pumpWidget(_app(activeSessions: sessions));
+    await tester.pumpWidget(
+      _app(
+        activeSessions: sessions,
+        uiState: SessionUiState(
+          bySessionId: {
+            for (var i = 0; i < 4; i++)
+              's$i': const SessionUiEntry(unreadCount: 1),
+          },
+        ),
+      ),
+    );
     await tester.pump();
 
     expect(find.textContaining('action-s'), findsNWidgets(4));
     expect(find.text('… +4 more'), findsOneWidget);
+    expect(
+      tester.widget<MissionClock>(find.byType(MissionClock)).live,
+      isFalse,
+    );
 
     await tester.tap(find.text('… +4 more'));
     await tester.pump();
 
     expect(find.textContaining('action-s'), findsNWidgets(8));
     expect(find.text('Show less'), findsOneWidget);
+    expect(tester.widget<MissionClock>(find.byType(MissionClock)).live, isTrue);
   });
 
   testWidgets('reduced motion removes disclosure animations', (tester) async {
@@ -313,6 +329,7 @@ void main() {
 
     expect(find.text('action-unread'), findsOneWidget);
     expect(find.text('action-live'), findsOneWidget);
+    expect(tester.widget<MissionClock>(find.byType(MissionClock)).live, isTrue);
     expect(find.text('Mission Control'), findsNothing);
     expect(find.byKey(const ValueKey('mission-filter-all')), findsOneWidget);
     expect(find.byKey(const ValueKey('mission-filter-blocked')), findsNothing);
@@ -329,11 +346,17 @@ void main() {
 
     expect(find.text('action-unread'), findsOneWidget);
     expect(find.text('action-live'), findsNothing);
+    final filteredClock = tester.widget<MissionClock>(
+      find.byType(MissionClock),
+    );
+    expect(filteredClock.live, isFalse);
+    expect(filteredClock.relativeTimestamps, [unread.activeAt]);
 
     await tester.tap(find.byKey(const ValueKey('mission-filter-unread')));
     await tester.pump();
 
     expect(find.text('action-live'), findsOneWidget);
+    expect(tester.widget<MissionClock>(find.byType(MissionClock)).live, isTrue);
   });
 
   testWidgets('focus rows keep stable slots when sync input reorders', (

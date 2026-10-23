@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_board_view.dart';
 import 'package:happy_flutter/features/sessions/widgets/unread_focus_cards.dart';
 
@@ -160,6 +161,68 @@ Future<void> _tapVisibleBoardControl(
 }
 
 void main() {
+  testWidgets('clock follows displayed lanes and section disclosure', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final live = s('live', 'live', '/repo', 'host', thinking: true);
+    final unread = s('unread', 'unread', '/repo', 'host');
+    const ui = SessionUiState(
+      bySessionId: {
+        'live': SessionUiEntry(lastMessageTimestamp: 1000),
+        'unread': SessionUiEntry(lastMessageTimestamp: 2000, unreadCount: 2),
+      },
+    );
+    final sections = buildStatusBoardSections(context, [live, unread], ui);
+    MissionClock clock() => tester.widget(find.byType(MissionClock));
+    await _pumpBoard(tester, sections);
+    expect(clock().live, isTrue);
+    await tester.tap(_filter('unread'));
+    await tester.pumpAndSettle();
+    expect(find.text('session live'), findsNothing);
+    expect(clock().live, isFalse);
+    expect(clock().relativeTimestamps, [2000]);
+    await tester.tap(_header('unread'));
+    await tester.pumpAndSettle();
+    expect(find.text('session unread'), findsNothing);
+    expect(clock().active, isFalse);
+    expect(clock().relativeTimestamps, isEmpty);
+    await tester.tap(_header('unread'));
+    await tester.pumpAndSettle();
+    expect(clock().active, isTrue);
+    await tester.tap(_filter('all'));
+    await tester.pumpAndSettle();
+    expect(clock().live, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('folded rows do not request the live clock cadence', (
+    tester,
+  ) async {
+    final quiet = s('quiet', 'quiet', '/repo', 'host');
+    final live = s('live', 'live', '/repo', 'host', thinking: true);
+    await _pumpBoard(tester, [
+      SessionBoardSection(
+        key: 'machine-host',
+        title: 'host',
+        collapseAfter: 1,
+        rows: [
+          SessionBoardRow(quiet, SessionUiEntry.empty, MissionLane.quiet),
+          SessionBoardRow(live, SessionUiEntry.empty, MissionLane.live),
+        ],
+      ),
+    ], status: false);
+    MissionClock clock() => tester.widget(find.byType(MissionClock));
+    expect(find.text('session live'), findsNothing);
+    expect(clock().live, isFalse);
+    expect(clock().relativeTimestamps, [quiet.activeAt]);
+    await tester.tap(find.text('Show 1 more'));
+    await tester.pumpAndSettle();
+    expect(find.text('session live'), findsOneWidget);
+    expect(clock().live, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('status board groups sessions by urgency lane', (tester) async {
     final context = await _context(tester);
     final sections = buildStatusBoardSections(context, _sessions, _ui);

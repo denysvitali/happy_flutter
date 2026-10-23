@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/elapsed_time.dart';
 import 'package:happy_flutter/features/chat/widgets/streaming_cursor.dart';
 import 'package:happy_flutter/features/chat/widgets/thinking_stop_bar.dart';
 import 'package:happy_flutter/features/sessions/widgets/connection_status_badge.dart';
@@ -36,6 +37,102 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
+  for (final textVariant in [false, true]) {
+    Widget elapsed(int? startTime) => textVariant
+        ? ElapsedTimeWidget(startTime: startTime)
+        : ElapsedTime(
+            startTime: startTime,
+            builder: (context, seconds) => Text('${seconds}s'),
+          );
+
+    group(textVariant ? 'elapsed text' : 'elapsed builder', () {
+      testWidgets('hidden timers do not rebuild while a sibling is active', (
+        tester,
+      ) async {
+        final startTime = DateTime.now().millisecondsSinceEpoch;
+        const hiddenKey = ValueKey('hidden elapsed');
+        const visibleKey = ValueKey('visible elapsed');
+        await tester.pumpWidget(
+          _app(
+            Column(
+              children: [
+                TickerMode(
+                  enabled: false,
+                  child: KeyedSubtree(
+                    key: hiddenKey,
+                    child: elapsed(startTime),
+                  ),
+                ),
+                KeyedSubtree(key: visibleKey, child: elapsed(startTime)),
+              ],
+            ),
+          ),
+        );
+        final hidden = find.descendant(
+          of: find.byKey(hiddenKey),
+          matching: find.byType(Text),
+        );
+        final visible = find.descendant(
+          of: find.byKey(visibleKey),
+          matching: find.byType(Text),
+        );
+        final hiddenBefore = tester.widget<Text>(hidden);
+        final visibleBefore = tester.widget<Text>(visible);
+        await tester.pump(const Duration(seconds: 2));
+        expect(identical(tester.widget<Text>(hidden), hiddenBefore), isTrue);
+        expect(identical(tester.widget<Text>(visible), visibleBefore), isFalse);
+        await tester.pumpWidget(_app(const SizedBox.shrink()));
+        await tester.pump(const Duration(seconds: 2));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('resuming catches up immediately from wall time', (
+        tester,
+      ) async {
+        final startTime = DateTime.now().millisecondsSinceEpoch;
+        final child = elapsed(startTime);
+        await tester.pumpWidget(_app(child));
+        await tester.pumpWidget(_app(child, tickerEnabled: false));
+        final before = tester.widget<Text>(find.byType(Text));
+        // Timer pumps advance Flutter's fake time, not DateTime.now(). Use
+        // real wall time here to pin catch-up without changing the start ID.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 1100)),
+        );
+        await tester.pump(const Duration(seconds: 10));
+        expect(
+          identical(tester.widget<Text>(find.byType(Text)), before),
+          isTrue,
+        );
+        await tester.pumpWidget(_app(child));
+        final after = tester.widget<Text>(find.byType(Text));
+        expect(
+          int.parse(after.data!.replaceAll('s', '')),
+          greaterThanOrEqualTo(1),
+        );
+        await tester.pumpWidget(_app(const SizedBox.shrink()));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets(
+        'null and changed start times remain safe across visibility',
+        (tester) async {
+          await tester.pumpWidget(_app(elapsed(null)));
+          expect(find.text('0s'), findsOneWidget);
+          final now = DateTime.now().millisecondsSinceEpoch;
+          await tester.pumpWidget(_app(elapsed(now - 5000)));
+          expect(find.text('5s'), findsOneWidget);
+          await tester.pumpWidget(_app(elapsed(null), tickerEnabled: false));
+          expect(find.text('0s'), findsOneWidget);
+          await tester.pumpWidget(_app(elapsed(now + 60000)));
+          expect(find.text('0s'), findsOneWidget);
+          await tester.pumpWidget(_app(const SizedBox.shrink()));
+          expect(tester.takeException(), isNull);
+        },
+      );
+    });
+  }
+
   final indicators = <String, Widget Function()>{
     'status dot': () => const AppStatusDot(color: Colors.green, pulse: true),
     'thinking dot': () => ThinkingStopBar(onStop: () {}),

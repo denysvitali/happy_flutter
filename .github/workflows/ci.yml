@@ -292,8 +292,8 @@ jobs:
         with:
           cache-write: 'false'
       - run: mise exec -- flutter pub get
-      - name: Check memory capture schema
-        run: python3 -m unittest discover -s scripts -p test_memory_profile.py
+      - name: Check resource capture accounting
+        run: python3 -m unittest discover -s scripts -p 'test_*profile.py'
       - name: Require transport, pagination, anchors and recovery contracts
         run: |
           set -o pipefail

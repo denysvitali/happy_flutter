@@ -486,9 +486,16 @@ class _MissionControlViewState extends State<MissionControlView> {
     }
 
     return MissionClock(
-      // One shared ticker keeps freshness pills and silence hints current
-      // for every visible row; with nothing actionable it sleeps.
-      active: actions.isNotEmpty,
+      active: shownActions.isNotEmpty,
+      live: shownActions.any(
+        (session) => lanes[session.id] == MissionLane.live,
+      ),
+      relativeTimestamps: [
+        for (final session in shownActions)
+          _entry(session.id).lastMessageTimestamp ??
+              session.lastMessageAt ??
+              session.activeAt,
+      ],
       child: CustomScrollView(
         controller: widget.scrollController,
         slivers: [

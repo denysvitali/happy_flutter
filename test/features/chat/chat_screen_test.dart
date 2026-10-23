@@ -15,6 +15,7 @@ import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/app_visibility_coordinator.dart';
 import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
@@ -196,6 +197,7 @@ void main() {
     sync.testResetDataChangeDebounce();
     ChatScreen.testInitialSettingsApplyBarrier = null;
     PerformanceContextService().resetForTesting();
+    AppFocusState.instance.setFocused(true);
     await TtsService().dispose();
   });
 
@@ -1194,6 +1196,115 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Live reply'), findsNothing);
+    });
+
+    testWidgets(
+      'unfocused chat retains its projection and catches up on focus',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSessions['session_1'] = _makeSession();
+        sync.testSetSessionMessages('session_1', [
+          {'id': 'initial', 'role': 'user', 'content': 'Before focus loss'},
+        ]);
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        AppFocusState.instance.setFocused(false);
+        sync.testUpsertSessionMessages('session_1', [
+          {
+            'id': 'new',
+            'role': 'assistant',
+            'content': 'Arrived while unfocused',
+          },
+        ]);
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.text('Before focus loss'), findsOneWidget);
+        expect(find.text('Arrived while unfocused'), findsNothing);
+        expect(sync.messagesForSession('session_1'), hasLength(2));
+
+        AppFocusState.instance.setFocused(true);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text('Arrived while unfocused'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+
+    testWidgets('focus starts loading when sync became ready while hidden', (
+      tester,
+    ) async {
+      sync.testSessions['session_1'] = _makeSession();
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      expect(find.byType(ChatLoadingShimmer), findsOneWidget);
+
+      AppFocusState.instance.setFocused(false);
+      sync.isInitialized = true;
+      sync.testNotifyDataChanged();
+      await tester.pump(const Duration(milliseconds: 250));
+      AppFocusState.instance.setFocused(true);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(ChatLoadingShimmer), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('stacked chats with the same route name refresh only the top', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      for (final id in ['session_1', 'session_2']) {
+        sync.messagesSync[id] = InvalidateSync(() async {});
+        sync.testSessions[id] = _makeSession(id: id);
+        sync.testSetSessionMessages(id, [
+          {'id': 'initial-$id', 'role': 'user', 'content': 'Initial $id'},
+        ]);
+      }
+      addTearDown(() {
+        sync.testClearSessionMessageState('session_2');
+        sync.testSessions.remove('session_2');
+      });
+      PerformanceContextService().setCurrentRoute('chat');
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final navigator = Navigator.of(tester.element(find.byType(ChatScreen)));
+      unawaited(
+        navigator.push<void>(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: 'chat'),
+            builder: (_) => const ChatScreen(sessionId: 'session_2'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      for (final id in ['session_1', 'session_2']) {
+        sync.testUpsertSessionMessages(id, [
+          {'id': 'new-$id', 'role': 'assistant', 'content': 'New $id'},
+        ]);
+      }
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('New session_2'), findsOneWidget);
+      expect(find.text('New session_1', skipOffstage: false), findsNothing);
+
+      navigator.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(find.text('New session_1'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
 
     testWidgets('shows explicitly queued Codex messages and queue action', (

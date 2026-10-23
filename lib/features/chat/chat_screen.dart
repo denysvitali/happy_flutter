@@ -21,6 +21,7 @@ import '../../core/models/outgoing_image.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/app_visibility_coordinator.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/codex_speed_selection.dart';
 import '../../core/services/draft_storage.dart';
@@ -213,6 +214,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// instead of once per socket event (was flooding Loki + main-isolate).
   Timer? _messageRefreshDebounce;
   late final VoidCallback _routeListener;
+  bool _routeIsCurrent = true;
+  bool _pendingMarkLoaded = false;
+  bool _pendingLoadFailed = false;
   static const Duration _messageRefreshDebounceWindow = Duration(
     milliseconds: 50,
   );
@@ -512,6 +516,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     _routeListener = _handleRouteChanged;
     PerformanceContextService().routeListenable.addListener(_routeListener);
+    AppFocusState.instance.addListener(_routeListener);
     _scrollController.addListener(_onScroll);
     _loadInitialSettings();
     TtsService().currentToken.addListener(_updateScreenAwake);
@@ -526,6 +531,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Route names cannot distinguish chat B pushed over chat A. Subscribe to
+    // this pane's actual enclosing route, including embedded desktop chats.
+    final isCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    if (_routeIsCurrent == isCurrent) return;
+    _routeIsCurrent = isCurrent;
+    if (!isCurrent) {
+      _messageRefreshDebounce?.cancel();
+      _messageRefreshDebounce = null;
+      _updateScreenAwake();
+      return;
+    }
+    // Publishing provider state during dependency resolution is unsafe.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handleRouteChanged();
+    });
   }
 
   void _seedFromInMemorySync() {
@@ -550,6 +575,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     ChatSwitchMetrics().cancel(widget.sessionId);
     PerformanceContextService().routeListenable.removeListener(_routeListener);
+    AppFocusState.instance.removeListener(_routeListener);
     TtsService().currentToken.removeListener(_updateScreenAwake);
     _screenAwakeReleaseTimer?.cancel();
     unawaited(ScreenAwakeService().setEnabled(false));
@@ -680,6 +706,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// [ChatScreen.embedded] for why an embedded detail pane must also count as
   /// visible.
   bool get _isChatRouteActive {
+    if (!_routeIsCurrent || !AppFocusState.instance.isFocused) return false;
     final route = PerformanceContextService().currentRoute;
     if (route == null || route == 'chat') return true;
     return widget.embedded && (route == 'sessions' || route == 'home');
@@ -687,21 +714,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _handleRouteChanged() {
     _updateScreenAwake();
-    if (!mounted || !_isChatRouteActive) return;
+    if (!mounted) return;
+    if (!_isChatRouteActive) {
+      _messageRefreshDebounce?.cancel();
+      _messageRefreshDebounce = null;
+      return;
+    }
     ref
         .read(sessionUiStateNotifierProvider.notifier)
         .loadSessionFromSync(widget.sessionId);
     _refreshFromSync();
+    if (!_didStartInitialLoad && _mayStartInitialLoad && sync.isInitialized) {
+      unawaited(_doInitialLoad());
+    }
   }
 
-  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) =>
-      MainIsolateStallTracker.instance.track(
-        'chat.refresh_from_sync',
-        () => _refreshFromSyncUntracked(
-          markLoaded: markLoaded,
-          loadFailed: loadFailed,
-        ),
-      );
+  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
+    // Sync and sends keep running while covered/unfocused; only their visual
+    // projection waits. Preserve initial-load outcomes for the one catch-up.
+    _pendingMarkLoaded |= markLoaded;
+    _pendingLoadFailed |= loadFailed;
+    if (!_isChatRouteActive) return;
+    final loaded = _pendingMarkLoaded;
+    final failed = _pendingLoadFailed;
+    _pendingMarkLoaded = false;
+    _pendingLoadFailed = false;
+    MainIsolateStallTracker.instance.track(
+      'chat.refresh_from_sync',
+      () => _refreshFromSyncUntracked(markLoaded: loaded, loadFailed: failed),
+    );
+  }
 
   void _refreshFromSyncUntracked({
     required bool markLoaded,

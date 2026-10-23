@@ -129,6 +129,27 @@ Regressions are updated; device acceptance is pending.
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.
 
+## CPU and idle-work qualification
+
+Process-wide CPU telemetry and complete zero-frame window accounting are added.
+Covered/unfocused chat projections and hidden tool clocks defer visual work;
+loading shimmers settle and honor reduced motion. Session clocks use displayed
+rows and label-boundary scheduling; targeted ordering timestamps share immutable
+patches. Scale benchmarks now cover advancing timestamps, unread changes and
+32 interleaved sessions at a 500-session catalog. CI qualification is pending.
+Local release-component Chromium observations confirm settled loading and hidden
+tool clocks stop producing frames/rebuilds; these are not native battery results.
+See `docs/PERFORMANCE_REPORT.md` for bounded evidence and the CPU capture command.
+
+Remaining: authenticated chat/500-session streaming soak, physical-device CPU,
+battery and resume measurements, and the memory profiler's real workload driver.
+Profile builds now supply count-only cache/resident metrics over the VM service;
+the script discovers the app isolate and rejects uninitialized metrics.
+Production fleet metrics were unreachable from this orb; historical
+RSS/freeze/battery numbers below are not a current baseline. The source checkout's
+pre-change CI passed all test shards and reliability lanes; older CI-pending
+notes must not be read as failures of that run.
+
 ## P0: Core Messaging & Session Reliability
 
 The app lives or dies on one invariant:
@@ -328,8 +349,9 @@ cap while active; unresolved sends remain exempt to preserve retry identity.
 - Added `scripts/memory_profile.py`: fixed workload/cycle manifest, timestamped
   pre/post-workload and post-requested-GC heap/external/RSS/cache/resident samples,
   private exclusive-create JSONL and incomplete-run detection. A loopback VM
-  service plus real workload/metrics drivers are required. Drivers, device
-  traces and before/after captures are still pending; no reduction is measured.
+  service plus a real workload driver are required. Profile builds supply the
+  count-only metrics probe. Workload automation, device traces and before/after
+  captures are still pending; no memory reduction is measured.
   Native attribution and GC counts are explicitly unknown; RSS minus heap is
   only an estimate and overlapping cache/external gauges must not be summed.
 - Real-server retry/reorder/repeated-identical-send qualification is blocked on

@@ -193,6 +193,10 @@ layout frame finishes.
 connection badges use `AppMotion.activityPulseCount` bounded passes, then
 remain visible without scheduling frames. Respect both reduced-motion flags
 and `TickerMode`; routine rebuilds must not restart settled indicators.
+Loading shimmers use the same bounded budget, then retain a static skeleton.
+Elapsed tool clocks unsubscribe while muted and catch up from wall time on
+reactivation. Gate chat visual projections on focus and the actual enclosing
+route, including stacked chats with the same route name; delivery stays active.
 
 **Progress and focus lifecycle:** Use `AppCircularProgressIndicator` and
 `AppLinearProgressIndicator` so animation controllers belong to the widget and
@@ -230,4 +234,3 @@ sanitization cannot prevent a later display slice from splitting an emoji.
 **Screen types:**
 - `ConsumerStatefulWidget` + `ConsumerState` — screens with local state or sync subscriptions (majority)
 - `ConsumerWidget` — stateless read-only screens
-

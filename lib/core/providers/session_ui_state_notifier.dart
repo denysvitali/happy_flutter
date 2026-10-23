@@ -21,10 +21,15 @@ import '../utils/performance_buckets.dart';
 /// Immutable single-entry patch. Periodic compaction bounds lookup depth;
 /// ordinary streaming updates share the untouched catalog with the last state.
 class _PatchedSessionMap<V> extends MapBase<String, V> {
-  _PatchedSessionMap(Map<String, V> previous, this._key, this._value)
-    : _previous = previous is _PatchedSessionMap<V> && previous._depth >= 16
-          ? Map<String, V>.unmodifiable(previous)
-          : previous {
+  _PatchedSessionMap(
+    Map<String, V> previous,
+    this._key,
+    this._value, {
+    required bool remove,
+  }) : _remove = remove,
+       _previous = previous is _PatchedSessionMap<V> && previous._depth >= 16
+           ? Map<String, V>.unmodifiable(previous)
+           : previous {
     _depth = switch (_previous) {
       final _PatchedSessionMap<V> chain => chain._depth + 1,
       _ => 1,
@@ -34,6 +39,7 @@ class _PatchedSessionMap<V> extends MapBase<String, V> {
   final Map<String, V> _previous;
   final String _key;
   final V? _value;
+  final bool _remove;
   late final int _depth;
 
   @override
@@ -41,20 +47,20 @@ class _PatchedSessionMap<V> extends MapBase<String, V> {
 
   @override
   bool containsKey(Object? key) =>
-      key == _key ? _value != null : _previous.containsKey(key);
+      key == _key ? !_remove : _previous.containsKey(key);
 
   @override
   int get length =>
       _previous.length +
       (_previous.containsKey(_key) ? 0 : 1) -
-      (_value == null ? 1 : 0);
+      (_remove ? 1 : 0);
 
   @override
   Iterable<String> get keys sync* {
     for (final key in _previous.keys) {
-      if (key != _key || _value != null) yield key;
+      if (key != _key || !_remove) yield key;
     }
-    if (_value != null && !_previous.containsKey(_key)) yield _key;
+    if (!_remove && !_previous.containsKey(_key)) yield _key;
   }
 
   @override
@@ -502,6 +508,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         state.bySessionId,
         sessionId,
         next,
+        remove: next == null,
       );
       var ordering = state.ordering;
       final nextTimestamp = nextEntries[sessionId]?.lastMessageTimestamp;
@@ -513,20 +520,23 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
                     ordering.timestamps[sessionId] != nextTimestamp);
       if (orderingChanged) {
         final timestamps = ordering.isPrepared
-            ? Map<String, int?>.from(ordering.timestamps)
-            : <String, int?>{
+            ? _PatchedSessionMap<int?>(
+                ordering.timestamps,
+                sessionId,
+                nextTimestamp,
+                remove: session == null,
+              )
+            : Map<String, int?>.unmodifiable({
                 for (final entry in nextEntries.entries)
                   entry.key: entry.value.lastMessageTimestamp,
-              };
-        if (session == null) {
-          timestamps.remove(sessionId);
-        } else {
-          timestamps[sessionId] = nextTimestamp;
-        }
-        ordering = SessionUiOrdering.reconcile(
-          previous: ordering,
+              });
+        // The changed key was already compared above. Preserve the immutable
+        // catalog and bound lookup depth through the existing patch mechanism.
+        ordering = SessionUiOrdering._(
           timestamps: timestamps,
           optimisticallyArchivedIds: state.optimisticallyArchivedIds,
+          revision: ordering.revision + 1,
+          isPrepared: true,
         );
       }
       state = SessionUiState(
@@ -678,6 +688,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         previous.bySessionId,
         sessionId,
         next,
+        remove: next == null,
       ),
     );
   }

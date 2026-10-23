@@ -34,6 +34,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
+- **Idle visual work is bounded** — covered/unfocused chats defer projection,
+  not delivery. Tool clocks obey visibility; loading motion settles and honors
+  reduced motion. CPU telemetry measures the local process, not machine vitals.
+
 - **Har is process-scoped** — flavor `har` uses ACP text/tool events and
   cancellation. Launch `codex/gpt-6-luna` (default), explicit
   `codex/gpt-6.1-sol`, or `grok/grok-4.7`, with host execution and approvals

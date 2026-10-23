@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/utils/utils.dart' show formatRelativeTime;
 import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
 
 /// Freshness is the heartbeat of the focus queue: one decaying glow per
@@ -6,6 +8,189 @@ import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
 void main() {
   final now = DateTime.now().millisecondsSinceEpoch;
   const minute = 60 * 1000;
+
+  for (final age in [
+    const Duration(minutes: 5),
+    const Duration(hours: 2),
+    const Duration(days: 2),
+  ]) {
+    testWidgets('static age $age wakes only at its label boundary', (
+      tester,
+    ) async {
+      final start = tester.binding.clock.now();
+      final timestamp = start.subtract(age);
+      var builds = 0;
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MissionClock(
+            live: false,
+            relativeTimestamps: [timestamp.millisecondsSinceEpoch],
+            now: tester.binding.clock.now,
+            child: Builder(
+              builder: (context) {
+                builds++;
+                return Text(
+                  formatRelativeTime(
+                    timestamp,
+                    now: DateTime.fromMillisecondsSinceEpoch(
+                      missionNowOf(context),
+                    ),
+                    compact: true,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      final cadence = age.inDays > 0
+          ? const Duration(days: 1)
+          : age.inHours > 0
+          ? const Duration(hours: 1)
+          : const Duration(minutes: 1);
+      final initial = formatRelativeTime(timestamp, now: start, compact: true);
+      expect(find.text(initial), findsOneWidget);
+      await tester.pump(cadence - const Duration(milliseconds: 1));
+      expect(builds, 1);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(builds, 2);
+      expect(
+        find.text(
+          formatRelativeTime(timestamp, now: start.add(cadence), compact: true),
+        ),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('new timestamps replace the static clock deadline', (
+    tester,
+  ) async {
+    var builds = 0;
+    final probe = Builder(
+      builder: (context) {
+        builds++;
+        return Text('${missionNowOf(context)}');
+      },
+    );
+    Future<void> pump(int timestamp) => tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MissionClock(
+          live: false,
+          relativeTimestamps: [timestamp],
+          now: tester.binding.clock.now,
+          child: probe,
+        ),
+      ),
+    );
+    await pump(tester.binding.clock.now().millisecondsSinceEpoch - 300000);
+    await tester.pump(const Duration(seconds: 15));
+    expect(builds, 1);
+    final now = tester.binding.clock.now().millisecondsSinceEpoch;
+    await pump(now - 59000);
+    expect(find.text('$now'), findsOneWidget);
+    final updated = builds;
+    await tester.pump(const Duration(milliseconds: 999));
+    expect(builds, updated);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(builds, updated + 1);
+    expect(find.text('${now + 1000}'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'future clock skew wakes when the absolute label becomes relative',
+    (tester) async {
+      final future = tester.binding.clock.now().add(
+        const Duration(seconds: 61),
+      );
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MissionClock(
+            live: false,
+            relativeTimestamps: [future.millisecondsSinceEpoch],
+            now: tester.binding.clock.now,
+            child: Builder(
+              builder: (context) => Text(
+                formatRelativeTime(
+                  future,
+                  now: DateTime.fromMillisecondsSinceEpoch(
+                    missionNowOf(context),
+                  ),
+                  compact: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Just now'), findsNothing);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Just now'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.text('Just now'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 120));
+      expect(find.text('1m'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('clock respects visibility and refreshes on reactivation', (
+    tester,
+  ) async {
+    final start = tester.binding.clock.now();
+    var builds = 0;
+    final probe = Builder(
+      builder: (context) {
+        builds++;
+        return Text('${missionNowOf(context)}');
+      },
+    );
+    Future<void> pump({bool active = true, bool visible = true}) =>
+        tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: TickerMode(
+              enabled: visible,
+              child: MissionClock(
+                active: active,
+                now: tester.binding.clock.now,
+                child: probe,
+              ),
+            ),
+          ),
+        );
+    await pump();
+    await tester.pump(const Duration(seconds: 15));
+    expect(builds, 2);
+    await pump(visible: false);
+    final paused = builds;
+    await tester.pump(const Duration(minutes: 3));
+    expect(builds, paused);
+    await pump();
+    expect(
+      find.text(
+        '${start.add(const Duration(seconds: 195)).millisecondsSinceEpoch}',
+      ),
+      findsOneWidget,
+    );
+    await pump(active: false);
+    final inactive = builds;
+    await tester.pump(const Duration(minutes: 2));
+    expect(builds, inactive);
+    await pump();
+    expect(
+      find.text(
+        '${start.add(const Duration(seconds: 315)).millisecondsSinceEpoch}',
+      ),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
 
   group('streamFreshness', () {
     test('burst within the first 45 seconds', () {

@@ -177,6 +177,15 @@ catalogs for resume. Telemetry distinguishes these cancellations from real
 failures and measures response bytes at the transport boundary instead of
 guessing from decoded JSON collection sizes.
 
+Performance telemetry includes process CPU time/utilization on supported POSIX
+platforms and counts completely quiet, zero-frame windows. Covered or unfocused
+chats defer visual projection until visible again without suspending delivery.
+Tool elapsed clocks pause with visibility; loading skeletons honor reduced
+motion and settle after bounded animation. Session age labels refresh at their
+next displayed boundary, with a faster shared clock only for visible live rows.
+`scripts/cpu_profile.py` captures private, payload-free Linux CPU/RSS intervals;
+its percentages use 100% per occupied core, not per machine.
+
 Message merges deduplicate complete incoming batches and preserve timeline
 order. Pending outbox heads keep per-session FIFO priority across retry backoff;
 queues are scoped to the account and server. Legacy ownerless queues remain
@@ -476,9 +485,13 @@ These are client/mock-server contracts, not real-server qualification.
 It runs five fixed cycles of long-chat, session-switch and background/resume
 workloads (defaults: 12 sessions, 1,000 rows), recording UTC before/after-workload
 and post-requested-GC samples. Supply a loopback Dart VM service, its matching
-Linux PID, a deterministic fixture/revision, a synchronous workload executable
-and an executable reporting image/encryption cache bytes and resident rows and
-sessions from that running app. The VM supplies heap used/capacity and external
+Linux PID, a deterministic fixture/revision and a synchronous workload executable.
+Profile builds expose count-only image/encryption cache bytes and resident rows
+and catalog-backed resident sessions through `ext.happy.performanceMetrics`;
+the script discovers the app isolate rather than assuming the first isolate.
+Uninitialized metrics fail the capture instead of reporting invented zeros.
+An optional `--metrics` executable can override this probe.
+The VM supplies heap used/capacity and external
 bytes; `/proc` supplies RSS. Output is exclusive-create JSONL with a completion
 marker; partial files are not successful experiments. Authenticated service URLs
 must remain private. Capture identical workloads/build mode before and after a

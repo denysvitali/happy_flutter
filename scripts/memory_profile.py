@@ -2,10 +2,11 @@
 """Capture controlled Linux Flutter profile-mode memory experiments as JSONL.
 
 Run with --help. Requires a loopback HTTP Dart VM service URL, the app's Linux
-PID and two executable drivers. Workload receives PHASE CYCLE SESSIONS ROWS
+PID and an executable workload driver. Workload receives PHASE CYCLE SESSIONS ROWS
 and must synchronously finish that fixed workload (including background/resume).
-Metrics receives no arguments and returns JSON with METRICS keys in bytes/counts
-from the running app, not estimates. Drivers must fail if app state is unknown.
+Metrics defaults to the profile app's count-only VM service extension; an
+optional metrics executable receives no arguments and returns METRICS as JSON.
+Drivers must fail if app state is unknown.
 Use an isolated fixture account; artifacts deliberately contain no message text.
 VM URLs may contain an auth code: never publish the command or service URL.
 GC requests perturb the experiment; compare identical profile builds/workloads.
@@ -57,6 +58,15 @@ def rpc(base, method, **params):
     return result['result']
 
 
+def read_profile_metrics(base, isolates):
+    method = 'ext.happy.performanceMetrics'
+    for isolate in isolates:
+        details = rpc(base, 'getIsolate', isolateId=isolate['id'])
+        if method in details.get('extensionRPCs', []):
+            return validate_metrics(rpc(base, method, isolateId=isolate['id']))
+    raise ValueError('Profile app metrics extension is unavailable')
+
+
 def sample(args, phase, cycle, stage):
     started = time.monotonic()
     vm = rpc(args.vm_service, 'getVM')
@@ -74,9 +84,12 @@ def sample(args, phase, cycle, stage):
     status = Path('/proc', str(args.pid), 'status').read_text()
     rss = next(int(line.split()[1]) * 1024 for line in status.splitlines()
                if line.startswith('VmRSS:'))
-    completed = subprocess.run([args.metrics], capture_output=True,
-                               check=True, timeout=args.driver_timeout)
-    metrics = validate_metrics(json.loads(completed.stdout))
+    if args.metrics:
+        completed = subprocess.run([args.metrics], capture_output=True,
+                                   check=True, timeout=args.driver_timeout)
+        metrics = validate_metrics(json.loads(completed.stdout))
+    else:
+        metrics = read_profile_metrics(args.vm_service, vm['isolates'])
     return {
         'schema': 1, 'timestamp': datetime.now(timezone.utc).isoformat(),
         'phase': phase, 'cycle': cycle, 'stage': stage,
@@ -136,8 +149,9 @@ def main():
     parser.add_argument('--pid', required=True, type=int)
     parser.add_argument('--workload', required=True,
                         help='Executable workload driver (no shell expansion)')
-    parser.add_argument('--metrics', required=True,
-                        help='Executable returning running app metrics as JSON')
+    parser.add_argument('--metrics',
+                        help='Override the profile VM metrics extension with '
+                             'an executable returning app metrics as JSON')
     parser.add_argument('--revision', required=True)
     parser.add_argument('--fixture', required=True,
                         help='Non-sensitive deterministic fixture version')
