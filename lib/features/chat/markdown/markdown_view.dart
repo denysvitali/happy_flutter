@@ -297,6 +297,9 @@ class SimpleMarkdownView extends StatefulWidget {
 class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
+  TextDirection? _lastDirection;
+  Widget? _cachedBody;
+  String? _cachedBodyMarkdown;
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
@@ -345,9 +348,15 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
   Widget _buildMarkdownBody(BuildContext context) {
     final theme = Theme.of(context);
+    final direction = Directionality.of(context);
     if (_styleSheet == null || !identical(theme, _lastTheme)) {
       _styleSheet = _buildStyleSheet(theme);
       _lastTheme = theme;
+      _cachedBody = null;
+    }
+    if (direction != _lastDirection) {
+      _lastDirection = direction;
+      _cachedBody = null;
     }
 
     final markdown = widget.markdown;
@@ -358,7 +367,12 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       );
     }
 
-    return RepaintBoundary(
+    // Reuse the entire body, not just its stylesheet, on unrelated parent
+    // rebuilds. Descendants still receive their inherited dependency updates.
+    if (_cachedBody != null && _cachedBodyMarkdown == markdown) {
+      return _cachedBody!;
+    }
+    final body = RepaintBoundary(
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
@@ -368,6 +382,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
+    _cachedBody = body;
+    _cachedBodyMarkdown = markdown;
+    return body;
   }
 }
 

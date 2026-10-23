@@ -117,6 +117,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   `onSessionInvisible`. Closing the top chat returns the visible slot to the
   chat underneath and probes its messages; a covered chat must never be left
   on screen without the slot, or resume and reconnect skip it.
+- **Catalog cursors are independent** — collection and derived-row consumers
+  keep their own bounded Sync catalog cursors. Reset/expired cursors require
+  full reconciliation. Session UI snapshots are immutable; preserve local
+  pin/folder and archive overrides. Visual focus gates never gate delivery.
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

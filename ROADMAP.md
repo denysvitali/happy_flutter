@@ -141,6 +141,13 @@ Local release-component Chromium observations confirm settled loading and hidden
 tool clocks stop producing frames/rebuilds; these are not native battery results.
 See `docs/PERFORMANCE_REPORT.md` for bounded evidence and the CPU capture command.
 
+Follow-up source work adds focus-gated session-pane updates, incremental catalog
+publication through both providers, cached tool-error/Read/Markdown preprocessing,
+and DPR/pane-bounded thumbnail decoding with original-resolution fullscreen.
+Reset/overflow, local overrides, content invalidation and image regressions plus
+a 500-session catalog publication benchmark are added for CI. No native CPU or
+battery improvement is asserted from these source changes.
+
 Remaining: authenticated chat/500-session streaming soak, physical-device CPU,
 battery and resume measurements, and the memory profiler's real workload driver.
 Profile builds now supply count-only cache/resident metrics over the VM service;

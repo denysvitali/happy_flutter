@@ -116,18 +116,37 @@ class _ReadViewContent extends StatefulWidget {
 }
 
 class _ReadViewContentState extends State<_ReadViewContent> {
+  ({String content, int? startLine})? _parsed;
+  int? _renderedLines;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshContent();
+  }
+
+  @override
+  void didUpdateWidget(_ReadViewContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.content != oldWidget.content) _refreshContent();
+  }
+
+  void _refreshContent() {
+    final content = widget.content;
+    // Both the range chip and code pane consume this retained parse. Compare
+    // raw strings, not the mutable tool map or a sampled render signature.
+    _parsed = content != null && content.isNotEmpty
+        ? _parseReadContent(content)
+        : null;
+    _renderedLines = _parsed?.content.split('\n').length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final content = widget.content;
-    // Parse once: strips Claude Code's `cat -n` prefixes and yields the
-    // file's true first line number for offset/limit reads. The meta row
-    // and the content pane both consume this parse so the "Lines X–Y"
-    // chip can never disagree with the rendered line-number column.
-    final parsed = (content != null && content.isNotEmpty)
-        ? _parseReadContent(content)
-        : null;
-    final renderedLines = parsed?.content.split('\n').length;
+    final parsed = _parsed;
+    final renderedLines = _renderedLines;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,6 +192,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
           const SizedBox(height: AppSpacing.xs),
           _ContentBlock(
             content: parsed.content,
+            lineCount: renderedLines!,
             startLine: parsed.startLine ?? (widget.offset ?? 0) + 1,
             extension: widget.extension,
           ),
@@ -401,6 +421,7 @@ class _MetaChip extends StatelessWidget {
 class _ContentBlock extends StatefulWidget {
   const _ContentBlock({
     required this.content,
+    required this.lineCount,
     required this.startLine,
     required this.extension,
   });
@@ -408,6 +429,7 @@ class _ContentBlock extends StatefulWidget {
   /// File content with any `cat -n` prefixes already stripped by the
   /// parent (see `_parseReadContent`).
   final String content;
+  final int lineCount;
 
   /// First line number for the line-number column — the file's true
   /// index for offset/limit reads.
@@ -424,11 +446,31 @@ class _ContentBlockState extends State<_ContentBlock> {
   // (which the chat list shares), so dragging here scrolls the pane instead of
   // bouncing back, and the offset survives streaming rebuilds.
   late final ScrollController _controller;
+  late String _lineNumberText;
 
   @override
   void initState() {
     super.initState();
     _controller = ScrollController();
+    _refreshLineNumbers();
+  }
+
+  @override
+  void didUpdateWidget(_ContentBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.lineCount != oldWidget.lineCount ||
+        widget.startLine != oldWidget.startLine) {
+      _refreshLineNumbers();
+    }
+  }
+
+  void _refreshLineNumbers() {
+    final buffer = StringBuffer();
+    for (var i = 0; i < widget.lineCount; i++) {
+      if (i > 0) buffer.write('\n');
+      buffer.write(widget.startLine + i);
+    }
+    _lineNumberText = buffer.toString();
   }
 
   @override
@@ -441,12 +483,8 @@ class _ContentBlockState extends State<_ContentBlock> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    // Content arrives already parsed (cat -n prefixes stripped, trailing
-    // newline trimmed), so the split count matches the rendered lines.
-    final lines = widget.content.split('\n');
-    final startLine = widget.startLine;
     const lineHeight = AppLineHeight.relaxed * AppFontSize.sm;
-    final contentHeight = AppSpacing.smd * 2 + lines.length * lineHeight;
+    final contentHeight = AppSpacing.smd * 2 + widget.lineCount * lineHeight;
     final viewportHeight = math.min(_kContentMaxHeight, contentHeight);
 
     return Container(
@@ -482,7 +520,7 @@ class _ContentBlockState extends State<_ContentBlock> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Line numbers column
-                  _LineNumbers(count: lines.length, startLine: startLine),
+                  _LineNumbers(text: _lineNumberText),
                   const SizedBox(width: AppSpacing.md),
                   // Content column with syntax highlighting
                   Expanded(
@@ -547,21 +585,15 @@ class _ContentBlockState extends State<_ContentBlock> {
 const double _kContentMaxHeight = 400;
 
 class _LineNumbers extends StatelessWidget {
-  const _LineNumbers({required this.count, required this.startLine});
-  final int count;
-  final int startLine;
+  const _LineNumbers({required this.text});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final buffer = StringBuffer();
-    for (var i = 0; i < count; i++) {
-      if (i > 0) buffer.write('\n');
-      buffer.write(startLine + i);
-    }
 
     return SelectableText(
-      buffer.toString(),
+      text,
       style: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.sm,

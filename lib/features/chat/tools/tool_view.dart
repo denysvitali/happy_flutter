@@ -145,6 +145,8 @@ class _ToolViewState extends ConsumerState<ToolView>
   String? _mcpSummary;
   int? _pythonPreviewSignature;
   String? _pythonPreview;
+  int? _errorResultSignature;
+  ParsedToolError? _errorResult;
 
   late final AnimationController _chevronController;
   late final Animation<double> _chevronAnim;
@@ -633,9 +635,14 @@ class _ToolViewState extends ConsumerState<ToolView>
     // A pending permission request tints the header warning-orange.
     final hasPermissionRequest = isPermissionPending(permission);
 
-    // Check for tool-use error
-    final resultStr = toolResult?.toString() ?? '';
-    final errorResult = ToolErrorParser.parse(resultStr);
+    // Cache negative matches too: stringifying and scanning a complete result
+    // is payload-sized work even when it contains no tool-use error. Keep
+    // completed results eligible; key by content signature, not map identity.
+    if (_errorResultSignature != _toolSignature) {
+      _errorResult = ToolErrorParser.parse(toolResult?.toString() ?? '');
+      _errorResultSignature = _toolSignature;
+    }
+    final errorResult = _errorResult;
     final isToolUseError = errorResult != null;
 
     // Build status icon

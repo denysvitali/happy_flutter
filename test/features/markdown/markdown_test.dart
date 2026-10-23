@@ -58,6 +58,81 @@ void main() {
   // ── SimpleMarkdownView ────────────────────────────────────────────────────
 
   group('SimpleMarkdownView', () {
+    testWidgets('reuses the body and refreshes content, theme and direction', (
+      tester,
+    ) async {
+      var theme = ThemeData.light();
+      var markdown = 'First **body**';
+      var direction = TextDirection.ltr;
+      var scale = 1.0;
+      Future<void> pumpSimple() => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Theme(
+              data: theme,
+              child: Directionality(
+                textDirection: direction,
+                child: MediaQuery(
+                  data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+                  child: SimpleMarkdownView(markdown: markdown),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      MarkdownBody body() =>
+          tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+
+      await pumpSimple();
+      final original = body();
+      await pumpSimple();
+      expect(body(), same(original));
+
+      markdown = 'Second body';
+      await pumpSimple();
+      final updated = body();
+      expect(updated, isNot(same(original)));
+      expect(updated.data, markdown);
+      expect(find.text('Second body'), findsOneWidget);
+
+      // Same-brightness theme updates must invalidate the body as well.
+      theme = theme.copyWith(
+        textTheme: theme.textTheme.copyWith(
+          bodyMedium: theme.textTheme.bodyMedium!.copyWith(color: Colors.red),
+        ),
+      );
+      await pumpSimple();
+      final themed = body();
+      expect(themed, isNot(same(updated)));
+      expect(themed.styleSheet!.p!.color, Colors.red);
+
+      direction = TextDirection.rtl;
+      await pumpSimple();
+      final rtl = body();
+      expect(rtl, isNot(same(themed)));
+      expect(
+        Directionality.of(tester.element(find.byType(MarkdownBody))),
+        TextDirection.rtl,
+      );
+      await pumpSimple();
+      expect(body(), same(rtl));
+
+      // Body reuse must not suppress inherited text-scale updates below it.
+      scale = 1.5;
+      await pumpSimple();
+      final text = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.byType(MarkdownBody),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      expect(text.textScaler.scale(10), 15);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('bounds oversized content without invoking the parser', (
       tester,
     ) async {

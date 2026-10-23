@@ -391,21 +391,52 @@ void main() {
       expect(notifier.debugFullComputeCount, fullScansBefore + 1);
     });
 
-    test('catalog load still performs a full reconcile for new ids', () {
-      seed('a');
-      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
-      container.read(sessionUiStateNotifierProvider);
-      final fullScansBefore = notifier.debugFullComputeCount;
+    test(
+      'catalog deltas reconcile new and removed ids without a full scan',
+      () {
+        seed('a');
+        final notifier = container.read(
+          sessionUiStateNotifierProvider.notifier,
+        );
+        container.read(sessionUiStateNotifierProvider);
+        final fullScansBefore = notifier.debugFullComputeCount;
 
-      seed('b');
-      notifier.loadCatalogFromSync();
+        seed('b');
+        notifier.loadCatalogFromSync();
 
-      expect(notifier.debugFullComputeCount, fullScansBefore + 1);
-      expect(
-        container.read(sessionUiStateNotifierProvider).bySessionId,
-        contains('b'),
-      );
-    });
+        expect(notifier.debugFullComputeCount, fullScansBefore);
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId,
+          contains('b'),
+        );
+        sync.testSessions.remove('a');
+        notifier.loadCatalogFromSync();
+        final after = container.read(sessionUiStateNotifierProvider);
+        expect(after.bySessionId.keys, ['b']);
+        expect(after.ordering.timestamps.keys, ['b']);
+        expect(after.missionControl.bySessionId.keys, ['b']);
+        expect(notifier.debugFullComputeCount, fullScansBefore);
+
+        // A full replacement invalidates the cursor even if paired with a
+        // message-domain event; it must not preserve the old membership.
+        sync.testSessions
+          ..clear()
+          ..['c'] = buildSession('c');
+        sync.testNotifyDomains({SyncDomain.sessions, SyncDomain.messages});
+        notifier.loadCatalogFromSync();
+        expect(notifier.debugFullComputeCount, fullScansBefore + 1);
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId.keys,
+          ['c'],
+        );
+        notifier.clear();
+        notifier.loadCatalogFromSync();
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId.keys,
+          ['c'],
+        );
+      },
+    );
 
     test('a removed target leaves every projection without it', () {
       seed('a');

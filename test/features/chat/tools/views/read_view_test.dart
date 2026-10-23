@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 import 'package:happy_flutter/features/chat/tools/views/read_view.dart';
 
 Widget _wrap(Widget child) {
@@ -15,6 +16,66 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ReadView', () {
+    testWidgets('retains parsed content and gutter until their inputs change', (
+      tester,
+    ) async {
+      final input = <String, dynamic>{'file_path': '/read.txt', 'offset': 9};
+      final result = <String, dynamic>{
+        'content': '    10\talpha\n    11\tbeta\n',
+      };
+      final tool = <String, dynamic>{
+        'input': input,
+        'state': 'completed',
+        'result': result,
+      };
+      Future<void> pumpRead() => tester.pumpWidget(_wrap(ReadView(tool: tool)));
+      String code() =>
+          tester.widget<SyntaxHighlighter>(find.byType(SyntaxHighlighter)).code;
+      String gutter() => tester
+          .widgetList<SelectableText>(find.byType(SelectableText))
+          .singleWhere((text) => text.data?.startsWith('10\n') ?? false)
+          .data!;
+
+      await pumpRead();
+      final originalCode = code();
+      final originalGutter = gutter();
+      expect(originalCode, 'alpha\nbeta');
+      expect(originalGutter, '10\n11');
+      await pumpRead();
+      expect(identical(code(), originalCode), isTrue);
+      expect(identical(gutter(), originalGutter), isTrue);
+
+      // A new raw value on the same map must refresh the stripped content
+      // and count, even when its first line is unchanged.
+      result['content'] = '    10\talpha\n    11\tchanged\n    12\tgamma\n';
+      await pumpRead();
+      expect(code(), 'alpha\nchanged\ngamma');
+      expect(gutter(), '10\n11\n12');
+      expect(find.text('Lines 10–12'), findsOneWidget);
+
+      result['content'] = 'plain\ntext';
+      await pumpRead();
+      expect(code(), 'plain\ntext');
+      expect(gutter(), '10\n11');
+      input['offset'] = 19;
+      await pumpRead();
+      expect(find.text('Lines 20–21'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<SelectableText>(find.byType(SelectableText))
+            .any((text) => text.data == '20\n21'),
+        isTrue,
+      );
+
+      tool['state'] = 'running';
+      await pumpRead();
+      expect(find.byType(SyntaxHighlighter), findsNothing);
+      tool['state'] = 'completed';
+      await pumpRead();
+      expect(code(), 'plain\ntext');
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders file path', (tester) async {
       await tester.pumpWidget(
         _wrap(

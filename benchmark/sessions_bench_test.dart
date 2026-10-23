@@ -4,6 +4,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
@@ -31,6 +32,81 @@ void main() {
   final reporter = BenchReporter(group: 'sessions');
 
   tearDownAll(() => reporter.finish());
+
+  test('catalog publication through both providers at 500 sessions', () {
+    createTestSync();
+    final sessions = _buildSessions(500);
+    sync
+      ..testSessions.clear()
+      ..testResetDataChangeCounters()
+      ..testIsInitialized = true;
+    sync.testSessions.addAll(sessions);
+    for (final id in sessions.keys) {
+      sync.testClearSessionMessageState(id);
+    }
+    final container = ProviderContainer();
+    addTearDown(() {
+      container.dispose();
+      for (final id in sessions.keys) {
+        sync.testClearSessionMessageState(id);
+      }
+      sync
+        ..testSessions.clear()
+        ..testIsInitialized = false;
+    });
+    final collection = container.read(sessionsNotifierProvider.notifier)
+      ..loadFromSync();
+    final ui = container.read(sessionUiStateNotifierProvider.notifier);
+    final before = container.read(sessionUiStateNotifierProvider);
+    final ids = sessions.keys.toList().reversed.take(32).toList();
+    final expected = <String, Session>{};
+    var update = 0;
+    reporter.measureSync(
+      'catalog_both_providers_500_interleaved',
+      () {
+        for (var i = 0; i < 64; i++) {
+          final id = ids[update++ % ids.length];
+          final next = sessions[id]!.copyWith(
+            updatedAt: 5000 + update,
+            activeAt: 5000 + update,
+            lastMessageAt: 5000 + update,
+          );
+          expected[id] = next;
+          sync.testSessions[id] = next;
+          sync.testSetSessionMessages(id, [
+            {
+              'id': 'catalog-message-$id',
+              'localId': 'catalog-local-$id',
+              'role': 'agent',
+              'content': 'catalog update $update',
+              'createdAt': 5000 + update,
+            },
+          ]);
+          sync.testNotifyDomains({SyncDomain.sessions});
+          collection.loadFromSync();
+          ui.loadCatalogFromSync();
+        }
+      },
+      iterations: 30,
+      warmup: 3,
+      opsPerIteration: 64,
+    );
+    final after = container.read(sessionUiStateNotifierProvider);
+    expect(container.read(sessionsNotifierProvider).length, 500);
+    expect(after.bySessionId.length, 500);
+    for (final entry in expected.entries) {
+      expect(
+        container.read(sessionsNotifierProvider)[entry.key],
+        same(entry.value),
+      );
+      expect(
+        after.bySessionId[entry.key]!.lastMessageTimestamp,
+        entry.value.lastMessageAt,
+      );
+    }
+    final untouched = sessions.keys.first;
+    expect(after.bySessionId[untouched], same(before.bySessionId[untouched]));
+  });
 
   for (final workload in ['preview', 'timestamp', 'unread', 'concurrent']) {
     test('$workload publication at 500 sessions across compactions', () {

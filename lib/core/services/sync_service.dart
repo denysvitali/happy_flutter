@@ -47,6 +47,7 @@ import '../rpc/rpc_exception.dart';
 import '../rpc/rpc_capabilities.dart';
 import '../sync/artifact_manager.dart';
 import '../sync/message_stream_store.dart';
+import '../sync/session_catalog.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
@@ -842,7 +843,10 @@ what you have, you must use the options mode.
   int _sidechainGrouperRuns = 0;
   int _sidechainGrouperSkips = 0;
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
-  Map<String, Session> _sessions = <String, Session>{};
+  final SessionCatalog _sessionCatalog = SessionCatalog();
+  Map<String, Session> get _sessions => _sessionCatalog;
+  set _sessions(Map<String, Session> value) =>
+      _sessionCatalog.replaceAll(value);
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
@@ -1278,6 +1282,11 @@ what you have, you must use the options mode.
   int get settingsVersion => settingsManager?.settingsVersion ?? 0;
   Purchases get purchases => settingsManager?.purchases ?? Purchases.defaults;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
+
+  /// Independent UI cursors; null changes mean a full catalog read is needed.
+  int get sessionCatalogRevision => _sessionCatalog.revision;
+  Set<String>? sessionCatalogChangesSince(int revision) =>
+      _sessionCatalog.changesSince(revision);
 
   /// Zero-copy read-only view of the sessions catalog.
   ///

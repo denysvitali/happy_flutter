@@ -10,6 +10,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/app_visibility_coordinator.dart';
 import '../../../core/services/auto_archive_service.dart';
 import '../../../core/services/chat_switch_metrics.dart';
 import '../../../core/services/mission_triage_storage.dart';
@@ -180,6 +181,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       },
     );
     PerformanceContextService().routeListenable.addListener(_onRouteChanged);
+    AppFocusState.instance.addListener(_onFocusChanged);
     _syncPerformanceContext();
     // Hoisted Phase 2: the build method now reads previews/timestamps/
     // unread counts/optimistic-archive state from the
@@ -197,7 +199,19 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     });
   }
 
-  bool get _isVisible => widget.isVisible && _sessionsRouteActive;
+  bool get _isVisible =>
+      widget.isVisible &&
+      _sessionsRouteActive &&
+      AppFocusState.instance.isFocused;
+
+  void _onFocusChanged() {
+    if (!mounted) return;
+    _syncPerformanceContext();
+    if (_isVisible) {
+      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    }
+    setState(() {});
+  }
 
   void _onRouteChanged() {
     final active = isSessionsCollectionRoute(
@@ -216,7 +230,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   @override
   void didUpdateWidget(covariant SessionsListContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.isVisible && widget.isVisible && _sessionsRouteActive) {
+    if (!oldWidget.isVisible && _isVisible) {
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
     if (oldWidget.isVisible != widget.isVisible) {
@@ -230,6 +244,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       PerformanceContextService().setCurrentSessionsView(null);
     }
     PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
+    AppFocusState.instance.removeListener(_onFocusChanged);
     _sel.removeListener(_onSelectionChanged);
     widget.folderNotifier.removeListener(_onFolderChanged);
     unawaited(_sessionMessagesSubscription?.cancel());

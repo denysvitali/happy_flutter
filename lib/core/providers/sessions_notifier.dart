@@ -10,7 +10,7 @@ import '../services/pinned_sessions_storage.dart';
 import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
 import '../utils/network_errors.dart';
-import '../utils/session_utils.dart';
+import '../utils/session_map_patch.dart';
 import '_shared.dart';
 
 /// Immutable sessions map with its collection/grouping fingerprint prepared
@@ -24,54 +24,84 @@ class SessionCollectionSnapshot extends UnmodifiableMapView<String, Session> {
   factory SessionCollectionSnapshot(Map<String, Session> sessions) {
     if (sessions is SessionCollectionSnapshot) return sessions;
     final values = Map<String, Session>.from(sessions);
-    final collectionRevision = _computeCollectionRevision(values);
-    return SessionCollectionSnapshot._(
-      values,
-      collectionRevision,
-      _computeMissionControlRevision(values),
-    );
+    var collection = 0;
+    var mission = 0;
+    for (final entry in values.entries) {
+      collection =
+          (collection + _collectionEntryHash(entry.key, entry.value)) &
+          _hashMask;
+      mission =
+          (mission + _missionEntryHash(entry.key, entry.value)) & _hashMask;
+    }
+    return SessionCollectionSnapshot._(values, collection, mission);
+  }
+
+  factory SessionCollectionSnapshot.patch(
+    SessionCollectionSnapshot previous,
+    Map<String, Session?> changes,
+  ) {
+    Map<String, Session> values = previous._values;
+    var collection = previous._collectionHash;
+    var mission = previous._missionHash;
+    for (final entry in changes.entries) {
+      final old = values[entry.key];
+      final next = entry.value;
+      if (identical(old, next)) continue;
+      if (old != null) {
+        collection -= _collectionEntryHash(entry.key, old);
+        mission -= _missionEntryHash(entry.key, old);
+      }
+      if (next != null) {
+        collection += _collectionEntryHash(entry.key, next);
+        mission += _missionEntryHash(entry.key, next);
+      }
+      collection &= _hashMask;
+      mission &= _hashMask;
+      values = SessionMapPatch(values, entry.key, next, remove: next == null);
+    }
+    if (identical(values, previous._values)) return previous;
+    return SessionCollectionSnapshot._(values, collection, mission);
   }
 
   SessionCollectionSnapshot._(
-    super.sessions,
-    this.collectionRevision,
-    this.missionControlRevision,
-  );
+    this._values,
+    this._collectionHash,
+    this._missionHash,
+  ) : collectionRevision = Object.hash(_values.length, _collectionHash),
+      missionControlRevision = Object.hash(_values.length, _missionHash),
+      super(_values);
 
+  static const _hashMask = 0x3fffffff;
+  final Map<String, Session> _values;
+  final int _collectionHash;
+  final int _missionHash;
   final int collectionRevision;
   final int missionControlRevision;
 }
 
-int _computeCollectionRevision(Map<String, Session> sessions) {
-  return Object.hash(
-    sessions.length,
-    Object.hashAllUnordered(
-      sessions.entries.map((entry) {
-        final session = entry.value;
-        final metadata = session.metadata;
-        return Object.hashAll([
-          entry.key,
-          session.archived,
-          session.active,
-          session.presence,
-          session.activeAt,
-          session.updatedAt,
-          session.lastMessageAt,
-          session.folder,
-          session.lifecycleStateCleartext,
-          metadata?.name,
-          metadata?.path,
-          metadata?.machineId,
-          metadata?.host,
-          metadata?.homeDir,
-          metadata?.summary?.text,
-          metadata?.lifecycleState,
-          metadata?.lifecycleStateSince,
-          isSessionIdle(session),
-        ]);
-      }),
-    ),
-  );
+int _collectionEntryHash(String id, Session session) {
+  final metadata = session.metadata;
+  return Object.hashAll([
+    id,
+    session.archived,
+    session.active,
+    session.presence,
+    session.activeAt,
+    session.updatedAt,
+    session.lastMessageAt,
+    session.folder,
+    session.lifecycleStateCleartext,
+    metadata?.name,
+    metadata?.path,
+    metadata?.machineId,
+    metadata?.host,
+    metadata?.homeDir,
+    metadata?.summary?.text,
+    metadata?.lifecycleState,
+    metadata?.lifecycleStateSince,
+    // Idle is derived from activeAt and wall time, not immutable session
+    // content. Hashing it would make subtraction change across a boundary.
+  ]);
 }
 
 const int _missionControlTimestampBucketMs = 1000;
@@ -85,47 +115,40 @@ int? _missionControlTimestampBucket(int? timestamp) =>
 /// immediately. The three high-frequency activity timestamps are rounded to
 /// one-second buckets: workspace recency can lag by at most one second, while
 /// token-batch `activeAt` updates no longer rebuild the entire dashboard.
-int _computeMissionControlRevision(Map<String, Session> sessions) {
-  return Object.hash(
-    sessions.length,
+int _missionEntryHash(String id, Session session) {
+  final metadata = session.metadata;
+  final requests = session.agentState?.requests;
+  return Object.hashAll([
+    id,
+    session.archived,
+    session.active,
+    session.presence,
+    _missionControlTimestampBucket(session.activeAt),
+    _missionControlTimestampBucket(session.updatedAt),
+    _missionControlTimestampBucket(session.lastMessageAt),
+    session.folder,
+    session.lifecycleStateCleartext,
+    metadata?.name,
+    metadata?.path,
+    metadata?.machineId,
+    metadata?.host,
+    metadata?.homeDir,
+    metadata?.summary?.text,
+    metadata?.lifecycleState,
+    metadata?.lifecycleStateSince,
+    session.thinking,
     Object.hashAllUnordered(
-      sessions.entries.map((entry) {
-        final session = entry.value;
-        final metadata = session.metadata;
-        final requests = session.agentState?.requests;
-        return Object.hashAll([
-          entry.key,
-          session.archived,
-          session.active,
-          session.presence,
-          _missionControlTimestampBucket(session.activeAt),
-          _missionControlTimestampBucket(session.updatedAt),
-          _missionControlTimestampBucket(session.lastMessageAt),
-          session.folder,
-          session.lifecycleStateCleartext,
-          metadata?.name,
-          metadata?.path,
-          metadata?.machineId,
-          metadata?.host,
-          metadata?.homeDir,
-          metadata?.summary?.text,
-          metadata?.lifecycleState,
-          metadata?.lifecycleStateSince,
-          session.thinking,
-          Object.hashAllUnordered(
-            requests?.entries.map(
-                  (request) => Object.hash(request.key, request.value),
-                ) ??
-                const <Object>[],
-          ),
-        ]);
-      }),
+      requests?.entries.map(
+            (request) => Object.hash(request.key, request.value),
+          ) ??
+          const <Object>[],
     ),
-  );
+  ]);
 }
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
+  int _catalogRevision = -1;
   Future<void>? _refreshInFlight;
   final _pinnedStorage = PinnedSessionsStorage.instance;
   final _foldersStorage = SessionFoldersStorage.instance;
@@ -138,18 +161,18 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   void setSessions(List<Session> sessions) {
+    _catalogRevision = -1;
     _publish({for (final session in sessions) session.id: session});
     _mergeLocalState();
   }
 
-  void _mergeLocalState() {
+  void _mergeLocalState([Iterable<String>? changedIds]) {
     final pinned = _pinnedStorage.getPinned();
     final folders = _foldersStorage.getAllFolders();
     if (pinned.isEmpty && folders.isEmpty) return;
-    Map<String, Session>? nextState;
-    for (final id in {...pinned, ...folders.keys}) {
-      final source = nextState ?? state;
-      final session = source[id];
+    final changes = <String, Session?>{};
+    for (final id in changedIds ?? {...pinned, ...folders.keys}) {
+      final session = state[id];
       if (session == null) continue;
       var updated = session;
       // Defensive: a malformed entry from storage (e.g. a typed Map
@@ -175,12 +198,14 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
         continue;
       }
       if (!identical(updated, session)) {
-        nextState ??= Map<String, Session>.from(state);
-        nextState[id] = updated;
+        changes[id] = updated;
       }
     }
-    if (nextState != null) {
-      _publish(nextState);
+    if (changes.isNotEmpty) {
+      state = SessionCollectionSnapshot.patch(
+        state as SessionCollectionSnapshot,
+        changes,
+      );
     }
   }
 
@@ -188,15 +213,24 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (!sync.isInitialized) return;
     final counter = sync.domainChangeCounter(SyncDomain.sessions);
     if (counter == _lastDataChangeCounter) return;
-    _lastDataChangeCounter = counter;
-    final next = sync.sessions;
-    // sync.sessions returns Map.unmodifiable() which creates a new wrapper
-    // each time, so identical() on the maps themselves is useless — but
-    // per-entry identical() catches the common no-op refresh.
-    if (mapValuesIdentical(state, next)) return;
+    final revision = sync.sessionCatalogRevision;
+    final changedIds = sync.sessionCatalogChangesSince(_catalogRevision);
     try {
-      _publish(next);
-      _mergeLocalState();
+      if (changedIds == null) {
+        final next = sync.sessionsView;
+        if (!mapValuesIdentical(state, next)) {
+          _publish(next);
+          _mergeLocalState();
+        }
+      } else if (changedIds.isNotEmpty) {
+        state = SessionCollectionSnapshot.patch(
+          state as SessionCollectionSnapshot,
+          {for (final id in changedIds) id: sync.sessionById(id)},
+        );
+        _mergeLocalState(changedIds);
+      }
+      _catalogRevision = revision;
+      _lastDataChangeCounter = counter;
     } catch (e, st) {
       // A session envelope that doesn't satisfy the model (e.g. a
       // wrapped type for a String? field) used to abort the whole
@@ -216,7 +250,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
           stackTrace: st,
           hint: Hint.withMap({
             'source': 'loadFromSync',
-            'sessionCount': next.length,
+            'sessionCount': sync.sessionsView.length,
           }),
         ),
       );
@@ -257,6 +291,8 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   void clear() {
+    _catalogRevision = -1;
+    _lastDataChangeCounter = -1;
     _publish(const {});
   }
 

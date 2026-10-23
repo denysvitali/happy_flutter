@@ -4,6 +4,8 @@ import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/sessions_notifier.dart';
+import 'package:happy_flutter/core/services/pinned_sessions_storage.dart';
+import 'package:happy_flutter/core/services/session_folders_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -60,6 +62,69 @@ void main() {
   });
 
   group('loadFromSync identity', () {
+    test(
+      'catalog changes support independent readers and bounded fallback',
+      () {
+        final start = sync.sessionCatalogRevision;
+        final a = buildSession('a');
+        sync.testSessions['a'] = a;
+        final afterA = sync.sessionCatalogRevision;
+        sync.testSessions['a'] = a;
+        expect(sync.sessionCatalogRevision, afterA);
+        sync.testSessions['b'] = buildSession('b');
+        sync.testSessions.remove('a');
+        expect(sync.sessionCatalogChangesSince(start), {'a', 'b'});
+        expect(sync.sessionCatalogChangesSince(afterA), {'a', 'b'});
+        expect(
+          sync.sessionCatalogChangesSince(sync.sessionCatalogRevision),
+          isEmpty,
+        );
+        final boundary = sync.sessionCatalogRevision;
+        for (var i = 0; i < 1024; i++) {
+          sync.testSessions['new-$i'] = buildSession('new-$i');
+        }
+        expect(sync.sessionCatalogChangesSince(boundary)!.length, 1024);
+        sync.testSessions['overflow'] = buildSession('overflow');
+        expect(sync.sessionCatalogChangesSince(boundary), isNull);
+        expect(sync.sessionCatalogChangesSince(afterA), isNull);
+        final beforeClear = sync.sessionCatalogRevision;
+        sync.testSessions.clear();
+        expect(sync.sessionCatalogChangesSince(beforeClear), isNull);
+      },
+    );
+
+    test(
+      'incremental snapshots match full fingerprints across compactions',
+      () {
+        var snapshot = SessionCollectionSnapshot({
+          for (var i = 0; i < 500; i++) 's$i': buildSession('s$i'),
+        });
+        final original = snapshot;
+        final expected = Map<String, Session>.from(snapshot);
+        for (var i = 0; i < 80; i++) {
+          final id = 's${i % 23}';
+          final replacement = buildSession(id, updatedAt: 2000 + i);
+          expected[id] = replacement;
+          snapshot = SessionCollectionSnapshot.patch(snapshot, {
+            id: replacement,
+          });
+          final full = SessionCollectionSnapshot(expected);
+          expect(snapshot.collectionRevision, full.collectionRevision);
+          expect(snapshot.missionControlRevision, full.missionControlRevision);
+          expect(snapshot, expected);
+        }
+        snapshot = SessionCollectionSnapshot.patch(snapshot, {'s0': null});
+        expect(snapshot.containsKey('s0'), isFalse);
+        expect(snapshot.length, 499);
+        expect(original['s0']!.updatedAt, 1000);
+        expect(original.length, 500);
+        expect(
+          () => snapshot['bad'] = buildSession('bad'),
+          throwsUnsupportedError,
+        );
+      },
+    );
+
     test('unchanged entries keep identity when one session changes', () {
       sync.testIsInitialized = true;
       final a = buildSession('a');
@@ -84,6 +149,36 @@ void main() {
       expect(identical(second['c'], c), isTrue);
       expect(identical(second['b'], b2), isTrue);
       expect(second.keys.toSet(), {'a', 'b', 'c'});
+    });
+
+    test('catalog deltas retain local pin and folder overrides', () async {
+      sync.testIsInitialized = true;
+      final pins = PinnedSessionsStorage.instance;
+      final folders = SessionFoldersStorage.instance;
+      addTearDown(() {
+        pins.clearAll();
+        folders.clearAll();
+      });
+      await pins.pinSession('a');
+      await folders.setFolder('a', 'Local');
+      sync.testSessions['a'] = buildSession('a');
+      final notifier = container.read(sessionsNotifierProvider.notifier);
+      notifier.loadFromSync();
+      for (var i = 0; i < 40; i++) {
+        sync.testSessions['a'] = buildSession('a', updatedAt: 2000 + i);
+        sync.testNotifyDomains({SyncDomain.sessions});
+        notifier.loadFromSync();
+        final row = container.read(sessionsNotifierProvider)['a']!;
+        expect(row.pinned, isTrue);
+        expect(row.folder, 'Local');
+        expect(row.updatedAt, 2000 + i);
+      }
+      sync.testSessions
+        ..clear()
+        ..['replacement'] = buildSession('replacement');
+      sync.testNotifyDomains({SyncDomain.sessions});
+      notifier.loadFromSync();
+      expect(container.read(sessionsNotifierProvider).keys, ['replacement']);
     });
 
     test('a counter bump with identical entries keeps the same state', () {

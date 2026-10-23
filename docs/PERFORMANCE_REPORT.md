@@ -5,6 +5,21 @@
 
 ## October 2026 CPU and idle-work qualification
 
+- Follow-up catalog/rendering work: Sync retains the latest 1024 catalog
+  writes for independent consumers. Small catalog events patch collection
+  fingerprints and derived rows; resets, lagging cursors and unpaired events
+  without catalog writes retain full reconciliation. Immutable map patches
+  compact every 16 layers. Local pin/folder and archive overrides survive.
+- The retained sessions list now gates callbacks and collection watches on
+  app focus as well as tab/route visibility, then catches up on return.
+- Tool headers cache both matched and absent parsed errors against their
+  existing render signature. Read caches raw-string preprocessing, line count
+  and gutter text. Simple Markdown reuses its body until content, theme or
+  direction changes; inherited text scaling still propagates.
+- Inline base64 thumbnails request aspect-preserving pane/DPR-bounded raster
+  decoding without upscaling. Original bytes remain available to fullscreen;
+  URL images are unchanged. These follow-ups add CI regressions and a
+  500-session catalog-to-both-providers benchmark, not measured native gains.
 - Supported POSIX builds sample process-wide CPU, including native workers,
   every frame-metrics window. 100% means one core. Unavailable counters are
   omitted, not emitted as zero; foreground attach resets the baseline.

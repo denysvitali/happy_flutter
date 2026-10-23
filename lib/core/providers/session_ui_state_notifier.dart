@@ -7,8 +7,6 @@
 // Widgets access per-session derived data via [sessionUiEntryProvider]
 // and the optimistic-archived set via [optimisticallyArchivedIdsProvider]
 // (added in `derived_view_providers.dart`).
-import 'dart:collection';
-
 import 'package:flutter/foundation.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -17,62 +15,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/opentelemetry_service.dart';
 import '../services/sync_service.dart';
 import '../utils/performance_buckets.dart';
-
-/// Immutable single-entry patch. Periodic compaction bounds lookup depth;
-/// ordinary streaming updates share the untouched catalog with the last state.
-class _PatchedSessionMap<V> extends MapBase<String, V> {
-  _PatchedSessionMap(
-    Map<String, V> previous,
-    this._key,
-    this._value, {
-    required bool remove,
-  }) : _remove = remove,
-       _previous = previous is _PatchedSessionMap<V> && previous._depth >= 16
-           ? Map<String, V>.unmodifiable(previous)
-           : previous {
-    _depth = switch (_previous) {
-      final _PatchedSessionMap<V> chain => chain._depth + 1,
-      _ => 1,
-    };
-  }
-
-  final Map<String, V> _previous;
-  final String _key;
-  final V? _value;
-  final bool _remove;
-  late final int _depth;
-
-  @override
-  V? operator [](Object? key) => key == _key ? _value : _previous[key];
-
-  @override
-  bool containsKey(Object? key) =>
-      key == _key ? !_remove : _previous.containsKey(key);
-
-  @override
-  int get length =>
-      _previous.length +
-      (_previous.containsKey(_key) ? 0 : 1) -
-      (_remove ? 1 : 0);
-
-  @override
-  Iterable<String> get keys sync* {
-    for (final key in _previous.keys) {
-      if (key != _key || !_remove) yield key;
-    }
-    if (!_remove && !_previous.containsKey(_key)) yield _key;
-  }
-
-  @override
-  void operator []=(String key, V value) =>
-      throw UnsupportedError('Immutable session map');
-
-  @override
-  V? remove(Object? key) => throw UnsupportedError('Immutable session map');
-
-  @override
-  void clear() => throw UnsupportedError('Immutable session map');
-}
+import '../utils/session_map_patch.dart';
 
 /// Per-session derived UI data, all of which used to be read directly
 /// from the `Sync` singleton inside widget `build()` methods.
@@ -322,6 +265,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   int _lastDataChangeCounter = -1;
   int _lastSessionsDomainCounter = -1;
   int _lastMessagesDomainCounter = -1;
+  int _catalogRevision = -1;
   final Map<String, int> _messageRevisions = {};
   final Map<String, bool> _hasUnsettledSend = {};
   int _lastScaleTraceAtMs = 0;
@@ -440,10 +384,14 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     final pairedMessageEvent =
         messagesDomainCounter != _lastMessagesDomainCounter;
     _lastMessagesDomainCounter = messagesDomainCounter;
-    final sessions = sync.sessionsView;
-    final sameCatalog =
-        sessions.length == state.bySessionId.length &&
-        state.bySessionId.keys.every(sessions.containsKey);
+    final revision = sync.sessionCatalogRevision;
+    final changedIds = sync.sessionCatalogChangesSince(_catalogRevision);
+    if (changedIds != null && changedIds.isNotEmpty) {
+      for (final id in changedIds) {
+        loadSessionFromSync(id);
+      }
+      _catalogRevision = revision;
+    }
     final optimisticallyArchivedIds = Set<String>.unmodifiable(
       sync.getOptimisticallyArchivedIds(),
     );
@@ -451,7 +399,8 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       optimisticallyArchivedIds,
       state.optimisticallyArchivedIds,
     );
-    if (sameCatalog && (pairedMessageEvent || archiveChanged)) {
+    if (changedIds != null &&
+        (pairedMessageEvent || archiveChanged || changedIds.isNotEmpty)) {
       if (archiveChanged) {
         state = SessionUiState(
           bySessionId: state.bySessionId,
@@ -504,7 +453,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
 
     if (changed > 0) {
       _targetedEntryMapCopyCount++;
-      final nextEntries = _PatchedSessionMap<SessionUiEntry>(
+      final nextEntries = SessionMapPatch<SessionUiEntry>(
         state.bySessionId,
         sessionId,
         next,
@@ -520,7 +469,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
                     ordering.timestamps[sessionId] != nextTimestamp);
       if (orderingChanged) {
         final timestamps = ordering.isPrepared
-            ? _PatchedSessionMap<int?>(
+            ? SessionMapPatch<int?>(
                 ordering.timestamps,
                 sessionId,
                 nextTimestamp,
@@ -564,6 +513,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     SessionUiState previousState = SessionUiState.empty,
   }) {
     _fullComputeCount++;
+    _catalogRevision = sync.sessionCatalogRevision;
     final stopwatch = Stopwatch()..start();
     // Zero-copy views — read synchronously only (see Sync.sessionsView).
     final sessions = sync.sessionsView;
@@ -684,7 +634,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       return previous;
     }
     return MissionControlUiProjection._(
-      _PatchedSessionMap<MissionControlUiEntry>(
+      SessionMapPatch<MissionControlUiEntry>(
         previous.bySessionId,
         sessionId,
         next,
@@ -761,6 +711,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   /// Clear all derived UI state. Called on logout via the standard
   /// `AuthStateNotifier.clear()` cascade.
   void clear() {
+    _catalogRevision = -1;
     _lastDataChangeCounter = -1;
     _lastSessionsDomainCounter = -1;
     _lastMessagesDomainCounter = -1;

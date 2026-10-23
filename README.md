@@ -186,6 +186,14 @@ next displayed boundary, with a faster shared clock only for visible live rows.
 `scripts/cpu_profile.py` captures private, payload-free Linux CPU/RSS intervals;
 its percentages use 100% per occupied core, not per machine.
 
+Session catalogs publish changed rows through bounded independent cursors;
+resets or missed history fall back to a full reconciliation. Unfocused session
+panes retain their content without watching collection updates until focus
+returns. Tool error scans, Read preprocessing and simple Markdown bodies reuse
+unchanged content. Inline base64 images decode to pane/DPR bounds while
+fullscreen inspection retains original resolution. CI benchmarks cover the
+catalog-to-provider path; native CPU/battery gains still require measurement.
+
 Message merges deduplicate complete incoming batches and preserve timeline
 order. Pending outbox heads keep per-session FIFO priority across retry backoff;
 queues are scoped to the account and server. Legacy ownerless queues remain
