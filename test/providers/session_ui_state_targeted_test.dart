@@ -130,6 +130,90 @@ void main() {
   });
 
   group('targeted updates', () {
+    test('timestamp patches preserve null entries and older snapshots', () {
+      seed('a', createdAt: 7000);
+      seed('b', createdAt: 3000);
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+      for (var i = 0; i < 40; i++) {
+        if (i.isEven) {
+          sync.testClearSessionMessageState('a');
+        } else {
+          sync.testSetSessionMessages('a', [
+            message('revision $i', createdAt: 8000 + i),
+          ]);
+        }
+        notifier.loadSessionFromSync('a');
+        final timestamps = container
+            .read(sessionUiStateNotifierProvider)
+            .ordering
+            .timestamps;
+        expect(timestamps.length, 2);
+        expect(timestamps.containsKey('a'), isTrue);
+        expect(timestamps['a'], i.isEven ? null : 8000 + i);
+        expect(timestamps['b'], 3000);
+        expect(() => timestamps['a'] = 1, throwsUnsupportedError);
+        expect(before.ordering.timestamps['a'], 7000);
+      }
+      sync.testSessions.remove('a');
+      notifier.loadSessionFromSync('a');
+      final timestamps = container
+          .read(sessionUiStateNotifierProvider)
+          .ordering
+          .timestamps;
+      expect(timestamps.keys, ['b']);
+      expect(timestamps.length, 1);
+      expect(timestamps.containsKey('a'), isFalse);
+    });
+
+    test('interleaved timestamp and unread updates at 500 sessions', () {
+      for (var i = 0; i < 500; i++) {
+        seed('s$i');
+      }
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+      var publications = 0;
+      final subscription = container.listen(
+        sessionUiStateNotifierProvider,
+        (_, _) => publications++,
+      );
+      addTearDown(subscription.close);
+      final updates = <String, int>{};
+      for (var i = 1; i <= 128; i++) {
+        final id = 's${499 - i % 32}';
+        updates[id] = i;
+        sync
+          ..testSetSessionMessages(id, [
+            message('update $i', createdAt: 2000 + i),
+          ])
+          ..testSeedUnread(id, (i ~/ 32).isOdd ? 2 : 0);
+        notifier.loadSessionFromSync(id);
+      }
+      final after = container.read(sessionUiStateNotifierProvider);
+      expect(publications, 128);
+      expect(after.bySessionId.length, 500);
+      expect(after.ordering.revision, before.ordering.revision + 128);
+      for (final id in before.bySessionId.keys) {
+        final update = updates[id];
+        if (update == null) {
+          expect(after.bySessionId[id], same(before.bySessionId[id]));
+          continue;
+        }
+        final unread = (update ~/ 32).isOdd ? 2 : 0;
+        expect(after.bySessionId[id]!.lastMessagePreview, 'update $update');
+        expect(after.bySessionId[id]!.lastMessageTimestamp, 2000 + update);
+        expect(after.bySessionId[id]!.unreadCount, unread);
+        expect(after.ordering.timestamps[id], 2000 + update);
+        expect(
+          after.missionControl.bySessionId[id]!.lastMessageTimestamp,
+          2000 + update,
+        );
+        expect(after.missionControl.bySessionId[id]!.unreadCount, unread);
+        notifier.loadSessionFromSync(id);
+      }
+      expect(publications, 128);
+    });
+
     test(
       'publication compares state identity without visiting the catalog',
       () {
@@ -307,21 +391,52 @@ void main() {
       expect(notifier.debugFullComputeCount, fullScansBefore + 1);
     });
 
-    test('catalog load still performs a full reconcile for new ids', () {
-      seed('a');
-      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
-      container.read(sessionUiStateNotifierProvider);
-      final fullScansBefore = notifier.debugFullComputeCount;
+    test(
+      'catalog deltas reconcile new and removed ids without a full scan',
+      () {
+        seed('a');
+        final notifier = container.read(
+          sessionUiStateNotifierProvider.notifier,
+        );
+        container.read(sessionUiStateNotifierProvider);
+        final fullScansBefore = notifier.debugFullComputeCount;
 
-      seed('b');
-      notifier.loadCatalogFromSync();
+        seed('b');
+        notifier.loadCatalogFromSync();
 
-      expect(notifier.debugFullComputeCount, fullScansBefore + 1);
-      expect(
-        container.read(sessionUiStateNotifierProvider).bySessionId,
-        contains('b'),
-      );
-    });
+        expect(notifier.debugFullComputeCount, fullScansBefore);
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId,
+          contains('b'),
+        );
+        sync.testSessions.remove('a');
+        notifier.loadCatalogFromSync();
+        final after = container.read(sessionUiStateNotifierProvider);
+        expect(after.bySessionId.keys, ['b']);
+        expect(after.ordering.timestamps.keys, ['b']);
+        expect(after.missionControl.bySessionId.keys, ['b']);
+        expect(notifier.debugFullComputeCount, fullScansBefore);
+
+        // A full replacement invalidates the cursor even if paired with a
+        // message-domain event; it must not preserve the old membership.
+        sync.testSessions
+          ..clear()
+          ..['c'] = buildSession('c');
+        sync.testNotifyDomains({SyncDomain.sessions, SyncDomain.messages});
+        notifier.loadCatalogFromSync();
+        expect(notifier.debugFullComputeCount, fullScansBefore + 1);
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId.keys,
+          ['c'],
+        );
+        notifier.clear();
+        notifier.loadCatalogFromSync();
+        expect(
+          container.read(sessionUiStateNotifierProvider).bySessionId.keys,
+          ['c'],
+        );
+      },
+    );
 
     test('a removed target leaves every projection without it', () {
       seed('a');

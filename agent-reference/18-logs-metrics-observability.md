@@ -65,6 +65,21 @@ histogram_quantile(0.95, sum(rate(app_fetch_messages_seconds_bucket[5m])) by (le
 
 `mcp__prometheus__prometheus_search` accepts natural-language queries ("cold start time", "fetch messages latency") to discover metric names before writing PromQL.
 
+`app.cpu.utilization` measures the Flutter process, including native workers;
+100% means one fully occupied core and can exceed 100% on multicore work.
+`app.cpu.time` records consumed CPU seconds per foreground metrics window.
+Supported POSIX clocks reset their sampling baseline on foreground attach;
+web/Windows and unavailable counters are omitted, never reported as idle zeros.
+Both carry bounded route, session-count and activity labels. The CPU percentages
+in machine vitals instead describe the remote daemon host.
+
+`app.ui.windows` counts all windows with a `rendered` flag, including zero-frame
+idle. `app.ui.window_duration` supplies elapsed seconds for time-weighted views.
+`app.ui.render_windows` and `app.ui.window_frames` retain their rendered-only
+meaning. Do not infer the proportion of quiet time from rendered windows alone.
+Use `scripts/cpu_profile.py` on the host owning a Linux PID for payload-free
+before/after process observations; use DevTools/Perfetto for stack attribution.
+
 ### GlitchTip (crashes + issues)
 
 Use for **fatal** bugs and issue triage — see the *Production Issues / GlitchTip* section above for the `mcp__glitchtip__` invocation recipe (organization `default`, project `happy_flutter`).

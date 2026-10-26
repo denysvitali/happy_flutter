@@ -34,6 +34,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
+- **Idle visual work is bounded** — covered/unfocused chats defer projection,
+  not delivery. Tool clocks obey visibility; loading motion settles and honors
+  reduced motion. CPU telemetry measures the local process, not machine vitals.
+
 - **Har is process-scoped** — flavor `har` uses ACP text/tool events and
   cancellation. New sessions use Har's configured default without a model
   override. Existing sessions offer only `metadata.harModels` (`{id,name}`
@@ -114,6 +118,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   `onSessionInvisible`. Closing the top chat returns the visible slot to the
   chat underneath and probes its messages; a covered chat must never be left
   on screen without the slot, or resume and reconnect skip it.
+- **Catalog cursors are independent** — collection and derived-row consumers
+  keep their own bounded Sync catalog cursors. Reset/expired cursors require
+  full reconciliation. Session UI snapshots are immutable; preserve local
+  pin/folder and archive overrides. Visual focus gates never gate delivery.
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

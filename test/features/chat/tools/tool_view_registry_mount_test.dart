@@ -1,9 +1,12 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/code_block_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view_widgets.dart';
 import 'package:happy_flutter/features/chat/tools/views/bash_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/glob_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/grep_view.dart';
@@ -25,8 +28,65 @@ Widget _wrap(Map<String, dynamic> tool, {VoidCallback? onPress}) {
   );
 }
 
+class _CountingToolResult extends MapBase<String, dynamic> {
+  final Map<String, dynamic> _values = {'content': 'ok'};
+  int stringifyCount = 0;
+
+  @override
+  dynamic operator [](Object? key) => _values[key];
+  @override
+  void operator []=(String key, dynamic value) => _values[key] = value;
+  @override
+  void clear() => _values.clear();
+  @override
+  Iterable<String> get keys => _values.keys;
+  @override
+  dynamic remove(Object? key) => _values.remove(key);
+  @override
+  String toString() {
+    stringifyCount++;
+    return _values.toString();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('caches absent and completed tool-use errors until mutation', (
+    tester,
+  ) async {
+    final result = _CountingToolResult();
+    final tool = <String, dynamic>{
+      'name': 'cache_probe',
+      'state': 'completed',
+      'result': result,
+    };
+    ToolHeader header() => tester.widget<ToolHeader>(find.byType(ToolHeader));
+
+    await tester.pumpWidget(_wrap(tool));
+    expect(result.stringifyCount, 1);
+    expect(header().statusLabel, isNull);
+    await tester.pumpWidget(_wrap(tool));
+    expect(result.stringifyCount, 1, reason: 'null parse results are cached');
+
+    result['content'] =
+        '<tool_use_error>\n'
+        '<error_type>validation</error_type>\n'
+        '<body>Stopped by validation</body>\n'
+        '</tool_use_error>';
+    await tester.pumpWidget(_wrap(tool));
+    expect(result.stringifyCount, 2);
+    expect(header().statusLabel, 'Stopped');
+    await tester.pumpWidget(_wrap(tool));
+    expect(result.stringifyCount, 2);
+    expect(header().statusLabel, 'Stopped');
+
+    result['content'] = 'recovered';
+    await tester.pumpWidget(_wrap(tool));
+    expect(result.stringifyCount, 3);
+    expect(header().statusLabel, isNull);
+    expect(tester.takeException(), isNull);
+  });
 
   final cases = <({String name, Type view, Map<String, dynamic> tool})>[
     (

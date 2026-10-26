@@ -16,19 +16,15 @@ TextStyle _elapsedStyle(BuildContext context) {
 /// firing every second during tool execution.
 final _sharedTicker = _SharedTicker();
 
-class _SharedTicker {
+class _SharedTicker extends ChangeNotifier {
   Timer? _timer;
   int _subscriberCount = 0;
-  final _notifier = ValueNotifier<int>(DateTime.now().millisecondsSinceEpoch);
-
-  ValueNotifier<int> get notifier => _notifier;
 
   void subscribe() {
     _subscriberCount++;
     if (_timer == null) {
-      _notifier.value = DateTime.now().millisecondsSinceEpoch;
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        _notifier.value = DateTime.now().millisecondsSinceEpoch;
+        notifyListeners();
       });
     }
   }
@@ -59,39 +55,11 @@ class ElapsedTimeWidget extends StatefulWidget {
 
 class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
   @override
-  void initState() {
-    super.initState();
-    if (widget.startTime != null) _sharedTicker.subscribe();
-  }
-
-  @override
-  void didUpdateWidget(ElapsedTimeWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.startTime == null && widget.startTime != null) {
-      _sharedTicker.subscribe();
-    } else if (oldWidget.startTime != null && widget.startTime == null) {
-      _sharedTicker.unsubscribe();
-    }
-  }
-
-  @override
-  void dispose() {
-    if (widget.startTime != null) _sharedTicker.unsubscribe();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final startTime = widget.startTime;
-    if (startTime == null) {
-      return Text('0s', style: widget.style ?? _elapsedStyle(context));
-    }
-
     return RepaintBoundary(
-      child: ValueListenableBuilder<int>(
-        valueListenable: _sharedTicker.notifier,
-        builder: (context, nowMs, _) {
-          final elapsed = ((nowMs - startTime) / 1000).floor().clamp(0, 999999);
+      child: _ElapsedTimeBuilder(
+        startTime: widget.startTime,
+        builder: (context, elapsed) {
           return Text(
             '${elapsed}s',
             style: widget.style ?? _elapsedStyle(context),
@@ -135,25 +103,44 @@ class _ElapsedTimeBuilder extends StatefulWidget {
 }
 
 class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
+  bool _subscribed = false;
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.startTime != null) _sharedTicker.subscribe();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateSubscription();
   }
 
   @override
   void didUpdateWidget(_ElapsedTimeBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.startTime == null && widget.startTime != null) {
+    _updateSubscription();
+  }
+
+  void _updateSubscription() {
+    final active =
+        widget.startTime != null && TickerMode.valuesOf(context).enabled;
+    if (active == _subscribed) return;
+    _subscribed = active;
+    if (active) {
       _sharedTicker.subscribe();
-    } else if (oldWidget.startTime != null && widget.startTime == null) {
+      _sharedTicker.addListener(_tick);
+    } else {
+      _sharedTicker.removeListener(_tick);
       _sharedTicker.unsubscribe();
     }
   }
 
+  void _tick() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
-    if (widget.startTime != null) _sharedTicker.unsubscribe();
+    if (_subscribed) {
+      _sharedTicker.removeListener(_tick);
+      _sharedTicker.unsubscribe();
+    }
     super.dispose();
   }
 
@@ -163,12 +150,10 @@ class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
     if (startTime == null) {
       return widget.builder(context, 0);
     }
-    return ValueListenableBuilder<int>(
-      valueListenable: _sharedTicker.notifier,
-      builder: (context, nowMs, _) {
-        final elapsed = ((nowMs - startTime) / 1000).floor().clamp(0, 999999);
-        return widget.builder(context, elapsed);
-      },
-    );
+    // Read wall time on every build, including the first visible frame after
+    // resuming. Hidden widgets have no listener or timer subscription.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = ((nowMs - startTime) / 1000).floor().clamp(0, 999999);
+    return widget.builder(context, elapsed);
   }
 }

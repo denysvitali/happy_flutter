@@ -29,6 +29,7 @@ import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/opentelemetry_service.dart';
 import 'core/services/performance_context_service.dart';
+import 'core/services/performance_probe.dart';
 import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
@@ -137,6 +138,7 @@ Future<void> main() async {
   // Bootstrap the Flutter binding first so everything else can proceed
   // in parallel — Sentry, storage, network, deep link, and Firebase.
   WidgetsFlutterBinding.ensureInitialized();
+  registerPerformanceProbe();
 
   // Flatpak's host CA bridge must precede Sentry and every HTTP/socket client.
   try {

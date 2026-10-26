@@ -3,6 +3,55 @@
 **Date:** 2026-03-13
 **Agent:** A4 — Performance Optimizer
 
+## October 2026 CPU and idle-work qualification
+
+- Follow-up catalog/rendering work: Sync retains the latest 1024 catalog
+  writes for independent consumers. Small catalog events patch collection
+  fingerprints and derived rows; resets, lagging cursors and unpaired events
+  without catalog writes retain full reconciliation. Immutable map patches
+  compact every 16 layers. Local pin/folder and archive overrides survive.
+- The retained sessions list now gates callbacks and collection watches on
+  app focus as well as tab/route visibility, then catches up on return.
+- Tool headers cache both matched and absent parsed errors against their
+  existing render signature. Read caches raw-string preprocessing, line count
+  and gutter text. Simple Markdown reuses its body until content, theme or
+  direction changes; inherited text scaling still propagates.
+- Inline base64 thumbnails request aspect-preserving pane/DPR-bounded raster
+  decoding without upscaling. Original bytes remain available to fullscreen;
+  URL images are unchanged. These follow-ups add CI regressions and a
+  500-session catalog-to-both-providers benchmark, not measured native gains.
+- Supported POSIX builds sample process-wide CPU, including native workers,
+  every frame-metrics window. 100% means one core. Unavailable counters are
+  omitted, not emitted as zero; foreground attach resets the baseline.
+- `app.ui.windows` and `app.ui.window_duration` include zero-frame windows.
+  Existing `app.ui.render_windows` remains rendered-only for compatibility.
+- Covered chats use their actual enclosing route, not just a route name.
+  Unfocused/covered chats defer visual projection and catch up on return;
+  message delivery and background sync remain independent.
+- Both tool elapsed widgets unsubscribe under disabled `TickerMode`. Loading
+  scopes and standalone shimmers honor reduced motion and stop after four
+  passes. Static skeletons remain visible; normal rebuilds do not restart them.
+- Displayed live session rows use the shared 15-second clock; static ages wake
+  at their next minute/hour/day label boundary. Filtered/folded rows do not
+  request a live clock. Timestamp ordering shares bounded immutable patches
+  rather than copying the entire map on each targeted timestamp change.
+- The 500-session CI benchmarks now include advancing timestamps, unread/lane
+  changes and 32 interleaved sessions, not only constant-timestamp previews.
+- `python3 scripts/cpu_profile.py --pid PID --seconds 60 --scenario idle-chat
+  --revision REV --output capture.jsonl` captures process CPU/RSS on Linux.
+  Run it on the host owning the PID. Files are private and exclusive-created;
+  failure/PID reuse leaves no completion marker. Use identical build modes,
+  session counts and workloads; use DevTools/Perfetto to attribute hot stacks.
+
+Local Chromium release-component observation: after initial animation and tool
+completion, the baseline produced 39 frames in five seconds versus zero after
+the change. The hidden tool timer rebuilt four times in four seconds versus
+zero after. In matched eight-second loading-preview captures, the renderer used
+3.98 CPU seconds before versus less than one 10ms accounting tick after. These
+small component observations are not native-device or fleet battery baselines.
+Full authenticated chat/500-session soak, memory-driver runs and physical-device
+CPU/battery acceptance remain external qualification gates. Tests run only in CI.
+
 ## July 2026 implementation update
 
 - Chat and session collections use lazy builders and bounded visible windows.

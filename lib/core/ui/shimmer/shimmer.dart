@@ -3,6 +3,45 @@ import 'package:flutter/material.dart';
 import '../../theme/app_color_scheme.dart';
 import '../../theme/app_tokens.dart';
 
+/// A loading episode has a bounded motion budget. Only explicit configuration
+/// or visibility changes start another episode, never routine rebuilds.
+class _LoadingMotion {
+  _LoadingMotion(TickerProvider vsync, {this.restingValue = 0.5})
+    : controller = AnimationController(vsync: vsync);
+
+  final AnimationController controller;
+  final double restingValue;
+  bool? _active;
+  Duration? _duration;
+  int _generation = 0;
+
+  void update(BuildContext context, bool enabled, Duration duration) {
+    final reduced = AppMotion.reduceMotion(context);
+    final visible = TickerMode.valuesOf(context).enabled;
+    final active = enabled && !reduced && visible && duration > Duration.zero;
+    if (_active == active && _duration == duration) return;
+    _active = active;
+    _duration = duration;
+    final generation = ++_generation;
+    controller
+      ..stop()
+      ..duration = duration
+      ..value = active ? 0 : restingValue;
+    if (active) {
+      controller
+          .repeat(reverse: true, count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            if (_generation == generation) controller.value = restingValue;
+          });
+    }
+  }
+
+  void dispose() {
+    _generation++;
+    controller.dispose();
+  }
+}
+
 /// Provides a shared [AnimationController] to descendant [Shimmer]
 /// widgets so multiple shimmers on screen share a single ticker
 /// instead of each creating its own.
@@ -26,35 +65,31 @@ class ShimmerScope extends StatefulWidget {
 
 class _ShimmerScopeState extends State<ShimmerScope>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+  late final _LoadingMotion _motion;
+  late final Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: widget.duration, vsync: this);
-    _animation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    if (widget.enabled) {
-      _controller.repeat(reverse: true);
-    }
+    _motion = _LoadingMotion(this);
+    _animation = _motion.controller.drive(CurveTween(curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _motion.update(context, widget.enabled, widget.duration);
   }
 
   @override
   void didUpdateWidget(ShimmerScope oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.enabled && widget.enabled) {
-      _controller.repeat(reverse: true);
-    } else if (oldWidget.enabled && !widget.enabled) {
-      _controller.stop();
-    }
+    _motion.update(context, widget.enabled, widget.duration);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _motion.dispose();
     super.dispose();
   }
 
@@ -105,50 +140,41 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
-  AnimationController? _ownController;
+class _ShimmerState extends State<Shimmer> with TickerProviderStateMixin {
+  _LoadingMotion? _motion;
   Animation<double>? _ownAnimation;
+  Animation<double>? _sharedAnimation;
 
-  Animation<double> _resolveAnimation(BuildContext context) {
-    final scope = _ShimmerScopeData.maybeOf(context);
-    if (scope != null) {
-      // Reuse scope animation — dispose any local controller we
-      // might have created before a scope appeared.
-      _disposeOwnController();
-      return scope.animation;
-    }
-    // No scope — create our own controller lazily.
-    _ownController ??= AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    )..repeat(reverse: true);
-    _ownAnimation ??= Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ownController!, curve: Curves.easeInOut),
-    );
-    return _ownAnimation!;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sharedAnimation = _ShimmerScopeData.maybeOf(context)?.animation;
+    _updateMotion();
   }
 
-  void _disposeOwnController() {
-    _ownController?.dispose();
-    _ownController = null;
-    _ownAnimation = null;
+  void _updateMotion() {
+    if (_sharedAnimation != null) {
+      _motion?.dispose();
+      _motion = null;
+      _ownAnimation = null;
+      return;
+    }
+    final motion = _motion ??= _LoadingMotion(this);
+    _ownAnimation ??= motion.controller.drive(
+      CurveTween(curve: Curves.easeInOut),
+    );
+    motion.update(context, widget.enabled, widget.duration);
   }
 
   @override
   void didUpdateWidget(Shimmer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_ownController != null) {
-      if (!oldWidget.enabled && widget.enabled) {
-        _ownController!.repeat(reverse: true);
-      } else if (oldWidget.enabled && !widget.enabled) {
-        _ownController!.stop();
-      }
-    }
+    _updateMotion();
   }
 
   @override
   void dispose() {
-    _disposeOwnController();
+    _motion?.dispose();
     super.dispose();
   }
 
@@ -158,7 +184,14 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
       return widget.child;
     }
 
-    final animation = _resolveAnimation(context);
+    // A child may request reduced motion or be hidden below an active scope.
+    // Do not listen to the shared controller in either case.
+    final isStatic =
+        AppMotion.reduceMotion(context) ||
+        !TickerMode.valuesOf(context).enabled;
+    final animation = isStatic
+        ? const AlwaysStoppedAnimation<double>(0.5)
+        : _sharedAnimation ?? _ownAnimation!;
 
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColorScheme>();
@@ -379,25 +412,28 @@ class ShimmerPulse extends StatefulWidget {
 
 class _ShimmerPulseState extends State<ShimmerPulse>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacityAnimation;
+  late final _LoadingMotion _motion;
+  late final Animation<double> _opacityAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
+    _motion = _LoadingMotion(this, restingValue: 0);
     _opacityAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(_controller);
+      begin: 1.0,
+      end: 0.3,
+    ).animate(_motion.controller);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _motion.update(context, true, const Duration(milliseconds: 1000));
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _motion.dispose();
     super.dispose();
   }
 
@@ -408,10 +444,10 @@ class _ShimmerPulseState extends State<ShimmerPulse>
     return FadeTransition(
       opacity: _opacityAnimation,
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: _motion.controller,
         builder: (context, child) {
           return Transform.scale(
-            scale: 0.8 + 0.4 * _controller.value,
+            scale: 1 - 0.2 * _motion.controller.value,
             child: child,
           );
         },

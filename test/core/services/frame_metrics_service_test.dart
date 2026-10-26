@@ -624,6 +624,22 @@ void main() {
       expect(FrameMetricsService.instance.debugLastWindowFrames, 3);
     });
 
+    test('zero-frame windows contribute to the complete idle denominator', () {
+      FrameMetricsService.instance.debugFlush();
+
+      expect(values['app.ui.windows'], 1);
+      expect(attributes['app.ui.windows']?['activity'], 'idle');
+      expect(attributes['app.ui.windows']?['rendered'], isFalse);
+      expect(values['app.ui.render_windows'], isNull);
+      expect(FrameMetricsService.instance.debugLastWindowFrames, 0);
+
+      recordSmoothFrames(2);
+      FrameMetricsService.instance.debugFlush();
+      expect(values['app.ui.windows'], 2);
+      expect(values['app.ui.render_windows'], 1);
+      expect(attributes['app.ui.windows']?['rendered'], isTrue);
+    });
+
     test('inactive window is not classified as battery-idle rendering', () {
       final service = FrameMetricsService.instance;
       service.debugSetAppActive(false);
@@ -709,11 +725,15 @@ void main() {
         // Zero frames: the healthy window, which returns early.
         ..debugFlush();
 
-      expect(attributes, isEmpty);
+      expect(attributes['app.ui.windows']?['activity'], 'active');
+      expect(attributes['app.ui.windows']?['rendered'], isFalse);
+      expect(attributes['app.ui.window_frames'], isNull);
+      expect(attributes['app.ui.render_windows'], isNull);
 
       recordSmoothFrames(2);
       FrameMetricsService.instance.debugFlush();
 
+      expect(attributes['app.ui.windows']?['activity'], 'idle');
       expect(attributes['app.ui.window_frames']?['activity'], 'idle');
     });
 

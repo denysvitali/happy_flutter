@@ -312,9 +312,11 @@ class _SessionBoardViewState extends State<SessionBoardView> {
         widget.showStatusFilters &&
         counts.length == 1 &&
         counts.containsKey(MissionLane.quiet);
-    final live = allSections.any(
-      (section) => section.rows.any((row) => row.lane != MissionLane.quiet),
-    );
+    final displayedRows = [
+      for (final section in sections)
+        if (!_isCollapsed(section, showHeader: !quietOnly))
+          ..._visibleRows(section),
+    ];
     final list = ListView.builder(
       controller: widget.scrollController ?? _ownScrollController,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -335,7 +337,14 @@ class _SessionBoardViewState extends State<SessionBoardView> {
       },
     );
     return MissionClock(
-      active: live,
+      active: displayedRows.isNotEmpty,
+      live: displayedRows.any((row) => row.lane == MissionLane.live),
+      relativeTimestamps: [
+        for (final row in displayedRows)
+          row.entry.lastMessageTimestamp ??
+              row.session.lastMessageAt ??
+              row.session.activeAt,
+      ],
       child: showFilters
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -352,6 +361,18 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     );
   }
 
+  bool _isCollapsed(SessionBoardSection section, {required bool showHeader}) =>
+      showHeader &&
+      widget.showStatusFilters &&
+      _collapsed.contains(section.key);
+
+  Iterable<SessionBoardRow> _visibleRows(SessionBoardSection section) {
+    final limit = section.collapseAfter;
+    return limit != null && !_expanded.contains(section.key)
+        ? section.rows.take(limit)
+        : section.rows;
+  }
+
   Widget _buildSection(
     BuildContext context,
     SessionBoardSection section, {
@@ -360,13 +381,8 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     final limit = section.collapseAfter;
     final foldable = limit != null && section.rows.length > limit;
     final expanded = _expanded.contains(section.key);
-    final collapsed =
-        showHeader &&
-        widget.showStatusFilters &&
-        _collapsed.contains(section.key);
-    final visible = foldable && !expanded
-        ? section.rows.take(limit)
-        : section.rows;
+    final collapsed = _isCollapsed(section, showHeader: showHeader);
+    final visible = _visibleRows(section);
     final machineId = section.machineId;
     final onNewSession = widget.onNewSession;
     final rows = collapsed

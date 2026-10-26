@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location(
     'memory_profile', Path(__file__).with_name('memory_profile.py'))
@@ -54,6 +55,24 @@ class MemoryProfileTest(unittest.TestCase):
     def test_phase_order_is_fixed(self):
         self.assertEqual(profile.PHASES, (
             'long_chat', 'session_switch', 'background_resume'))
+
+    def test_profile_metrics_discovers_app_after_worker(self):
+        metrics = dict(zip(profile.METRICS, (100, 200, 31, 7)))
+
+        def reply(base, method, isolateId):
+            if method == 'getIsolate':
+                return {'extensionRPCs': [] if isolateId == 'worker' else [
+                    'ext.happy.performanceMetrics']}
+            return metrics if isolateId == 'app' else {}
+
+        with patch.object(profile, 'rpc', side_effect=reply):
+            self.assertEqual(profile.read_profile_metrics('unused', [
+                {'id': 'worker'}, {'id': 'app'}]), metrics)
+
+    def test_missing_profile_metrics_fails_instead_of_reporting_zero(self):
+        with patch.object(profile, 'rpc', return_value={'extensionRPCs': []}):
+            with self.assertRaises(ValueError):
+                profile.read_profile_metrics('unused', [{'id': 'worker'}])
 
     def test_invalid_metrics_fail_closed(self):
         with self.assertRaises(ValueError):

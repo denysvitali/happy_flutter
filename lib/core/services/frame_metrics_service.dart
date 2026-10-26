@@ -12,6 +12,7 @@ import 'main_isolate_stall_tracker.dart';
 import 'memory_metrics_sampler.dart';
 import 'opentelemetry_service.dart';
 import 'performance_context_service.dart';
+import 'process_cpu_sampler.dart';
 import 'sync_service.dart';
 
 /// Reports janky Flutter frames to Sentry/GlitchTip as performance
@@ -228,6 +229,7 @@ class FrameMetricsService {
     _lastActivityCounter = _activityCounter();
     _windowStartedAt = DateTime.now();
     _windowLifecycleChanges = 1;
+    _cpu.reset();
 
     // Periodically flush accumulated jank stats as a single Sentry
     // transaction instead of one per frame.
@@ -395,6 +397,7 @@ class FrameMetricsService {
   }
 
   final MemoryMetricsSampler _memory = MemoryMetricsSampler();
+  final ProcessCpuSampler _cpu = ProcessCpuSampler();
 
   /// Test-only override for the EncryptionCache byte total; see
   /// [MemoryMetricsSampler.debugEncryptionRetainedBytes].
@@ -430,6 +433,65 @@ class FrameMetricsService {
     // window renders nothing but its heap trend is exactly what the
     // progressive-lag hypothesis needs.
     _memory.sample();
+
+    final route = PerformanceContextService().currentRoute ?? 'unknown';
+    final otel = OpenTelemetryService();
+    final currentSessionCount = sync.sessionCount;
+    final currentSessionsView = PerformanceContextService().currentSessionsView;
+    final attributes = <String, Object?>{
+      'current_route': route,
+      'session_count_bucket': collectionSizeBucket(currentSessionCount),
+      'sessions_view': currentSessionsView ?? 'none',
+    };
+    final lifecycleBoundedPartialWindow =
+        lifecycleChanges > 0 &&
+        windowDuration < const Duration(seconds: _flushIntervalSeconds);
+    final idleWindow =
+        _appActive &&
+        pointerEvents == 0 &&
+        activityTicks == 0 &&
+        !lifecycleBoundedPartialWindow;
+    final windowAttributes = <String, Object?>{
+      ...attributes,
+      'activity': !_appActive
+          ? 'inactive'
+          : idleWindow
+          ? 'idle'
+          : 'active',
+      'app_active': _appActive,
+    };
+    _lastWindowFrames = _frameCount;
+    _lastWindowIdle = idleWindow;
+    otel
+      ..recordCount(
+        'app.ui.windows',
+        attributes: {...windowAttributes, 'rendered': _frameCount > 0},
+        description: 'All metrics windows, including healthy zero-frame idle',
+      )
+      ..recordDuration(
+        'app.ui.window_duration',
+        windowDuration,
+        attributes: windowAttributes,
+      );
+    final cpu = _cpu.sample();
+    if (cpu != null) {
+      otel
+        ..recordValue(
+          'app.cpu.utilization',
+          cpu.utilization,
+          unit: '%',
+          boundaries: const [0.1, 0.5, 1, 2, 5, 10, 25, 50, 100, 200, 400],
+          attributes: windowAttributes,
+          description: 'Process CPU percent; 100% is one fully occupied core',
+        )
+        ..recordDuration(
+          'app.cpu.time',
+          cpu.cpuTime,
+          attributes: windowAttributes,
+          description:
+              'CPU time consumed by all process threads in this window',
+        );
+    }
 
     if (_frameCount == 0) return;
 
@@ -467,15 +529,6 @@ class FrameMetricsService {
       _frameBuckets[bucket] = 0;
     }
 
-    final route = PerformanceContextService().currentRoute ?? 'unknown';
-    final otel = OpenTelemetryService();
-    final currentSessionCount = sync.sessionCount;
-    final currentSessionsView = PerformanceContextService().currentSessionsView;
-    final attributes = <String, Object?>{
-      'current_route': route,
-      'session_count_bucket': collectionSizeBucket(currentSessionCount),
-      'sessions_view': currentSessionsView ?? 'none',
-    };
     otel
       ..recordDuration('app.ui.frame_build', avgBuild, attributes: attributes)
       ..recordDuration('app.ui.frame_raster', avgRaster, attributes: attributes)
@@ -503,35 +556,8 @@ class FrameMetricsService {
       );
     }
 
-    // Idle-render detection. A complete window that rendered frames while
-    // the user never touched the screen and Sync never published a change
-    // had nothing to draw — those frames are pure battery burn. A lifecycle-
-    // bounded partial window includes the legitimate attach/resume redraws,
-    // so it is active even without a pointer or Sync event. A healthy screen
-    // at rest produces zero frames and never reaches this code at all.
-    //
-    // A negative delta means `shutdown()` reset `dataChangeCounter` mid
-    // window, which is itself activity; do not read it as silence.
-    final lifecycleBoundedPartialWindow =
-        lifecycleChanges > 0 &&
-        windowDuration < const Duration(seconds: _flushIntervalSeconds);
-    final idleWindow =
-        _appActive &&
-        pointerEvents == 0 &&
-        activityTicks == 0 &&
-        !lifecycleBoundedPartialWindow;
-    final windowActivity = !_appActive
-        ? 'inactive'
-        : idleWindow
-        ? 'idle'
-        : 'active';
-    final windowAttributes = <String, Object?>{
-      ...attributes,
-      'activity': windowActivity,
-      'app_active': _appActive,
-    };
-    _lastWindowFrames = frameCount;
-    _lastWindowIdle = idleWindow;
+    // Keep the existing rendered-window denominator stable. app.ui.windows
+    // above is the complete denominator, including periods with no rendering.
     otel
       ..recordCount(
         'app.ui.window_frames',

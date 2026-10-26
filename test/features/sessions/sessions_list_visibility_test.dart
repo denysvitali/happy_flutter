@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/app_visibility_coordinator.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
@@ -88,12 +89,14 @@ Widget _app({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'retained hidden sessions tree ignores provider churn until visible',
-    (tester) async {
+  for (final unfocused in [false, true]) {
+    testWidgets('retained sessions tree ignores churn while '
+        '${unfocused ? 'unfocused' : 'hidden'}', (tester) async {
       final performanceContext = PerformanceContextService()
         ..setCurrentRoute('sessions');
       addTearDown(performanceContext.resetForTesting);
+      AppFocusState.instance.setFocused(true);
+      addTearDown(() => AppFocusState.instance.setFocused(true));
       final container = ProviderContainer(
         overrides: [
           settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
@@ -130,12 +133,13 @@ void main() {
         'Before update',
       );
 
+      if (unfocused) AppFocusState.instance.setFocused(false);
       await tester.pumpWidget(
         _app(
           container: container,
           selection: selection,
           folder: folder,
-          isVisible: false,
+          isVisible: unfocused,
         ),
       );
       await tester.pump();
@@ -155,6 +159,7 @@ void main() {
         'Before update',
       );
 
+      if (unfocused) AppFocusState.instance.setFocused(true);
       await tester.pumpWidget(
         _app(
           container: container,
@@ -174,6 +179,6 @@ void main() {
         afterView.activeSessions.single.metadata?.summary?.text,
         'After update',
       );
-    },
-  );
+    });
+  }
 }

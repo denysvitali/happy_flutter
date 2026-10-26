@@ -68,16 +68,32 @@ String formatSilenceShort(int millis) {
 /// Rows that display time-relative state ("4m silent", freshness glow)
 /// previously each ran their own 1-second `Timer.periodic`. With many
 /// concurrent streams that multiplied into dozens of wakeups per minute.
-/// [MissionClock] replaces them with a single 15-second tick that only
-/// runs while [active] — dependents rebuild through the inherited
-/// dependency and render identical output when nothing changed.
+/// Live rows share a 15-second tick. Static rows instead wake at the next
+/// displayed relative-age boundary (minutes, hours, then days). Owners pass
+/// only displayed rows, excluding filtered and folded content.
 class MissionClock extends StatefulWidget {
-  const MissionClock({required this.child, this.active = true, super.key});
+  const MissionClock({
+    required this.child,
+    this.active = true,
+    this.live = true,
+    this.relativeTimestamps = const [],
+    this.now = DateTime.now,
+    super.key,
+  });
 
   final Widget child;
 
   /// False cancels the ticker (no hot rows to keep fresh).
   final bool active;
+
+  /// Only the live lane needs freshness and silence updates every 15s.
+  final bool live;
+
+  /// Activity timestamps used by the displayed rows' compact age labels.
+  final List<int> relativeTimestamps;
+
+  /// Wall clock, overridable for deterministic time-boundary tests.
+  final DateTime Function() now;
 
   @override
   State<MissionClock> createState() => _MissionClockState();
@@ -108,19 +124,42 @@ class _MissionClockState extends State<MissionClock> {
   @override
   void didUpdateWidget(MissionClock oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.active != widget.active) _arm();
+    // Refresh immediately when rows change or a dormant clock wakes up.
+    _arm();
   }
 
   void _arm() {
     _timer?.cancel();
-    _timer = widget.active && _tickerActive
-        ? Timer.periodic(_tick, (_) {
-            if (!mounted) return;
-            setState(() {
-              _nowMs = DateTime.now().millisecondsSinceEpoch;
-            });
-          })
-        : null;
+    _timer = null;
+    _nowMs = widget.now().millisecondsSinceEpoch;
+    if (!widget.active || !_tickerActive) return;
+    Duration? delay = widget.live ? _tick : null;
+    for (final timestamp in widget.relativeTimestamps) {
+      final age = _nowMs - timestamp;
+      const minute = Duration.millisecondsPerMinute;
+      // Match MissionActionRow's formatRelativeTime(compact: true),
+      // including clock skew and its relative-days override past a week.
+      final int remaining;
+      if (age <= -minute) {
+        remaining = -minute - age + 1;
+      } else if (age < 0) {
+        remaining = minute - age;
+      } else {
+        final unit = age < Duration.millisecondsPerHour
+            ? minute
+            : age < Duration.millisecondsPerDay
+            ? Duration.millisecondsPerHour
+            : Duration.millisecondsPerDay;
+        remaining = unit - age % unit;
+      }
+      final boundary = Duration(milliseconds: remaining);
+      if (delay == null || boundary < delay) delay = boundary;
+    }
+    if (delay == null) return;
+    _timer = Timer(delay, () {
+      if (!mounted) return;
+      setState(_arm);
+    });
   }
 
   @override

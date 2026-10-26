@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show formatRelativeTime;
 import 'package:happy_flutter/features/sessions/widgets/mission_control_action_tile.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_types.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
 
 Session _session({
   String id = 'alpha-session',
@@ -431,24 +432,33 @@ void main() {
   testWidgets('old activity remains compact and relative on every lane', (
     tester,
   ) async {
-    final at = DateTime.now()
-        .subtract(const Duration(days: 40))
-        .millisecondsSinceEpoch;
     for (final lane in MissionLane.values) {
+      final at = tester.binding.clock
+          .now()
+          .subtract(const Duration(days: 40))
+          .millisecondsSinceEpoch;
       await tester.pumpWidget(
         _app(
-          MissionActionRow(
-            session: _session(timestamp: at),
-            entry: SessionUiEntry.empty,
-            lane: lane,
-            animateActivity: false,
-            onTap: () {},
-            onLongPress: () {},
+          MissionClock(
+            live: false,
+            relativeTimestamps: [at],
+            now: tester.binding.clock.now,
+            child: MissionActionRow(
+              session: _session(timestamp: at),
+              entry: SessionUiEntry.empty,
+              lane: lane,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+            ),
           ),
         ),
       );
       expect(find.text('40d'), findsOneWidget);
+      await tester.pump(const Duration(days: 1));
+      expect(find.text('41d'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
     }
   });
 

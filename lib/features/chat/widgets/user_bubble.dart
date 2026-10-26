@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -453,10 +454,25 @@ class _CachedBase64ImageState extends State<_CachedBase64Image> {
         constraints: const BoxConstraints(maxHeight: _kMaxThumbHeight),
         child: ClipRRect(
           borderRadius: widget.borderRadius,
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.contain,
-            gaplessPlayback: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final dpr = MediaQuery.devicePixelRatioOf(context);
+              // Fit both physical-pixel bounds without distorting portrait
+              // images or decoding a wide image beyond a narrow chat pane.
+              // ResizeImage also keeps small originals from being upscaled.
+              return Image(
+                image: ResizeImage(
+                  MemoryImage(bytes),
+                  width: constraints.hasBoundedWidth
+                      ? math.max(1, (constraints.maxWidth * dpr).ceil())
+                      : null,
+                  height: math.max(1, (_kMaxThumbHeight * dpr).ceil()),
+                  policy: ResizeImagePolicy.fit,
+                ),
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+              );
+            },
           ),
         ),
       ),
