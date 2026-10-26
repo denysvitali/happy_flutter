@@ -840,40 +840,97 @@ extension _ChatScreenActions on _ChatScreenState {
       'file). STOP what you are doing and wait for the '
       'user to tell you how to proceed.';
 
-  /// Publish a Har selection only after the running process confirms it.
-  /// Failed/busy switches never change the composer or its send model.
+  Object? _harModelTarget(Session? session) =>
+      session?.metadata?.flavor == 'har'
+      ? (
+          session!.id,
+          session.metadata?.machineId,
+          session.metadata?.path,
+          session.metadata?.harSessionId,
+          session.metadata?.harRuntimeId,
+        )
+      : null;
+
+  bool get _harModelBlocksSend =>
+      _isSwitchingHarModel || _pendingHarModel != null;
+
+  /// Retain intent while Har is busy; only the RPC publishes a selection.
+  /// Selecting the running model cancels a queued change. During an RPC it
+  /// instead queues a switch back, since the first call cannot be cancelled.
   Future<void> _switchHarModel(ChatModelMode model) async {
-    if (_isSwitchingHarModel || model == _modelMode) return;
     if (!(_session?.metadata?.harModels?.any(
           (advertised) => advertised.id == model.modeString,
         ) ??
         false)) {
       return;
     }
+    setState(() {
+      _userOverrodeModelOrProfile = true;
+      _pendingHarModel =
+          !_isSwitchingHarModel && !_harModelSwitchFailed && model == _modelMode
+          ? null
+          : model;
+      _harModelSwitchFailed =
+          _pendingHarModel != null &&
+          !(_session?.metadata?.supportsHarModelSwitchBarrier ?? false);
+    });
+    await _applyPendingHarModel();
+  }
+
+  Future<void> _applyPendingHarModel() async {
+    final model = _pendingHarModel;
+    if (!mounted ||
+        model == null ||
+        _isSwitchingHarModel ||
+        _harModelSwitchFailed ||
+        _isSending) {
+      return;
+    }
+    final sessionId = widget.sessionId;
+    final target = _harModelTarget(_session);
+    final latest = sync.sessionById(sessionId);
+    // Use the authoritative turn flag, not the visual recent-output grace
+    // period. A race after this check is rejected by Har and retains intent.
+    if (target == null ||
+        target != _harModelTarget(latest) ||
+        !(latest?.isPresenceOnline ?? false) ||
+        (latest?.thinking ?? true)) {
+      return;
+    }
+    if (!(latest?.metadata?.supportsHarModelSwitchBarrier ?? false)) {
+      setState(() => _harModelSwitchFailed = true);
+      return;
+    }
+    final generation = _harModelSwitchGeneration;
+    bool isCurrent() =>
+        mounted &&
+        widget.sessionId == sessionId &&
+        generation == _harModelSwitchGeneration &&
+        target == _harModelTarget(sync.sessionById(sessionId));
     setState(() => _isSwitchingHarModel = true);
     try {
       await ref
           .read(chatActionNotifierProvider.notifier)
-          .setSessionModel(widget.sessionId, model.modeString);
-      if (!mounted) return;
+          .setSessionModel(sessionId, model.modeString);
+      if (!isCurrent()) return;
       setState(() {
-        _userOverrodeModelOrProfile = true;
         _modelMode = model;
         // Initial settings retain Har's qualified model as a raw override.
         // Keep the composer send value aligned with the confirmed picker.
         _profileModelOverride = model.modeString;
+        if (_pendingHarModel == model) _pendingHarModel = null;
       });
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Model could not be changed. Wait for the current turn to finish.',
-          ),
-        ),
-      );
+      if (!isCurrent()) return;
+      // No automatic retry: the status row offers explicit Retry/Cancel,
+      // and all send paths stay blocked rather than use the previous model.
+      setState(() => _harModelSwitchFailed = true);
     } finally {
-      if (mounted) setState(() => _isSwitchingHarModel = false);
+      if (isCurrent()) {
+        setState(() => _isSwitchingHarModel = false);
+        // A newer pick replaces the pending target while a call is in flight.
+        if (!_harModelSwitchFailed) unawaited(_applyPendingHarModel());
+      }
     }
   }
 
@@ -927,12 +984,13 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   Future<void> _onOptionPress(String option) async {
-    if (_isSending || _isSwitchingHarModel) return;
+    if (_isSending || _harModelBlocksSend) return;
     final sendIssue = _sessionSendIssue;
     if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);
       return;
     }
+    setState(() => _isSending = true);
     try {
       final sentSessionId = await ref
           .read(chatActionNotifierProvider.notifier)
@@ -964,16 +1022,23 @@ extension _ChatScreenActions on _ChatScreenState {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+        unawaited(_applyPendingHarModel());
+      }
     }
   }
 
   Future<void> _retryMessage(Map<String, dynamic> message) async {
+    if (_isSending || _harModelBlocksSend) return;
     final localId = message['localId'] as String? ?? message['id'] as String?;
     if (localId == null) {
       _showRetryFailure();
       return;
     }
 
+    setState(() => _isSending = true);
     try {
       final result = await ref
           .read(chatActionNotifierProvider.notifier)
@@ -992,6 +1057,11 @@ extension _ChatScreenActions on _ChatScreenState {
         st,
       );
       _showRetryFailure();
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+        unawaited(_applyPendingHarModel());
+      }
     }
   }
 
@@ -1010,7 +1080,7 @@ extension _ChatScreenActions on _ChatScreenState {
     final attachments = _attachmentController.images;
     if ((text.isEmpty && attachments.isEmpty) ||
         _isSending ||
-        _isSwitchingHarModel) {
+        _harModelBlocksSend) {
       return;
     }
     if (!ImageAttachmentService.fitsMessagePayload(attachments)) {
@@ -1083,6 +1153,7 @@ extension _ChatScreenActions on _ChatScreenState {
         if (mounted && _isSending) {
           setState(() => _isSending = false);
         }
+        if (mounted) unawaited(_applyPendingHarModel());
       }
       return;
     }
@@ -1109,6 +1180,7 @@ extension _ChatScreenActions on _ChatScreenState {
     List<OutgoingImage>? images,
     String? codexDeliveryMode,
   }) async {
+    if (!mounted || _harModelBlocksSend) return;
     final optimisticStopwatch = Stopwatch()..start();
     _autoScrollNotifier.value = true;
     final hasImages = images != null && images.isNotEmpty;
@@ -1246,6 +1318,7 @@ extension _ChatScreenActions on _ChatScreenState {
       if (mounted && _isSending) {
         setState(() => _isSending = false);
       }
+      if (mounted) unawaited(_applyPendingHarModel());
     }
   }
 

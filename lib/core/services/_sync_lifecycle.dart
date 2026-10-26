@@ -1015,6 +1015,8 @@ extension SyncLifecycle on Sync {
     // from the old account observes a stale generation and cannot resurrect
     // sessions, machines, or readiness after logout.
     _runtimeGeneration++;
+    _sessionModelSwitchGenerations.clear();
+    _unsequencedHarAcks.clear();
     SidechainDiagnostics.resetRuntime();
     SettingsStorage().fenceAccountOperations();
     _clearCodexModelsCache();

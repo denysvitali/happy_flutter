@@ -1124,6 +1124,8 @@ void main() {
               path: '/repo',
               flavor: 'har',
               model: luna,
+              harRuntimeId: 'runtime-1',
+              harModelSwitchBarrier: {'version': 1, 'runtimeId': 'runtime-1'},
               lifecycleState: 'running',
             ),
           );
@@ -1137,8 +1139,13 @@ void main() {
             return <String, dynamic>{'ok': true};
           };
           sync.testSessionRPCOverride = (_, method, params) async {
-            expect(method, 'set_model');
-            expect(params, {'model': sol});
+            expect(method, 'set_model_sequenced_v1');
+            expect(params, {
+              'model': sol,
+              'afterSeq': 1,
+              'runtimeId': 'runtime-1',
+              'barrierVersion': 1,
+            });
             return {'model': sol};
           };
           messageOutbox.configure(

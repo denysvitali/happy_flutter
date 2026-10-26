@@ -83,7 +83,9 @@ Session _makeSession({
 
 class _HarPickerActions extends ChatActionNotifier {
   static const localId = 'har-picker-message';
-  final confirmation = Completer<void>();
+  final confirmations = <Completer<void>>[];
+  Completer<void> get confirmation => confirmations.first;
+  final requestedModels = <String>[];
   String? requestedModel;
   String? sentModel;
 
@@ -93,6 +95,9 @@ class _HarPickerActions extends ChatActionNotifier {
   @override
   Future<void> setSessionModel(String sessionId, String model) {
     requestedModel = model;
+    requestedModels.add(model);
+    final confirmation = Completer<void>();
+    confirmations.add(confirmation);
     return confirmation.future;
   }
 
@@ -591,6 +596,8 @@ void main() {
                 host: '',
                 flavor: 'har',
                 model: luna,
+                harRuntimeId: 'runtime-1',
+                harModelSwitchBarrier: {'version': 1, 'runtimeId': 'runtime-1'},
                 harModels: [
                   PrimeAgentModelInfo(id: luna, name: 'GPT-6 Luna'),
                   PrimeAgentModelInfo(id: terra, name: 'GPT-6.1 Terra'),
@@ -653,19 +660,25 @@ void main() {
         expect(picker, findsNothing);
         if (rejects) {
           expect(
-            find.text(
-              'Model could not be changed. '
-              'Wait for the current turn to finish.',
-            ),
+            find.textContaining('could not be applied. Retry or cancel'),
             findsOneWidget,
           );
-          // The rejected pick's fixed SnackBar covers the composer. Close
-          // that notice before exercising the unchanged send selection.
-          ScaffoldMessenger.of(
-            tester.element(find.byType(ChatScreen)),
-          ).hideCurrentSnackBar();
-          await tester.pumpAndSettle();
-          expect(find.byType(SnackBar), findsNothing);
+          // Failure retains intent: even a direct send callback must not
+          // silently deliver with the previous model.
+          await tester.enterText(find.byType(TextField), 'hello Har');
+          tester.widget<ChatInput>(find.byType(ChatInput)).onSend();
+          await tester.pump();
+          expect(actions.sentModel, isNull);
+          expect(actions.requestedModels, [terra]);
+          await tester.tap(find.text('Cancel'));
+          await tester.pump();
+          expect(actions.requestedModels, [terra, luna]);
+          expect(
+            tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+            isTrue,
+          );
+          actions.confirmations.last.complete();
+          await tester.pump();
         }
         await tester.enterText(find.byType(TextField), 'hello Har');
         await tester.pump();
@@ -691,6 +704,180 @@ void main() {
         await tester.pump(const Duration(milliseconds: 600));
       },
     );
+  }
+
+  for (final outcome in [
+    'confirm',
+    'cancel',
+    'replace',
+    'busy race',
+    'dispose',
+    'target change',
+    'unsupported',
+  ]) {
+    testWidgets('busy Har model choice handles $outcome', (tester) async {
+      const luna = 'codex/gpt-6-luna';
+      const terra = 'codex/gpt-6.1-terra';
+      const sol = 'codex/gpt-6.1-sol';
+      sync.isInitialized = true;
+      sync.encryption = _FakeEncryption();
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      var session =
+          _makeSession(
+            flavor: 'har',
+            presence: 'online',
+            thinking: true,
+          ).copyWith(
+            modelMode: luna,
+            metadata: const Metadata(
+              host: '',
+              flavor: 'har',
+              model: luna,
+              harSessionId: 'checkpoint-1',
+              harRuntimeId: 'runtime-1',
+              harModelSwitchBarrier: {'version': 1, 'runtimeId': 'runtime-1'},
+              harModels: [
+                PrimeAgentModelInfo(id: luna, name: 'GPT-6 Luna'),
+                PrimeAgentModelInfo(id: terra, name: 'GPT-6.1 Terra'),
+                PrimeAgentModelInfo(id: sol, name: 'GPT-6.1 Sol'),
+              ],
+            ),
+          );
+      if (outcome == 'unsupported') {
+        session = session.copyWith(
+          metadata: session.metadata!.copyWith(harModelSwitchBarrier: null),
+        );
+      }
+      sync.testSessions['session_1'] = session;
+      final actions = _HarPickerActions();
+      await tester.pumpWidget(
+        _buildApp(
+          child: const ChatScreen(sessionId: 'session_1'),
+          actions: actions,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      final models = ChatModelMode.fromHarCatalog(session.metadata!.harModels!);
+      ChatInput composer() => tester.widget<ChatInput>(find.byType(ChatInput));
+      composer().onModelModeChanged!(models[1]);
+      await tester.pump();
+      expect(actions.requestedModels, isEmpty);
+      expect(composer().modelMode?.modeString, luna);
+      expect(composer().isSendDisabled, isTrue);
+      if (outcome == 'unsupported') {
+        expect(
+          find.textContaining('Update Happy CLI on this machine'),
+          findsOneWidget,
+        );
+        expect(actions.requestedModels, isEmpty);
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        expect(composer().isSendDisabled, isFalse);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+        return;
+      }
+      expect(
+        find.textContaining('will apply when this session is idle'),
+        findsOneWidget,
+      );
+      await tester.enterText(find.byType(TextField), 'hello Har');
+      composer().onSend();
+      await tester.pump();
+      expect(actions.sentModel, isNull);
+      expect(composer().controller.text, 'hello Har');
+
+      if (outcome == 'cancel') {
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        expect(composer().isSendDisabled, isFalse);
+      } else if (outcome == 'replace') {
+        composer().onModelModeChanged!(models[2]);
+        await tester.pump();
+        expect(find.textContaining('GPT-6.1 Sol will apply'), findsOneWidget);
+      }
+
+      sync.testSessions['session_1'] = session.copyWith(thinking: false);
+      sync.testNotifyDataChanged();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      if (outcome == 'cancel') {
+        expect(actions.requestedModels, isEmpty);
+      } else {
+        final selected = outcome == 'replace' ? sol : terra;
+        expect(actions.requestedModels, [selected]);
+        expect(composer().modelMode?.modeString, luna);
+        expect(composer().isSendDisabled, isTrue);
+        composer().onSend();
+        await tester.pump();
+        expect(actions.sentModel, isNull);
+
+        if (outcome == 'dispose') {
+          await tester.pumpWidget(const SizedBox.shrink());
+          actions.confirmation.complete();
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          return;
+        }
+        if (outcome == 'target change') {
+          sync.testSessions['session_1'] = session.copyWith(
+            thinking: false,
+            metadata: session.metadata!.copyWith(harSessionId: 'checkpoint-2'),
+          );
+          sync.testNotifyDataChanged();
+          await tester.pump(const Duration(milliseconds: 200));
+          await tester.pump();
+        }
+        if (outcome == 'busy race') {
+          // Har can start work after our idle check, before the RPC lands.
+          sync.testSessions['session_1'] = session;
+          sync.testNotifyDataChanged();
+          actions.confirmation.completeError(StateError('busy'));
+          await tester.pump(const Duration(milliseconds: 200));
+          await tester.pump();
+          expect(composer().modelMode?.modeString, luna);
+          expect(composer().isSendDisabled, isTrue);
+          sync.testSessions['session_1'] = session.copyWith(thinking: false);
+          sync.testNotifyDataChanged();
+          await tester.pump(const Duration(milliseconds: 200));
+          await tester.pump();
+          expect(actions.requestedModels, [terra]);
+          await tester.tap(find.text('Retry'));
+          await tester.pump();
+          expect(actions.requestedModels, [terra, terra]);
+          actions.confirmations.last.complete();
+        } else {
+          actions.confirmation.complete();
+        }
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          composer().modelMode?.modeString,
+          outcome == 'target change' ? luna : selected,
+        );
+        expect(composer().isSendDisabled, isFalse);
+        expect(find.byKey(const ValueKey('har-pending-model')), findsNothing);
+        if (outcome != 'target change') {
+          composer().onSend();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 600));
+          expect(actions.sentModel, selected);
+          expect(
+            sync.messagesForSession('session_1').single['localId'],
+            _HarPickerActions.localId,
+          );
+          await tester.runAsync(() async {
+            await sync.testFlushPendingMessageSaves();
+          });
+          await tester.pump(const Duration(seconds: 5));
+        }
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
   }
 
   testWidgets('result review waits for the turn to become idle', (

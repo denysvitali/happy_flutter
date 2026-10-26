@@ -247,6 +247,7 @@ extension SyncMessagingSend on Sync {
       },
     );
     try {
+      _checkNoSessionModelSwitch(sessionId);
       return await _sendMessageTraced(
         sessionId,
         text,
@@ -1140,6 +1141,9 @@ extension SyncMessagingSend on Sync {
       );
 
       if (apiClient.isSuccess(response)) {
+        // Storage success can precede a matching sequenced ACK. Fence model
+        // changes before fallback/parsing; a real ACK below clears the fence.
+        _recordHarStoredSequence(targetSessionId, localId, null);
         final data = WireParsers.asMap(response.data);
         final serverMessages = _serverMessagesFromResponseData(data);
         logger.info(
@@ -1432,6 +1436,7 @@ extension SyncMessagingSend on Sync {
     required String encryptedRawRecord,
     required String logPrefix,
   }) {
+    _recordHarStoredSequence(sessionId, localId, null);
     logger.warning(
       '$logPrefix no localId ack localId=$localId - '
       'HTTP 200 accepted, treating as delivered',
@@ -1457,6 +1462,7 @@ extension SyncMessagingSend on Sync {
   }) {
     final serverId = ackedServerMsg['id'] as String?;
     final serverSeq = _asInt(ackedServerMsg['seq']);
+    _recordHarStoredSequence(sessionId, localId, serverSeq);
     final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
     if (serverSeq != null) {
       _advanceSeqCursor(sessionId, serverSeq);
@@ -1500,6 +1506,25 @@ extension SyncMessagingSend on Sync {
       );
     }
     return serverSeq;
+  }
+
+  void _recordHarStoredSequence(String sessionId, String localId, int? seq) {
+    if (_sessions[sessionId]?.metadata?.flavor != 'har') return;
+    final previous = _unsequencedHarAcks[sessionId];
+    if (seq != null && seq > 0) {
+      if (previous?.generation == _runtimeGeneration) {
+        previous!.localIds.remove(localId);
+      }
+      return;
+    }
+    final localIds = previous?.generation == _runtimeGeneration
+        ? previous!.localIds
+        : <String>{};
+    localIds.add(localId);
+    _unsequencedHarAcks[sessionId] = (
+      generation: _runtimeGeneration,
+      localIds: localIds,
+    );
   }
 
   void _notifyDaemonOfStoredMessage({
@@ -1655,6 +1680,24 @@ extension SyncMessagingSend on Sync {
     }
 
     final session = _sessions[entry.sessionId];
+    if (session?.metadata?.flavor == 'har') {
+      final requestedModel = WireParsers.asMap(
+        entry.rawRecord['meta'],
+      )?['model'];
+      final runningModel =
+          session?.metadata?.model ?? _sessionSpawnedModel[entry.sessionId];
+      if (requestedModel is String &&
+          requestedModel.isNotEmpty &&
+          requestedModel != 'default' &&
+          requestedModel != runningModel) {
+        // A manual revival of an old permanent failure must not silently
+        // deliver its saved payload using the newly selected process model.
+        return const OutboxDeliveryFailure(
+          OutboxFailureClass.permanent,
+          'model_changed',
+        );
+      }
+    }
     if (session != null) {
       try {
         _checkProcessScopedSendTarget(entry.sessionId, session);
@@ -1740,6 +1783,7 @@ extension SyncMessagingSend on Sync {
         e,
         stack,
       );
+      _recordHarStoredSequence(entry.sessionId, entry.localId, null);
       _notifySessionMessagesChanged(entry.sessionId);
       return null;
     }
@@ -1754,6 +1798,7 @@ extension SyncMessagingSend on Sync {
       return _classifySendHttpStatus(response.statusCode ?? 0, response.data);
     }
 
+    _recordHarStoredSequence(entry.sessionId, entry.localId, null);
     try {
       final data = WireParsers.asMap(response.data);
       final serverMessages = _serverMessagesFromResponseData(data);
@@ -2094,6 +2139,11 @@ extension SyncMessagingSend on Sync {
     String sessionId,
     String localId,
   ) {
+    try {
+      _checkNoSessionModelSwitch(sessionId);
+    } on StateError catch (error, stack) {
+      return Future.error(error, stack);
+    }
     final runtimeGeneration = _runtimeGeneration;
     return messageOutbox.serialize(
       sessionId,

@@ -154,10 +154,195 @@ void main() {
     ApiClient().dispose();
     messageOutbox.dispose();
     instance.testSocketConnectedOverride = null;
+    instance.testSessionRPCOverride = null;
     instance.testSocketSendOverride = null;
     instance.testFetchMessagesOverride = null;
     InvalidateSync.isBackgrounded = false;
   });
+
+  test(
+    'Har switch cannot overtake a foreground POST after send returns',
+    () async {
+      const luna = 'codex/gpt-6-luna';
+      const sol = 'codex/gpt-6.1-sol';
+      instance.testSessions['fifo'] = instance.testSessions['fifo']!.copyWith(
+        modelMode: luna,
+        metadata: const Metadata(
+          host: '',
+          flavor: 'har',
+          model: luna,
+          harRuntimeId: 'runtime-1',
+          harModelSwitchBarrier: {'version': 1, 'runtimeId': 'runtime-1'},
+          harModels: [
+            PrimeAgentModelInfo(id: luna, name: 'Luna'),
+            PrimeAgentModelInfo(id: sol, name: 'Sol'),
+          ],
+        ),
+      );
+      instance.testSetSessionSpawnedModel('fifo', luna);
+      final postStarted = Completer<void>();
+      late RequestInterceptorHandler postHandler;
+      late RequestOptions postOptions;
+      final events = <String>[];
+      ApiClient().testDio!.interceptors.insert(
+        0,
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path == '/v3/sessions/fifo/messages') {
+              postHandler = handler;
+              postOptions = options;
+              events.add('post-start');
+              postStarted.complete();
+            } else {
+              handler.next(options);
+            }
+          },
+        ),
+      );
+      encryption.releaseFirst.complete();
+      await instance.sendMessage('fifo', 'continue', modelMode: luna);
+      await postStarted.future;
+      final delivery = instance.lastCompleteSendFuture!;
+      instance.testSessionRPCOverride = (_, _, params) async {
+        expect(params, {
+          'model': sol,
+          'afterSeq': 2,
+          'runtimeId': 'runtime-1',
+          'barrierVersion': 1,
+        });
+        events.add('model-rpc');
+        return {'model': sol};
+      };
+      final switching = instance.setSessionModel('fifo', sol);
+      await Future<void>.delayed(Duration.zero);
+      expect(events, ['post-start']);
+      events.add('post-ack');
+      postHandler.resolve(
+        Response<dynamic>(
+          requestOptions: postOptions,
+          statusCode: 200,
+          data: <String, dynamic>{
+            'messages': [
+              {
+                'id': 'server-local-1',
+                'localId': 'local-1',
+                'seq': 2,
+                'createdAt': DateTime.now().millisecondsSinceEpoch,
+              },
+            ],
+          },
+        ),
+      );
+      await delivery;
+      await switching;
+      expect(events, ['post-start', 'post-ack', 'model-rpc']);
+      expect(
+        instance.testSessionMessages('fifo')!.single['sendStatus'],
+        'sent',
+      );
+      expect(instance.testSessions['fifo']!.metadata!.model, sol);
+    },
+  );
+
+  for (final useOutbox in [false, true]) {
+    test('Har ${useOutbox ? 'outbox' : 'foreground'} delivery waits for '
+        'ACK sequence before model switch', () async {
+      const luna = 'codex/gpt-6-luna';
+      const sol = 'codex/gpt-6.1-sol';
+      instance.testSessions['fifo'] = instance.testSessions['fifo']!.copyWith(
+        metadata: const Metadata(
+          host: '',
+          flavor: 'har',
+          model: luna,
+          harRuntimeId: 'runtime-1',
+          harModelSwitchBarrier: {'version': 1, 'runtimeId': 'runtime-1'},
+        ),
+      );
+      ApiClient().testDio!.interceptors.insert(
+        0,
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path == '/v3/sessions/fifo/messages') {
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: <String, dynamic>{'messages': <dynamic>[]},
+                ),
+              );
+            } else {
+              handler.next(options);
+            }
+          },
+        ),
+      );
+      encryption.releaseFirst.complete();
+      if (useOutbox) {
+        instance.testSetSessionMessages('fifo', [
+          {
+            'id': 'local-1',
+            'localId': 'local-1',
+            'role': 'user',
+            'sendStatus': 'pending',
+            'content': 'continue',
+          },
+        ]);
+        messageOutbox.configure(
+          deliver: instance.testDeliverOutboxEntryClassified,
+        );
+        await messageOutbox.add(
+          const OutboxEntry(
+            sessionId: 'fifo',
+            localId: 'local-1',
+            text: 'continue',
+            encryptedContent: 'encrypted',
+            rawRecord: {
+              'meta': {'model': luna},
+            },
+            queuedAt: 1,
+          ),
+        );
+        await messageOutbox.testAttemptNow('local-1');
+        expect(messageOutbox.entries, isEmpty);
+      } else {
+        await instance.sendMessage('fifo', 'continue');
+        await instance.lastCompleteSendFuture;
+      }
+      expect(
+        instance.testSessionMessages('fifo')!.single['sendStatus'],
+        useOutbox ? 'sent' : 'pending',
+      );
+      var rpcCalls = 0;
+      instance.testSessionRPCOverride = (_, _, params) async {
+        rpcCalls++;
+        expect(params, {
+          'model': sol,
+          'afterSeq': 9,
+          'runtimeId': 'runtime-1',
+          'barrierVersion': 1,
+        });
+        return {'model': sol};
+      };
+      await expectLater(
+        instance.setSessionModel('fifo', sol),
+        throwsStateError,
+      );
+      expect(rpcCalls, 0);
+      // A matching durable row supplies the missing ACK sequence later.
+      instance.testUpsertSessionMessages('fifo', [
+        {
+          'id': 'server-local-1',
+          'localId': 'local-1',
+          'seq': 9,
+          'role': 'user',
+          'sendStatus': 'sent',
+          'content': 'continue',
+        },
+      ]);
+      await instance.setSessionModel('fifo', sol);
+      expect(rpcCalls, 1);
+    });
+  }
 
   test('stale pending and dead outbox cannot regress confirmed sent rows', () {
     for (final id in ['server-id', 'local']) {

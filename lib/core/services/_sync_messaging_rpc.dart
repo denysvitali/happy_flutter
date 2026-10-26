@@ -1075,35 +1075,121 @@ extension SyncMessagingRpc on Sync {
     }, AbortResponse.fromJson);
   }
 
-  /// Switch a har session's model while it is idle. The driver validates the
-  /// model, asks har to switch, and persists the new model in session metadata.
+  void _checkNoSessionModelSwitch(String sessionId) {
+    if (_sessionModelSwitchGenerations[sessionId] == _runtimeGeneration) {
+      throw StateError(
+        'Model change is awaiting confirmation; '
+        'your message has not been sent.',
+      );
+    }
+  }
+
+  /// Switch Har only after already-reserved deliveries finish. Pending retries
+  /// retain their original model and must drain before a switch can proceed.
   Future<SetModelResponse> setSessionModel(
     String sessionId,
     String model,
   ) async {
     final generation = _runtimeGeneration;
-    final response = await _typedSessionRPC(sessionId, 'set_model', {
-      'model': model,
-    }, SetModelResponse.fromJson);
-    if (generation != _runtimeGeneration) {
-      throw StateError('Model switch cancelled by runtime reset');
+    Object? targetFor(Session? session) => session == null
+        ? null
+        : (
+            session.id,
+            session.metadata?.flavor,
+            session.metadata?.machineId,
+            session.metadata?.path,
+            session.metadata?.harSessionId,
+            session.metadata?.harRuntimeId,
+          );
+    final target = targetFor(_sessions[sessionId]);
+    _checkNoSessionModelSwitch(sessionId);
+    _sessionModelSwitchGenerations[sessionId] = generation;
+    try {
+      return await messageOutbox.serialize(sessionId, () async {
+        void checkRuntime() {
+          if (generation != _runtimeGeneration) {
+            throw StateError('Model switch cancelled by runtime reset');
+          }
+          if (target != targetFor(_sessions[sessionId])) {
+            throw StateError('Model switch cancelled by session replacement');
+          }
+          if (!(_sessions[sessionId]?.metadata?.supportsHarModelSwitchBarrier ??
+              false)) {
+            throw StateError(
+              'Update Happy CLI on this machine and start a new Har session '
+              'to change models safely.',
+            );
+          }
+        }
+
+        checkRuntime();
+        await messageOutbox.prepareDelivery();
+        checkRuntime();
+        // Backoff entries are outside the currently executing Future. A
+        // transient dead entry may also be rearmed automatically on reconnect.
+        if (messageOutbox.entries.any((e) => e.sessionId == sessionId) ||
+            messageOutbox.deadEntries.any(
+              (e) =>
+                  e.sessionId == sessionId &&
+                  e.failureClass != OutboxFailureClass.permanent,
+            )) {
+          throw StateError(
+            'Queued messages must finish delivery before changing the model.',
+          );
+        }
+        var afterSeq = max(
+          _sessionLastSeq[sessionId] ?? 0,
+          _sessions[sessionId]?.seq ?? 0,
+        );
+        final unsequenced = _unsequencedHarAcks[sessionId];
+        if (unsequenced?.generation == generation) {
+          // A 200 without a sequenced ACK proves storage, not its boundary.
+          // A later matching history/socket row can supply that missing proof.
+          for (final row in _sessionMessages[sessionId] ?? const []) {
+            final seq = _asInt(row['seq']);
+            if (seq != null &&
+                seq > 0 &&
+                unsequenced!.localIds.remove(
+                  row['localId'] as String? ?? row['id'] as String?,
+                )) {
+              afterSeq = max(afterSeq, seq);
+            }
+          }
+          if (unsequenced!.localIds.isNotEmpty) {
+            throw StateError(
+              'Waiting for stored message sequence acknowledgement '
+              'before changing the model.',
+            );
+          }
+        }
+        final response =
+            await _typedSessionRPC(sessionId, 'set_model_sequenced_v1', {
+              'model': model,
+              'afterSeq': max(0, afterSeq),
+              'runtimeId': _sessions[sessionId]!.metadata!.harRuntimeId,
+              'barrierVersion': 1,
+            }, SetModelResponse.fromJson);
+        checkRuntime();
+        if (response.model != model) {
+          throw StateError('Har did not confirm the requested model');
+        }
+        // Publish confirmation before the next delivery owns the lane.
+        final session = _sessions[sessionId];
+        if (session != null) {
+          _sessions[sessionId] = session.copyWith(
+            modelMode: response.model,
+            metadata: session.metadata?.copyWith(model: response.model),
+          );
+        }
+        _sessionSpawnedModel[sessionId] = response.model;
+        _notifyDataChanged({SyncDomain.sessions});
+        return response;
+      });
+    } finally {
+      if (_sessionModelSwitchGenerations[sessionId] == generation) {
+        _sessionModelSwitchGenerations.remove(sessionId);
+      }
     }
-    if (response.model != model) {
-      throw StateError('Har did not confirm the requested model');
-    }
-    // The RPC confirms the running model before its metadata socket update
-    // necessarily arrives. Refresh the send baseline now, not the launch-time
-    // model: otherwise the next message is rejected as a reconfiguration.
-    final session = _sessions[sessionId];
-    if (session != null) {
-      _sessions[sessionId] = session.copyWith(
-        modelMode: response.model,
-        metadata: session.metadata?.copyWith(model: response.model),
-      );
-    }
-    _sessionSpawnedModel[sessionId] = response.model;
-    _notifyDataChanged({SyncDomain.sessions});
-    return response;
   }
 
   /// Refresh purchases data

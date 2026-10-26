@@ -11,6 +11,7 @@ import 'package:sentry_flutter/sentry_flutter.dart'
     show Breadcrumb, Hint, Sentry, SentryLevel;
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../core/components/app_inline_row.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/auth.dart';
@@ -184,6 +185,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<AutoRestoreFailure>? _autoRestoreFailureSubscription;
   bool _isSending = false;
   bool _isSwitchingHarModel = false;
+  ChatModelMode? _pendingHarModel;
+  bool _harModelSwitchFailed = false;
+  int _harModelSwitchGeneration = 0;
   bool _isAborting = false;
 
   /// When the current stop request was issued (ms since epoch), or 0 when
@@ -572,7 +576,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant ChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      _harModelSwitchGeneration++;
+      _pendingHarModel = null;
+      _harModelSwitchFailed = false;
+      _isSwitchingHarModel = false;
+    }
+  }
+
+  @override
   void dispose() {
+    _harModelSwitchGeneration++;
     ChatSwitchMetrics().cancel(widget.sessionId);
     PerformanceContextService().routeListenable.removeListener(_routeListener);
     AppFocusState.instance.removeListener(_routeListener);
@@ -640,6 +656,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((domain) => domain == SyncDomain.sessions)
         .listen((_) {
           if (!mounted) return;
+          // A covered chat defers visual projection, but its queued model
+          // selection still belongs to the session's delivery lifecycle.
+          if (_pendingHarModel != null) unawaited(_applyPendingHarModel());
           if (!_isChatRouteActive) return;
           final counter = sync.domainChangeCounter(SyncDomain.sessions);
           if (counter == _lastDataChangeCounter) return;
@@ -847,6 +866,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final needsScreenRebuild = sessionChanged;
     void applyUpdates() {
       if (sessionChanged) {
+        if (_harModelTarget(latestSession) != _harModelTarget(_session)) {
+          _harModelSwitchGeneration++;
+          _pendingHarModel = null;
+          _harModelSwitchFailed = false;
+          _isSwitchingHarModel = false;
+        }
         _session = latestSession;
         _metadataJson = latestSession?.metadata?.toJson();
         // The agent confirmed it stopped (or a fresh turn began): drop the
@@ -883,7 +908,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
         );
       }
-      if (catalogModelConfirmed) {
+      if (catalogModelConfirmed && !_isSwitchingHarModel) {
         final current = latestSession?.metadata?.model;
         final models = isHar
             ? ChatModelMode.fromHarCatalog(catalogModels ?? const [])
@@ -999,6 +1024,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     // Post-state-update side effects
+    unawaited(_applyPendingHarModel());
     if (messagesChanged && _autoScroll) {
       _scrollToBottom();
     }
@@ -2317,6 +2343,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           valueListenable: _chatChromeRevision,
           builder: (context, revision, child) => _buildActivityChrome(),
         ),
+        if (_pendingHarModel case final model?)
+          AppInlineRow(
+            key: const ValueKey('har-pending-model'),
+            leading: Icon(
+              _harModelSwitchFailed ? Icons.error_outline : Icons.schedule,
+            ),
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_harModelSwitchFailed)
+                  AppInlineAction(
+                    label: 'Retry',
+                    onPressed: () => _switchHarModel(model),
+                  ),
+                AppInlineAction(
+                  label: 'Cancel',
+                  onPressed: _isSwitchingHarModel
+                      ? null
+                      : () {
+                          if (_harModelSwitchFailed &&
+                              (_session
+                                      ?.metadata
+                                      ?.supportsHarModelSwitchBarrier ??
+                                  false)) {
+                            // A lost RPC reply can leave the process changed.
+                            // Confirm the previous model before unblocking.
+                            unawaited(_switchHarModel(_modelMode));
+                          } else {
+                            setState(() {
+                              _pendingHarModel = null;
+                              _harModelSwitchFailed = false;
+                            });
+                          }
+                        },
+                ),
+              ],
+            ),
+            child: Text(
+              _harModelSwitchFailed
+                  ? !(_session?.metadata?.supportsHarModelSwitchBarrier ??
+                            false)
+                        ? 'Update Happy CLI on this machine and start a new Har '
+                              'session to change models safely.'
+                        : '${model.label} could not be applied. Retry or cancel '
+                              'before sending.'
+                  : _isSwitchingHarModel
+                  ? 'Applying ${model.label}…'
+                  : '${model.label} will apply when this session is idle.',
+            ),
+          ),
         ValueListenableBuilder<int>(
           valueListenable: _composerRevision,
           builder: (context, revision, child) => ChatInput(
@@ -2334,8 +2410,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 : null,
             isSending: _isSending,
             isSendDisabled:
-                _isSwitchingHarModel ||
-                (_sessionSendIssue?.blocksSend ?? false),
+                _harModelBlocksSend || (_sessionSendIssue?.blocksSend ?? false),
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,

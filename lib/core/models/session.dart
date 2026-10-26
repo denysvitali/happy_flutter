@@ -39,6 +39,9 @@ bool? _asApiBoolNullable(dynamic value) {
   return null;
 }
 
+Map<String, dynamic>? _harModelSwitchBarrierFromJson(dynamic value) =>
+    value is Map<String, dynamic> ? value : null;
+
 List<String>? _asApiStringListNullable(dynamic value) {
   if (value is! List) return null;
   final strings = value.whereType<String>().toList();
@@ -273,6 +276,8 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? primeAgentSessionFile,
     @JsonKey(fromJson: _asApiStringNullable) String? harSessionId,
     @JsonKey(fromJson: _asApiStringNullable) String? harRuntimeId,
+    @JsonKey(fromJson: _harModelSwitchBarrierFromJson)
+    Map<String, dynamic>? harModelSwitchBarrier,
     @JsonKey(fromJson: _asApiStringNullable) String? harResumeProtocol,
     @JsonKey(fromJson: _asApiBoolNullable) bool? harDurableResumeSupported,
     @JsonKey(fromJson: _asApiIntNullable) int? primeAgentChildStepsVersion,
@@ -311,6 +316,18 @@ abstract class Metadata with _$Metadata {
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>
       _$MetadataFromJson(json);
+}
+
+extension HarModelSwitchMetadata on Metadata {
+  bool get supportsHarModelSwitchBarrier {
+    final runtimeId = harRuntimeId;
+    final barrier = harModelSwitchBarrier;
+    return runtimeId != null &&
+        runtimeId.isNotEmpty &&
+        barrier?['version'] is int &&
+        barrier?['version'] == 1 &&
+        barrier?['runtimeId'] == runtimeId;
+  }
 }
 
 extension AcpPlanMetadata on Metadata {

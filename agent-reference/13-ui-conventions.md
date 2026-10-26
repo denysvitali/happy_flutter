@@ -65,6 +65,20 @@ New-session worktree/backend controls live under Advanced options. Recent
 workspaces select only a path on the chosen machine, not an agent or model.
 Mobile approvals and Composer options stay outside the scrolling model lane.
 Pending configuration changes show no notice under the composer chips.
+Har model choices made during a turn stay pending above the composer until
+the idle process confirms the switch. The chip keeps the confirmed model;
+new choices replace the pending target. Sends and retries wait for confirmation.
+Failed switches retain the choice with explicit Retry and Cancel actions;
+they never retry automatically or silently send with the previous model.
+Cancelling a failed RPC confirms the previous model again before unblocking,
+because a lost reply may hide a successful switch.
+Model RPCs share Sync's delivery lane: foreground POSTs and automatic retries
+already in progress finish first. Queued retries must drain before switching;
+a failed attempt retains the choice for explicit Retry. A revived message
+whose saved Har model differs from the running model cannot be delivered.
+Safe model switching requires the daemon's version 1 barrier capability bound
+to the current Har runtime. Older sessions show an explicit Happy CLI upgrade
+and new-session message before any switch RPC is attempted.
 Assistant replies have no avatar gutter; transcript text sits 12px from the
 pane edge and full-width tool details keep a 4px gutter. The composer gives
 the draft its full width with expand on the first line; attach, approvals,

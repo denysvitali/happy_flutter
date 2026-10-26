@@ -9,6 +9,33 @@ import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 
 void main() {
+  test('Har switch capability roundtrips and binds to the current runtime', () {
+    final metadata = Metadata.fromJson({
+      'host': '',
+      'harRuntimeId': 'runtime-1',
+      'harModelSwitchBarrier': {'version': 1, 'runtimeId': 'runtime-1'},
+    });
+    expect(metadata.supportsHarModelSwitchBarrier, isTrue);
+    expect(
+      Metadata.fromJson(metadata.toJson()).supportsHarModelSwitchBarrier,
+      isTrue,
+    );
+    expect(
+      metadata
+          .copyWith(harRuntimeId: 'runtime-2')
+          .supportsHarModelSwitchBarrier,
+      isFalse,
+    );
+    expect(
+      Metadata.fromJson({
+        'host': '',
+        'harRuntimeId': 'runtime-1',
+        'harModelSwitchBarrier': 'invalid',
+      }).supportsHarModelSwitchBarrier,
+      isFalse,
+    );
+  });
+
   const catalog = [
     PrimeAgentModelInfo(id: 'codex/gpt-6.1-terra', name: 'GPT-6.1 Terra'),
     PrimeAgentModelInfo(id: 'provider/model:variant', name: 'Provider variant'),

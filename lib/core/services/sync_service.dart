@@ -793,6 +793,11 @@ what you have, you must use the options mode.
   // Account/runtime epoch. Every asynchronous state commit captures this
   // value and must abandon work after logout or a subsequent restore.
   int _runtimeGeneration = 0;
+  // Model RPCs share the delivery lane, and fence new send preparation while
+  // waiting for that lane. Old-runtime reservations never block a new account.
+  final Map<String, int> _sessionModelSwitchGenerations = {};
+  final Map<String, ({int generation, Set<String> localIds})>
+  _unsequencedHarAcks = {};
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
 
   // Pending settings

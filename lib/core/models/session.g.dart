@@ -33,6 +33,9 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   primeAgentSessionFile: _asApiStringNullable(json['primeAgentSessionFile']),
   harSessionId: _asApiStringNullable(json['harSessionId']),
   harRuntimeId: _asApiStringNullable(json['harRuntimeId']),
+  harModelSwitchBarrier: _harModelSwitchBarrierFromJson(
+    json['harModelSwitchBarrier'],
+  ),
   harResumeProtocol: _asApiStringNullable(json['harResumeProtocol']),
   harDurableResumeSupported: _asApiBoolNullable(
     json['harDurableResumeSupported'],
@@ -94,6 +97,7 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'primeAgentSessionFile': instance.primeAgentSessionFile,
   'harSessionId': instance.harSessionId,
   'harRuntimeId': instance.harRuntimeId,
+  'harModelSwitchBarrier': instance.harModelSwitchBarrier,
   'harResumeProtocol': instance.harResumeProtocol,
   'harDurableResumeSupported': instance.harDurableResumeSupported,
   'primeAgentChildStepsVersion': instance.primeAgentChildStepsVersion,
