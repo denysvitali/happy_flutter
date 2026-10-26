@@ -631,7 +631,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final sessions = ref.read(sessionsNotifierProvider);
     return sel.selectedIds.any((id) {
       final s = sessions[id];
-      return s != null && isSessionActive(s);
+      return s != null && isSessionOpen(s);
     });
   }
 

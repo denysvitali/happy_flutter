@@ -371,6 +371,11 @@ bool isSessionOnline(Session session) {
   return session.presence == 'online';
 }
 
+/// Whether a conversation belongs in the open sessions collection.
+/// Process presence and inactivity do not imply the user archived it.
+bool isSessionOpen(Session session) =>
+    !session.archived || _hasRecentRunningLifecycle(session);
+
 /// Checks if a session should be shown in the active sessions group.
 ///
 /// Prefers real-time [Session.presence] when available, but falls back to

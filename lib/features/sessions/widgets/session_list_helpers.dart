@@ -411,7 +411,7 @@ SortedSessions computeSortedSessions(
     if (optimisticallyArchivedIds.contains(s.id)) {
       continue;
     }
-    if (isSessionActive(s)) {
+    if (isSessionOpen(s)) {
       active.add(s);
     } else {
       inactive.add(s);
@@ -517,7 +517,7 @@ int _computeSortedSessionsSignature(
       optimisticallyArchivedIds.contains(session.id),
       // Capture effective activity so daemon lifecycle changes that leave the
       // legacy active/presence fields untouched still bust the grouping cache.
-      isSessionActive(session),
+      isSessionOpen(session),
     );
   }
   return signature;
@@ -552,7 +552,7 @@ Set<String> selectableSessionIds({
   final active = <Session>[];
   final inactive = <Session>[];
   for (final session in scoped) {
-    if (isSessionActive(session)) {
+    if (isSessionOpen(session)) {
       active.add(session);
     } else {
       inactive.add(session);

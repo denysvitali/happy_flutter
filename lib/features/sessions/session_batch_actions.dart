@@ -29,7 +29,7 @@ extension _SessionBatchActions on _SessionsScreenState {
     final notifier = ref.read(sessionsNotifierProvider.notifier);
     final ids = selection.selectedIds.where((id) {
       final session = sessions[id];
-      return session != null && isSessionActive(session);
+      return session != null && isSessionOpen(session);
     }).toList();
     if (ids.isEmpty) return;
     final confirmed = await showConfirmDialog(

@@ -718,6 +718,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           onCreate: widget.onCreateSession == null
               ? null
               : () => unawaited(widget.onCreateSession!()),
+          onShowArchived: inactiveSessions.isEmpty
+              ? null
+              : () {
+                  if (_sel.value.isBatchDeleting) return;
+                  _sel.value = const SelectionState();
+                  setState(() => _showBoardArchive = true);
+                },
         );
       } else {
         board = SessionBoardView(

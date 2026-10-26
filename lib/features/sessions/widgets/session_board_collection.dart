@@ -113,10 +113,16 @@ class _SessionBoardCollectionState extends State<SessionBoardCollection>
 }
 
 class SessionBoardEmpty extends StatelessWidget {
-  const SessionBoardEmpty({required this.archived, this.onCreate, super.key});
+  const SessionBoardEmpty({
+    required this.archived,
+    this.onCreate,
+    this.onShowArchived,
+    super.key,
+  });
 
   final bool archived;
   final VoidCallback? onCreate;
+  final VoidCallback? onShowArchived;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +149,16 @@ class SessionBoardEmpty extends StatelessWidget {
               onPressed: onCreate,
               icon: const Icon(Icons.add),
               label: Text(context.l10n.sessionsNew),
+            ),
+          ),
+        ],
+        if (!archived && onShowArchived != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: onShowArchived,
+              icon: const Icon(Icons.archive_outlined),
+              label: Text(context.l10n.sessionsArchivedLabel),
             ),
           ),
         ],

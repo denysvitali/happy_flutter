@@ -89,7 +89,10 @@ rows use a flat surface with inset dividers; By machine retains grouped cards.
 Quiet-only lists omit the redundant section heading and ignore an earlier
 collapsed state. Quiet lists up to twelve show all rows; longer lists preview
 ten and expand below them. Open and Archived tabs keep history reachable from
-Inbox and By machine. Bulk selection includes collapsed rows in the
+Inbox and By machine. Unarchived conversations stay open when their process
+stops or becomes idle; presence still describes the process on each row.
+An empty Open inbox links directly to Archived when history is available.
+Bulk selection includes collapsed rows in the
 selected lane and reconciles when filters change. Row menus expose preview,
 selection and confirmed archive; selection mode suppresses secondary actions.
 Confirmed bulk archive/delete keeps its captured selection and one shared

@@ -286,7 +286,7 @@ void main() {
         updatedAt: 100,
         activeAt: 100,
         active: false,
-      );
+      ).copyWith(archived: true);
       final initialSessions = <String, Session>{inactive.id: inactive};
       final archived = <String>{};
       final first = computeSortedSessions(

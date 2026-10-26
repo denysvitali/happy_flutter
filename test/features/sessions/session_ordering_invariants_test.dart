@@ -184,12 +184,40 @@ void main() {
         expect(seen.length, count, reason: 'round $round lost a session');
         expect(seen.toSet().length, count, reason: 'round $round duplicated');
         for (final session in sorted.active) {
-          expect(isSessionActive(session), isTrue);
+          expect(isSessionOpen(session), isTrue);
         }
         for (final session in sorted.inactive) {
-          expect(isSessionActive(session), isFalse);
+          expect(isSessionOpen(session), isFalse);
         }
       }
+    });
+
+    test('stopped and idle unarchived conversations remain open', () {
+      final sessions = mapInOrder([
+        buildSession('stopped', active: false, presence: 'offline'),
+        buildSession('idle', activeAt: now - sessionIdleAfterMs - 1000),
+        buildSession('archived', archived: true, active: false),
+      ]);
+      final sorted = sortOnce(sessions);
+      expect(sorted.active.map((s) => s.id).toSet(), {'stopped', 'idle'});
+      expect(sorted.inactive.map((s) => s.id), ['archived']);
+      expect(
+        selectableSessionIds(sessions: sessions.values, hideInactive: true),
+        {'stopped', 'idle'},
+      );
+    });
+
+    test('a recently running process survives a stale archive flag', () {
+      final session = buildSession('running', archived: true);
+      final running = session.copyWith(
+        metadata: session.metadata!.copyWith(
+          lifecycleState: 'running',
+          lifecycleStateSince: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+      final sorted = sortOnce({running.id: running});
+      expect(sorted.active.single.id, 'running');
+      expect(sorted.inactive, isEmpty);
     });
 
     test('optimistically archived ids are hidden from both lists', () {

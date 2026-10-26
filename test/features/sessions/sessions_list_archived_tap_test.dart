@@ -63,6 +63,27 @@ void main() {
     });
   });
 
+  testWidgets('empty open inbox offers a route to archived history', (
+    tester,
+  ) async {
+    final sessions = _seedSessions()..removeWhere((_, s) => !s.archived);
+    final harness = await _pumpHarness(
+      tester,
+      viewStyle: 'status',
+      tablet: true,
+      sessions: sessions,
+    );
+    await tester.tap(find.byKey(const ValueKey('sessions-active-scope')));
+    await tester.pumpAndSettle();
+    expect(find.text('No open sessions'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Archived'));
+    await tester.pumpAndSettle();
+    expect(
+      await _tapRow(tester, harness, 'Alpha archived one', tablet: true),
+      'alpha-arch-1',
+    );
+  });
+
   testWidgets(
     'Unread Focus selection excludes hidden history and search misses',
     (tester) async {
