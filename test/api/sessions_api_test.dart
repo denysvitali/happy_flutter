@@ -109,6 +109,205 @@ void main() {
       expect(result, isEmpty);
       verifyNever(mockClient.get('/v1/sessions'));
     });
+
+    final malformedPages = <String, dynamic>{
+      'null body': null,
+      'list body': [],
+      'missing sessions': {'hasNext': false},
+      'null sessions': {'sessions': null, 'hasNext': false},
+      'non-list sessions': {'sessions': {}, 'hasNext': false},
+      'missing hasNext': {'sessions': []},
+      'null hasNext': {'sessions': [], 'hasNext': null},
+      'non-boolean hasNext': {'sessions': [], 'hasNext': 'false'},
+      'non-map session': {
+        'sessions': ['session-1'],
+        'hasNext': false,
+      },
+      'missing session ID': {
+        'sessions': [{}],
+        'hasNext': false,
+      },
+      'empty session ID': {
+        'sessions': [
+          {'id': ' '},
+        ],
+        'hasNext': false,
+      },
+      'non-string session ID': {
+        'sessions': [
+          {'id': 1},
+        ],
+        'hasNext': false,
+      },
+      'non-string terminal cursor': {
+        'sessions': [],
+        'hasNext': false,
+        'nextCursor': 1,
+      },
+      'missing continuation cursor': {
+        'sessions': [
+          {'id': 'session-1'},
+        ],
+        'hasNext': true,
+      },
+      for (final cursor in [null, '', ' ', 1])
+        'invalid continuation cursor $cursor': {
+          'sessions': [
+            {'id': 'session-1'},
+          ],
+          'hasNext': true,
+          'nextCursor': cursor,
+        },
+      'empty continuation page': {
+        'sessions': [],
+        'hasNext': true,
+        'nextCursor': 'cursor-1',
+      },
+      'duplicate session IDs': {
+        'sessions': [
+          {'id': 'session-1'},
+          {'id': 'session-1'},
+        ],
+        'hasNext': false,
+      },
+    };
+
+    for (final entry in malformedPages.entries) {
+      test('rejects ${entry.key}', () async {
+        when(
+          mockClient.get(
+            '/v2/sessions',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer((_) async => _response(entry.value, 200));
+
+        await expectLater(
+          api.fetchSessions(),
+          throwsA(isA<SessionsApiException>()),
+        );
+        verify(
+          mockClient.get(
+            '/v2/sessions',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).called(1);
+      });
+    }
+
+    test('rejects a malformed later page without returning a prefix', () async {
+      var requests = 0;
+      when(
+        mockClient.get(
+          '/v2/sessions',
+          queryParameters: anyNamed('queryParameters'),
+        ),
+      ).thenAnswer((_) async {
+        requests++;
+        return _response(
+          requests == 1
+              ? {
+                  'sessions': [
+                    {'id': 'session-1'},
+                  ],
+                  'hasNext': true,
+                  'nextCursor': 'cursor-1',
+                }
+              : {'hasNext': false},
+          200,
+        );
+      });
+
+      await expectLater(
+        api.fetchSessions(changedSince: 123),
+        throwsA(isA<SessionsApiException>()),
+      );
+      expect(requests, 2);
+    });
+
+    for (final initialCursor in <String?>[null, 'cursor-0']) {
+      test('rejects a cursor cycle from $initialCursor', () async {
+        var requests = 0;
+        when(
+          mockClient.get(
+            '/v2/sessions',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer((_) async {
+          requests++;
+          return _response({
+            'sessions': [
+              {'id': 'session-$requests'},
+            ],
+            'hasNext': requests < 4,
+            'nextCursor': requests == 1
+                ? 'cursor-1'
+                : initialCursor ?? 'cursor-1',
+          }, 200);
+        });
+
+        await expectLater(
+          api.fetchSessions(cursor: initialCursor),
+          throwsA(isA<SessionsApiException>()),
+        );
+        expect(requests, 2);
+      });
+    }
+
+    test('rejects repeated sessions across advancing pages', () async {
+      var requests = 0;
+      when(
+        mockClient.get(
+          '/v2/sessions',
+          queryParameters: anyNamed('queryParameters'),
+        ),
+      ).thenAnswer((_) async {
+        requests++;
+        return _response({
+          'sessions': [
+            {'id': 'session-1'},
+          ],
+          'hasNext': requests == 1,
+          'nextCursor': 'cursor-$requests',
+        }, 200);
+      });
+
+      await expectLater(
+        api.fetchSessions(),
+        throwsA(isA<SessionsApiException>()),
+      );
+      expect(requests, 2);
+    });
+
+    test('rejects endless pagination with fresh cursors and IDs', () async {
+      var requests = 0;
+      when(
+        mockClient.get(
+          '/v2/sessions',
+          queryParameters: anyNamed('queryParameters'),
+        ),
+      ).thenAnswer((_) async {
+        requests++;
+        return _response({
+          'sessions': [
+            {'id': 'session-$requests'},
+          ],
+          'hasNext': true,
+          'nextCursor': 'cursor-$requests',
+        }, 200);
+      });
+
+      await expectLater(
+        api.fetchSessions(),
+        throwsA(
+          isA<SessionsApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('page limit'),
+          ),
+        ),
+      );
+      expect(requests, 1000);
+    });
   });
 
   group('SessionsApi.setSessionArchived', () {

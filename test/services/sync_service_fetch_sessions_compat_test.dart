@@ -88,6 +88,37 @@ void main() {
       instance.testIsInitialized = false;
     });
 
+    test('failed forced full fetch remains forced on retry', () async {
+      instance.testLastSessionsFetchedAt = 123456;
+      instance.testForceFullFetchNext = true;
+      final queries = <Map<String, dynamic>>[];
+      ApiClient().testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            queries.add(Map<String, dynamic>.from(options.queryParameters));
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: queries.length == 1 ? 400 : 200,
+                data: queries.length == 1
+                    ? <String, dynamic>{}
+                    : <String, dynamic>{'sessions': [], 'hasNext': false},
+              ),
+            );
+          },
+        ),
+      );
+
+      await expectLater(instance.fetchSessions(), throwsA(isA<Exception>()));
+      expect(instance.testForceFullFetchNext, isTrue);
+      await instance.fetchSessions();
+      expect(queries, hasLength(2));
+      expect(
+        queries.every((query) => !query.containsKey('changedSince')),
+        isTrue,
+      );
+    });
+
     for (final archived in [false, true]) {
       test('archive stays hidden across full and delta refresh '
           '(server archived=$archived)', () async {

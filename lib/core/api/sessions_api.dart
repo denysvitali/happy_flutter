@@ -38,9 +38,13 @@ class SessionsApi {
     int? changedSince,
   }) async {
     final allSessions = <dynamic>[];
+    final sessionIds = <String>{};
+    final seenCursors = <String>{?cursor};
     var nextCursor = cursor;
 
-    while (true) {
+    // Bound even a broken server that keeps inventing fresh cursors and IDs.
+    const maxPages = 1000;
+    for (var pageIndex = 0; pageIndex < maxPages; pageIndex++) {
       final response = await _client.get(
         '/v2/sessions',
         queryParameters: {
@@ -62,17 +66,41 @@ class SessionsApi {
         );
       }
 
-      final data = response.data as Map<String, dynamic>;
-      final page = data['sessions'] as List? ?? [];
-      allSessions.addAll(page);
+      // A full fetch replaces the local catalog. Never turn an incomplete
+      // response into an authoritative empty or partial snapshot.
+      final data = response.data;
+      if (data is! Map<String, dynamic> ||
+          data['sessions'] is! List ||
+          data['hasNext'] is! bool ||
+          (data['nextCursor'] != null && data['nextCursor'] is! String)) {
+        throw const SessionsApiException('Invalid sessions page envelope');
+      }
+      final page = data['sessions'] as List;
+      for (final session in page) {
+        if (session is! Map<String, dynamic>) {
+          throw const SessionsApiException('Invalid session in sessions page');
+        }
+        final id = session['id'];
+        if (id is! String || id.trim().isEmpty || !sessionIds.add(id)) {
+          throw const SessionsApiException(
+            'Invalid or duplicate session ID in sessions page',
+          );
+        }
+      }
 
-      final hasNext = data['hasNext'] as bool? ?? false;
-      if (!hasNext) break;
+      final hasNext = data['hasNext'] as bool;
+      allSessions.addAll(page);
+      if (!hasNext) return allSessions;
       nextCursor = data['nextCursor'] as String?;
-      if (nextCursor == null) break;
+      if (page.isEmpty ||
+          nextCursor == null ||
+          nextCursor.trim().isEmpty ||
+          !seenCursors.add(nextCursor)) {
+        throw const SessionsApiException('Sessions pagination did not advance');
+      }
     }
 
-    return allSessions;
+    throw const SessionsApiException('Sessions pagination exceeded page limit');
   }
 
   /// Fetch a single session by ID.

@@ -493,8 +493,14 @@ extension SyncData on Sync {
       _scheduleSaveSessionsCache();
       _notifyDataChanged({SyncDomain.sessions});
     } on DioException {
+      if (forceFullFetch && runtimeGeneration == _runtimeGeneration) {
+        _forceFullFetchNext = true;
+      }
       rethrow;
     } catch (error, stack) {
+      if (forceFullFetch && runtimeGeneration == _runtimeGeneration) {
+        _forceFullFetchNext = true;
+      }
       if (error is SessionsApiException ||
           Sync._isTransientConnectionError(error)) {
         logger.warning('Error fetching sessions', error, stack);
