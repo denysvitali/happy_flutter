@@ -1033,7 +1033,13 @@ void main() {
     testWidgets('Har creation uses the agent default without a model picker', (
       tester,
     ) async {
+      final testSync = createTestSync();
+      testSync.testEnsureMachineReachableOverride = (_) async {};
+      addTearDown(() {
+        testSync.testEnsureMachineReachableOverride = null;
+      });
       var modelMode = 'not-called';
+      final spawnStarted = Completer<void>();
       final finishSpawn = Completer<String>();
       await pumpDialog(
         tester,
@@ -1050,7 +1056,10 @@ void main() {
           initialMachineId: 'm-local',
           initialPath: '/repo',
           initialAgent: 'har',
-          onCreateSession: () => finishSpawn.future,
+          onCreateSession: () {
+            spawnStarted.complete();
+            return finishSpawn.future;
+          },
           onCreateModelMode: (model) => modelMode = model ?? 'unset',
         ),
       );
@@ -1058,6 +1067,7 @@ void main() {
       expect(find.textContaining('Requires an installed'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Create'));
       await tester.pump();
+      await spawnStarted.future;
       expect(modelMode, 'unset');
       await tester.pumpWidget(const SizedBox.shrink());
       finishSpawn.complete('har-session');
