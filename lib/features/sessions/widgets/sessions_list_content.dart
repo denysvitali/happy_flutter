@@ -1356,7 +1356,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             height: 1,
             thickness: AppBorder.hairline,
             indent: AppSpacing.xxxl + AppSpacing.xl,
-            color: cs.outlineVariant.withValues(alpha: 0.45),
+            color: cs.outlineVariant.withValues(alpha: 0.25),
           );
         }
         final session = sessions[index ~/ 2];

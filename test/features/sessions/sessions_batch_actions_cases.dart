@@ -88,6 +88,11 @@ void _registerBatchActionTests() {
         );
         expect(buttons, isNotEmpty);
         expect(buttons.every((button) => button.onPressed == null), isTrue);
+        final actions = tester.widgetList<TextButton>(
+          find.descendant(of: appBar, matching: find.byType(TextButton)),
+        );
+        expect(actions, isNotEmpty);
+        expect(actions.every((button) => button.onPressed == null), isTrue);
         expect(
           tester
               .widget<TextButton>(

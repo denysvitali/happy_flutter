@@ -4,16 +4,16 @@ import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../session_avatar.dart';
+import 'mission_control_types.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
-import 'mission_control_types.dart';
 import 'session_headers.dart';
 import 'workspace_identity.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 const double _folderStatusDotSlotSize = 17;
 
@@ -98,7 +98,7 @@ class FolderSessionRow extends StatelessWidget {
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final rowColor = isSelected
-        ? cs.primary.withValues(alpha: 0.10)
+        ? cs.primary.withValues(alpha: 0.07)
         : unreadCount > 0
         ? cs.primary.withValues(alpha: 0.045)
         : Colors.transparent;
@@ -124,104 +124,155 @@ class FolderSessionRow extends StatelessWidget {
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              child: Row(
-                children: [
-                  if (selectionMode) ...[
-                    SelectionCheckbox(
-                      isSelected: isSelected,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                  ] else ...[
-                    SizedBox.square(
-                      dimension: _folderStatusDotSlotSize,
-                      child: Center(
-                        child: AppStatusDot(
-                          color: muted
-                              ? cs.outlineVariant
-                              : Color(derived.status.statusDotColor),
-                          pulse: derived.status.isPulsing && !muted,
-                          size: 7,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackMetadata =
+                      constraints.maxWidth < 320 ||
+                      MediaQuery.textScalerOf(context).scale(AppFontSize.base) >
+                          AppFontSize.base * 1.3;
+                  return Row(
+                    children: [
+                      if (selectionMode) ...[
+                        SelectionCheckbox(
+                          isSelected: isSelected,
+                          borderRadius: BorderRadius.zero,
                         ),
+                        const SizedBox(width: AppSpacing.sm),
+                      ],
+                      if (!selectionMode) ...[
+                        SizedBox.square(
+                          dimension: _folderStatusDotSlotSize,
+                          child: Center(
+                            child: AppStatusDot(
+                              color: muted
+                                  ? cs.outlineVariant
+                                  : Color(derived.status.statusDotColor),
+                              pulse: derived.status.isPulsing && !muted,
+                              size: 7,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                      ],
+                      buildSessionAvatar(
+                        sessionId: session.id,
+                        avatarId: derived.avatarId,
+                        sessionFlavor: session.metadata?.flavor,
+                        size: AppAvatarSize.medium,
+                        showFlavorIcon: showFlavorIcon,
+                        hasDraft: hasDraft,
+                        avatarStyle: avatarStyle,
+                        monochrome: muted,
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                  ],
-                  buildSessionAvatar(
-                    sessionId: session.id,
-                    avatarId: derived.avatarId,
-                    sessionFlavor: session.metadata?.flavor,
-                    size: 40,
-                    showFlavorIcon: showFlavorIcon,
-                    hasDraft: hasDraft,
-                    avatarStyle: avatarStyle,
-                    monochrome: muted,
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                displayName ?? derived.name,
-                                style: AppText.title(theme, titleColor),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    displayName ?? derived.name,
+                                    style: AppText.title(theme, titleColor),
+                                    maxLines: stackMetadata ? 2 : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (!stackMetadata &&
+                                    archiveCountdownLabel != null) ...[
+                                  const SizedBox(width: AppSpacing.xs),
+                                  ArchiveCountdownBadge(
+                                    label: archiveCountdownLabel!,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (statusWidget != null && !muted) ...[
+                              const SizedBox(height: AppSpacing.xxs),
+                              statusWidget,
+                            ] else if (activityLine != null) ...[
+                              const SizedBox(height: AppSpacing.xxs),
+                              activityLine,
+                            ] else ...[
+                              const SizedBox(height: AppSpacing.xxs),
+                              Text(
+                                derived.subtitle,
+                                style: AppText.secondary(
+                                  theme,
+                                  cs.onSurfaceVariant,
+                                ).copyWith(fontFamily: 'monospace'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            if (archiveCountdownLabel != null) ...[
-                              const SizedBox(width: AppSpacing.xs),
-                              ArchiveCountdownBadge(
-                                label: archiveCountdownLabel!,
+                            ],
+                            if (stackMetadata) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.xs,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    formatTimestamp(
+                                      lastMessageTimestamp ??
+                                          session.lastMessageAt ??
+                                          session.updatedAt,
+                                      relative: true,
+                                    ),
+                                    style: AppText.secondary(
+                                      theme,
+                                      cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  if (unreadCount > 0)
+                                    UnreadBadge(count: unreadCount),
+                                  if (todoProgress != null)
+                                    TodoProgressBadge(
+                                      completed: todoProgress.completed,
+                                      total: todoProgress.total,
+                                    ),
+                                  if (archiveCountdownLabel != null)
+                                    ArchiveCountdownBadge(
+                                      label: archiveCountdownLabel!,
+                                    ),
+                                  if (session.pinned)
+                                    Icon(
+                                      Icons.push_pin,
+                                      size: AppIconSize.md,
+                                      color: cs.primary,
+                                    ),
+                                ],
                               ),
                             ],
                           ],
                         ),
-                        if (statusWidget != null && !muted) ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          statusWidget,
-                        ] else if (activityLine != null) ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          activityLine,
-                        ] else ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            derived.subtitle,
-                            style: AppText.secondary(
-                              theme,
-                              cs.onSurfaceVariant,
-                            ).copyWith(fontFamily: 'monospace'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ),
+                      if (!stackMetadata) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        buildTimestampBadges(
+                          timestamp:
+                              lastMessageTimestamp ??
+                              session.lastMessageAt ??
+                              session.updatedAt,
+                          theme: theme,
+                          cs: cs,
+                          unreadCount: unreadCount,
+                          todoProgress: todoProgress,
+                        ),
+                        if (session.pinned) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Icon(
+                            Icons.push_pin,
+                            size: AppSpacing.lg,
+                            color: cs.primary,
                           ),
                         ],
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  buildTimestampBadges(
-                    timestamp:
-                        lastMessageTimestamp ??
-                        session.lastMessageAt ??
-                        session.updatedAt,
-                    theme: theme,
-                    cs: cs,
-                    unreadCount: unreadCount,
-                    todoProgress: todoProgress,
-                  ),
-                  if (session.pinned) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Icon(
-                      Icons.push_pin,
-                      size: AppSpacing.lg,
-                      color: cs.primary,
-                    ),
-                  ],
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 
@@ -83,8 +82,7 @@ class SessionStatusIndicator extends StatelessWidget {
   }
 }
 
-/// Circular checkbox shown at the leading edge in selection
-/// mode, replacing the status color bar.
+/// Selection indicator painted inside the row's existing tap target.
 class SelectionCheckbox extends StatelessWidget {
   const SelectionCheckbox({
     required this.isSelected,
@@ -102,9 +100,6 @@ class SelectionCheckbox extends StatelessWidget {
       width: AppAvatarSize.small,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isSelected
-            ? cs.primary.withValues(alpha: AppOpacity.subtle)
-            : Colors.transparent,
         borderRadius: BorderRadius.only(
           topLeft: borderRadius.topLeft,
           bottomLeft: borderRadius.bottomLeft,
@@ -112,14 +107,14 @@ class SelectionCheckbox extends StatelessWidget {
       ),
       child: AnimatedContainer(
         duration: AppDuration.fast,
-        width: 22,
-        height: 22,
+        width: AppIconSize.xl,
+        height: AppIconSize.xl,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isSelected ? cs.primary : cs.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+          color: isSelected ? cs.primary : Colors.transparent,
           border: Border.all(
-            color: isSelected ? cs.primary : cs.outline.withValues(alpha: 0.5),
-            width: 2,
+            color: isSelected ? cs.primary : cs.outline,
+            width: AppBorder.thin,
           ),
         ),
         child: isSelected

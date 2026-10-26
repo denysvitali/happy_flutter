@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
@@ -220,7 +221,7 @@ class _SessionSearchFieldState extends State<_SessionSearchField> {
   }
 }
 
-/// Bulk actions share a horizontally scrollable row at larger text sizes.
+/// Selection context and labeled bulk actions share one compact surface.
 class SessionSelectionAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const SessionSelectionAppBar({
@@ -252,67 +253,91 @@ class SessionSelectionAppBar extends StatelessWidget
 
   static double actionsHeightOf(BuildContext context) => math.max(
     AppTouchTarget.comfortable,
-    MediaQuery.textScalerOf(context).scale(AppFontSize.sm) *
+    MediaQuery.textScalerOf(context).scale(AppFontSize.xl) *
             AppLineHeight.normal +
         AppSpacing.md,
   );
 
   @override
-  Size get preferredSize =>
-      Size.fromHeight(kToolbarHeight + actionsHeight + AppSpacing.xxs);
+  Size get preferredSize => Size.fromHeight(actionsHeight * 2 + AppSpacing.xxs);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     return AppBar(
+      toolbarHeight: actionsHeight,
+      backgroundColor: cs.surfaceContainerLow,
+      titleSpacing: 0,
+      shape: Border(bottom: BorderSide(color: cs.outlineVariant)),
       leading: IconButton(
         icon: const Icon(Icons.close),
         tooltip: l10n.commonCancel,
         onPressed: busy ? null : onCancel,
       ),
-      title: Text(l10n.sessionsSelectedCount(count)),
+      title: _SelectionControlRow(
+        height: actionsHeight,
+        children: [
+          Text(l10n.sessionsSelectedCount(count)),
+          TextButton(
+            onPressed: busy ? null : onSelectAll,
+            child: Text(
+              allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
+            ),
+          ),
+        ],
+      ),
       bottom: PreferredSize(
         preferredSize: Size.fromHeight(actionsHeight + AppSpacing.xxs),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: busy ? null : onSelectAll,
-                    child: Text(
-                      allSelected
-                          ? l10n.sessionsDeselectAll
-                          : l10n.sessionsSelectAll,
-                    ),
-                  ),
-                  if (hasActive)
-                    IconButton(
-                      icon: const Icon(Icons.archive_outlined),
-                      tooltip: l10n.sessionsArchive,
+            _SelectionControlRow(
+              height: actionsHeight,
+              children: [
+                if (hasActive)
+                  Tooltip(
+                    message: l10n.sessionsArchive,
+                    excludeFromSemantics: true,
+                    child: TextButton.icon(
+                      icon: const Icon(
+                        Icons.archive_outlined,
+                        size: AppIconSize.xl,
+                      ),
+                      label: Text(l10n.sessionsArchive),
                       onPressed: count == 0 || busy ? null : onArchive,
                     ),
-                  IconButton(
+                  ),
+                Tooltip(
+                  message: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
+                  excludeFromSemantics: true,
+                  child: TextButton.icon(
                     icon: Icon(
                       hasPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      size: AppIconSize.xl,
                     ),
-                    tooltip: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
+                    label: Text(
+                      hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
+                    ),
                     onPressed: count == 0 || busy ? null : onPin,
                   ),
-                  IconButton(
-                    icon: Icon(
+                ),
+                Tooltip(
+                  message: l10n.commonDelete,
+                  excludeFromSemantics: true,
+                  child: TextButton.icon(
+                    icon: const Icon(
                       Icons.delete_outline,
-                      color: busy ? null : cs.error,
+                      size: AppIconSize.xl,
                     ),
-                    tooltip: l10n.commonDelete,
+                    label: Text(l10n.commonDelete),
+                    style: count == 0 || busy
+                        ? null
+                        : AppButtonStyle.destructive(cs),
                     onPressed: count == 0 || busy ? null : onDelete,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             SizedBox(
               height: AppSpacing.xxs,
@@ -331,6 +356,52 @@ class SessionSelectionAppBar extends StatelessWidget
       ),
     );
   }
+}
+
+/// Keeps every label reachable and exposes overflow with a persistent thumb.
+class _SelectionControlRow extends StatefulWidget {
+  const _SelectionControlRow({required this.height, required this.children});
+
+  final double height;
+  final List<Widget> children;
+
+  @override
+  State<_SelectionControlRow> createState() => _SelectionControlRowState();
+}
+
+class _SelectionControlRowState extends State<_SelectionControlRow> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: widget.height,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: math.max(0, constraints.maxWidth - AppSpacing.sm * 2),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: widget.children,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Folder context keeps both its title and machine summary readable.
