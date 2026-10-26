@@ -225,19 +225,27 @@ void main() {
     ]);
   });
 
-  test('Har pickers and stored selections preserve Grok 4.7', () {
-    const raw = 'grok/grok-4.7';
-    final selected = ChatModelMode.harModels.singleWhere(
-      (model) => model.modeString == raw,
-    );
-    expect(selected.label, 'Grok 4.7');
-    expect(ChatModelMode.availableForFlavor('har'), contains(selected));
-    expect(ChatModelMode.normalizeForFlavor(selected, 'har'), selected);
-    expect(ChatModelMode.normalizeRawForFlavor(raw, 'har'), raw);
+  test('Har stores only advertised model IDs without effort parsing', () {
+    const raw = 'provider/model:variant';
+    final selected = ChatModelMode.fromHarCatalog(const [
+      PrimeAgentModelInfo(id: raw, name: 'Provider variant'),
+    ]).single;
+    expect(selected.label, 'Provider variant');
+    expect(selected.reasoningEffort, isNull);
     expect(
-      ChatModelMode.normalizeRawForFlavor('default', 'har'),
-      'codex/gpt-6-luna',
+      ChatModelMode.normalizeForFlavor(
+        selected,
+        'har',
+        allowedRawModels: [raw],
+      ),
+      selected,
     );
+    expect(
+      ChatModelMode.normalizeRawForFlavor(raw, 'har', allowedRawModels: [raw]),
+      raw,
+    );
+    expect(ChatModelMode.normalizeRawForFlavor(raw, 'har'), 'default');
+    expect(ChatModelMode.normalizeRawForFlavor('default', 'har'), 'default');
   });
 
   group('applyProfileContextWindowSuffix', () {

@@ -170,7 +170,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _createError;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
-  String _harModel = 'codex/gpt-6-luna';
   String? _selectedSpawnBackend;
   bool _spawnBackendTouched = false;
 
@@ -483,21 +482,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 ),
                 if (_selectedAgent == 'har') ...[
                   const SizedBox(height: AppSpacing.md),
-                  DropdownButtonFormField<String>(
-                    initialValue: _harModel,
-                    decoration: const InputDecoration(labelText: 'Har model'),
-                    items: [
-                      for (final model in ChatModelMode.harModels)
-                        DropdownMenuItem(
-                          value: model.modeString,
-                          child: Text(model.label),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => _harModel = value);
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Host execution · approvals disabled. The model can be '
                     'changed during the conversation. Requires an installed '
@@ -719,7 +703,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         );
       }
       if (_selectedAgent == 'opencode') modelMode = null;
-      if (_selectedAgent == 'har') modelMode = _harModel;
+      if (_selectedAgent == 'har') modelMode = null;
       if (!_canUseRef) return;
       if (modelMode != null) {
         modelMode = applyProfileContextWindowSuffix(

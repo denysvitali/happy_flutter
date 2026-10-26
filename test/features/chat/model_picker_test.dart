@@ -81,6 +81,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Har picker uses only advertised models without extra controls', (
+    tester,
+  ) async {
+    ChatModelMode? selected;
+    await pumpPickerHost(
+      tester,
+      models: ChatModelMode.fromHarCatalog(const [
+        PrimeAgentModelInfo(id: 'codex/gpt-6.1-terra', name: 'GPT-6.1 Terra'),
+      ]),
+      settings: Settings()..customModelModes = ['sonnet', 'unadvertised/model'],
+      onChanged: (model) => selected = model,
+    );
+    expect(find.text('GPT-6.1 Terra'), findsOneWidget);
+    expect(find.text('Custom…'), findsNothing);
+    expect(find.text('Custom'), findsNothing);
+    expect(find.text('Default'), findsNothing);
+    expect(find.text('Effort'), findsNothing);
+    expect(find.byType(Slider), findsNothing);
+    await tester.tap(find.text('GPT-6.1 Terra'));
+    await tester.pump();
+    expect(selected?.modeString, 'codex/gpt-6.1-terra');
+    expect(selected?.reasoningEffort, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Prime Agent effort slider sends the advertised effort', (
     tester,
   ) async {

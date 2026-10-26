@@ -209,8 +209,9 @@ class _GroupedModelPickerContentState
     widget.settings?.customModelModes ?? const [],
   );
 
-  bool get _allowsCustomModels =>
-      !widget.models.any((model) => model.flavor == 'opencode');
+  bool get _allowsCustomModels => !widget.models.any(
+    (model) => const {'opencode', 'har'}.contains(model.flavor),
+  );
 
   String? get _firstSlug {
     for (final model in widget.models) {
@@ -318,7 +319,11 @@ class _GroupedModelPickerContentState
                 widget.onChanged,
                 labelOverride: model.hasEffort
                     ? model.reasoningEffortLabel
-                    : const {'prime-agent', 'opencode'}.contains(model.flavor)
+                    : const {
+                        'prime-agent',
+                        'opencode',
+                        'har',
+                      }.contains(model.flavor)
                     ? 'Current'
                     : 'Auto',
               ),
@@ -410,7 +415,7 @@ class _GroupedModelPickerContentState
       for (final model in models)
         model.hasEffort
             ? model.reasoningEffortLabel
-            : const {'prime-agent', 'opencode'}.contains(model.flavor)
+            : const {'prime-agent', 'opencode', 'har'}.contains(model.flavor)
             ? 'Current'
             : 'Auto',
     ];

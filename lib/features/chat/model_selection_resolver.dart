@@ -73,16 +73,21 @@ ModelSelectionResolution resolveModelSelection({
   required String? lastUsedModelMode,
   Map<String, String> favoriteModelsByProfile = const {},
   List<PrimeAgentModelInfo>? opencodeModels,
+  List<PrimeAgentModelInfo>? harModels,
   String? syncedSessionPermissionMode,
   String? lastUsedPermissionMode,
 }) {
   if (flavor == 'har') {
     // The launched process owns its model; stale picker intent must never
     // restart a conversation that cannot be durably resumed.
-    final model = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(sessionModelMode ?? savedModelMode),
-      'har',
-    );
+    final catalog = ChatModelMode.fromHarCatalog(harModels ?? const []);
+    final current = sessionModelMode;
+    final model = current == null || current.isEmpty || current == 'default'
+        ? ChatModelMode.defaultModel
+        : catalog.where((m) => m.modeString == current).firstOrNull ??
+              ChatModelMode.fromHarCatalog([
+                PrimeAgentModelInfo(id: current, name: current),
+              ]).single;
     final profile = settingsProfiles
         .where((p) => p.id == savedProfileId)
         .firstOrNull;

@@ -7,16 +7,12 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   gatewayClaudePickTests();
-  test('Har spawn model is bounded and explicit', () {
+  test('Har spawn leaves default selection to Har', () {
     final sync = createTestSync();
-    expect(sync.testGetModelOverride(agent: 'har'), 'codex/gpt-6-luna');
+    expect(sync.testGetModelOverride(agent: 'har'), isNull);
     expect(
-      sync.testGetModelOverride(agent: 'har', modelMode: 'codex/gpt-6.1-sol'),
-      'codex/gpt-6.1-sol',
-    );
-    expect(
-      () => sync.testGetModelOverride(agent: 'har', modelMode: 'opus:max'),
-      throwsStateError,
+      sync.testGetModelOverride(agent: 'har', modelMode: 'codex/gpt-6.1-terra'),
+      'codex/gpt-6.1-terra',
     );
   });
 
@@ -321,6 +317,14 @@ void main() {
   });
 
   group('_normalizeModelModeForAgent', () {
+    test('preserves Har default and exact native model IDs', () {
+      expect(sync.testNormalizeModelModeForAgent(null, 'har'), isNull);
+      expect(sync.testNormalizeModelModeForAgent('default', 'har'), 'default');
+      for (final model in ['codex/gpt-6.1-terra', ' provider/custom:v2 ']) {
+        expect(sync.testNormalizeModelModeForAgent(model, 'har'), model);
+      }
+    });
+
     test('preserves null and default', () {
       expect(sync.testNormalizeModelModeForAgent(null, 'codex'), isNull);
       expect(

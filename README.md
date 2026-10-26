@@ -206,17 +206,15 @@ forms require approval before discarding edits and survive phone/tablet resizing
 
 ## Har model switching
 
-Har conversations can select `codex/gpt-6-luna` (default),
-`codex/gpt-6.1-sol`, or `grok/grok-4.7` at launch and switch between them using
-the composer model picker while idle. The running
+Har chooses its default model when a conversation starts. The composer model
+picker shows the models advertised by the running Har process, including
+`codex/gpt-6.1-terra` on versions that offer it, and switches while idle. The running
 process must confirm the change before the composer and send baseline update;
 messages wait while that request is pending. Busy or older Har builds can
 reject the change without restarting the conversation or changing its model.
-Provider and approval policy remain fixed, and stopped conversations cannot
-resume automatically. The stopped-session banner explains that Har's
-conversation state depends on its running process, and identifies a daemon
-restart when the machine reports that specific failure. It does not display
-raw machine diagnostics or silently replay history into a new process.
+Provider and approval policy remain fixed. A stopped conversation can resume
+only with qualified durable checkpoint metadata and a confirmed recovery;
+unresolved effects are never replayed blindly.
 
 ## Codex provider profiles
 

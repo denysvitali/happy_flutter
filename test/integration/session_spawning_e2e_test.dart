@@ -82,7 +82,7 @@ void main() {
     });
 
     test(
-      'Har launch fixes model/policy and omits unrelated profile secrets',
+      'Har launch uses its default and omits unrelated profile secrets',
       () async {
         Map<String, dynamic>? captured;
         sync.testSettingsSnapshot = Settings()
@@ -119,7 +119,7 @@ void main() {
           path: '/repo',
           profileId: 'har-config',
         );
-        expect(captured!['model'], 'codex/gpt-6-luna');
+        expect(captured, isNot(contains('model')));
         expect(captured!['permissionMode'], 'bypassPermissions');
         expect(captured!['environmentVariables'], {
           'HAR_PROXY_URL': 'https://proxy',
@@ -144,29 +144,6 @@ void main() {
       expect(captured!['model'], 'grok/grok-4.7');
       expect(captured!['permissionMode'], 'bypassPermissions');
     });
-
-    for (final model in ['opus:max', 'gpt-6-luna', 'codex/unadvertised']) {
-      test(
-        'Har rejects explicit unsupported model $model before spawn',
-        () async {
-          var spawned = false;
-          sync.testMachineRPCOverride = (_, method, params) async {
-            spawned = true;
-            return {'type': 'success', 'sessionId': params['sessionId']};
-          };
-          await expectLater(
-            sync.createSession(
-              agent: 'har',
-              machineId: 'machine-1',
-              path: '/repo',
-              modelMode: model,
-            ),
-            throwsStateError,
-          );
-          expect(spawned, isFalse);
-        },
-      );
-    }
 
     test('successful spawn registers session in _sessionSpawnedAt', () async {
       final sessionId = 'spawn-1';
@@ -1129,7 +1106,12 @@ void main() {
       });
     }
 
-    for (final sol in ['codex/gpt-6.1-sol', 'grok/grok-4.7']) {
+    for (final sol in [
+      'codex/gpt-6.1-sol',
+      'grok/grok-4.7',
+      'codex/gpt-6.1-terra',
+      'provider/custom:v2',
+    ]) {
       test(
         'Har confirmed $sol switch sends and retries without replacing session',
         () async {

@@ -232,7 +232,8 @@ class InputToolbar extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             ModelChip(
-              model: modelMode ?? ChatModelMode.harModels.first,
+              model: modelMode ?? ChatModelMode.defaultModel,
+              enabled: availableModels.isNotEmpty,
               resolvedLabel: resolvedModelLabel,
               onTap: onShowModelPicker,
             ),

@@ -70,13 +70,18 @@ class _StubSettingsNotifier extends SettingsNotifier {
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
-  _StubSessionsNotifier({this.onCreateSession, this.sessions = const {}});
+  _StubSessionsNotifier({
+    this.onCreateSession,
+    this.onCreateModelMode,
+    this.sessions = const {},
+  });
 
   final Map<String, Session> sessions;
 
   /// When set, replaces the real `createSession` so a test can hold the
   /// dialog inside the async gap between the spawn request and its reply.
   final Future<String> Function()? onCreateSession;
+  final ValueChanged<String?>? onCreateModelMode;
 
   @override
   Map<String, Session> build() => sessions;
@@ -99,6 +104,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
     String? repoRef,
     String? repoCommit,
   }) {
+    onCreateModelMode?.call(modelMode);
     final hook = onCreateSession;
     if (hook == null) {
       return super.createSession(
@@ -447,6 +453,7 @@ void main() {
       Map<String, Session> sessions = const {},
       String? initialRepositoryUrl = 'https://example.com/repo.git',
       Future<String> Function()? onCreateSession,
+      ValueChanged<String?>? onCreateModelMode,
     }) {
       return ProviderScope(
         overrides: [
@@ -457,6 +464,7 @@ void main() {
           sessionsNotifierProvider.overrideWith(
             () => _StubSessionsNotifier(
               onCreateSession: onCreateSession,
+              onCreateModelMode: onCreateModelMode,
               sessions: sessions,
             ),
           ),
@@ -1022,9 +1030,11 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('fresh recovery explicitly selects its original agent', (
+    testWidgets('Har creation uses the agent default without a model picker', (
       tester,
     ) async {
+      var modelMode = 'not-called';
+      final finishSpawn = Completer<String>();
       await pumpDialog(
         tester,
         buildHarness(
@@ -1040,10 +1050,18 @@ void main() {
           initialMachineId: 'm-local',
           initialPath: '/repo',
           initialAgent: 'har',
+          onCreateSession: () => finishSpawn.future,
+          onCreateModelMode: (model) => modelMode = model ?? 'unset',
         ),
       );
-      expect(find.text('Har model'), findsOneWidget);
+      expect(find.text('Har model'), findsNothing);
       expect(find.textContaining('Requires an installed'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.pump();
+      expect(modelMode, 'unset');
+      await tester.pumpWidget(const SizedBox.shrink());
+      finishSpawn.complete('har-session');
+      await tester.pump();
     });
 
     testWidgets('supports local sessions alongside Kubernetes sessions', (

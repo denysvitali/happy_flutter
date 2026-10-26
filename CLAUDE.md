@@ -35,9 +35,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 ## Core Invariants
 
 - **Har is process-scoped** — flavor `har` uses ACP text/tool events and
-  cancellation. Launch `codex/gpt-6-luna` (default), explicit
-  `codex/gpt-6.1-sol`, or `grok/grok-4.7`, with host execution and approvals
-  disabled. Require the
+  cancellation. New sessions use Har's configured default without a model
+  override. Existing sessions offer only `metadata.harModels` (`{id,name}`
+  entries), preserving advertised IDs verbatim, with host execution and
+  approvals disabled. Require the
   installed binary and explicitly disabled Boxy on the local daemon. Lock
   provider/permission controls after launch; model changes use the running
   session's `set_model` RPC while idle, never respawn. Publish the selection

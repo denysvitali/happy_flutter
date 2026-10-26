@@ -158,6 +158,24 @@ List<PrimeAgentModelInfo>? _primeAgentModelsFromJson(dynamic value) {
 dynamic _primeAgentModelsToJson(List<PrimeAgentModelInfo>? models) =>
     models?.map((model) => model.toJson()).toList();
 
+List<PrimeAgentModelInfo>? _harModelsFromJson(dynamic value) {
+  if (value is! List) return null;
+  final models = <PrimeAgentModelInfo>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    final id = item['id'];
+    if (id is! String || id.isEmpty) continue;
+    final name = item['name'];
+    models.add(
+      PrimeAgentModelInfo(
+        id: id,
+        name: name is String && name.isNotEmpty ? name : id,
+      ),
+    );
+  }
+  return models;
+}
+
 Metadata? _metadataFromJson(dynamic value) {
   if (value is Map<String, dynamic>) return Metadata.fromJson(value);
   return null;
@@ -242,6 +260,8 @@ abstract class Metadata with _$Metadata {
       toJson: _primeAgentModelsToJson,
     )
     List<PrimeAgentModelInfo>? opencodeModels,
+    @JsonKey(fromJson: _harModelsFromJson, toJson: _primeAgentModelsToJson)
+    List<PrimeAgentModelInfo>? harModels,
     @JsonKey(fromJson: _acpPlanFromJson) List<Map<String, dynamic>>? plan,
     @JsonKey(
       name: 'primeagentEfforts',

@@ -272,35 +272,13 @@ class ChatModelMode {
     ),
   ];
 
-  /// Har's process-scoped model contract has no reasoning or speed variants.
-  static const harModels = <ChatModelMode>[
-    ChatModelMode._(
-      label: 'GPT-6 Luna',
-      modeString: 'codex/gpt-6-luna',
-      modelSlug: 'codex/gpt-6-luna',
-      flavor: 'har',
-    ),
-    ChatModelMode._(
-      label: 'GPT-6.1 Sol',
-      modeString: 'codex/gpt-6.1-sol',
-      modelSlug: 'codex/gpt-6.1-sol',
-      flavor: 'har',
-    ),
-    ChatModelMode._(
-      label: 'Grok 4.7',
-      modeString: 'grok/grok-4.7',
-      modelSlug: 'grok/grok-4.7',
-      flavor: 'har',
-    ),
-  ];
-
   /// Returns the model options available for a session flavor.
   static List<ChatModelMode> availableForFlavor(String? flavor) {
     return switch (flavor) {
       // null means the server hasn't set a flavor yet; default is 'claude'.
       'claude' || null => claudeModels,
       'grok' || 'grok-build' => grokModels,
-      'har' => harModels,
+      'har' => const [],
       _ => const [defaultModel],
     };
   }
@@ -328,9 +306,10 @@ class ChatModelMode {
     List<String>? profileModels,
     List<PrimeAgentModelInfo>? primeAgentModels,
     List<PrimeAgentModelInfo>? opencodeModels,
+    List<PrimeAgentModelInfo>? harModels,
     List<PrimeAgentModelInfo>? primeAgentEfforts,
   }) {
-    if (flavor == 'har') return harModels;
+    if (flavor == 'har') return fromHarCatalog(harModels ?? const []);
     if (flavor == 'opencode') {
       return fromOpenCodeCatalog(opencodeModels ?? const []);
     }
@@ -579,6 +558,21 @@ class ChatModelMode {
     return models;
   }
 
+  /// Har owns its catalog and accepts exact IDs without effort variants.
+  static List<ChatModelMode> fromHarCatalog(List<PrimeAgentModelInfo> catalog) {
+    final seen = <String>{};
+    return [
+      for (final item in catalog)
+        if (item.id.isNotEmpty && seen.add(item.id))
+          ChatModelMode._(
+            label: item.name.isEmpty ? item.id : item.name,
+            modeString: item.id,
+            modelSlug: item.id,
+            flavor: 'har',
+          ),
+    ];
+  }
+
   /// OpenCode accepts exact advertised IDs, without effort suffixes.
   static List<ChatModelMode> fromOpenCodeCatalog(
     List<PrimeAgentModelInfo> catalog,
@@ -650,10 +644,11 @@ class ChatModelMode {
     bool preserveProviderOwned = false,
   }) {
     if (flavor == 'har') {
-      return harModels
-              .where((m) => m.modeString == model.modeString)
-              .firstOrNull ??
-          harModels.first;
+      final id = model.modeString;
+      if (!(allowedRawModels?.contains(id) ?? false)) return defaultModel;
+      return fromHarCatalog([
+        PrimeAgentModelInfo(id: id, name: model.label),
+      ]).single;
     }
     if (flavor == 'opencode') {
       final id = model.modeString;
@@ -733,11 +728,7 @@ class ChatModelMode {
       return trimmed;
     }
     if (flavor == 'har') {
-      return harModels
-              .where((m) => m.modeString == trimmed)
-              .firstOrNull
-              ?.modeString ??
-          harModels.first.modeString;
+      return allowedRawModels?.contains(value) == true ? value : 'default';
     }
     if (isAllowedRawSelection(trimmed, allowedRawModels, flavor: flavor)) {
       return trimmed;

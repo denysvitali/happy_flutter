@@ -48,6 +48,28 @@ void main() {
       );
     });
 
+    test('Har catalog roundtrips and ignores malformed entries', () {
+      final metadata = Metadata.fromJson({
+        'flavor': 'har',
+        'model': 'codex/gpt-6.1-terra',
+        'harModels': [
+          {'id': 'codex/gpt-6.1-terra', 'name': 'GPT-6.1 Terra'},
+          {'id': ' provider/model:variant '},
+          {'id': ''},
+          {'id': 123},
+          null,
+        ],
+      });
+      expect(metadata.harModels!.map((m) => m.id), [
+        'codex/gpt-6.1-terra',
+        ' provider/model:variant ',
+      ]);
+      expect(metadata.harModels!.last.name, ' provider/model:variant ');
+      expect(metadata.copyWith(model: 'other').harModels, metadata.harModels);
+      expect(Metadata.fromJson(metadata.toJson()), metadata);
+      expect(Metadata.fromJson({'harModels': false}).harModels, isNull);
+    });
+
     test('roundtrips the Prime Agent saved transcript field', () {
       final metadata = Metadata.fromJson({
         'host': 'workspace',

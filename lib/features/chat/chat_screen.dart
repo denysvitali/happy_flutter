@@ -789,12 +789,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final previousDeliveryStatus =
         _latestUserStatusMessage?['sendStatus'] as String?;
-    final openCodeModelConfirmed =
-        latestSession?.metadata?.flavor == 'opencode' &&
+    final catalogFlavor = latestSession?.metadata?.flavor;
+    final isHar = catalogFlavor == 'har';
+    final catalogModels = isHar
+        ? latestSession?.metadata?.harModels
+        : latestSession?.metadata?.opencodeModels;
+    final previousCatalogModels = isHar
+        ? _session?.metadata?.harModels
+        : _session?.metadata?.opencodeModels;
+    final catalogModelConfirmed =
+        (isHar || catalogFlavor == 'opencode') &&
         (latestSession?.metadata?.model != _session?.metadata?.model ||
-            (!_userOverrodeModelOrProfile &&
-                latestSession?.metadata?.opencodeModels !=
-                    _session?.metadata?.opencodeModels));
+            (isHar || !_userOverrodeModelOrProfile) &&
+                catalogModels != previousCatalogModels);
     final needsScreenRebuild = sessionChanged;
     void applyUpdates() {
       if (sessionChanged) {
@@ -819,7 +826,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _modelMode = ChatModelMode.normalizeForFlavor(
           _modelMode,
           latestSession?.metadata?.flavor,
-          allowedRawModels: latestSession?.metadata?.flavor == 'opencode'
+          allowedRawModels: isHar
+              ? {
+                  ...?catalogModels?.map((m) => m.id),
+                  ?latestSession?.metadata?.model,
+                }.toList()
+              : latestSession?.metadata?.flavor == 'opencode'
               ? latestSession?.metadata?.opencodeModels
                     ?.map((m) => m.id)
                     .toList()
@@ -829,14 +841,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
         );
       }
-      if (openCodeModelConfirmed) {
+      if (catalogModelConfirmed) {
+        final current = latestSession?.metadata?.model;
+        final models = isHar
+            ? ChatModelMode.fromHarCatalog(catalogModels ?? const [])
+            : ChatModelMode.fromOpenCodeCatalog(catalogModels ?? const []);
         _modelMode =
-            ChatModelMode.fromOpenCodeCatalog(
-                  latestSession?.metadata?.opencodeModels ?? const [],
-                )
-                .where((m) => m.modeString == latestSession?.metadata?.model)
-                .firstOrNull ??
-            ChatModelMode.defaultModel;
+            models.where((m) => m.modeString == current).firstOrNull ??
+            (isHar && current != null && current.isNotEmpty
+                ? ChatModelMode.fromHarCatalog([
+                    PrimeAgentModelInfo(id: current, name: current),
+                  ]).single
+                : ChatModelMode.defaultModel);
         _profileModelOverride = _modelMode.modeString;
       }
       unawaited(_refreshCodexModelModes(latestSession));
@@ -2282,8 +2298,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
             resolvedModelLabel:
-                _session?.metadata?.flavor == 'opencode' &&
-                    !_userOverrodeModelOrProfile
+                (_session?.metadata?.flavor == 'har' ||
+                    _session?.metadata?.flavor == 'opencode' &&
+                        !_userOverrodeModelOrProfile)
                 ? (_modelMode.isDefault
                       ? _session?.metadata?.model
                       : _modelMode.label)

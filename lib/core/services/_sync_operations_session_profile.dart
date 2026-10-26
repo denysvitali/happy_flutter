@@ -254,18 +254,7 @@ extension SyncSpawnProfileResolution on Sync {
       return modelMode;
     }
     if (agent == 'har') {
-      if (modelMode == null || modelMode == 'default' || modelMode.isEmpty) {
-        return 'codex/gpt-6-luna';
-      }
-      if (modelMode == 'codex/gpt-6-luna' ||
-          modelMode == 'codex/gpt-6.1-sol' ||
-          modelMode == 'grok/grok-4.7') {
-        return modelMode;
-      }
-      throw StateError(
-        'Har supports codex/gpt-6-luna, codex/gpt-6.1-sol, '
-        'or grok/grok-4.7. Choose a supported model.',
-      );
+      return modelMode;
     }
     if (modelMode == null || modelMode == 'default') {
       return modelMode;

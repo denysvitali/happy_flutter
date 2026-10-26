@@ -78,6 +78,7 @@ extension _ChatScreenActions on _ChatScreenState {
           ? session?.metadata?.model ?? session?.modelMode
           : session?.modelMode,
       opencodeModels: session?.metadata?.opencodeModels,
+      harModels: session?.metadata?.harModels,
       sessionPermissionMode: session?.permissionMode,
       syncedSessionPermissionMode: settings.permissionModesBySession[sessionId],
       lastUsedPermissionMode: settings.lastUsedPermissionMode,
@@ -647,6 +648,7 @@ extension _ChatScreenActions on _ChatScreenState {
       profileModels: _selectedProfile?.models,
       primeAgentModels: _session?.metadata?.primeAgentModels,
       opencodeModels: _session?.metadata?.opencodeModels,
+      harModels: _session?.metadata?.harModels,
       primeAgentEfforts: _session?.metadata?.primeAgentEfforts,
     );
   }
@@ -842,6 +844,12 @@ extension _ChatScreenActions on _ChatScreenState {
   /// Failed/busy switches never change the composer or its send model.
   Future<void> _switchHarModel(ChatModelMode model) async {
     if (_isSwitchingHarModel || model == _modelMode) return;
+    if (!(_session?.metadata?.harModels?.any(
+          (advertised) => advertised.id == model.modeString,
+        ) ??
+        false)) {
+      return;
+    }
     setState(() => _isSwitchingHarModel = true);
     try {
       await ref

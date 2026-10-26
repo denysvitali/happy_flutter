@@ -576,7 +576,7 @@ void main() {
       'before composer delivery',
       (tester) async {
         const luna = 'codex/gpt-6-luna';
-        const sol = 'codex/gpt-6.1-sol';
+        const terra = 'codex/gpt-6.1-terra';
         sync.isInitialized = true;
         sync.encryption = _FakeEncryption();
         sync.testEncryptionInitialized = true;
@@ -585,7 +585,15 @@ void main() {
         sync.testSessions['session_1'] =
             _makeSession(flavor: 'har', presence: 'online').copyWith(
               modelMode: luna,
-              metadata: const Metadata(host: '', flavor: 'har', model: luna),
+              metadata: const Metadata(
+                host: '',
+                flavor: 'har',
+                model: luna,
+                harModels: [
+                  PrimeAgentModelInfo(id: luna, name: 'GPT-6 Luna'),
+                  PrimeAgentModelInfo(id: terra, name: 'GPT-6.1 Terra'),
+                ],
+              ),
             );
         var restored = false;
         ChatScreen.testInitialSettingsApplyBarrier = () async {
@@ -608,10 +616,10 @@ void main() {
 
         await tester.tap(find.byType(ModelChip));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('GPT-6.1 Sol'));
+        await tester.tap(find.text('GPT-6.1 Terra'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        expect(actions.requestedModel, sol);
+        expect(actions.requestedModel, terra);
         // Neither picker nor composer may publish an unconfirmed switch.
         expect(
           tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
@@ -624,7 +632,7 @@ void main() {
         }
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        final expected = rejects ? luna : sol;
+        final expected = rejects ? luna : terra;
         expect(
           tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
           expected,
