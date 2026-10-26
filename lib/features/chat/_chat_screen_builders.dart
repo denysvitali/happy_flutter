@@ -287,12 +287,13 @@ extension _ChatScreenBuilders on _ChatScreenState {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Older messages are not loaded here',
+              context.l10n.chatHistoryGap,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             TextButton(
               onPressed: _returnToLatestMessages,
-              child: const Text('Return to latest'),
+              child: Text(context.l10n.chatReturnToLatest),
             ),
           ],
         ),

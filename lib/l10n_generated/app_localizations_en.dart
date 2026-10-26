@@ -884,6 +884,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineBannerNoConnection => 'No internet connection';
 
   @override
+  String get offlineBannerNoConnectionHint =>
+      'Check your network connection. Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.';
+
+  @override
+  String get offlineBannerReconnectingHint =>
+      'Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.';
+
+  @override
   String get offlineBannerLiveUpdatesDisconnected =>
       'Live updates disconnected';
 
@@ -898,6 +906,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineBannerReconnectNow => 'Reconnect now';
+
+  @override
+  String get chatHistoryGap =>
+      'Some messages between this history and the latest replies are not loaded.';
+
+  @override
+  String get chatReturnToLatest => 'Return to latest';
+
+  @override
+  String get workflowSessionArtifactsTitle => 'Session artifacts';
+
+  @override
+  String get workflowSessionArtifactsSubtitle =>
+      'Artifacts linked to this session may come from any workflow run';
 
   @override
   String a11yConnectionStatusBanner(String status) {

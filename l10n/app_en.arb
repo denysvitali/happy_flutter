@@ -312,6 +312,10 @@
   "artifactsDeleteConfirm": "Delete artifact?",
   "artifactsTitleLabel": "TITLE",
   "offlineBannerNoConnection": "No internet connection",
+  "offlineBannerNoConnectionHint": "Check your network connection. Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.",
+  "@offlineBannerNoConnectionHint": {"description": "Recovery guidance when no network link is available. Retry eligibility and manual actions depend on the message failure and session state."},
+  "offlineBannerReconnectingHint": "Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.",
+  "@offlineBannerReconnectingHint": {"description": "Message delivery guidance while the live connection reconnects; does not claim all sends failed or guarantee delivery."},
   "offlineBannerLiveUpdatesDisconnected": "Live updates disconnected",
   "offlineBannerServiceUnavailable": "Service connection unavailable",
   "offlineBannerReconnectingIn": "Reconnecting in {seconds}s…",
@@ -323,6 +327,12 @@
     }
   },
   "offlineBannerReconnectNow": "Reconnect now",
+  "chatHistoryGap": "Some messages between this history and the latest replies are not loaded.",
+  "@chatHistoryGap": {"description": "Marks an unloaded middle range between retained older history and the live tail; does not indicate missing messages on the server."},
+  "chatReturnToLatest": "Return to latest",
+  "@chatReturnToLatest": {"description": "Recenter the chat on a contiguous latest message window."},
+  "workflowSessionArtifactsTitle": "Session artifacts",
+  "workflowSessionArtifactsSubtitle": "Artifacts linked to this session may come from any workflow run",
   "a11yConnectionStatusBanner": "Connection status. {status}",
   "@a11yConnectionStatusBanner": {
     "description": "Screen-reader label for the offline/reconnecting banner, combining the banner role and its current status text",

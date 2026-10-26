@@ -47,6 +47,7 @@ class OfflineBanner extends ConsumerWidget {
         child: _BannerContent(
           icon: Icons.wifi_off_rounded,
           label: AppLocalizations.of(context).offlineBannerNoConnection,
+          hint: AppLocalizations.of(context).offlineBannerNoConnectionHint,
           isError: true,
         ),
       );
@@ -199,54 +200,67 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
       // Wrap rather than Row: at large system text the label and the
       // "Reconnect now" button no longer fit on one line, so the button
       // moves to a second run instead of overflowing the banner.
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AppSpacing.sm,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Semantics(
-            container: true,
-            liveRegion: true,
-            label: l10n.a11yConnectionStatusBanner(label),
-            excludeSemantics: true,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sync_rounded, size: AppIconSize.md, color: fg),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      color: fg,
-                      fontWeight: FontWeight.w500,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            children: [
+              Semantics(
+                container: true,
+                liveRegion: true,
+                label: l10n.a11yConnectionStatusBanner(label),
+                excludeSemantics: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.sync_rounded, size: AppIconSize.md, color: fg),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: AppFontSize.sm,
+                          color: fg,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: _forceReconnect,
+                style: TextButton.styleFrom(
+                  foregroundColor: fg,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xxs,
+                  ),
+                  minimumSize: const Size(
+                    AppTouchTarget.min,
+                    AppTouchTarget.min,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: AppFontSize.sm,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-            ),
+                child: Text(
+                  l10n.offlineBannerReconnectNow,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: _forceReconnect,
-            style: TextButton.styleFrom(
-              foregroundColor: fg,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
-              minimumSize: const Size(AppTouchTarget.min, AppTouchTarget.min),
-              textStyle: const TextStyle(
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            child: Text(
-              l10n.offlineBannerReconnectNow,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+          Text(
+            l10n.offlineBannerReconnectingHint,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: AppFontSize.sm, color: fg),
           ),
         ],
       ),
@@ -289,11 +303,13 @@ class _BannerContent extends StatelessWidget {
   const _BannerContent({
     required this.icon,
     required this.label,
+    required this.hint,
     required this.isError,
   });
 
   final IconData icon;
   final String label;
+  final String hint;
   final bool isError;
 
   @override
@@ -303,36 +319,47 @@ class _BannerContent extends StatelessWidget {
     final bg = isError ? cs.errorContainer : cs.tertiaryContainer;
     final fg = isError ? cs.onErrorContainer : cs.onTertiaryContainer;
 
-    return Semantics(
-      container: true,
-      liveRegion: true,
-      label: l10n.a11yConnectionStatusBanner(label),
-      excludeSemantics: true,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        color: bg,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: AppIconSize.md, color: fg),
-            const SizedBox(width: AppSpacing.sm),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFontSize.sm,
-                  color: fg,
-                  fontWeight: FontWeight.w500,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      color: bg,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            container: true,
+            liveRegion: true,
+            label: l10n.a11yConnectionStatusBanner(label),
+            excludeSemantics: true,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: AppIconSize.md, color: fg),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: AppFontSize.sm,
+                      color: fg,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: AppFontSize.sm, color: fg),
+          ),
+        ],
       ),
     );
   }

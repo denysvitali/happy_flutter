@@ -237,3 +237,10 @@ sanitization cannot prevent a later display slice from splitting an emoji.
 **Screen types:**
 - `ConsumerStatefulWidget` + `ConsumerState` — screens with local state or sync subscriptions (majority)
 - `ConsumerWidget` — stateless read-only screens
+
+**Setup and recovery:** First-use setup keeps each step visible and reveals its
+command on demand. New sessions group workspace and agent selection ahead of
+advanced runtime options; those controls must reflow at large text sizes.
+Connection guidance distinguishes eligible queued retries from failed messages.
+Workflow run details label session-linked artifacts as session-wide, since the
+artifact model does not establish which run produced them.

@@ -16,6 +16,7 @@ import '../../core/wire/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_phase_section.dart';
 import 'workflow_run_header.dart';
+import 'workflow_session_artifacts.dart';
 
 /// Detail view for a single Claude Code workflow run.
 ///
@@ -331,6 +332,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                     monospace: true,
                   ),
                 ),
+              WorkflowSessionArtifacts(sessionId: widget.sessionId),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
             ],
           );

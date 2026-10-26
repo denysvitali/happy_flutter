@@ -44,6 +44,52 @@ void main() {
       expect(find.text('3'), findsOneWidget);
     });
 
+    testWidgets('initially reveals only the first setup command', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap());
+
+      expect(find.text('npm install -g happy-coder@latest'), findsOneWidget);
+      expect(find.text('Run happy auth login --method mobile'), findsNothing);
+      expect(find.text('Run happy daemon install'), findsNothing);
+      expect(find.text('Link your account'), findsOneWidget);
+      expect(find.text('Keep your computer available'), findsOneWidget);
+    });
+
+    testWidgets('reveals selectable commands when setup steps expand', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap());
+
+      Future<void> toggleStep(String label) async {
+        await tester.ensureVisible(find.text(label));
+        await tester.pump();
+        await tester.tap(find.text(label));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      const steps = {
+        'Link your account': 'Run happy auth login --method mobile',
+        'Keep your computer available': 'Run happy daemon install',
+      };
+      for (final step in steps.entries) {
+        final command = find.byWidgetPredicate(
+          (widget) => widget is SelectableText && widget.data == step.value,
+        );
+        expect(command, findsNothing);
+
+        await toggleStep(step.key);
+        await tester.ensureVisible(command);
+        await tester.pump();
+        expect(command.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        await toggleStep(step.key);
+        expect(command, findsNothing);
+      }
+    });
+
     testWidgets('connect CTA invokes the computer connection flow', (
       tester,
     ) async {

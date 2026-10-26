@@ -26,6 +26,7 @@ import '../harness_logo.dart';
 part 'new_session_fields.dart';
 part 'new_session_resolution.dart';
 part 'new_session_recent_workspace.dart';
+part 'new_session_setup_sections.dart';
 
 enum NewSessionCreateBlocker {
   missingMachine,
@@ -264,7 +265,16 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    l10n.chatWorkspaceTitle,
+                    style: AppText.label(theme, cs.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 if (machines.isEmpty)
                   Text(l10n.newSessionNoMachinesFound)
                 else
@@ -390,59 +400,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     }),
                   ),
                 ],
-                if (!isKubernetes || spawnBackends.length > 1)
-                  ExpansionTile(
-                    key: const PageStorageKey('new-session-advanced'),
-                    dense: true,
-                    tilePadding: EdgeInsets.zero,
-                    title: Text(l10n.newSessionAdvanced),
-                    subtitle: Text(
-                      isKubernetes
-                          ? l10n.newSessionKubernetesSummary
-                          : _sessionType == 'worktree'
-                          ? l10n.sessionsWorktree
-                          : l10n.newSessionLocalSummary,
-                    ),
-                    children: [
-                      if (!isKubernetes) ...[
-                        Text(
-                          l10n.newSessionWorktreeHint,
-                          style: AppText.secondary(theme),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        SegmentedButton<String>(
-                          segments: [
-                            ButtonSegment(
-                              value: 'simple',
-                              label: Text(l10n.sessionsSimple),
-                              icon: const Icon(Icons.folder_outlined),
-                            ),
-                            ButtonSegment(
-                              value: 'worktree',
-                              label: Text(l10n.sessionsWorktree),
-                              icon: const Icon(Icons.account_tree_outlined),
-                            ),
-                          ],
-                          selected: {_sessionType},
-                          onSelectionChanged: (selection) =>
-                              setState(() => _sessionType = selection.first),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                      ],
-                      if (spawnBackends.length > 1) ...[
-                        _SpawnBackendPicker(
-                          backends: spawnBackends,
-                          selectedBackend: selectedSpawnBackend,
-                          onSelected: (backend) => setState(() {
-                            _selectedSpawnBackend = backend;
-                            _spawnBackendTouched = true;
-                            _createError = null;
-                          }),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                      ],
-                    ],
-                  ),
                 if (isKubernetes) ...[
                   _RepositoryUrlField(
                     machineId: _selectedMachine,
@@ -474,8 +431,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       _createError = null;
                     }),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
                 ],
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(),
+                const SizedBox(height: AppSpacing.sm),
                 _AgentPicker(
                   selectedAgent: _selectedAgent,
                   onSelected: (agent) => setState(() => _selectedAgent = agent),
@@ -495,6 +454,23 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       'to start it.',
                       style: AppText.secondary(theme, cs.error),
                     ),
+                ],
+                if (!isKubernetes || spawnBackends.length > 1) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const Divider(),
+                  _NewSessionAdvancedOptions(
+                    isKubernetes: isKubernetes,
+                    sessionType: _sessionType,
+                    spawnBackends: spawnBackends,
+                    selectedSpawnBackend: selectedSpawnBackend,
+                    onSessionTypeChanged: (value) =>
+                        setState(() => _sessionType = value),
+                    onSpawnBackendSelected: (backend) => setState(() {
+                      _selectedSpawnBackend = backend;
+                      _spawnBackendTouched = true;
+                      _createError = null;
+                    }),
+                  ),
                 ],
                 if (createBlocker != null) ...[
                   const SizedBox(height: AppSpacing.md),

@@ -602,6 +602,80 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets(
+      'narrow large-text Advanced setup preserves worktree selection',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 844);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final machine = _machine(
+          id: 'local',
+          displayName: 'Laptop',
+          active: true,
+          activeAtMs: DateTime.now().millisecondsSinceEpoch,
+          spawnBackends: const ['local'],
+        );
+        await tester.pumpWidget(
+          buildHarness(
+            machines: {'local': machine},
+            initialMachineId: 'local',
+            initialPath: '/repo',
+          ),
+        );
+        await tester.pumpAndSettle();
+        final advanced = find.text('Advanced options');
+        await tester.ensureVisible(advanced);
+        await tester.tap(advanced);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final setupPicker = find.byType(SegmentedButton<String>);
+        final simple = find.descendant(
+          of: setupPicker,
+          matching: find.text('Simple'),
+        );
+        final worktree = find.descendant(
+          of: setupPicker,
+          matching: find.text('Worktree'),
+        );
+        expect(setupPicker, findsOneWidget);
+        expect(tester.widget<SegmentedButton<String>>(setupPicker).selected, {
+          'simple',
+        });
+        expect(
+          tester.getBottomRight(simple).dy,
+          lessThan(tester.getTopLeft(worktree).dy),
+        );
+        await tester.ensureVisible(worktree);
+        await tester.tap(worktree);
+        await tester.pumpAndSettle();
+        expect(tester.widget<SegmentedButton<String>>(setupPicker).selected, {
+          'worktree',
+        });
+        expect(tester.takeException(), isNull);
+
+        await tester.ensureVisible(advanced);
+        await tester.tap(advanced);
+        await tester.pumpAndSettle();
+        expect(setupPicker, findsNothing);
+        await tester.tap(advanced);
+        await tester.pumpAndSettle();
+        expect(tester.widget<SegmentedButton<String>>(setupPicker).selected, {
+          'worktree',
+        });
+        expect(
+          tester
+              .widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'))
+              .onPressed,
+          isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('Prime Agent picker uses the official logo', (tester) async {
       await pumpDialog(tester, buildHarness(machines: {}));
       await tester.pumpAndSettle();

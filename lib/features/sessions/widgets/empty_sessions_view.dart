@@ -6,10 +6,10 @@ import '../../../core/components/app_empty_state.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'new_session_dialog.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Empty sessions view with tiered state.
 ///
@@ -106,7 +106,7 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
 }
 
 // ---------------------------------------------------------------------------
-// First-time user: 3-step illustrated guidance card
+// First-time user: progressively disclosed setup guidance
 // ---------------------------------------------------------------------------
 
 class _FirstTimeEmptyState extends StatelessWidget {
@@ -117,8 +117,6 @@ class _FirstTimeEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
 
     return AppEmptyState(
       icon: Icons.rocket_launch_outlined,
@@ -144,27 +142,18 @@ class _FirstTimeEmptyState extends StatelessWidget {
             step: 1,
             label: l10n.emptySessionsFirstTimeStep1Label,
             detail: l10n.emptySessionsFirstTimeStep1Detail,
-            icon: Icons.download_outlined,
-            colorScheme: cs,
-            theme: theme,
           ),
           const SizedBox(height: AppSpacing.sm),
           _OnboardingStepCard(
             step: 2,
             label: l10n.emptySessionsFirstTimeStep2Label,
             detail: l10n.emptySessionsFirstTimeStep2Detail,
-            icon: Icons.play_circle_outline,
-            colorScheme: cs,
-            theme: theme,
           ),
           const SizedBox(height: AppSpacing.sm),
           _OnboardingStepCard(
             step: 3,
             label: l10n.emptySessionsFirstTimeStep3Label,
             detail: l10n.emptySessionsFirstTimeStep3Detail,
-            icon: Icons.qr_code_scanner_outlined,
-            colorScheme: cs,
-            theme: theme,
           ),
         ],
       ),
@@ -216,81 +205,75 @@ class _OfflineMachinesEmptyState extends StatelessWidget {
   }
 }
 
-/// A single numbered step row inside the onboarding guidance card.
+/// Keeps setup labels visible while revealing commands on demand.
 class _OnboardingStepCard extends StatelessWidget {
   const _OnboardingStepCard({
     required this.step,
     required this.label,
     required this.detail,
-    required this.icon,
-    required this.colorScheme,
-    required this.theme,
   });
 
   final int step;
   final String label;
   final String detail;
-  final IconData icon;
-  final ColorScheme colorScheme;
-  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
-    final cs = colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      side: BorderSide(
+        color: cs.outlineVariant.withValues(alpha: 0.5),
+        width: AppBorder.hairline,
       ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: AppBorder.hairline,
+    );
+
+    return ExpansionTile(
+      key: PageStorageKey('empty-session-onboarding-step-$step'),
+      initiallyExpanded: step == 1,
+      expansionAnimationStyle: AppMotion.reduceMotion(context)
+          ? AnimationStyle.noAnimation
+          : null,
+      minTileHeight: AppTouchTarget.comfortable,
+      tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      childrenPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      expandedAlignment: AlignmentDirectional.centerStart.resolve(
+        Directionality.of(context),
+      ),
+      shape: shape,
+      collapsedShape: shape,
+      backgroundColor: cs.surfaceContainerLow,
+      collapsedBackgroundColor: cs.surfaceContainerLow,
+      leading: ExcludeSemantics(
+        child: CircleAvatar(
+          radius: AppSpacing.md,
+          backgroundColor: cs.primaryContainer,
+          child: Text(
+            '$step',
+            style: AppText.secondary(theme, cs.onPrimaryContainer),
+          ),
         ),
       ),
-      child: Row(
-        children: [
-          // Step number badge.
-          Container(
-            width: AppSpacing.xl,
-            height: AppSpacing.xl,
-            decoration: BoxDecoration(
-              color: cs.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '$step',
-                style: AppText.secondary(theme, cs.onPrimaryContainer),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          // Step text.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  detail,
-                  style: AppText.secondary(theme, cs.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Icon(icon, size: AppSpacing.lg, color: cs.primary),
-        ],
+      title: Text(
+        label,
+        semanticsLabel: '$step. $label',
+        style: AppText.title(theme),
       ),
+      children: [
+        SelectableText(
+          detail,
+          style: AppText.secondary(
+            theme,
+            cs.onSurfaceVariant,
+          ).copyWith(fontFamily: 'monospace'),
+        ),
+      ],
     );
   }
 }

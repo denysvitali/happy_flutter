@@ -1696,6 +1696,18 @@ abstract class AppLocalizations {
   /// **'No internet connection'**
   String get offlineBannerNoConnection;
 
+  /// Recovery guidance when no network link is available. Retry eligibility and manual actions depend on the message failure and session state.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your network connection. Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.'**
+  String get offlineBannerNoConnectionHint;
+
+  /// Message delivery guidance while the live connection reconnects; does not claim all sends failed or guarantee delivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.'**
+  String get offlineBannerReconnectingHint;
+
   /// No description provided for @offlineBannerLiveUpdatesDisconnected.
   ///
   /// In en, this message translates to:
@@ -1719,6 +1731,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reconnect now'**
   String get offlineBannerReconnectNow;
+
+  /// Marks an unloaded middle range between retained older history and the live tail; does not indicate missing messages on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Some messages between this history and the latest replies are not loaded.'**
+  String get chatHistoryGap;
+
+  /// Recenter the chat on a contiguous latest message window.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to latest'**
+  String get chatReturnToLatest;
+
+  /// No description provided for @workflowSessionArtifactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session artifacts'**
+  String get workflowSessionArtifactsTitle;
+
+  /// No description provided for @workflowSessionArtifactsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Artifacts linked to this session may come from any workflow run'**
+  String get workflowSessionArtifactsSubtitle;
 
   /// Screen-reader label for the offline/reconnecting banner, combining the banner role and its current status text
   ///
