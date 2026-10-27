@@ -30,32 +30,55 @@ class _FavoriteModelPickerState extends State<FavoriteModelPicker> {
     final favorite = _favorite;
     final choices = <String, String>{
       for (final model in widget.models) model.modeString: model.label,
-      widget.current.modeString: widget.current.label,
-      ?favorite: ChatModelMode.fromString(favorite).label,
     };
+    choices.putIfAbsent(widget.current.modeString, () => widget.current.label);
+    if (favorite != null) {
+      choices.putIfAbsent(
+        favorite,
+        () => ChatModelMode.fromString(favorite).label,
+      );
+    }
+    final entries = choices.entries.toList();
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: DropdownButtonFormField<String>(
-        initialValue: _favorite ?? '',
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Favorite / default model',
-          helperText: 'For this provider; keeps this session unchanged.',
-          helperMaxLines: 2,
-          prefixIcon: Icon(Icons.star_rounded),
+      child: ListTile(
+        key: const ValueKey('favorite-model-picker'),
+        leading: const Icon(Icons.star_rounded),
+        title: const Text('Favorite / default model'),
+        subtitle: Text(
+          '${favorite == null ? 'No favorite' : choices[favorite]}\n'
+          'For this provider; keeps this session unchanged.',
         ),
-        items: [
-          const DropdownMenuItem(value: '', child: Text('No favorite')),
-          for (final entry in choices.entries)
-            DropdownMenuItem(
-              value: entry.key,
-              child: Text(entry.value, overflow: TextOverflow.ellipsis),
+        trailing: const Icon(Icons.arrow_drop_down),
+        onTap: () async {
+          final result = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Favorite / default model'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: MediaQuery.sizeOf(context).height * 0.5,
+                child: ListView.builder(
+                  itemCount: entries.length + 1,
+                  itemBuilder: (context, index) {
+                    final value = index == 0 ? '' : entries[index - 1].key;
+                    final label = index == 0
+                        ? 'No favorite'
+                        : entries[index - 1].value;
+                    return ListTile(
+                      title: Text(label),
+                      selected: value == (favorite ?? ''),
+                      onTap: () => Navigator.pop(context, value),
+                    );
+                  },
+                ),
+              ),
             ),
-        ],
-        onChanged: (value) {
-          final favorite = value == null || value.isEmpty ? null : value;
-          setState(() => _favorite = favorite);
-          widget.onChanged(favorite);
+          );
+          if (!mounted || result == null) return;
+          final selected = result.isEmpty ? null : result;
+          setState(() => _favorite = selected);
+          widget.onChanged(selected);
         },
       ),
     );

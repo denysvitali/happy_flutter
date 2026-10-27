@@ -138,18 +138,16 @@ void showModelPickerSheet(
                         child: Text('Model', style: AppText.title(theme)),
                       ),
                       Flexible(
-                        child: ListView(
+                        child: ListView.builder(
                           shrinkWrap: true,
-                          children: [
-                            for (final model in models)
-                              _buildModelTile(
-                                ctx,
-                                model,
-                                current,
-                                theme,
-                                onChanged,
-                              ),
-                          ],
+                          itemCount: models.length,
+                          itemBuilder: (context, index) => _buildModelTile(
+                            ctx,
+                            models[index],
+                            current,
+                            theme,
+                            onChanged,
+                          ),
                         ),
                       ),
                       if (onFavoriteChanged != null)
@@ -205,9 +203,37 @@ class _GroupedModelPickerContentState
     extends State<_GroupedModelPickerContent> {
   late String? _selectedSlug = widget.current.modelSlug ?? _firstSlug;
   late ChatModelMode _current = widget.current;
+  late String? _favorite = widget.favorite;
   late final List<String> _customModels = List<String>.from(
     widget.settings?.customModelModes ?? const [],
   );
+
+  late List<ChatModelMode> _defaultModels;
+  late List<ChatModelMode> _ungrouped;
+  late Map<String, List<ChatModelMode>> _grouped;
+  late List<MapEntry<String, List<ChatModelMode>>> _groups;
+
+  void _partitionModels() {
+    _defaultModels = [];
+    _ungrouped = [];
+    _grouped = {};
+    for (final model in widget.models) {
+      if (model == ChatModelMode.defaultModel) {
+        _defaultModels.add(model);
+      } else if (model.modelSlug == null) {
+        _ungrouped.add(model);
+      } else {
+        _grouped.putIfAbsent(model.modelSlug!, () => []).add(model);
+      }
+    }
+    _groups = _grouped.entries.toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _partitionModels();
+  }
 
   bool get _allowsCustomModels => !widget.models.any(
     (model) => const {'opencode', 'har'}.contains(model.flavor),
@@ -223,6 +249,7 @@ class _GroupedModelPickerContentState
   @override
   void didUpdateWidget(_GroupedModelPickerContent oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(widget.models, oldWidget.models)) _partitionModels();
     if (!widget.models.any((model) => model.modelSlug == _selectedSlug)) {
       _selectedSlug = _firstSlug;
       _current = widget.current;
@@ -249,28 +276,17 @@ class _GroupedModelPickerContentState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final onFavoriteChanged = widget.onFavoriteChanged;
-    final defaultModel = widget.models
-        .where((model) => model == ChatModelMode.defaultModel)
-        .toList();
-    // Plain provider slugs from a profile's model list (e.g. 'GLM-5')
-    // parse with no modelSlug, so they can't join a family group. Render
-    // them as flat tiles or they would vanish from the sheet entirely
-    // whenever any other model does have a slug.
-    final ungrouped = widget.models
-        .where((m) => m.modelSlug == null && m != ChatModelMode.defaultModel)
-        .toList();
-    final grouped = <String, List<ChatModelMode>>{};
-    for (final model in widget.models.where((m) => m.modelSlug != null)) {
-      grouped.putIfAbsent(model.modelSlug!, () => []).add(model);
-    }
-    final selectedModels = grouped[_selectedSlug] ?? const [];
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
+    final defaultModel = _defaultModels;
+    final ungrouped = _ungrouped;
+    final selectedModels = _grouped[_selectedSlug] ?? const [];
+    final groups = _groups;
+    final leadingCount = (defaultModel.isNotEmpty ? 1 : 0) + ungrouped.length;
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: 1 + leadingCount + groups.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
               0,
@@ -278,81 +294,114 @@ class _GroupedModelPickerContentState
               AppSpacing.sm,
             ),
             child: Text('Model', style: AppText.title(theme)),
-          ),
-          if (defaultModel.isNotEmpty)
-            _buildModelTile(
+          );
+        }
+        index--;
+        if (defaultModel.isNotEmpty) {
+          if (index == 0) {
+            return _buildModelTile(
               context,
               defaultModel.first,
               _current,
               theme,
               widget.onChanged,
-            ),
-          for (final model in ungrouped)
-            _buildModelTile(context, model, _current, theme, widget.onChanged),
-          for (final entry in grouped.entries)
-            _buildGroupedModelRow(
-              context,
-              entry.value.first,
-              displayName: _displayNameForSlug(entry.value),
-              selected: entry.key == _selectedSlug,
-            ),
-          if (selectedModels.length >= 2) ...[
-            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.xs,
+            );
+          }
+          index--;
+        }
+        if (index < ungrouped.length) {
+          return _buildModelTile(
+            context,
+            ungrouped[index],
+            _current,
+            theme,
+            widget.onChanged,
+          );
+        }
+        index -= ungrouped.length;
+        if (index < groups.length) {
+          final entry = groups[index];
+          return _buildGroupedModelRow(
+            context,
+            entry.value.first,
+            displayName: _displayNameForSlug(entry.value),
+            selected: entry.key == _selectedSlug,
+          );
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (selectedModels.length >= 2) ...[
+              Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
-              child: Text('Effort', style: AppText.title(theme)),
-            ),
-            _buildEffortSlider(context, selectedModels),
-          ] else if (selectedModels.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: Text('Effort', style: AppText.title(theme)),
+              ),
+              _buildEffortSlider(context, selectedModels),
+            ] else if (selectedModels.isNotEmpty) ...[
+              Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
+              for (final model in selectedModels)
+                _buildModelTile(
+                  context,
+                  model,
+                  _current,
+                  theme,
+                  widget.onChanged,
+                  labelOverride: model.hasEffort
+                      ? model.reasoningEffortLabel
+                      : const {
+                          'prime-agent',
+                          'opencode',
+                          'har',
+                        }.contains(model.flavor)
+                      ? 'Current'
+                      : 'Auto',
+                ),
+            ],
+            if (_recentCustomModels.isNotEmpty) ...[
+              Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: Text('Custom', style: AppText.title(theme)),
+              ),
+              for (final model in _recentCustomModels)
+                _buildCustomModelTile(context, model, theme),
+            ],
             Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-            for (final model in selectedModels)
-              _buildModelTile(
-                context,
-                model,
-                _current,
-                theme,
-                widget.onChanged,
-                labelOverride: model.hasEffort
-                    ? model.reasoningEffortLabel
-                    : const {
-                        'prime-agent',
-                        'opencode',
-                        'har',
-                      }.contains(model.flavor)
-                    ? 'Current'
-                    : 'Auto',
+            if (_allowsCustomModels) _buildCustomTile(context, cs, theme),
+            if (onFavoriteChanged != null)
+              FavoriteModelPicker(
+                models: widget.models,
+                current: widget.current,
+                favorite: _favorite,
+                onChanged: (favorite) {
+                  setState(() => _favorite = favorite);
+                  onFavoriteChanged(favorite);
+                },
               ),
           ],
-          if (_recentCustomModels.isNotEmpty) ...[
-            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.xs,
-              ),
-              child: Text('Custom', style: AppText.title(theme)),
-            ),
-            for (final model in _recentCustomModels)
-              _buildCustomModelTile(context, model, theme),
-          ],
-          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-          if (_allowsCustomModels) _buildCustomTile(context, cs, theme),
-          if (onFavoriteChanged != null)
-            FavoriteModelPicker(
-              models: widget.models,
-              current: widget.current,
-              favorite: widget.favorite,
-              onChanged: onFavoriteChanged,
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 

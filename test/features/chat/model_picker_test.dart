@@ -1085,19 +1085,154 @@ void main() {
     expect(selected, 'GLM-5:high');
   });
 
-  group('favorite / default model picker', () {
-    // The FavoriteModelPicker's items reuse the model tiles' labels, so
-    // closed-state lookups are scoped to the dropdown to avoid colliding
-    // with the session-model tiles above it. Open-menu items render in
-    // the root overlay route — outside the form field's subtree — so taps
-    // there use find.text().last instead: the button's hidden IndexedStack
-    // copies are skipped while the menu is open and the overlay copy is
-    // last in tree order.
-    Finder dropdownItem(String label) => find.descendant(
-      of: find.byType(DropdownButtonFormField<String>),
-      matching: find.text(label),
+  testWidgets('large grouped catalog builds rows on demand and selects IDs', (
+    tester,
+  ) async {
+    final models = List.generate(
+      100,
+      (i) => ChatModelMode.fromCodexModel(
+        slug: 'vendor/model-$i',
+        displayName: 'Catalog model $i',
+        effort: null,
+      ),
     );
+    String? picked;
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onChanged: (m) {
+        picked = m.modeString;
+      },
+    );
+    expect(find.text('Catalog model 99'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Catalog model 99'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Catalog model 99'));
+    await tester.pump();
+    expect(picked, 'vendor/model-99');
+  });
 
+  testWidgets('large flat catalog builds rows on demand and selects IDs', (
+    tester,
+  ) async {
+    final models = List.generate(
+      100,
+      (i) => ChatModelMode.fromString('plain-model-$i'),
+    );
+    String? picked;
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onChanged: (m) {
+        picked = m.modeString;
+      },
+    );
+    expect(find.text('plain-model-99'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('plain-model-99'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('plain-model-99'));
+    await tester.pumpAndSettle();
+    expect(picked, 'plain-model-99');
+  });
+
+  testWidgets('large favorite catalog builds choices on demand', (
+    tester,
+  ) async {
+    final models = List.generate(
+      100,
+      (i) => ChatModelMode.fromString('plain-model-$i'),
+    );
+    String? picked;
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onFavoriteChanged: (value) => picked = value,
+    );
+    await tester.tap(find.byKey(const ValueKey('favorite-model-picker')));
+    await tester.pumpAndSettle();
+    expect(find.text('plain-model-99'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('plain-model-99'),
+      500,
+      scrollable: find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(find.text('plain-model-99'));
+    await tester.pumpAndSettle();
+    expect(picked, 'plain-model-99');
+  });
+
+  testWidgets('grouped favorite survives lazy footer disposal', (tester) async {
+    final models = List.generate(
+      100,
+      (i) => ChatModelMode.fromCodexModel(
+        slug: 'model-$i',
+        displayName: 'Model $i',
+        effort: null,
+      ),
+    );
+    String? picked;
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onFavoriteChanged: (value) => picked = value,
+    );
+    final list = find.byType(Scrollable).first;
+    final footer = find.byKey(const ValueKey('favorite-model-picker'));
+    await tester.scrollUntilVisible(footer, 500, scrollable: list);
+    await tester.tap(footer);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Model 0'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(picked, 'model-0');
+    await tester.scrollUntilVisible(
+      find.text('Model 0'),
+      -500,
+      scrollable: list,
+    );
+    expect(footer, findsNothing);
+    await tester.scrollUntilVisible(footer, 500, scrollable: list);
+    expect(find.textContaining('Model 0\nFor this provider'), findsOneWidget);
+  });
+
+  testWidgets('favorite uses the advertised catalog label', (tester) async {
+    await pumpPickerHost(
+      tester,
+      models: ChatModelMode.fromOpenCodeCatalog(const [
+        PrimeAgentModelInfo(id: 'vendor/model-id', name: 'Advertised Name'),
+      ]),
+      favorite: 'vendor/model-id',
+      onFavoriteChanged: (_) {},
+    );
+    expect(
+      find.textContaining('Advertised Name\nFor this provider'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('favorite-model-picker')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Advertised Name'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  group('favorite / default model picker', () {
     testWidgets('omitted when the host does not wire a favorite callback', (
       tester,
     ) async {
@@ -1125,10 +1260,10 @@ void main() {
       expect(find.text('Favorite / default model'), findsOneWidget);
       // The current favorite ('opus' → 'Opus') is the dropdown value and
       // is offered as a choice even though it is not in the tile list.
-      expect(dropdownItem('Opus'), findsOneWidget);
+      expect(find.textContaining('Opus'), findsWidgets);
 
       // Open the dropdown and pick Sonnet as the new favorite.
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(const ValueKey('favorite-model-picker')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Sonnet').last);
       await tester.pumpAndSettle();
@@ -1147,7 +1282,7 @@ void main() {
         onFavoriteChanged: (f) => favoritePicked = f,
       );
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(const ValueKey('favorite-model-picker')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('No favorite').last);
       await tester.pumpAndSettle();
