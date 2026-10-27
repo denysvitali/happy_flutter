@@ -222,42 +222,53 @@ class _OptionChipState extends State<OptionChip>
     // as a full-width card vs compact chip.
     final hasDesc = widget.option.description.isNotEmpty;
 
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
+    return Semantics(
+      label: widget.option.description.isEmpty
+          ? widget.option.label
+          : '${widget.option.label}, ${widget.option.description}',
+      selected: isSelected,
+      enabled: widget.isInteractive,
+      button: true,
       onTap: widget.isInteractive ? widget.onTap : null,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? primary.withValues(alpha: 28 / 255.0)
-                : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(hasDesc ? 12 : 20),
-            border: Border.all(
-              color: isSelected ? primary : theme.colorScheme.outlineVariant,
-              width: isSelected ? 2.0 : 1.0,
+      excludeSemantics: true,
+      child: InkWell(
+        excludeFromSemantics: true,
+        onTapDown: _onTapDown,
+        onTapUp: _onTapUp,
+        onTapCancel: _onTapCancel,
+        onTap: widget.isInteractive ? widget.onTap : null,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? primary.withValues(alpha: 28 / 255.0)
+                  : theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(hasDesc ? 12 : 20),
+              border: Border.all(
+                color: isSelected ? primary : theme.colorScheme.outlineVariant,
+                width: isSelected ? 2.0 : 1.0,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: primary.withValues(alpha: 40 / 255.0),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [],
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: primary.withValues(alpha: 40 / 255.0),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
+            padding: EdgeInsets.symmetric(
+              horizontal: hasDesc ? 12 : 14,
+              vertical: hasDesc ? 10 : 8,
+            ),
+            child: hasDesc
+                ? _buildWithDescription(context, theme, isSelected)
+                : _buildCompact(context, theme, isSelected),
           ),
-          padding: EdgeInsets.symmetric(
-            horizontal: hasDesc ? 12 : 14,
-            vertical: hasDesc ? 10 : 8,
-          ),
-          child: hasDesc
-              ? _buildWithDescription(context, theme, isSelected)
-              : _buildCompact(context, theme, isSelected),
         ),
       ),
     );

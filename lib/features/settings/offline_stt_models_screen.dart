@@ -31,52 +31,7 @@ class _OfflineSttModelsScreenState
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(() async {
-      await _service.refreshStatuses();
-      if (!mounted) return;
-      // Auto-download the selected model when the picker opens so
-      // the user does not hit a multi-minute wait on first mic use.
-      final selectedId =
-          ref.read(settingsNotifierProvider).sttModelId ??
-          OfflineSttCatalog.defaultModel.id;
-      final status = _service.statusFor(selectedId);
-      if (status == OfflineSttStatus.ready ||
-          status == OfflineSttStatus.downloading) {
-        return;
-      }
-      final model =
-          OfflineSttCatalog.byId(selectedId) ?? OfflineSttCatalog.defaultModel;
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Downloading ${model.displayName}'
-            '${model.sizeLabel.isEmpty ? '' : ' (${model.sizeLabel})'}…',
-          ),
-          duration: const Duration(seconds: 6),
-        ),
-      );
-      try {
-        await _service.ensureModel(model.id);
-        if (!mounted) return;
-        messenger?.showSnackBar(
-          SnackBar(content: Text('${model.displayName} ready')),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        final detail = _service.errorFor(model.id) ?? e;
-        messenger?.showSnackBar(
-          SnackBar(
-            content: Text('Download failed: $detail'),
-            duration: const Duration(seconds: 10),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => unawaitedSafe(_download(model)),
-            ),
-          ),
-        );
-      }
-    });
+    Future<void>.microtask(_service.refreshStatuses);
   }
 
   Future<void> _download(OfflineSttModel model) async {

@@ -101,94 +101,103 @@ class _ThemePreviewCard extends StatelessWidget {
     );
     final unselectedLabel = cs.onSurfaceVariant;
 
-    return GestureDetector(
+    return Semantics(
+      label: label,
+      selected: isSelected,
+      button: true,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppDuration.fast,
-        curve: AppCurve.standard,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: isSelected ? accentColor : unselectedBorder,
-            width: isSelected ? AppBorder.thick : AppBorder.thin,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: accentColor.withValues(alpha: AppOpacity.subtle),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+      child: InkWell(
+        onTap: onTap,
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: AnimatedContainer(
+            duration: AppDuration.fast,
+            curve: AppCurve.standard,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: isSelected ? accentColor : unselectedBorder,
+                width: isSelected ? AppBorder.thick : AppBorder.thin,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: accentColor.withValues(alpha: AppOpacity.subtle),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md - 1),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Fake mini AppBar ───────────────────────────
+                  _MiniAppBar(
+                    bgColor: appBarColor,
+                    onSurface: onSurface,
+                    mode: mode,
                   ),
-                ]
-              : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.md - 1),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Fake mini AppBar ───────────────────────────
-              _MiniAppBar(
-                bgColor: appBarColor,
-                onSurface: onSurface,
-                mode: mode,
-              ),
-              // ── Chat preview body ──────────────────────────
-              Container(
-                color: bgColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Assistant bubble (left-aligned)
-                    _MiniMessageBubble(
-                      isUser: false,
-                      bubbleColor: appCs.bubbleAssistant,
-                      textColor: appCs.bubbleAssistantText,
+                  // ── Chat preview body ──────────────────────────
+                  Container(
+                    color: bgColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.sm,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    // User bubble (right-aligned)
-                    _MiniMessageBubble(
-                      isUser: true,
-                      bubbleColor: appCs.bubbleUser,
-                      textColor: appCs.bubbleUserText,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Assistant bubble (left-aligned)
+                        _MiniMessageBubble(
+                          isUser: false,
+                          bubbleColor: appCs.bubbleAssistant,
+                          textColor: appCs.bubbleAssistantText,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        // User bubble (right-aligned)
+                        _MiniMessageBubble(
+                          isUser: true,
+                          bubbleColor: appCs.bubbleUser,
+                          textColor: appCs.bubbleUserText,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              // ── Label + selection checkmark ────────────────
-              Container(
-                color: surfaceColor,
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.xs,
-                  horizontal: AppSpacing.sm,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: AppFontSize.sm,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: isSelected ? accentColor : unselectedLabel,
-                      ),
+                  ),
+                  // ── Label + selection checkmark ────────────────
+                  Container(
+                    color: surfaceColor,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                      horizontal: AppSpacing.sm,
                     ),
-                    if (isSelected)
-                      Icon(
-                        Icons.check_circle_rounded,
-                        size: 12,
-                        color: accentColor,
-                      ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: AppFontSize.sm,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isSelected ? accentColor : unselectedLabel,
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 12,
+                            color: accentColor,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
