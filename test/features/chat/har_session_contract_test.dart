@@ -70,7 +70,7 @@ void main() {
       lastUsedModelMode: 'opus:max',
     );
     expect(resolution.resolvedRawModelString, 'codex/gpt-6.1-terra');
-    expect(resolution.resolvedModelMode.label, 'GPT-6.1 Terra');
+    expect(resolution.resolvedModelMode.label, 'codex/gpt-6.1-terra');
     expect(resolution.resolvedPermissionMode, PermissionMode.bypassPermissions);
   });
 
@@ -137,7 +137,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('GPT-6.1 Terra'), findsOneWidget);
+    expect(find.text('codex/gpt-6.1-terra'), findsOneWidget);
     expect(tester.widget<ModelChip>(find.byType(ModelChip)).enabled, isFalse);
     await tester.tap(find.byType(ModelChip));
     expect(picks, 0);

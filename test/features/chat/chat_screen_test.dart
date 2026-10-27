@@ -242,7 +242,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       input = tester.widget<ChatInput>(find.byType(ChatInput));
       expect(input.modelMode!.modeString, 'opencode/big-pickle');
-      expect(input.modelMode!.label, 'Big Pickle');
+      expect(input.modelMode!.label, 'opencode/big-pickle');
       expect(input.availableModels.map((m) => m.modeString), [
         'default',
         'opencode/big-pickle',
@@ -625,7 +625,7 @@ void main() {
 
         await tester.tap(find.byType(ModelChip));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('GPT-6.1 Terra'));
+        await tester.tap(find.text('codex/gpt-6.1-terra'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
         expect(actions.requestedModel, terra);
@@ -797,7 +797,10 @@ void main() {
       } else if (outcome == 'replace') {
         composer().onModelModeChanged!(models[2]);
         await tester.pump();
-        expect(find.textContaining('GPT-6.1 Sol will apply'), findsOneWidget);
+        expect(
+          find.textContaining('codex/gpt-6.1-sol will apply'),
+          findsOneWidget,
+        );
       }
 
       sync.testSessions['session_1'] = session.copyWith(thinking: false);
@@ -1003,7 +1006,7 @@ void main() {
       await tester.tap(find.byType(ModelChip));
       await tester.pumpAndSettle();
 
-      expect(find.text('GPT-5.6'), findsOneWidget);
+      expect(find.text('gpt-5.6'), findsOneWidget);
     });
 
     testWidgets('Codex picker can recover from an initially empty catalog', (

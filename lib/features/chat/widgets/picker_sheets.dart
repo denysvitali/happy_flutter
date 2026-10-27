@@ -264,7 +264,7 @@ class _GroupedModelPickerContentState
     );
     if (withEffort.hasEffort) {
       return withEffort.label.replaceFirst(
-        RegExp(' ${withEffort.reasoningEffortLabel}\$'),
+        RegExp(' ${RegExp.escape(withEffort.reasoningEffortLabel)}\$'),
         '',
       );
     }
@@ -321,55 +321,62 @@ class _GroupedModelPickerContentState
         index -= ungrouped.length;
         if (index < groups.length) {
           final entry = groups[index];
-          return _buildGroupedModelRow(
-            context,
-            entry.value.first,
-            displayName: _displayNameForSlug(entry.value),
-            selected: entry.key == _selectedSlug,
+          final selected = entry.key == _selectedSlug;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildGroupedModelRow(
+                context,
+                entry.value.first,
+                displayName: _displayNameForSlug(entry.value),
+                selected: selected,
+              ),
+              if (selected && selectedModels.length >= 2) ...[
+                Divider(
+                  height: 1,
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Text('Effort', style: AppText.title(theme)),
+                ),
+                _buildEffortSlider(context, selectedModels),
+              ] else if (selected && selectedModels.isNotEmpty) ...[
+                Divider(
+                  height: 1,
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
+                for (final model in selectedModels)
+                  _buildModelTile(
+                    context,
+                    model,
+                    _current,
+                    theme,
+                    widget.onChanged,
+                    labelOverride: model.hasEffort
+                        ? model.reasoningEffortLabel
+                        : const {
+                            'prime-agent',
+                            'opencode',
+                            'har',
+                          }.contains(model.flavor)
+                        ? 'Current'
+                        : 'Auto',
+                  ),
+              ],
+            ],
           );
         }
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (selectedModels.length >= 2) ...[
-              Divider(
-                height: 1,
-                color: cs.outlineVariant.withValues(alpha: 0.5),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text('Effort', style: AppText.title(theme)),
-              ),
-              _buildEffortSlider(context, selectedModels),
-            ] else if (selectedModels.isNotEmpty) ...[
-              Divider(
-                height: 1,
-                color: cs.outlineVariant.withValues(alpha: 0.5),
-              ),
-              for (final model in selectedModels)
-                _buildModelTile(
-                  context,
-                  model,
-                  _current,
-                  theme,
-                  widget.onChanged,
-                  labelOverride: model.hasEffort
-                      ? model.reasoningEffortLabel
-                      : const {
-                          'prime-agent',
-                          'opencode',
-                          'har',
-                        }.contains(model.flavor)
-                      ? 'Current'
-                      : 'Auto',
-                ),
-            ],
             if (_recentCustomModels.isNotEmpty) ...[
               Divider(
                 height: 1,
@@ -416,15 +423,16 @@ class _GroupedModelPickerContentState
     return InkWell(
       onTap: () {
         HapticFeedback.selectionClick();
-        // Selecting a family commits its effort-less base variant (Auto) so
-        // closing the sheet applies the choice. The effort slider then refines
-        // it. Without this, tapping a family only swapped the visible slider
-        // and committed nothing unless the user dragged the slider.
+        // Preserve the current effort when reselecting its family; otherwise
+        // commit the first advertised variant until the slider refines it.
+        final selection = _current.modelSlug == model.modelSlug
+            ? _current
+            : model;
         setState(() {
           _selectedSlug = model.modelSlug;
-          _current = model;
+          _current = selection;
         });
-        widget.onChanged(model);
+        widget.onChanged(selection);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(

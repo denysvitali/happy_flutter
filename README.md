@@ -224,8 +224,10 @@ forms require approval before discarding edits and survive phone/tablet resizing
 ## Har model switching
 
 Har chooses its default model when a conversation starts. The composer model
-picker shows the models advertised by the running Har process, including
-`codex/gpt-6.1-terra` on versions that offer it, and switches while idle. The running
+picker shows the exact model IDs advertised by the running Har process, including
+`codex/gpt-6.1-terra` on versions that offer it, and switches while idle. Dynamic
+Codex, OpenCode, and Prime Agent choices likewise show their original IDs rather
+than catalog display names; effort remains a separate choice. The running
 process must confirm the change before the composer and send baseline update;
 messages wait while that request is pending. Busy or older Har builds can
 reject the change without restarting the conversation or changing its model.

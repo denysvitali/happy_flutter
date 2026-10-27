@@ -17,6 +17,7 @@ void main() {
   Future<void> pumpPickerHost(
     WidgetTester tester, {
     required List<ChatModelMode> models,
+    ChatModelMode current = ChatModelMode.defaultModel,
     ValueChanged<ChatModelMode>? onChanged,
     String? catalogNotice,
     Settings? settings,
@@ -41,7 +42,7 @@ void main() {
                 onPressed: () {
                   showModelPickerSheet(
                     context,
-                    ChatModelMode.defaultModel,
+                    current,
                     models,
                     onChanged ?? (_) {},
                     catalogNotice: catalogNotice,
@@ -73,7 +74,7 @@ void main() {
       ]),
       settings: Settings()..customModelModes = ['sonnet', 'gpt-6-luna'],
     );
-    expect(find.text('Big Pickle'), findsOneWidget);
+    expect(find.text('opencode/big-pickle'), findsOneWidget);
     expect(find.text('Custom…'), findsNothing);
     expect(find.text('Custom'), findsNothing);
     expect(find.text('Effort'), findsNothing);
@@ -93,13 +94,13 @@ void main() {
       settings: Settings()..customModelModes = ['sonnet', 'unadvertised/model'],
       onChanged: (model) => selected = model,
     );
-    expect(find.text('GPT-6.1 Terra'), findsOneWidget);
+    expect(find.text('codex/gpt-6.1-terra'), findsOneWidget);
     expect(find.text('Custom…'), findsNothing);
     expect(find.text('Custom'), findsNothing);
     expect(find.text('Default'), findsNothing);
     expect(find.text('Effort'), findsNothing);
     expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('GPT-6.1 Terra'));
+    await tester.tap(find.text('codex/gpt-6.1-terra'));
     await tester.pump();
     expect(selected?.modeString, 'codex/gpt-6.1-terra');
     expect(selected?.reasoningEffort, isNull);
@@ -176,15 +177,15 @@ void main() {
     await pumpPickerHost(tester, models: models);
 
     expect(find.text('Default'), findsOneWidget);
-    expect(find.text('GPT-5.6 Sol'), findsOneWidget);
-    expect(find.text('GPT-5.6 Luna'), findsOneWidget);
+    expect(find.text('gpt-5.6-sol'), findsOneWidget);
+    expect(find.text('gpt-5.6-luna'), findsOneWidget);
     expect(find.text('Effort'), findsOneWidget);
     expect(find.text('Low'), findsOneWidget);
     expect(find.text('Medium'), findsOneWidget);
     expect(find.text('Max'), findsOneWidget);
     expect(find.text('Ultra'), findsOneWidget);
 
-    await tester.tap(find.text('GPT-5.6 Luna'));
+    await tester.tap(find.text('gpt-5.6-luna'));
     await tester.pumpAndSettle();
 
     expect(find.text('Medium'), findsOneWidget);
@@ -193,6 +194,54 @@ void main() {
     expect(find.text('Ultra'), findsNothing);
     expect(find.text('Sonnet'), findsNothing);
     expect(find.text('Opus'), findsNothing);
+  });
+
+  testWidgets('reselecting a grouped model preserves its effort', (
+    tester,
+  ) async {
+    final models = ChatModelMode.fromCodexCatalog(const [
+      CodexModelInfo(
+        slug: 'model-one',
+        displayName: 'Model One',
+        supportedReasoningEfforts: ['low', 'high'],
+      ),
+    ]);
+    final current = models.last;
+    ChatModelMode? selected;
+    await pumpPickerHost(
+      tester,
+      models: models,
+      current: current,
+      onChanged: (model) => selected = model,
+    );
+    await tester.tap(find.text('model-one'));
+    await tester.pump();
+    expect(selected, current);
+    expect(selected?.reasoningEffort, 'high');
+  });
+
+  testWidgets('effort labels are literal and controls stay by selected row', (
+    tester,
+  ) async {
+    final models = ChatModelMode.fromCodexCatalog([
+      const CodexModelInfo(
+        slug: 'model-first',
+        displayName: 'First',
+        supportedReasoningEfforts: ['[', 'high'],
+      ),
+      for (var i = 0; i < 100; i++)
+        CodexModelInfo(
+          slug: 'model-$i',
+          displayName: 'Model $i',
+          supportedReasoningEfforts: const ['low', 'high'],
+        ),
+    ]);
+    await pumpPickerHost(tester, models: models, current: models[1]);
+    expect(find.text('model-first'), findsOneWidget);
+    expect(find.text('['), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
+    expect(find.text('model-99'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('hidden models are excluded and effortless models stay visible', (
@@ -227,7 +276,7 @@ void main() {
     final models = ChatModelMode.fromCodexCatalog(response.models);
     await pumpPickerHost(tester, models: models);
 
-    expect(find.text('Visible'), findsOneWidget);
+    expect(find.text('gpt-visible'), findsOneWidget);
     expect(find.text('GPT-Reserve'), findsNothing);
     expect(find.text('Codex Auto Review'), findsNothing);
     expect(models.map((model) => model.modeString), ['default', 'gpt-visible']);
@@ -255,11 +304,11 @@ void main() {
       },
     );
 
-    expect(find.text('Fresh model 1'), findsOneWidget);
+    expect(find.text('gpt-1'), findsOneWidget);
     await tester.tap(find.byTooltip('Refresh models'));
     await tester.pumpAndSettle();
-    expect(find.text('Fresh model 2'), findsOneWidget);
-    expect(find.text('Fresh model 1'), findsNothing);
+    expect(find.text('gpt-2'), findsOneWidget);
+    expect(find.text('gpt-1'), findsNothing);
     expect(calls, 2);
   });
 
@@ -278,7 +327,7 @@ void main() {
       onRefreshModels: () async => throw StateError('offline'),
     );
 
-    expect(find.text('Existing model'), findsOneWidget);
+    expect(find.text('gpt-existing'), findsOneWidget);
     expect(find.textContaining('Could not refresh models'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -1104,13 +1153,13 @@ void main() {
         picked = m.modeString;
       },
     );
-    expect(find.text('Catalog model 99'), findsNothing);
+    expect(find.text('vendor/model-99'), findsNothing);
     await tester.scrollUntilVisible(
-      find.text('Catalog model 99'),
+      find.text('vendor/model-99'),
       500,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Catalog model 99'));
+    await tester.tap(find.text('vendor/model-99'));
     await tester.pump();
     expect(picked, 'vendor/model-99');
   });

@@ -21,6 +21,11 @@ void main() {
       'opencode/big-pickle',
       'provider/model:variant',
     ]);
+    expect(modes.map((m) => m.label), [
+      'Default',
+      'opencode/big-pickle',
+      'provider/model:variant',
+    ]);
     expect(modes[2].reasoningEffort, isNull);
     expect(
       ChatModelMode.availableForProfile(
@@ -114,6 +119,8 @@ void main() {
         'openai-codex/gpt-6-luna:minimal',
         'openai-codex/gpt-6-luna:high',
       ]);
+      expect(modes[1].label, 'openai-codex/gpt-6-luna');
+      expect(modes[3].label, 'openai-codex/gpt-6-luna Minimal');
       final selected = modes[3];
       expect(
         ChatModelMode.normalizeForFlavor(
@@ -198,7 +205,7 @@ void main() {
     ]);
     expect(modes.map((mode) => mode.label), [
       'Default',
-      'GPT-6 Luna (openai-codex)',
+      'openai-codex/gpt-6-luna',
       'openai-codex/gpt-6-sol',
     ]);
     // A picked entry survives the composer's flavor normalization unchanged.
@@ -230,7 +237,14 @@ void main() {
     final selected = ChatModelMode.fromHarCatalog(const [
       PrimeAgentModelInfo(id: raw, name: 'Provider variant'),
     ]).single;
-    expect(selected.label, 'Provider variant');
+    expect(selected.label, raw);
+    expect(
+      ChatModelMode.fromHarCatalog(const [
+        PrimeAgentModelInfo(id: raw, name: 'Old cached name'),
+        PrimeAgentModelInfo(id: raw, name: 'Duplicate'),
+      ]).map((mode) => mode.label),
+      [raw],
+    );
     expect(selected.reasoningEffort, isNull);
     expect(
       ChatModelMode.normalizeForFlavor(

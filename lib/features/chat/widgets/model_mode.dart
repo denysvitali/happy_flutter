@@ -24,9 +24,7 @@ class ChatModelMode {
   }) {
     final hasEffort = effort != null && effort.isNotEmpty;
     return ChatModelMode._(
-      label: hasEffort
-          ? '$displayName ${_capitalizeEffort(effort)}'
-          : displayName,
+      label: hasEffort ? '$slug ${_capitalizeEffort(effort)}' : slug,
       modeString: hasEffort ? '$slug:$effort' : slug,
       modelSlug: slug,
       reasoningEffort: hasEffort ? effort : null,
@@ -231,7 +229,7 @@ class ChatModelMode {
       final raw? when raw.isNotEmpty && raw != 'default' =>
         isKnownCodexModelString(raw)
             ? ChatModelMode._(
-                label: _displayNameFromSlug(raw),
+                label: raw,
                 modeString: raw,
                 modelSlug: raw,
                 flavor: 'codex',
@@ -530,10 +528,10 @@ class ChatModelMode {
   }) {
     final models = <ChatModelMode>[defaultModel];
     for (final item in catalog) {
-      final id = item.id.trim();
-      if (id.isEmpty || id == defaultModel.modeString) continue;
+      final id = item.id;
+      if (id.trim().isEmpty || id == defaultModel.modeString) continue;
       final model = ChatModelMode._(
-        label: item.name.trim().isEmpty ? id : item.name.trim(),
+        label: id,
         modeString: id,
         modelSlug: id,
         flavor: 'prime-agent',
@@ -565,7 +563,7 @@ class ChatModelMode {
       for (final item in catalog)
         if (item.id.isNotEmpty && seen.add(item.id))
           ChatModelMode._(
-            label: item.name.isEmpty ? item.id : item.name,
+            label: item.id,
             modeString: item.id,
             modelSlug: item.id,
             flavor: 'har',
@@ -583,7 +581,7 @@ class ChatModelMode {
       for (final item in catalog)
         if (item.id.isNotEmpty && seen.add(item.id))
           ChatModelMode._(
-            label: item.name.isEmpty ? item.id : item.name,
+            label: item.id,
             modeString: item.id,
             modelSlug: item.id,
             flavor: 'opencode',
@@ -788,21 +786,13 @@ class ChatModelMode {
     }
     return ChatModelMode.fromCodexModel(
       slug: slug,
-      displayName: _displayNameFromSlug(slug),
+      displayName: slug,
       effort: effort,
     );
   }
 
   static bool _isClaudeModelSlug(String slug) {
     return slug.startsWith('claude-') || slug.contains('/claude-');
-  }
-
-  static String _displayNameFromSlug(String slug) {
-    return slug
-        .split('-')
-        .where((part) => part.isNotEmpty)
-        .map((part) => part.toUpperCase() == 'GPT' ? 'GPT' : part)
-        .join(' ');
   }
 
   static String _capitalizeEffort(String effort) {

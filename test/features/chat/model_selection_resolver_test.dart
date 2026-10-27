@@ -23,7 +23,7 @@ void main() {
           PrimeAgentModelInfo(id: 'opencode/big-pickle', name: 'Big Pickle'),
         ],
       );
-      expect(resolution.resolvedModelMode.label, 'Big Pickle');
+      expect(resolution.resolvedModelMode.label, 'opencode/big-pickle');
       expect(resolution.resolvedRawModelString, 'opencode/big-pickle');
       expect(resolution.resolvedModelMode.reasoningEffort, isNull);
     },
@@ -44,7 +44,7 @@ void main() {
 
       final codex = resolveSessionDisplayModel('gpt-5.5:medium');
       expect(codex.modeString, 'gpt-5.5:medium');
-      expect(codex.label, 'GPT 5.5 Medium');
+      expect(codex.label, 'gpt-5.5 Medium');
     });
 
     test('preserves raw provider-owned session models', () {
@@ -56,6 +56,25 @@ void main() {
   });
 
   group('resolveModelSelection', () {
+    test('Har preserves the confirmed model without catalog metadata', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: 'codex/gpt-6.1-terra',
+        sessionPermissionMode: null,
+        flavor: 'har',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedModelMode.modeString, 'codex/gpt-6.1-terra');
+      expect(result.resolvedModelMode.label, 'codex/gpt-6.1-terra');
+      expect(result.resolvedModelMode.flavor, 'har');
+      expect(result.resolvedRawModelString, 'codex/gpt-6.1-terra');
+    });
+
     test('uses saved draft values before session and settings defaults', () {
       final profile = _profile(
         id: 'glm',
