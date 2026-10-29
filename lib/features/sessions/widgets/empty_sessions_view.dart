@@ -301,6 +301,7 @@ class _OnboardingStepCard extends StatelessWidget {
       children: [
         SelectableText(
           detail,
+          key: PageStorageKey('empty-session-onboarding-command-$step'),
           style: AppText.secondary(
             theme,
             cs.onSurfaceVariant,
