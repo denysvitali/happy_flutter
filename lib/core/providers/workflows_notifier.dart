@@ -66,9 +66,9 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
     loadFromSync();
   }
 
-  /// Server-fetch for a single session and read. Best-effort.
+  /// Explicit server fetch; failures propagate so retained data can be labeled.
   Future<void> refreshSession(String sessionId) async {
-    if (!sync.isInitialized) return;
+    if (!sync.isInitialized) throw StateError('Workflow sync not initialized');
     try {
       await _repository.refreshSession(sessionId);
     } catch (e, st) {
@@ -77,6 +77,7 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
         e,
         st,
       );
+      rethrow;
     }
     loadFromSync();
   }

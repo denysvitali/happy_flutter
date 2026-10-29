@@ -263,6 +263,9 @@ advanced runtime options; those controls must reflow at large text sizes.
 Connection guidance distinguishes eligible queued retries from failed messages.
 Workflow run details label session-linked artifacts as session-wide, since the
 artifact model does not establish which run produced them.
+Workflow lists retain cached runs on refresh failures and offer Retry. Explicit
+refresh reports failed or deferred fetches through Sync and the repository;
+background refresh remains best-effort. Empty lists keep refresh reachable.
 
 **Settings search:** Section titles and descriptions qualify individual rows.
 Every query token must match within a section; unrelated partial matches are

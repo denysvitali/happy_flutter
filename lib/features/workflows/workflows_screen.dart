@@ -14,6 +14,7 @@ import '../../core/repositories/workflows_repository.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'workflow_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -34,6 +35,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   StreamSubscription<String>? _msgSub;
   Timer? _msgDebounce;
   bool _initialLoading = true;
+  bool _refreshing = false;
   String? _error;
   bool _hasRetriedOnEmptyEvent = false;
   List<WorkflowRun>? _projectedSourceRuns;
@@ -114,8 +116,18 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   }
 
   Future<void> _refresh() async {
-    if (!sync.isInitialized) return;
-    setState(() => _error = null);
+    if (!mounted || _refreshing) return;
+    if (!sync.isInitialized) {
+      setState(() {
+        _initialLoading = false;
+        _error = safeUiFailureMessage(context.l10n, SafeUiFailure.workflowLoad);
+      });
+      return;
+    }
+    setState(() {
+      _refreshing = true;
+      _error = null;
+    });
     try {
       final notifier = ref.read(workflowsNotifierProvider.notifier);
       final visibleRefresh = notifier.refreshSession(widget.sessionId);
@@ -137,7 +149,12 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _initialLoading = false);
+      if (mounted) {
+        setState(() {
+          _initialLoading = false;
+          _refreshing = false;
+        });
+      }
     }
   }
 
@@ -217,16 +234,35 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     final projections = _projectionsFor(runs);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.workflowsTitle)),
-      body: _initialLoading
+      appBar: AppBar(
+        title: Text(context.l10n.workflowsTitle),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(AppSpacing.xxs),
+          child: SizedBox(
+            height: AppSpacing.xxs,
+            child: _refreshing ? const AppLinearProgressIndicator() : null,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: MaterialLocalizations.of(
+              context,
+            ).refreshIndicatorSemanticLabel,
+            onPressed: _refreshing ? null : _refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: _initialLoading && runs.isEmpty
           ? const AppLoadingIndicator()
-          : _error != null
+          : _error != null && runs.isEmpty && !isUnsupported
           ? _ErrorState(error: _error!, onRetry: _refresh)
           : runs.isEmpty
           ? _EmptyState(isUnsupported: isUnsupported)
           : RefreshIndicator(
               onRefresh: _refresh,
               child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -238,15 +274,34 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                     const SizedBox(height: AppSpacing.md),
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: Text(
-                        context.l10n.workflowsCount(runs.length),
-                        style: AppText.secondary(
-                          Theme.of(context),
-                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.md,
+                            ),
+                            child: Wrap(
+                              spacing: AppSpacing.sm,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(context.l10n.workflowRefreshWarning),
+                                TextButton(
+                                  onPressed: _refreshing ? null : _refresh,
+                                  child: Text(context.l10n.commonRetry),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Text(
+                          context.l10n.workflowsCount(runs.length),
+                          style: AppText.secondary(
+                            Theme.of(context),
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                      ],
                     );
                   }
                   final projection = projections[index - 1];

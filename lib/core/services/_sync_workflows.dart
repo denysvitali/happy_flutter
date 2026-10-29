@@ -64,22 +64,36 @@ extension SyncWorkflows on Sync {
   ///
   /// Updates the in-memory mirror and persists the result. Malformed entries
   /// are skipped with a warning rather than poisoning the entire batch.
-  Future<void> refreshWorkflowsForSession(String sessionId) {
-    if (!isInitialized) return Future<void>.value();
-    if (_isWorkflowCapabilityBlocked(sessionId) ||
-        _isWorkflowRefreshBackedOff(sessionId)) {
-      return Future<void>.value();
-    }
-    final existing = _workflowRefreshesInFlight[sessionId];
-    if (existing != null) return existing;
-
-    final refresh = _runWorkflowRefresh(sessionId);
-    _workflowRefreshesInFlight[sessionId] = refresh;
-    return refresh.whenComplete(() {
-      if (identical(_workflowRefreshesInFlight[sessionId], refresh)) {
-        _workflowRefreshesInFlight.remove(sessionId);
+  /// [reportFailure] lets an explicit refresh distinguish a completed fetch
+  /// from a skipped or failed attempt. Background callers remain best-effort.
+  Future<void> refreshWorkflowsForSession(
+    String sessionId, {
+    bool reportFailure = false,
+  }) async {
+    try {
+      if (!isInitialized) throw StateError('Workflow sync not initialized');
+      final existing = _workflowRefreshesInFlight[sessionId];
+      if (existing != null) {
+        await existing;
+        return;
       }
-    });
+      if (_isWorkflowCapabilityBlocked(sessionId)) {
+        throw StateError('workflow-list unsupported');
+      }
+      if (_isWorkflowRefreshBackedOff(sessionId)) {
+        throw StateError('Workflow refresh deferred by backoff');
+      }
+      late final Future<void> refresh;
+      refresh = _runWorkflowRefresh(sessionId).whenComplete(() {
+        if (identical(_workflowRefreshesInFlight[sessionId], refresh)) {
+          _workflowRefreshesInFlight.remove(sessionId);
+        }
+      });
+      _workflowRefreshesInFlight[sessionId] = refresh;
+      await refresh;
+    } catch (_) {
+      if (reportFailure) rethrow;
+    }
   }
 
   Future<void> _runWorkflowRefresh(String sessionId) async {
@@ -96,7 +110,7 @@ extension SyncWorkflows on Sync {
             (testWorkflowUnsupportedCapabilityTtl?.inMilliseconds ??
                 _workflowUnsupportedCapabilityTtlMs);
         _notifyWorkflowsChanged(sessionId);
-        return;
+        throw StateError('workflow-list unsupported');
       }
       raw = await sessionRPC(
         sessionId,
@@ -110,7 +124,7 @@ extension SyncWorkflows on Sync {
           '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
           'encryption not found',
         );
-        return;
+        rethrow;
       }
       if (_isWorkflowListUnsupported(e)) {
         _workflowListUnsupportedCapabilities[_workflowCapabilityKey(
@@ -124,7 +138,7 @@ extension SyncWorkflows on Sync {
           'workflow-list unsupported',
         );
         _notifyWorkflowsChanged(sessionId);
-        return;
+        rethrow;
       }
       if (e is SocketNotConnectedException ||
           Sync._isTransientConnectionError(e) ||
@@ -135,27 +149,26 @@ extension SyncWorkflows on Sync {
           '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
           'transient connection failure: $e',
         );
-        return;
+        rethrow;
       }
       logger.warning(
         '[workflows] refreshWorkflowsForSession($sessionId) failed: $e',
         e,
         st,
       );
-      return;
+      rethrow;
     }
     if (raw is! Map) {
       logger.warning(
         '[workflows] workflow-list returned unexpected type '
         '${raw.runtimeType}',
       );
-      return;
+      throw StateError('Malformed workflow-list response');
     }
     if (raw['ok'] == false) {
       final err = raw['error']?.toString() ?? 'unknown error';
       throw StateError('workflow-list failed: $err');
     }
-    _clearWorkflowRefreshFailure(sessionId);
     final workflowsJson = raw['workflows'] ?? raw['runs'];
     if (workflowsJson is! List) {
       logger.warning(
@@ -163,8 +176,9 @@ extension SyncWorkflows on Sync {
         'non-list "workflows" payload (${workflowsJson.runtimeType}); '
         'preserving last-known-good runs',
       );
-      return;
+      throw StateError('Missing workflow-list runs');
     }
+    _clearWorkflowRefreshFailure(sessionId);
     final workflows = _parseWorkflowRunList(
       sessionId: sessionId,
       workflowsJson: workflowsJson,

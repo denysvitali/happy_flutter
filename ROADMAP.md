@@ -105,6 +105,18 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ## Current UI/UX acceptance
 
+2026-10-29 UX batch: settings search combines section context with row matches
+and keeps keyboard focus after clearing; command palette actions apply the latest
+query before navigating or executing. Artifact Copy reports actual clipboard
+outcomes. Session setup and machine removal guard pending actions and recover from
+failures. Goals expand into bounded selectable details; task agent filters show
+the selection and a direct reset. Workflow refresh retains cached runs, reports
+fetch failures, and stays available on empty lists. Two independent source
+reviews informed follow-up fixes. Scoped static analysis passes; regression
+tests are added for CI, with device and screen-reader acceptance still pending.
+Remaining related gaps: localized settings/task search labels and explicit
+feedback when oversized artifact clipboard content is truncated.
+
 Cached chat refresh/retry, stopped-process new-session recovery, mobile tool
 visibility and composer options, changed-file review navigation, recent
 workspaces, Advanced launch controls, and ordered attention reasons are

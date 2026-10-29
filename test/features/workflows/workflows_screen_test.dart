@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,8 @@ class _FakeWorkflowsNotifier extends WorkflowsNotifier {
   _FakeWorkflowsNotifier(this._initial);
   final Map<String, List<WorkflowRun>> _initial;
   int refreshSessionCalls = 0;
+  bool failRefresh = false;
+  Completer<void>? pendingRefresh;
   int refreshFromSyncCalls = 0;
 
   @override
@@ -24,6 +28,8 @@ class _FakeWorkflowsNotifier extends WorkflowsNotifier {
   @override
   Future<void> refreshSession(String sessionId) async {
     refreshSessionCalls++;
+    if (failRefresh) throw StateError('offline');
+    await pendingRefresh?.future;
   }
 
   @override
@@ -33,12 +39,19 @@ class _FakeWorkflowsNotifier extends WorkflowsNotifier {
 }
 
 class _FakeRepo implements WorkflowsRepository {
+  Map<String, List<WorkflowRun>> cached = const {};
+  bool failRefresh = false;
+  int refreshCalls = 0;
   @override
-  Map<String, List<WorkflowRun>> get workflows => const {};
+  Map<String, List<WorkflowRun>> get workflows => cached;
   @override
   Future<void> refreshRelevantSessions() async {}
   @override
-  Future<void> refreshSession(String sessionId) async {}
+  Future<void> refreshSession(String sessionId) async {
+    refreshCalls++;
+    if (failRefresh) throw StateError('repository unavailable');
+  }
+
   @override
   Future<WorkflowRun?> fetchSnapshot(String sessionId, String runId) async =>
       null;
@@ -98,6 +111,110 @@ void main() {
     expect(n.refreshSessionCalls, 1);
 
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('failed refresh retains runs and offers a working retry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness({
+        _sid: [run],
+      }),
+    );
+    await tester.pump();
+    final n = await _notifierOf(tester);
+    n.failRefresh = true;
+
+    await tester.tap(find.byIcon(Icons.refresh).first);
+    await tester.pump();
+    expect(find.text('sweep'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+
+    n.failRefresh = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(n.refreshSessionCalls, 3);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('sweep'), findsOneWidget);
+  });
+
+  testWidgets('empty list can refresh and prevents duplicate requests', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness({}));
+    await tester.pump();
+    final n = await _notifierOf(tester);
+    n.pendingRefresh = Completer<void>();
+
+    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.pump();
+    final refresh = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.refresh),
+    );
+    expect(refresh.onPressed, isNull);
+    expect(n.refreshSessionCalls, 2);
+
+    n.pendingRefresh!.complete();
+    await tester.pump();
+    expect(
+      tester
+          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('uninitialized sync shows recovery instead of loading forever', (
+    tester,
+  ) async {
+    Sync().testIsInitialized = false;
+    await tester.pumpWidget(_harness({}));
+    await tester.pump();
+    expect(find.text('Retry'), findsOneWidget);
+    final n = await _notifierOf(tester);
+    expect(n.refreshSessionCalls, 0);
+
+    Sync().testIsInitialized = true;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(n.refreshSessionCalls, 1);
+    expect(find.text('Retry'), findsNothing);
+  });
+
+  testWidgets('real notifier surfaces repository failure and retains cache', (
+    tester,
+  ) async {
+    final repository = _FakeRepo()
+      ..cached = {
+        _sid: [run],
+      }
+      ..failRefresh = true;
+    final container = ProviderContainer(
+      overrides: [workflowsRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    container.read(workflowsNotifierProvider.notifier).loadFromSync();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: WorkflowsScreen(sessionId: _sid),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('sweep'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(repository.refreshCalls, 1);
+
+    repository.failRefresh = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(repository.refreshCalls, 2);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('sweep'), findsOneWidget);
   });
 
   testWidgets('a message change debounces a refetch of this session', (

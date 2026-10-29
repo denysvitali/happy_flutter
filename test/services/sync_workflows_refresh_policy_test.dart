@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/workflow_run.dart';
+import 'package:happy_flutter/core/repositories/workflows_repository.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -128,6 +129,71 @@ void main() {
     await Future.wait([first, second]);
   });
 
+  test('sync repository propagates RPC failure to explicit refresh', () async {
+    sync.testSessionRPCOverride = (sessionId, method, params) async {
+      throw StateError('daemon failed');
+    };
+    await expectLater(
+      SyncWorkflowsRepository(sync).refreshSession('s1'),
+      throwsStateError,
+    );
+    // The background repository path stays best-effort.
+    await SyncWorkflowsRepository(sync).refreshRelevantSessions();
+  });
+
+  test('strict and background refresh share the same failed RPC', () async {
+    final response = Completer<dynamic>();
+    var calls = 0;
+    sync.testSessionRPCOverride = (sessionId, method, params) {
+      calls++;
+      return response.future;
+    };
+    final background = sync.refreshWorkflowsForSession('s1');
+    final foreground = expectLater(
+      sync.refreshWorkflowsForSession('s1', reportFailure: true),
+      throwsStateError,
+    );
+    response.completeError(StateError('daemon failed'));
+    await Future.wait([background, foreground]);
+    expect(calls, 1);
+  });
+
+  test('strict refresh reports skipped backoff without another RPC', () async {
+    var calls = 0;
+    sync.testSessionRPCOverride = (sessionId, method, params) async {
+      calls++;
+      throw StateError('operation has timed out');
+    };
+    await expectLater(
+      sync.refreshWorkflowsForSession('s1', reportFailure: true),
+      throwsStateError,
+    );
+    await expectLater(
+      sync.refreshWorkflowsForSession('s1', reportFailure: true),
+      throwsStateError,
+    );
+    expect(calls, 1);
+  });
+
+  test(
+    'strict refresh rejects malformed payload and unavailable sync',
+    () async {
+      sync.testSessionRPCOverride = (sessionId, method, params) async => {
+        'ok': true,
+        'renamedRuns': <dynamic>[],
+      };
+      await expectLater(
+        sync.refreshWorkflowsForSession('s1', reportFailure: true),
+        throwsStateError,
+      );
+      sync.testIsInitialized = false;
+      await expectLater(
+        sync.refreshWorkflowsForSession('s1', reportFailure: true),
+        throwsStateError,
+      );
+    },
+  );
+
   test('snapshot polling pauses offline and suspended, then resumes', () async {
     var calls = 0;
     sync.testSessionRPCOverride = (sessionId, method, params) async {
@@ -219,6 +285,11 @@ void main() {
 
       expect(calls, 1);
       expect(sync.testIsWorkflowRefreshCapabilityBlocked('s1'), isTrue);
+      await expectLater(
+        sync.refreshWorkflowsForSession('s1', reportFailure: true),
+        throwsStateError,
+      );
+      expect(calls, 1);
     },
   );
 

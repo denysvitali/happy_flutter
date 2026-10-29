@@ -30,7 +30,7 @@ class SyncWorkflowsRepository implements WorkflowsRepository {
 
   @override
   Future<void> refreshSession(String sessionId) =>
-      _sync.refreshWorkflowsForSession(sessionId);
+      _sync.refreshWorkflowsForSession(sessionId, reportFailure: true);
 
   @override
   Future<WorkflowRun?> fetchSnapshot(String sessionId, String runId) =>
