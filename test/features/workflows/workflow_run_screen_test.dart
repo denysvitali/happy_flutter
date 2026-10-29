@@ -195,6 +195,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: WorkflowRunScreen(
             sessionId: _sessionId,
             runId: 'wf_a6c2cfba-460',
