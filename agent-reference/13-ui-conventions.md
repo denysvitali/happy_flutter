@@ -94,6 +94,9 @@ files can be revealed, then restores the previous tool visibility preference.
 On desktop, Ctrl/Cmd+F opens and focuses conversation search. Enter and
 Shift+Enter navigate search results; Escape closes the focused search field.
 
+The command palette applies any pending search before Enter or arrow navigation.
+New queries start at their first result; empty results never execute a command.
+
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
