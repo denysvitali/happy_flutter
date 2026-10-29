@@ -23,7 +23,9 @@ void main() {
     );
     expect(
       tester.getSemantics(find.bySemanticsLabel('Auto')),
-      matchesSemantics(
+      // isSemantics: assert the accessibility contract, not every
+      // framework-added flag/action (focus support varies by Flutter).
+      isSemantics(
         label: 'Auto',
         isButton: true,
         isSelected: true,
@@ -60,7 +62,7 @@ void main() {
     );
     expect(
       tester.getSemantics(find.bySemanticsLabel('Postgres, Relational')),
-      matchesSemantics(
+      isSemantics(
         label: 'Postgres, Relational',
         isButton: true,
         isSelected: true,

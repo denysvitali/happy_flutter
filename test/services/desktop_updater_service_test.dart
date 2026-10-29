@@ -8,6 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/desktop_updater_models.dart';
 import 'package:happy_flutter/core/services/desktop_updater_service.dart';
 
+/// Shell copied into a test install to act as a live app process.
+const fakeAppShell = '/bin/sh';
+
+/// Keeps [fakeAppShell] itself running for up to a minute.
+const fakeAppScript = 'sleep 60; :';
+
 void main() {
   test('Flatpak rejects automatic and manual tarball updates', () async {
     var fetches = 0;
@@ -333,7 +339,11 @@ void main() {
         File('${installDir.path}/data/flutter_assets/shaders/ink_sparkle.frag')
           ..createSync(recursive: true)
           ..writeAsStringSync('old shader');
-        File('/bin/sleep').copySync('${installDir.path}/happy_flutter');
+        // Stand in for a running old app: a copied shell kept alive so its
+        // /proc/<pid>/exe points into the install. Not /bin/sleep: uutils
+        // coreutils (Ubuntu 26.04) is a multi-call binary that exits when
+        // renamed. The trailing `:` stops the shell from exec-ing sleep.
+        File(fakeAppShell).copySync('${installDir.path}/happy_flutter');
         final chmod = await Process.run('chmod', [
           '+x',
           '${installDir.path}/happy_flutter',
@@ -341,7 +351,7 @@ void main() {
         expect(chmod.exitCode, 0);
         final running = await Process.start(
           '${installDir.path}/happy_flutter',
-          ['60'],
+          const ['-c', fakeAppScript],
         );
         addTearDown(() async {
           running.kill();
