@@ -821,7 +821,8 @@ void main() {
         if (outcome == 'dispose') {
           await tester.pumpWidget(const SizedBox.shrink());
           actions.confirmation.complete();
-          await tester.pump();
+          // Drain Sync's independent notification timers after disposal.
+          await tester.pump(const Duration(milliseconds: 300));
           expect(tester.takeException(), isNull);
           return;
         }
@@ -1054,11 +1055,11 @@ void main() {
       expect(tester.widget<ModelChip>(find.byType(ModelChip)).enabled, isTrue);
       await tester.tap(find.byType(ModelChip));
       await tester.pumpAndSettle();
-      expect(find.text('Fresh 1'), findsOneWidget);
+      expect(find.text('gpt-fresh-1'), findsOneWidget);
       await tester.tap(find.byTooltip('Refresh models'));
       await tester.pumpAndSettle();
-      expect(find.text('Fresh 2'), findsOneWidget);
-      expect(find.text('Fresh 1'), findsNothing);
+      expect(find.text('gpt-fresh-2'), findsOneWidget);
+      expect(find.text('gpt-fresh-1'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
@@ -1119,8 +1120,8 @@ void main() {
       await tester.pump();
       await tester.tap(find.byType(ModelChip));
       await tester.pumpAndSettle();
-      expect(find.text('New project model'), findsOneWidget);
-      expect(find.text('Old project model'), findsNothing);
+      expect(find.text('gpt-new'), findsOneWidget);
+      expect(find.text('gpt-old'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
