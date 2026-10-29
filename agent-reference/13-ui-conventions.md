@@ -274,3 +274,7 @@ Keep failures retryable and discard delayed feedback after content changes.
 **Async recovery actions:** Session setup and machine removal accept one
 pending action at a time. Failures restore controls and show localized feedback;
 machine removal applies its result only to the original account and machine.
+
+**Goal and task details:** Chat goals use the compact inline chrome, with an
+explicit expansion into selectable text in a bounded scrolling area. Task agent
+filters show the selected agent and a direct reset; the menu marks its selection.

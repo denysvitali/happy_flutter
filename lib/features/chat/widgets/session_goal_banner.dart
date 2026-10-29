@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/components/app_inline_row.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/components/app_icon_tile.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky chat banner showing the current Codex goal for this session.
-///
-/// Aurora glass family: a rounded glass panel — translucent
-/// surfaceContainerLow fill, hairline glass border — with a 3 px
-/// accent-gradient leading edge, so the signature gradient is worn
-/// quietly instead of painted across the surface.
 class SessionGoalBanner extends ConsumerWidget {
   const SessionGoalBanner({required this.sessionId, super.key});
 
@@ -29,140 +23,89 @@ class SessionGoalBanner extends ConsumerWidget {
 
     if (goal == null || !goal.isVisible) return const SizedBox.shrink();
 
-    return _GoalBannerBody(goal: goal);
+    return _GoalBannerBody(key: ValueKey(sessionId), goal: goal);
   }
 }
 
-class _GoalBannerBody extends StatelessWidget {
-  const _GoalBannerBody({required this.goal});
+class _GoalBannerBody extends StatefulWidget {
+  const _GoalBannerBody({required this.goal, super.key});
 
   final CodexGoal goal;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    // Bare-MaterialApp test hosts carry no AppColorScheme extension;
-    // fall back to the dark scheme so the chrome still renders.
-    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
-    final accent = appCs.accentLinearGradient.colors.first;
+  State<_GoalBannerBody> createState() => _GoalBannerBodyState();
+}
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.xs,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      // IntrinsicHeight gives the stretched Row a bounded height so
-      // unbounded hosts (chat column, test harness) don't get an
-      // infinite-height constraint forced into the accent edge.
-      child: IntrinsicHeight(
-        child: Material(
-          color: cs.surfaceContainerLow.withValues(alpha: 0.92),
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            side: BorderSide(
-              color: appCs.glassBorder,
-              width: AppBorder.hairline,
-            ),
-          ),
-          elevation: AppElevation.low,
-          shadowColor: Colors.black.withValues(alpha: 0.24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+class _GoalBannerBodyState extends State<_GoalBannerBody> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final goal = widget.goal;
+    final cs = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+    final status = goal.status.trim().isEmpty ? 'active' : goal.status.trim();
+    final action = _expanded
+        ? l10n.toolOutputShowLess
+        : l10n.toolOutputShowMore;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppInlineRow(
+          leading: Icon(Icons.flag_rounded, color: cs.primary),
+          onTap: () => setState(() => _expanded = !_expanded),
+          semanticLabel: '${l10n.goalLoopsGoalLabel}, $status',
+          semanticHint: action,
+          expanded: _expanded,
+          trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Signature accent edge — 3 px of gradient, nothing more.
-              Container(
-                width: AppBorder.accent,
-                decoration: BoxDecoration(gradient: appCs.accentLinearGradient),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.smd),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _GoalIconTile(accent: accent),
-                      const SizedBox(width: AppSpacing.smd),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Goal',
-                                  style: AppText.badge(theme, cs.onSurface),
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                _StatusPill(label: goal.status, color: accent),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              goal.objective,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.secondary(
-                                theme,
-                                cs.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  Text(
+                    l10n.goalLoopsGoalLabel,
+                    style: AppInlineText.title(context),
                   ),
-                ),
+                  Text(status, style: AppInlineText.secondary(context)),
+                ],
               ),
+              if (!_expanded)
+                Text(
+                  goal.objective,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppInlineText.secondary(context),
+                ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Gradient-tinted icon tile echoing the banner's leading edge.
-class _GoalIconTile extends StatelessWidget {
-  const _GoalIconTile({required this.accent});
-
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppIconTile(icon: Icons.flag_rounded, color: accent);
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final normalized = label.trim().isEmpty ? 'active' : label.trim();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: color.withValues(alpha: 0.18),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Text(normalized, style: AppText.badge(theme, color)),
+        if (_expanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.25,
+              ),
+              child: SingleChildScrollView(
+                key: const ValueKey('goal-objective-scroll'),
+                child: SelectableText(
+                  goal.objective,
+                  style: AppInlineText.body(context),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

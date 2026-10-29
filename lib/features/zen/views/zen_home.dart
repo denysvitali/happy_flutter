@@ -269,24 +269,63 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                 _selectedAgentId = agentId.isEmpty ? null : agentId;
               }),
               itemBuilder: (context) => [
-                const PopupMenuItem(value: '', child: Text('All agents')),
+                CheckedPopupMenuItem(
+                  value: '',
+                  checked: selectedAgent == null,
+                  child: const Text('All agents'),
+                ),
                 for (final agentId in agents)
-                  PopupMenuItem(value: agentId, child: Text(agentId)),
+                  CheckedPopupMenuItem(
+                    value: agentId,
+                    checked: selectedAgent == agentId,
+                    child: Text(agentId),
+                  ),
               ],
             ),
         ],
       ),
-      body: visibleTodos.isEmpty
-          ? _EmptyState()
-          : ListView(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (selectedAgent != null)
+            Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
+                vertical: AppSpacing.xs,
               ),
-              children: scopedSessionId == null
-                  ? _directoryChildren(visibleTodos)
-                  : _priorityChildren(_groupByPriority(visibleTodos)),
+              child: Row(
+                children: [
+                  const Icon(Icons.filter_alt_outlined),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      selectedAgent,
+                      style: AppText.label(Theme.of(context)),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedAgentId = null),
+                    child: const Text('All agents'),
+                  ),
+                ],
+              ),
             ),
+          Expanded(
+            child: visibleTodos.isEmpty
+                ? _EmptyState()
+                : ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
+                    children: scopedSessionId == null
+                        ? _directoryChildren(visibleTodos)
+                        : _priorityChildren(_groupByPriority(visibleTodos)),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

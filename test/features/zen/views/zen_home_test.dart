@@ -40,12 +40,16 @@ void main() {
       container.dispose();
     });
 
-    Widget buildApp() {
+    Widget buildApp({TextScaler? textScaler}) {
       return UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+            child: child!,
+          ),
           home: const ZenHomeScreen(),
         ),
       );
@@ -160,6 +164,57 @@ void main() {
       expect(find.text('Agent B task'), findsNothing);
       expect(find.text('Sub-item of #parent'), findsOneWidget);
     });
+
+    testWidgets(
+      'agent filter stays visible and clears without reopening menu',
+      (tester) async {
+        const agent = 'agent-with-a-long-descriptive-assignment-name';
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        container
+            .read(todoStateNotifierProvider.notifier)
+            .setItemsForSession('session-1', [
+              _todo('parent', 'Selected parent', agentId: agent),
+              _todo('child', 'Inherited child', parentId: 'parent'),
+              _todo('other', 'Other agent task', agentId: 'other-agent'),
+            ]);
+        await tester.pumpWidget(
+          buildApp(textScaler: const TextScaler.linear(2)),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Filter tasks by agent'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(agent));
+        await tester.pumpAndSettle();
+
+        expect(find.text(agent), findsOneWidget);
+        expect(find.text('Inherited child'), findsOneWidget);
+        expect(find.text('Other agent task'), findsNothing);
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byTooltip('Filter tasks by agent'));
+        await tester.pumpAndSettle();
+        final selected = tester.widget<CheckedPopupMenuItem<String>>(
+          find.ancestor(
+            of: find.text(agent).last,
+            matching: find.byType(CheckedPopupMenuItem<String>),
+          ),
+        );
+        expect(selected.checked, isTrue);
+        // Dismiss the menu, then clear using the visible summary action.
+        await tester.tapAt(const Offset(4, 700));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'All agents'));
+        await tester.pumpAndSettle();
+
+        expect(find.text(agent), findsNothing);
+        expect(find.text('Other agent task'), findsOneWidget);
+        expect(find.text('Inherited child'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets(
       'persisted child inherits agent from a hidden completed parent',
