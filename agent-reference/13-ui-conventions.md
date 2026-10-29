@@ -270,3 +270,7 @@ hidden. Clear and Escape keep the search input focused for the next query.
 
 **Artifact copy:** Report success only after the clipboard accepts the text.
 Keep failures retryable and discard delayed feedback after content changes.
+
+**Async recovery actions:** Session setup and machine removal accept one
+pending action at a time. Failures restore controls and show localized feedback;
+machine removal applies its result only to the original account and machine.

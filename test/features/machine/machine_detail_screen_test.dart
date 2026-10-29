@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -427,6 +428,52 @@ void main() {
         await tester.pump();
 
         expect(find.text('Remove Machine'), findsOneWidget);
+      });
+
+      testWidgets('removal stays guarded until confirmation is dismissed', (
+        tester,
+      ) async {
+        final machine = _makeMachine(id: 'm1');
+        await tester.pumpWidget(
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
+        );
+        await tester.pump();
+        await tester.scrollUntilVisible(find.text('Remove Machine'), 100);
+        await tester.tap(find.text('Remove Machine'));
+        await tester.pumpAndSettle();
+
+        final button = find.widgetWithText(TextButton, 'Remove Machine');
+        expect(tester.widget<TextButton>(button).onPressed, isNull);
+        expect(find.byType(AlertDialog), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+        expect(find.byType(AlertDialog), findsNothing);
+      });
+
+      testWidgets('request exceptions show failure and allow another attempt', (
+        tester,
+      ) async {
+        // An uninitialized API throws before dispatch, exercising the
+        // exception path without native networking or a destructive request.
+        ApiClient().dispose();
+        final machine = _makeMachine(id: 'm1');
+        await tester.pumpWidget(
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
+        );
+        await tester.pump();
+        await tester.scrollUntilVisible(find.text('Remove Machine'), 100);
+        await tester.tap(find.text('Remove Machine'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Failed to delete machine (0)'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        expect(find.text('m1-host'), findsWidgets);
+        final button = find.widgetWithText(TextButton, 'Remove Machine');
+        expect(tester.widget<TextButton>(button).onPressed, isNotNull);
       });
 
       testWidgets('shows delete button with error color', (tester) async {

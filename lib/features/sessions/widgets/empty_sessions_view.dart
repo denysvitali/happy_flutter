@@ -40,6 +40,7 @@ class EmptySessionsView extends ConsumerStatefulWidget {
 
 class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
   bool _isRefreshing = false;
+  bool _isStarting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,9 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
     final hasOnlineMachine = machines.values.any((machine) => machine.isOnline);
 
     if (isFirstTimeUser) {
-      return _FirstTimeEmptyState(onConnectComputer: _startOrConnect);
+      return _FirstTimeEmptyState(
+        onConnectComputer: _isStarting ? null : _startOrConnect,
+      );
     }
 
     if (!hasOnlineMachine) {
@@ -59,25 +62,47 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
       );
     }
 
-    return _ReturningUserEmptyState(onNewSession: _startOrConnect);
+    return _ReturningUserEmptyState(
+      onNewSession: _isStarting ? null : _startOrConnect,
+    );
   }
 
   Future<void> _startOrConnect() async {
-    final create = widget.onCreateSession;
-    if (create != null) {
-      await create();
-      return;
+    if (_isStarting) return;
+    setState(() => _isStarting = true);
+    try {
+      final create = widget.onCreateSession;
+      if (create != null) {
+        await create();
+        return;
+      }
+      final machines = ref.read(machinesNotifierProvider);
+      if (machines.isEmpty) {
+        await context.pushNamed('link');
+        return;
+      }
+      if (!machines.values.any((machine) => machine.isOnline)) {
+        _manageMachines();
+        return;
+      }
+      await showNewSessionDialog(context);
+    } catch (_) {
+      if (mounted) _showActionError();
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
     }
-    final machines = ref.read(machinesNotifierProvider);
-    if (machines.isEmpty) {
-      await context.pushNamed('link');
-      return;
-    }
-    if (!machines.values.any((machine) => machine.isOnline)) {
-      _manageMachines();
-      return;
-    }
-    await showNewSessionDialog(context);
+  }
+
+  void _showActionError({VoidCallback? onRetry}) {
+    final l10n = context.l10n;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.commonError),
+        action: onRetry == null
+            ? null
+            : SnackBarAction(label: l10n.commonRetry, onPressed: onRetry),
+      ),
+    );
   }
 
   Future<void> _refreshMachines() async {
@@ -89,6 +114,14 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
         await refresh();
       } else {
         await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
+      }
+    } catch (_) {
+      if (mounted) {
+        _showActionError(
+          onRetry: () {
+            if (mounted) _refreshMachines();
+          },
+        );
       }
     } finally {
       if (mounted) setState(() => _isRefreshing = false);
@@ -112,7 +145,7 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
 class _FirstTimeEmptyState extends StatelessWidget {
   const _FirstTimeEmptyState({required this.onConnectComputer});
 
-  final VoidCallback onConnectComputer;
+  final VoidCallback? onConnectComputer;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +318,7 @@ class _OnboardingStepCard extends StatelessWidget {
 class _ReturningUserEmptyState extends StatelessWidget {
   const _ReturningUserEmptyState({required this.onNewSession});
 
-  final VoidCallback onNewSession;
+  final VoidCallback? onNewSession;
 
   @override
   Widget build(BuildContext context) {

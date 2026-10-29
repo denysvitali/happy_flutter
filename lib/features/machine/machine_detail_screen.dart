@@ -49,6 +49,9 @@ class MachineDetailScreen extends ConsumerStatefulWidget {
 
 class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     with SyncSubscriptionMixin {
+  bool _deletePending = false;
+  bool _deleting = false;
+
   @override
   void initState() {
     super.initState();
@@ -83,18 +86,30 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     String machineId,
     String machineName,
   ) async {
-    final confirmed = await showConfirmDialog(
-      context,
-      title: context.l10n.commonDelete,
-      content: context.l10n.machineRemoveConfirm(machineName),
-      confirmLabel: context.l10n.commonDelete,
-      isDestructive: true,
-    );
+    if (_deletePending) return;
+    final auth = ref.read(authStateNotifierProvider.notifier);
+    final generation = auth.authTransitionGeneration;
+    bool isCurrent() =>
+        mounted &&
+        widget.machineId == machineId &&
+        identical(ref.read(authStateNotifierProvider.notifier), auth) &&
+        auth.authTransitionGeneration == generation;
 
-    if (confirmed) {
-      final response = await ApiClient().delete('/v1/machines/$machineId');
-      if (!context.mounted) return;
-      if (ApiClient().isSuccess(response)) {
+    setState(() => _deletePending = true);
+    try {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: context.l10n.commonDelete,
+        content: context.l10n.machineRemoveConfirm(machineName),
+        confirmLabel: context.l10n.commonDelete,
+        isDestructive: true,
+      );
+      if (!context.mounted || !isCurrent() || !confirmed) return;
+      setState(() => _deleting = true);
+      final api = ApiClient();
+      final response = await api.delete('/v1/machines/$machineId');
+      if (!context.mounted || !isCurrent()) return;
+      if (api.isSuccess(response)) {
         ref.read(machinesNotifierProvider.notifier).remove(machineId);
         sync.machinesSync.invalidate();
         safePop<void>(context);
@@ -102,6 +117,17 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
         context.showSnack(
           context.l10n.machineDeleteFailed(response.statusCode ?? 0),
         );
+      }
+    } catch (_) {
+      if (context.mounted && isCurrent()) {
+        context.showSnack(context.l10n.machineDeleteFailed(0));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletePending = false;
+          _deleting = false;
+        });
       }
     }
   }
@@ -409,15 +435,25 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
 
             // ── Delete button ──
             const SizedBox(height: AppSpacing.xxxl),
+            if (_deleting)
+              Semantics(
+                label: context.l10n.machineRemoveMachine,
+                liveRegion: true,
+                child: const AppLinearProgressIndicator(),
+              ),
             Center(
               child: TextButton.icon(
-                onPressed: () =>
-                    _confirmDelete(context, widget.machineId, machineName),
-                icon: Icon(Icons.delete_outline, size: 18, color: cs.error),
+                onPressed: _deletePending
+                    ? null
+                    : () => _confirmDelete(
+                        context,
+                        widget.machineId,
+                        machineName,
+                      ),
+                icon: const Icon(Icons.delete_outline, size: 18),
                 label: Text(
                   context.l10n.machineRemoveMachine,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.error,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

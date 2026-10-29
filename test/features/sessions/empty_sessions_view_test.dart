@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,6 +36,48 @@ void main() {
       ),
     );
   }
+
+  testWidgets('create is single-flight and available after failure', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    var creates = 0;
+    await tester.pumpWidget(
+      wrap(
+        onCreateSession: () {
+          creates++;
+          return creates == 1 ? pending.future : Future<void>.value();
+        },
+      ),
+    );
+
+    final create = find.widgetWithText(FilledButton, 'Connect computer');
+    await tester.tap(create);
+    await tester.tap(create);
+    await tester.pump();
+    expect(creates, 1);
+    expect(tester.widget<FilledButton>(create).onPressed, isNull);
+
+    pending.completeError(StateError('create failed'));
+    await tester.pump();
+    expect(find.text('Error'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(create);
+    await tester.pump();
+    expect(creates, 2);
+  });
+
+  testWidgets('pending create can finish after the view is disposed', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    await tester.pumpWidget(wrap(onCreateSession: () => pending.future));
+    await tester.tap(find.text('Connect computer'));
+    await tester.pumpWidget(const SizedBox());
+    pending.completeError(StateError('late create failure'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 
   group('EmptySessionsView (first-time user)', () {
     testWidgets('renders rocket icon and 3 onboarding steps', (tester) async {
@@ -122,6 +166,54 @@ void main() {
         daemonStateVersion: 0,
       ),
     };
+
+    testWidgets('failed refresh offers retry and prevents repeat requests', (
+      tester,
+    ) async {
+      final pending = Completer<void>();
+      var refreshes = 0;
+      await tester.pumpWidget(
+        wrap(
+          machines: offlineMachines,
+          onRefreshMachines: () {
+            refreshes++;
+            return refreshes == 1 ? pending.future : Future<void>.value();
+          },
+        ),
+      );
+
+      final refresh = find.widgetWithText(FilledButton, 'Refresh');
+      await tester.tap(refresh);
+      await tester.tap(refresh);
+      await tester.pump();
+      expect(refreshes, 1);
+      expect(tester.widget<FilledButton>(refresh).onPressed, isNull);
+      pending.completeError(StateError('refresh failed'));
+      await tester.pump();
+      expect(find.text('Error'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(refreshes, 2);
+      expect(tester.widget<FilledButton>(refresh).onPressed, isNotNull);
+    });
+
+    testWidgets('pending refresh can fail after the view is disposed', (
+      tester,
+    ) async {
+      final pending = Completer<void>();
+      await tester.pumpWidget(
+        wrap(
+          machines: offlineMachines,
+          onRefreshMachines: () => pending.future,
+        ),
+      );
+      await tester.tap(find.text('Refresh'));
+      await tester.pumpWidget(const SizedBox());
+      pending.completeError(StateError('late refresh failure'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('offers refresh and computer management', (tester) async {
       var refreshes = 0;
