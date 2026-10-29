@@ -1,7 +1,10 @@
+import 'dart:async';
+
 // Artifact detail / create / edit flows, including the optimistic delete
 // path and its rollback, plus the "source session row opens that session"
 // routing contract.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -194,6 +197,80 @@ void main() {
 
       expect(find.textContaining('Encrypted content'), findsOneWidget);
       expect(find.text('Copy'), findsNothing);
+    });
+
+    testWidgets('failed clipboard write reports failure and permits retry', (
+      tester,
+    ) async {
+      var fail = true;
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData' && fail) {
+          throw PlatformException(code: 'clipboard-unavailable');
+        }
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+      final a = detailArtifact();
+      await pumpDetail(tester, artifacts: {a.id: a});
+      final copy = find.widgetWithText(TextButton, 'Copy');
+      expect(tester.getSize(copy).height, greaterThanOrEqualTo(44));
+      await tester.tap(copy);
+      await tester.pump();
+      expect(find.text('Done'), findsNothing);
+      expect(find.text('Failed to copy text to clipboard'), findsOneWidget);
+      fail = false;
+      await tester.tap(copy);
+      await tester.pump();
+      expect(find.widgetWithText(TextButton, 'Done'), findsOneWidget);
+      await drainSnackBar(tester);
+    });
+
+    testWidgets('late clipboard completion cannot mark newer content copied', (
+      tester,
+    ) async {
+      final pending = Completer<void>();
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') await pending.future;
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+      final a = detailArtifact();
+      await pumpDetail(tester, artifacts: {a.id: a});
+      await tester.tap(find.widgetWithText(TextButton, 'Copy'));
+      await tester.pump();
+      container
+          .read(artifactsNotifierProvider.notifier)
+          .addArtifact(detailArtifact(body: 'New body'));
+      await tester.pump();
+      pending.complete();
+      await tester.pump();
+      expect(find.text('New body'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Copy'), findsOneWidget);
+      expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('each successful copy renews the feedback duration', (
+      tester,
+    ) async {
+      final a = detailArtifact();
+      await pumpDetail(tester, artifacts: {a.id: a});
+      await tester.tap(find.widgetWithText(TextButton, 'Copy'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.widgetWithText(TextButton, 'Done'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1100));
+      expect(find.widgetWithText(TextButton, 'Done'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.widgetWithText(TextButton, 'Copy'), findsOneWidget);
     });
 
     testWidgets('edit action pushes the edit route for this artifact', (

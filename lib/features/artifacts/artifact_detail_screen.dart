@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,7 @@ import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/snack.dart';
 import 'widgets/artifact_pane_header.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -396,14 +399,40 @@ class _ContentBlock extends StatefulWidget {
 
 class _ContentBlockState extends State<_ContentBlock> {
   bool _copied = false;
+  Timer? _copyResetTimer;
+  int _copyGeneration = 0;
+
+  @override
+  void didUpdateWidget(covariant _ContentBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artifact.id != widget.artifact.id ||
+        oldWidget.artifact.body != widget.artifact.body) {
+      _copyGeneration++;
+      _copyResetTimer?.cancel();
+      _copied = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _copyResetTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _copyToClipboard(String text) async {
-    await setClipboardTextSafely(text);
-    if (!mounted) return;
+    final generation = ++_copyGeneration;
+    final result = await setClipboardTextSafely(text);
+    if (!mounted || generation != _copyGeneration) return;
+    _copyResetTimer?.cancel();
+    if (!result.success) {
+      setState(() => _copied = false);
+      context.showSnack(context.l10n.textSelectionFailedToCopy);
+      return;
+    }
     setState(() => _copied = true);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _copied = false);
+    _copyResetTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
   }
 
   @override
@@ -482,31 +511,18 @@ class _CopyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              copied ? Icons.check : Icons.copy_outlined,
-              size: 18,
-              color: copied ? cs.primary : cs.onSurfaceVariant,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              copied ? context.l10n.commonDone : context.l10n.commonCopy,
-              style: AppText.label(
-                Theme.of(context),
-                copied ? cs.primary : cs.onSurfaceVariant,
-              ),
-            ),
-          ],
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(
+        copied ? Icons.check : Icons.copy_outlined,
+        size: AppIconSize.md,
+        color: copied ? cs.primary : cs.onSurfaceVariant,
+      ),
+      label: Text(
+        copied ? context.l10n.commonDone : context.l10n.commonCopy,
+        style: AppText.label(
+          Theme.of(context),
+          copied ? cs.primary : cs.onSurfaceVariant,
         ),
       ),
     );

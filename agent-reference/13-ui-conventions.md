@@ -264,3 +264,6 @@ artifact model does not establish which run produced them.
 **Settings search:** Section titles and descriptions qualify individual rows.
 Every query token must match within a section; unrelated partial matches are
 hidden. Clear and Escape keep the search input focused for the next query.
+
+**Artifact copy:** Report success only after the clipboard accepts the text.
+Keep failures retryable and discard delayed feedback after content changes.
