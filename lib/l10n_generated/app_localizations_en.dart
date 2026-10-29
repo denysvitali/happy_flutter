@@ -1180,6 +1180,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleMachines => 'By machine';
 
   @override
+  String get sessionsViewStyleRepository => 'By repository';
+
+  @override
   String get sessionsViewStyleMissionControlHint =>
       'What needs you, then workspace activity';
 
@@ -1194,6 +1197,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sessionsViewStyleFolderCentricHint =>
       'Browse sessions by project folder';
+
+  @override
+  String get sessionsViewStyleRepositoryHint =>
+      'Group sessions by git repository across machines and pods';
+
+  @override
+  String get sessionsRepositoryUnlinked => 'Not in a git repository';
 
   @override
   String get sessionsViewStyleUnreadFocusHint =>

@@ -548,7 +548,9 @@ Set<String> selectableSessionIds({
 }) {
   final scoped = folder == null
       ? sessions
-      : sessions.where((s) => sessionFolderKey(s) == folder.folderKey);
+      : sessions.where(
+          (s) => sessionGroupKey(s, folder.grouping) == folder.folderKey,
+        );
   final active = <Session>[];
   final inactive = <Session>[];
   for (final session in scoped) {

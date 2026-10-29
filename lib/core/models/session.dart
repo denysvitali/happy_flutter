@@ -290,6 +290,10 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? repoUrl,
     @JsonKey(fromJson: _asApiStringNullable) String? repoRef,
     @JsonKey(fromJson: _asApiStringNullable) String? repoCommit,
+    // Observed checkout of local sessions (descriptive only). Unlike repoUrl,
+    // these never route a spawn or restore to Kubernetes.
+    @JsonKey(fromJson: _asApiStringNullable) String? gitRemoteUrl,
+    @JsonKey(fromJson: _asApiStringNullable) String? gitBranch,
     @JsonKey(name: 'runtimeType', fromJson: _asApiStringNullable)
     String? runtimeKind,
     @JsonKey(fromJson: _asApiStringNullable) String? podName,

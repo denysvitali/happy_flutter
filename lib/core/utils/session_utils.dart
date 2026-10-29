@@ -495,6 +495,107 @@ String sessionFolderKey(Session session) {
   return '$machineId:$path';
 }
 
+/// How workspace views group sessions.
+enum SessionGrouping {
+  /// One group per machine and working directory ([sessionFolderKey]).
+  folder,
+
+  /// One group per git repository across machines and pods
+  /// ([sessionRepositoryKey]); sessions outside a repository fall back to
+  /// their folder group.
+  repository,
+}
+
+const String _repositoryKeyPrefix = 'repo:';
+const String _urlSchemeSeparator = '://';
+const String _scpUserSeparator = '@';
+const String _scpPathSeparator = ':';
+const String _gitPathSuffix = '.git';
+const String _pathSeparator = '/';
+
+/// A git remote reduced to a stable identity, e.g. `github.com/owner/repo`.
+class RepositoryIdentity {
+  const RepositoryIdentity({required this.host, required this.path});
+
+  /// Lowercased remote host, e.g. `github.com`.
+  final String host;
+
+  /// Repository path without leading/trailing separators or `.git`, in its
+  /// original case, e.g. `denysvitali/happy_flutter`.
+  final String path;
+
+  /// Case-insensitive key: the same repository cloned over https or ssh,
+  /// with or without `.git`, yields the same key.
+  String get key => '$host$_pathSeparator$path'.toLowerCase();
+
+  /// Owner part of [path] prefixed by [host], e.g. `github.com/denysvitali`.
+  String get namespace {
+    final slash = path.lastIndexOf(_pathSeparator);
+    return slash < 0 ? host : '$host$_pathSeparator${path.substring(0, slash)}';
+  }
+}
+
+/// Parses https/ssh/scp-style git remotes. Returns null for local paths and
+/// anything without both a host and a repository path.
+RepositoryIdentity? parseRepositoryUrl(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return null;
+
+  String host;
+  String path;
+  if (value.contains(_urlSchemeSeparator)) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.host.isEmpty) return null;
+    host = uri.host;
+    path = uri.path;
+  } else {
+    // scp-like `user@host:owner/repo`; a separator before the colon means a
+    // local path such as `./a:b`.
+    final colon = value.indexOf(_scpPathSeparator);
+    if (colon <= 0 || value.substring(0, colon).contains(_pathSeparator)) {
+      return null;
+    }
+    final authority = value.substring(0, colon);
+    host = authority.substring(authority.lastIndexOf(_scpUserSeparator) + 1);
+    path = value.substring(colon + 1);
+  }
+
+  while (path.startsWith(_pathSeparator)) {
+    path = path.substring(1);
+  }
+  while (path.endsWith(_pathSeparator)) {
+    path = path.substring(0, path.length - 1);
+  }
+  if (path.toLowerCase().endsWith(_gitPathSuffix)) {
+    path = path.substring(0, path.length - _gitPathSuffix.length);
+  }
+  if (host.isEmpty || path.isEmpty) return null;
+  return RepositoryIdentity(host: host.toLowerCase(), path: path);
+}
+
+/// The repository a session works in: the spawn repository of Kubernetes
+/// sessions, else the observed origin remote of a local checkout.
+RepositoryIdentity? sessionRepository(Session session) {
+  final metadata = session.metadata;
+  return parseRepositoryUrl(metadata?.repoUrl) ??
+      parseRepositoryUrl(metadata?.gitRemoteUrl);
+}
+
+/// Canonical repository group key, or null outside a git repository.
+String? sessionRepositoryKey(Session session) {
+  final repository = sessionRepository(session);
+  return repository == null ? null : '$_repositoryKeyPrefix${repository.key}';
+}
+
+/// Group key of [session] under [grouping].
+String sessionGroupKey(Session session, SessionGrouping grouping) {
+  return switch (grouping) {
+    SessionGrouping.folder => sessionFolderKey(session),
+    SessionGrouping.repository =>
+      sessionRepositoryKey(session) ?? sessionFolderKey(session),
+  };
+}
+
 /// A discriminated union of items in a folder-grouped inactive session list.
 sealed class SessionFolderItem {
   const SessionFolderItem();
@@ -511,9 +612,12 @@ class SessionFolderHeader extends SessionFolderItem {
     this.activeSessionCount = 0,
     this.inactiveSessionCount = 0,
     this.unreadCount = 0,
+    this.grouping = SessionGrouping.folder,
+    this.isRepository = false,
   });
 
-  /// The path to display (with ~ substitution for home directory).
+  /// The path to display (with ~ substitution for home directory), or the
+  /// repository path for repository groups.
   final String displayPath;
 
   /// The display name of the machine.
@@ -522,8 +626,15 @@ class SessionFolderHeader extends SessionFolderItem {
   /// Number of sessions in this folder group.
   final int sessionCount;
 
-  /// The unique key for this folder group ('machineId:path').
+  /// The unique key for this group: [sessionGroupKey] under [grouping].
   final String folderKey;
+
+  /// Grouping that produced [folderKey].
+  final SessionGrouping grouping;
+
+  /// Whether this group is a git repository rather than a plain folder.
+  /// Repository views keep sessions outside a repository as folder groups.
+  final bool isRepository;
 
   /// Most recent activity timestamp across all sessions in the folder group.
   final int latestActivityAt;
@@ -680,6 +791,7 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
   Map<String, Machine> machines, {
   int? Function(String sessionId)? getLastMessageTimestamp,
   int Function(String sessionId)? getUnreadCount,
+  SessionGrouping grouping = SessionGrouping.folder,
 }) {
   if (activeSessions.isEmpty && inactiveSessions.isEmpty) {
     return const [];
@@ -702,7 +814,7 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
   }
 
   void addSession(Map<String, List<Session>> target, Session session) {
-    final key = sessionFolderKey(session);
+    final key = sessionGroupKey(session, grouping);
     target.putIfAbsent(key, () => []).add(session);
     final timestamp = activityTs(session);
     final previous = latestActivityByKey[key];
@@ -760,11 +872,16 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
             machine?.metadata?.host ??
             first.metadata?.host ??
             'Unknown';
+        final repository = grouping == SessionGrouping.repository
+            ? sessionRepository(first)
+            : null;
         final rawPath = first.metadata?.path ?? '';
         final homeDir = first.metadata?.homeDir;
-        final displayPath = rawPath.isEmpty
-            ? 'Unknown'
-            : formatPathRelativeToHome(rawPath, homeDir: homeDir);
+        final displayPath =
+            repository?.path ??
+            (rawPath.isEmpty
+                ? 'Unknown'
+                : formatPathRelativeToHome(rawPath, homeDir: homeDir));
         var unread = 0;
         if (getUnreadCount != null) {
           for (final session in active) {
@@ -775,13 +892,15 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
         return SessionFolderGroup(
           header: SessionFolderHeader(
             displayPath: displayPath,
-            machineName: machineName,
+            machineName: repository?.namespace ?? machineName,
             sessionCount: active.length + inactive.length,
             folderKey: key,
             latestActivityAt: latestActivityByKey[key]!,
             activeSessionCount: active.length,
             inactiveSessionCount: inactive.length,
             unreadCount: unread,
+            grouping: grouping,
+            isRepository: repository != null,
           ),
           activeSessions: active,
           inactiveSessions: inactive,

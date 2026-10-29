@@ -35,6 +35,7 @@ import 'session_headers.dart';
 import 'session_list_helpers.dart';
 import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
+import 'sessions_view_style.dart';
 import 'unread_focus_cards.dart';
 
 // ─── Main widget ──────────────────────────────────────
@@ -276,6 +277,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _syncPerformanceContext();
   }
 
+  /// Folder-style layouts (folder or repository overview with drill-in).
+  static bool _isWorkspaceStyle(String? style) =>
+      style != null &&
+      SessionsViewStyle.fromWire(style).workspaceGrouping != null;
+
   void _syncPerformanceContext() {
     PerformanceContextService().setCurrentSessionsView(
       _isVisible
@@ -330,7 +336,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Set<String> _legacySelectionIds(SortedSessions sorted) {
     final folderDetail =
         _selectedFolderKey != null &&
-        (_sessionsViewStyle == 'folder' ||
+        (_isWorkspaceStyle(_sessionsViewStyle) ||
             _sessionsViewStyle == 'mission_control');
     final activeOnly =
         _sessionsViewStyle == 'unread_focus' ||
@@ -425,7 +431,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       settingsNotifierProvider.select((s) => s.sessionsViewStyle),
     );
     final usesAggregateRows =
-        sessionsViewStyle == 'folder' ||
+        _isWorkspaceStyle(sessionsViewStyle) ||
         sessionsViewStyle == 'mission_control' ||
         sessionsViewStyle == 'unread_focus' ||
         sessionsViewStyle == 'status' ||
@@ -450,7 +456,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               )
               .sessions;
     final needsMachineProjection =
-        sessionsViewStyle == 'folder' ||
+        _isWorkspaceStyle(sessionsViewStyle) ||
         sessionsViewStyle == 'mission_control' ||
         sessionsViewStyle == 'machines' ||
         _archivedGrouping == ArchivedGrouping.folder;
@@ -655,7 +661,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
-    if (sessionsViewStyle == 'folder') {
+    final workspaceGrouping = SessionsViewStyle.fromWire(
+      sessionsViewStyle,
+    ).workspaceGrouping;
+    if (workspaceGrouping != null) {
       return _buildFolderModeView(
         context,
         activeSessions,
@@ -665,6 +674,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         triggerStagger: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
+        grouping: workspaceGrouping,
       );
     }
 
@@ -1123,6 +1133,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool triggerStagger,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
+    SessionGrouping grouping = SessionGrouping.folder,
   }) {
     final folders = groupAllSessionsByFolder(
       activeSessions,
@@ -1132,6 +1143,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ? uiState.ordering.timestamps[id]
           : uiState.bySessionId[id]?.lastMessageTimestamp,
       getUnreadCount: (id) => uiState.bySessionId[id]?.unreadCount ?? 0,
+      grouping: grouping,
     );
 
     SessionFolderGroup? selectedFolder;
@@ -1172,13 +1184,23 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
       }
 
+      // Repository view lists folders outside any git repository last, in
+      // their own section, so they don't read as repositories.
+      bool isUnlinked(SessionFolderGroup folder) =>
+          grouping == SessionGrouping.repository && !folder.header.isRepository;
       final live = [
         for (final folder in folders)
-          if (folder.header.activeSessionCount > 0) folder,
+          if (!isUnlinked(folder) && folder.header.activeSessionCount > 0)
+            folder,
       ];
       final archivedOnly = [
         for (final folder in folders)
-          if (folder.header.activeSessionCount == 0) folder,
+          if (!isUnlinked(folder) && folder.header.activeSessionCount == 0)
+            folder,
+      ];
+      final unlinked = [
+        for (final folder in folders)
+          if (isUnlinked(folder)) folder,
       ];
       final l10n = context.l10n;
       return ListView(
@@ -1207,6 +1229,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ),
             UnreadFocusListGroup(
               children: [for (final f in archivedOnly) folderRow(f)],
+            ),
+          ],
+          if (unlinked.isNotEmpty) ...[
+            SessionGroupHeader(
+              title: l10n.sessionsRepositoryUnlinked,
+              count: unlinked.length,
+              icon: Icons.folder_off_outlined,
+              accent: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            UnreadFocusListGroup(
+              children: [for (final f in unlinked) folderRow(f)],
             ),
           ],
         ],
@@ -1451,7 +1484,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       Object.hashAllUnordered(_collapsedActivePaths),
       Object.hashAllUnordered(_collapsedFolderKeys),
       Object.hashAllUnordered(_collapsedDateKeys),
-      if (sessionsViewStyle == 'folder' ||
+      if (_isWorkspaceStyle(sessionsViewStyle) ||
           _archivedGrouping == ArchivedGrouping.folder)
         for (final entry in machines.entries)
           Object.hash(

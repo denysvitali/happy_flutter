@@ -352,7 +352,11 @@ class FolderOverviewCard extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       Icon(
-                        archivedOnly
+                        header.isRepository
+                            ? (archivedOnly
+                                  ? Icons.source_outlined
+                                  : Icons.source_rounded)
+                            : archivedOnly
                             ? Icons.folder_outlined
                             : Icons.folder_rounded,
                         size: AppIconSize.md,

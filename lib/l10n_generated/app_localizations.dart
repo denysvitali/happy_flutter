@@ -2188,6 +2188,12 @@ abstract class AppLocalizations {
   /// **'By machine'**
   String get sessionsViewStyleMachines;
 
+  /// No description provided for @sessionsViewStyleRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'By repository'**
+  String get sessionsViewStyleRepository;
+
   /// No description provided for @sessionsViewStyleMissionControlHint.
   ///
   /// In en, this message translates to:
@@ -2211,6 +2217,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Browse sessions by project folder'**
   String get sessionsViewStyleFolderCentricHint;
+
+  /// No description provided for @sessionsViewStyleRepositoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group sessions by git repository across machines and pods'**
+  String get sessionsViewStyleRepositoryHint;
+
+  /// No description provided for @sessionsRepositoryUnlinked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in a git repository'**
+  String get sessionsRepositoryUnlinked;
 
   /// No description provided for @sessionsViewStyleUnreadFocusHint.
   ///

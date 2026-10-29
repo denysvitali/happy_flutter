@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_utils.dart';
 
 /// Layouts the sessions tab can render, keyed by their persisted
 /// `sessionsViewStyle` setting value.
@@ -15,6 +16,7 @@ enum SessionsViewStyle {
   statusBoard('status', Icons.view_agenda_outlined),
   machines('machines', Icons.dns_outlined),
   folder('folder', Icons.folder_outlined),
+  repository('repository', Icons.source_outlined),
   unreadFocus('unread_focus', Icons.mark_chat_unread_outlined);
 
   const SessionsViewStyle(this.wire, this.icon);
@@ -22,6 +24,13 @@ enum SessionsViewStyle {
   /// Persisted setting value.
   final String wire;
   final IconData icon;
+
+  /// Workspace grouping for folder-style layouts; null for other layouts.
+  SessionGrouping? get workspaceGrouping => switch (this) {
+    folder => SessionGrouping.folder,
+    repository => SessionGrouping.repository,
+    _ => null,
+  };
 
   /// Unknown values fall back to Mission Control, the setting default.
   static SessionsViewStyle fromWire(String value) {
@@ -36,6 +45,7 @@ enum SessionsViewStyle {
     statusBoard => l10n.sessionsViewStyleStatusBoard,
     machines => l10n.sessionsViewStyleMachines,
     folder => l10n.sessionsViewStyleFolderCentric,
+    repository => l10n.sessionsViewStyleRepository,
     unreadFocus => l10n.sessionsViewStyleUnreadFocus,
   };
 
@@ -44,6 +54,7 @@ enum SessionsViewStyle {
     statusBoard => l10n.sessionsViewStyleStatusBoardHint,
     machines => l10n.sessionsViewStyleMachinesHint,
     folder => l10n.sessionsViewStyleFolderCentricHint,
+    repository => l10n.sessionsViewStyleRepositoryHint,
     unreadFocus => l10n.sessionsViewStyleUnreadFocusHint,
   };
 }
