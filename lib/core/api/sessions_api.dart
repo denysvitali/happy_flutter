@@ -186,12 +186,16 @@ class SessionsApi {
     }
   }
 
-  /// Set session archive status
+  /// Set session archive status. Archiving a deleted session is idempotent.
   Future<void> setSessionArchived(String sessionId, bool archived) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/archive',
       data: {'archived': archived},
     );
+
+    // A deleted session already satisfies archive intent. Unarchive still
+    // requires an existing session, so its 404 remains an error.
+    if (archived && response.statusCode == 404) return;
 
     if (!_isSuccess(response)) {
       logger.warning(

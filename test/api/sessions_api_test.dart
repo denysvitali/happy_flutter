@@ -349,6 +349,38 @@ void main() {
       ).called(1);
     });
 
+    test('archiving an already deleted session succeeds', () async {
+      when(
+        mockClient.post(any, data: anyNamed('data')),
+      ).thenAnswer((_) async => _response({}, 404));
+
+      await api.setSessionArchived('sess-gone', true);
+
+      verify(
+        mockClient.post(
+          '/v1/sessions/sess-gone/archive',
+          data: {'archived': true},
+        ),
+      ).called(1);
+    });
+
+    test('unarchiving a deleted session still fails', () async {
+      when(
+        mockClient.post(any, data: anyNamed('data')),
+      ).thenAnswer((_) async => _response({}, 404));
+
+      await expectLater(
+        api.setSessionArchived('sess-gone', false),
+        throwsA(
+          isA<SessionsApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            404,
+          ),
+        ),
+      );
+    });
+
     test('throws on 500 status', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
