@@ -27,6 +27,15 @@ class SessionGoalBanner extends ConsumerWidget {
   }
 }
 
+/// Share of the screen height the expanded objective may scroll within.
+const double _objectiveMaxHeightFraction = 0.25;
+
+/// Share of the screen height the whole expanded banner may take. The banner
+/// sits in an unbounded column above the transcript, so with large text on a
+/// narrow screen the header alone can be tall; past this it scrolls instead
+/// of overflowing.
+const double _expandedBannerMaxHeightFraction = 0.5;
+
 class _GoalBannerBody extends StatefulWidget {
   const _GoalBannerBody({required this.goal, super.key});
 
@@ -49,7 +58,8 @@ class _GoalBannerBodyState extends State<_GoalBannerBody> {
         ? l10n.toolOutputShowLess
         : l10n.toolOutputShowMore;
 
-    return Column(
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -94,7 +104,7 @@ class _GoalBannerBodyState extends State<_GoalBannerBody> {
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.25,
+                maxHeight: screenHeight * _objectiveMaxHeightFraction,
               ),
               child: SingleChildScrollView(
                 key: const ValueKey('goal-objective-scroll'),
@@ -106,6 +116,13 @@ class _GoalBannerBodyState extends State<_GoalBannerBody> {
             ),
           ),
       ],
+    );
+    if (!_expanded) return content;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: screenHeight * _expandedBannerMaxHeightFraction,
+      ),
+      child: SingleChildScrollView(primary: false, child: content),
     );
   }
 }
