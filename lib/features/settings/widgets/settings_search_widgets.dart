@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
-class SettingsSearchField extends StatelessWidget {
+class SettingsSearchField extends StatefulWidget {
   const SettingsSearchField({
     required this.controller,
     required this.query,
@@ -14,30 +15,54 @@ class SettingsSearchField extends StatelessWidget {
   final String query;
 
   @override
+  State<SettingsSearchField> createState() => _SettingsSearchFieldState();
+}
+
+class _SettingsSearchFieldState extends State<SettingsSearchField> {
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch() {
+    widget.controller.clear();
+    _focusNode.requestFocus();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return TextField(
-      controller: controller,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search settings',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: query.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Clear search',
-                icon: const Icon(Icons.close),
-                onPressed: controller.clear,
-              ),
-        filled: true,
-        fillColor: cs.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: cs.outlineVariant),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: cs.outlineVariant),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): _clearSearch,
+      },
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search settings',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: widget.query.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(Icons.close),
+                  onPressed: _clearSearch,
+                ),
+          filled: true,
+          fillColor: cs.surfaceContainerLow,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
         ),
       ),
     );

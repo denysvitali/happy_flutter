@@ -260,3 +260,7 @@ advanced runtime options; those controls must reflow at large text sizes.
 Connection guidance distinguishes eligible queued retries from failed messages.
 Workflow run details label session-linked artifacts as session-wide, since the
 artifact model does not establish which run produced them.
+
+**Settings search:** Section titles and descriptions qualify individual rows.
+Every query token must match within a section; unrelated partial matches are
+hidden. Clear and Escape keep the search input focused for the next query.

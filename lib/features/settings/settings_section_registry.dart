@@ -223,23 +223,38 @@ Future<void> _launchExternalUrl(String url) async {
 /// - a blank token list returns the spec untouched;
 /// - if the section title alone matches every token, the full row list
 ///   is kept (the user asked for the section);
+/// - section titles and descriptions qualify each row;
 /// - otherwise only rows matching every token render, falling back to
-///   rows matching at least one token when the tokens span several rows;
+///   rows matching at least one token when every token exists in the section;
 /// - sections with nothing matching return null and are dropped.
 SettingsSectionSpec? filterSettingsSection(
   SettingsSectionSpec spec,
   List<String> tokens,
 ) {
   if (tokens.isEmpty) return spec;
-  if (tokens.every((token) => _containsToken(spec.title, token))) {
+  final sectionText = '${spec.title} ${spec.description ?? ""}';
+  if (tokens.every((token) => _containsToken(sectionText, token))) {
     return spec;
   }
   final allTokenRows = spec.rows
-      .where((row) => tokens.every((t) => _containsToken(row.searchText, t)))
+      .where(
+        (row) => tokens.every(
+          (t) => _containsToken('$sectionText ${row.searchText}', t),
+        ),
+      )
       .toList();
   if (allTokenRows.isNotEmpty) return spec.withRows(allTokenRows);
+  final searchableText =
+      '$sectionText ${spec.rows.map((row) => row.searchText).join(" ")}';
+  if (!tokens.every((token) => _containsToken(searchableText, token))) {
+    return null;
+  }
   final anyTokenRows = spec.rows
-      .where((row) => tokens.any((t) => _containsToken(row.searchText, t)))
+      .where(
+        (row) => tokens.any(
+          (t) => _containsToken('$sectionText ${row.searchText}', t),
+        ),
+      )
       .toList();
   if (anyTokenRows.isEmpty) return null;
   return spec.withRows(anyTokenRows);
