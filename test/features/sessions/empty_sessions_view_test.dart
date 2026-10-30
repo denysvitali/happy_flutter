@@ -201,6 +201,8 @@ void main() {
       await tester.pump();
       expect(find.text('Error'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      // Let the SnackBar finish sliding in; mid-entrance it is off-screen.
+      await tester.pump(const Duration(milliseconds: 750));
       await tester.tap(find.text('Retry'));
       await tester.pump();
       expect(refreshes, 2);

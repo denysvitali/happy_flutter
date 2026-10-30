@@ -1185,6 +1185,9 @@ void main() {
       500,
       scrollable: find.byType(Scrollable).first,
     );
+    // Built in the cache extent is not on screen; bring the row into view.
+    await tester.ensureVisible(find.text('plain-model-99'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('plain-model-99'));
     await tester.pumpAndSettle();
     expect(picked, 'plain-model-99');
@@ -1242,22 +1245,22 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('Model 0'),
+        matching: find.text('model-0'),
       ),
     );
     await tester.pumpAndSettle();
     expect(picked, 'model-0');
     await tester.scrollUntilVisible(
-      find.text('Model 0'),
+      find.text('model-0'),
       -500,
       scrollable: list,
     );
     expect(footer, findsNothing);
     await tester.scrollUntilVisible(footer, 500, scrollable: list);
-    expect(find.textContaining('Model 0\nFor this provider'), findsOneWidget);
+    expect(find.textContaining('model-0\nFor this provider'), findsOneWidget);
   });
 
-  testWidgets('favorite uses the advertised catalog label', (tester) async {
+  testWidgets('favorite uses the advertised catalog ID', (tester) async {
     await pumpPickerHost(
       tester,
       models: ChatModelMode.fromOpenCodeCatalog(const [
@@ -1267,7 +1270,7 @@ void main() {
       onFavoriteChanged: (_) {},
     );
     expect(
-      find.textContaining('Advertised Name\nFor this provider'),
+      find.textContaining('vendor/model-id\nFor this provider'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const ValueKey('favorite-model-picker')));
@@ -1275,7 +1278,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('Advertised Name'),
+        matching: find.text('vendor/model-id'),
       ),
       findsOneWidget,
     );
