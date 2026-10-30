@@ -408,16 +408,21 @@ void main() {
               size: Size(280, 700),
               textScaler: TextScaler.linear(2),
             ),
-            child: SizedBox(
-              width: 280,
-              child: PermissionFooter(
-                permission: _pending(),
-                sessionId: 's1',
-                toolName: 'Edit',
-                onAllow: () async {},
-                onDeny: () async {},
-                onAllowAllEdits: () async {},
-                onYolo: () async {},
+            // The card lives in the scrolling chat list, so only its width is
+            // bounded; a 2x-text card may be taller than the test viewport.
+            // Horizontal overflow still throws and fails the test.
+            child: SingleChildScrollView(
+              child: SizedBox(
+                width: 280,
+                child: PermissionFooter(
+                  permission: _pending(),
+                  sessionId: 's1',
+                  toolName: 'Edit',
+                  onAllow: () async {},
+                  onDeny: () async {},
+                  onAllowAllEdits: () async {},
+                  onYolo: () async {},
+                ),
               ),
             ),
           ),

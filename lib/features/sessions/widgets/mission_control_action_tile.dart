@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
-import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -46,11 +44,17 @@ class MissionActionRow extends StatelessWidget {
     this.showTriageMenu = true,
     this.showInlineApproval = false,
     this.inbox = false,
+    this.avatarStyle,
   });
 
   final Session session;
   final SessionUiEntry entry;
   final MissionLane lane;
+
+  /// The avatar style the user picked in settings; null draws the
+  /// agent-identity blob. Read by the caller so this row stays a plain
+  /// widget that renders without a ProviderScope.
+  final AvatarStyle? avatarStyle;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool animateActivity;
@@ -368,6 +372,7 @@ class MissionActionRow extends StatelessWidget {
                                   child: ExcludeSemantics(
                                     child: _LaneTile(
                                       sessionId: session.id,
+                                      avatarStyle: avatarStyle,
                                       lane: lane,
                                       flavor: session.metadata?.flavor,
                                       color: laneColor,
@@ -606,7 +611,7 @@ const double _pillTapHeight = 24;
 /// failed, working, unread) at the top-right. Quiet teammates get no dot.
 /// An avatar style the user picked in settings replaces the blob, matching
 /// the chat header and the other session lists.
-class _LaneTile extends ConsumerWidget {
+class _LaneTile extends StatelessWidget {
   const _LaneTile({
     required this.sessionId,
     required this.lane,
@@ -615,9 +620,11 @@ class _LaneTile extends ConsumerWidget {
     required this.pulse,
     required this.selected,
     this.flavor,
+    this.avatarStyle,
   });
 
   final String sessionId;
+  final AvatarStyle? avatarStyle;
   final MissionLane lane;
   final String? flavor;
   final Color color;
@@ -626,11 +633,8 @@ class _LaneTile extends ConsumerWidget {
   final bool selected;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final avatarStyle = ref.watch(
-      settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
-    );
     final identity = agentIdentityForSeed(
       sessionId,
       brightness: Theme.of(context).brightness,

@@ -946,6 +946,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           session: session,
           entry: rowEntry,
           lane: lane,
+          avatarStyle: ref.watch(
+            settingsNotifierProvider.select(
+              (s) => parseAvatarStyle(s.avatarStyle),
+            ),
+          ),
           animateActivity: animateActivity,
           highlighted: highlighted,
           showTriageMenu: showTriageMenu && !sel.isActive,

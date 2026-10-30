@@ -172,7 +172,9 @@ void main() {
       );
       final update = tester.getRect(find.text(preview));
       final title = tester.getRect(find.text('Repair mobile networking'));
-      expect(update.width, greaterThan(200));
+      // 200px is the readable floor; the 40dp avatar and 12px gap land
+      // exactly on it at 320px/2x.
+      expect(update.width, greaterThanOrEqualTo(200));
       expect(update.width, closeTo(title.width, 1));
       // One line even at 2x text; the outcome pill stacks underneath.
       expect(tester.widget<Text>(find.text(preview)).maxLines, 1);

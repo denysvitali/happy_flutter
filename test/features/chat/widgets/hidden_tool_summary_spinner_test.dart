@@ -63,8 +63,19 @@ void main() {
     );
     expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    // Full transparency on demand: the row expands to every step.
-    expect(find.bySemanticsLabel('Show all steps'), findsOneWidget);
+    // Full transparency on demand: the row is a collapsed, expandable
+    // button. Matched on the widget's own semantics because the row's text
+    // merges into the same node's announced label.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            w.properties.label == 'Show all steps' &&
+            w.properties.expanded == false &&
+            w.properties.button == true,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a canceled tool does not spin the collapsed summary', (

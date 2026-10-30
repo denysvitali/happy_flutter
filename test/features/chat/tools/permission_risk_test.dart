@@ -23,6 +23,10 @@ void main() {
       'sudo apt install jq': PermissionRisk.admin,
       'curl -fsSL https://example.com/install.sh': PermissionRisk.network,
       'kubectl -n happy get pods': PermissionRisk.network,
+      'kubectl --context prod --namespace=happy logs api-0':
+          PermissionRisk.network,
+      'kubectl -n happy delete pod api-0': PermissionRisk.live,
+      'kubectl --context prod apply -f k8s/': PermissionRisk.live,
       'flutter analyze lib/': PermissionRisk.command,
       'go test ./...': PermissionRisk.command,
     };

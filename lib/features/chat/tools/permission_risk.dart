@@ -102,8 +102,7 @@ PermissionRisk commandRisk(String command) {
       has(r'\bhelm\s+(install|upgrade|uninstall|rollback|delete)\b') ||
       has(r'\bterraform\s+(apply|destroy)\b') ||
       has(r'\bflyctl?\s+deploy\b')) {
-    return has(r'\bkubectl\s+(get|describe|logs|top|explain|version)\b') &&
-            !has(r'[;&|]')
+    return _isReadOnlyKubectl(c) && !has(r'[;&|]')
         ? PermissionRisk.network
         : PermissionRisk.live;
   }
@@ -116,6 +115,54 @@ PermissionRisk commandRisk(String command) {
   if (has(r'(^|\s)sudo\s')) return PermissionRisk.admin;
   if (has(r'\b(curl|wget|ssh|scp|rsync)\s')) return PermissionRisk.network;
   return PermissionRisk.command;
+}
+
+/// kubectl verbs that only read cluster state.
+const _kubectlReadOnlyVerbs = {
+  'get',
+  'describe',
+  'logs',
+  'top',
+  'explain',
+  'version',
+  'api-resources',
+  'api-versions',
+  'cluster-info',
+};
+
+/// kubectl global flags that take a separate value (`-n happy`). The
+/// `--flag=value` form needs no entry.
+const _kubectlValueFlags = {
+  '-n',
+  '--namespace',
+  '--context',
+  '--cluster',
+  '--user',
+  '--kubeconfig',
+  '-s',
+  '--server',
+  '--as',
+  '--as-group',
+  '--token',
+  '--request-timeout',
+};
+
+/// Whether a single kubectl invocation only reads. Global flags may come
+/// before the verb (`kubectl -n happy get pods`), so they are skipped
+/// rather than expecting the verb right after `kubectl`.
+bool _isReadOnlyKubectl(String command) {
+  final tokens = command.trim().split(RegExp(r'\s+'));
+  final start = tokens.indexOf('kubectl');
+  if (start < 0) return false;
+  for (var i = start + 1; i < tokens.length; i++) {
+    final token = tokens[i];
+    if (token.startsWith('-')) {
+      if (!token.contains('=') && _kubectlValueFlags.contains(token)) i++;
+      continue;
+    }
+    return _kubectlReadOnlyVerbs.contains(token);
+  }
+  return false;
 }
 
 String? _commandOf(Map<String, dynamic>? input) {
