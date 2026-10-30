@@ -746,9 +746,24 @@ void main() {
     );
     final attach = find.byKey(const ValueKey<String>('composer-attach-button'));
     expect(find.descendant(of: composerCard, matching: attach), findsOneWidget);
+    // Paperclip and mic share one centre line and one edge inset.
+    final card = tester.getRect(composerCard);
+    final clip = tester.getRect(find.byIcon(Icons.attach_file_rounded));
+    final mic = tester.getRect(find.byIcon(Icons.mic_none_rounded));
+    expect(clip.center.dy, moreOrLessEquals(mic.center.dy, epsilon: 0.5));
+    expect(
+      clip.left - card.left,
+      moreOrLessEquals(card.right - mic.right, epsilon: 0.5),
+    );
     await tester.tap(attach);
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
+    // Tiles hug their content instead of filling the sheet.
+    final galleryTile = find.ancestor(
+      of: find.byIcon(Icons.photo_library_outlined),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.getSize(galleryTile.first).height, lessThan(120));
     expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
     expect(find.byKey(const ValueKey('composer-sheet-model')), findsNothing);
     await tester.tapAt(const Offset(10, 10));

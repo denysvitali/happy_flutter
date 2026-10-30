@@ -454,19 +454,34 @@ class _ComposerAttachButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return IconButton(
-      key: const ValueKey<String>('composer-attach-button'),
-      tooltip: context.l10n.chatAttachImage,
-      onPressed: enabled ? onTap : null,
-      constraints: const BoxConstraints.tightFor(
-        width: AppTouchTarget.min,
-        height: AppTouchTarget.min,
-      ),
-      padding: EdgeInsets.zero,
-      icon: Icon(
-        Icons.attach_file_rounded,
-        size: AppIconSize.xl,
-        color: cs.onSurfaceVariant,
+    final label = context.l10n.chatAttachImage;
+    // Same 44dp square as the dictation button so both edge icons share
+    // one centre line and one inset from the pill's edge.
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkResponse(
+          key: const ValueKey<String>('composer-attach-button'),
+          onTap: enabled ? onTap : null,
+          radius: AppTouchTarget.min / 2,
+          child: SizedBox.square(
+            dimension: AppTouchTarget.min,
+            child: Center(
+              child: Icon(
+                Icons.attach_file_rounded,
+                size: AppIconSize.xl,
+                color: enabled
+                    ? cs.onSurfaceVariant
+                    : cs.onSurface.withValues(
+                        alpha: AppMotion.disabledContentOpacity,
+                      ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -500,8 +515,9 @@ class _ComposerSheetTile extends StatelessWidget {
             vertical: AppSpacing.lg,
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: cs.onSurface),
+              Icon(icon, color: cs.onSurface, size: AppIconSize.xl),
               const SizedBox(height: AppSpacing.xsm),
               Text(
                 label,
