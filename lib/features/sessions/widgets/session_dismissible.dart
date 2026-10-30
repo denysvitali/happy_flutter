@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/services/session_archive.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 
@@ -32,7 +33,11 @@ Future<bool> confirmSessionArchive(
   if (!confirmed) return false;
 
   try {
-    await SessionsApi().setSessionArchived(session.id, true);
+    await archiveSessionStoppingProcess(
+      session.id,
+      api: SessionsApi(),
+      session: session,
+    );
     // Mark optimistically archived to prevent reappear during server lag.
     await sessionsNotifier.markSessionArchived(session.id, true);
     sessionsNotifier.loadFromSync();

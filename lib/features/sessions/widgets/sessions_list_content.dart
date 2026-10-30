@@ -1855,6 +1855,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final settings = AutoArchiveService.instance.getSettings();
     final duration = AutoArchiveService.idleArchiveDuration(settings);
     if (duration == null) return null;
+    // Archived rows have nothing left to auto-archive.
+    if (session.archived) return null;
     if (session.presence == 'online' || session.thinking) return null;
     if (session.pinned || AutoArchiveService.hasPendingPermission(session)) {
       return null;

@@ -47,7 +47,11 @@ extension _SessionBatchActions on _SessionsScreenState {
         var failures = 0;
         for (final id in ids) {
           try {
-            await api.setSessionArchived(id, true);
+            await archiveSessionStoppingProcess(
+              id,
+              api: api,
+              session: sessions[id],
+            );
             await notifier.markSessionArchived(id, true);
           } catch (error, stack) {
             logger.error('Failed to archive session $id', error, stack);

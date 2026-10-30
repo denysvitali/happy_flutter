@@ -14,6 +14,7 @@ import '../../core/routing/safe_pop.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
+import '../../core/services/session_archive.dart';
 import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
@@ -334,7 +335,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       await ref
           .read(sessionsNotifierProvider.notifier)
           .markSessionArchived(sessionId, true);
-      await api.setSessionArchived(sessionId, true);
+      await archiveSessionStoppingProcess(
+        sessionId,
+        api: api,
+        session: widget.session,
+      );
       if (!mounted) return;
       if (!embedded) {
         safePop<void>(context);

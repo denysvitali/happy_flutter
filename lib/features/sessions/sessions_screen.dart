@@ -15,6 +15,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/app_visibility_coordinator.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/session_archive.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
