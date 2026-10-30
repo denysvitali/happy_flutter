@@ -175,7 +175,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   bool _spawnBackendTouched = false;
 
   /// Optional first instruction; saved as the new chat's draft.
-  final TextEditingController _taskController = TextEditingController();
 
   /// Deactivation can precede State.dispose; guard both before using ref.
   bool get _canUseRef => mounted && context.mounted;
@@ -193,12 +192,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     _selectedRepoUrl = widget.initialRepositoryUrl;
     _selectedRepoRef = widget.initialRepositoryRef ?? 'main';
     Future<void>.microtask(_refreshMachinesAndResolveSelection);
-  }
-
-  @override
-  void dispose() {
-    _taskController.dispose();
-    super.dispose();
   }
 
   Future<void> _refreshMachinesAndResolveSelection() async {
@@ -294,8 +287,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _TaskField(controller: _taskController),
-                const SizedBox(height: AppSpacing.xl),
                 _SectionLabel(text: l10n.polishNewSessionWho),
                 const SizedBox(height: AppSpacing.sm),
                 if (largeText)
@@ -784,12 +775,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (profileId != null) {
         await DraftStorage().saveProfileId(sessionId, profileId);
       }
-      final task = _taskController.text.trim();
-      if (task.isNotEmpty) {
-        // The chat composer restores this draft, so the hand-off is one
-        // tap on Send away and nothing is sent without the user seeing it.
-        await DraftStorage().saveDraft(sessionId, task);
-      }
       await DraftStorage().saveModelMode(
         sessionId,
         modelMode ?? ChatModelMode.defaultModel.modeString,
@@ -840,69 +825,6 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
       ),
-    );
-  }
-}
-
-/// The first thing in the dialog: what the agent should do. Plain
-/// [TextField] (not a form field) and saved as the chat's draft.
-class _TaskField extends StatelessWidget {
-  const _TaskField({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final radius = BorderRadius.circular(AppRadius.xxxl);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            l10n.polishNewSessionTaskLabel,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          key: const ValueKey('new-session-task'),
-          controller: controller,
-          minLines: 2,
-          maxLines: 5,
-          keyboardType: TextInputType.multiline,
-          textCapitalization: TextCapitalization.sentences,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: l10n.polishNewSessionTaskHint,
-            helperText: l10n.polishNewSessionTaskHelper,
-            helperMaxLines: 2,
-            filled: true,
-            fillColor: cs.surfaceContainerHigh,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.lg,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: radius,
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: radius,
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: radius,
-              borderSide: BorderSide(color: cs.primary, width: AppBorder.thin),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

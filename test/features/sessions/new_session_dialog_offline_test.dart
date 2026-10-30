@@ -11,7 +11,6 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
-import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
@@ -741,60 +740,6 @@ void main() {
       expect(find.text('Open dialog'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
-
-    for (final task in ['  Fix the flaky auth test  ', '   ']) {
-      testWidgets('task text "${task.trim()}" becomes the new chat draft '
-          'without being sent', (tester) async {
-        final testSync = createTestSync()
-          ..testEnsureMachineReachableOverride = (_) async {};
-        addTearDown(() {
-          testSync.testEnsureMachineReachableOverride = null;
-        });
-        final sessionId = 'handoff-${task.trim().isEmpty ? 'empty' : 'task'}';
-        await DraftStorage().removeDraft(sessionId);
-        String? createdSession;
-        await pumpDialog(
-          tester,
-          buildDialogRouteHarness(
-            machines: {
-              'm-online': _machine(
-                id: 'm-online',
-                displayName: 'My Laptop',
-                active: true,
-                activeAtMs: DateTime.now().millisecondsSinceEpoch,
-              ),
-            },
-            initialMachineId: 'm-online',
-            onCreateSession: () async => sessionId,
-            onResult: (result) => createdSession = result,
-          ),
-        );
-        await tester.tap(find.text('Open dialog'));
-        await tester.pumpAndSettle();
-
-        // The task leads the dialog.
-        expect(find.text('What should the agent do?'), findsOneWidget);
-        final taskField = find.byKey(const ValueKey('new-session-task'));
-        expect(
-          tester.getTopLeft(taskField).dy,
-          lessThan(tester.getTopLeft(find.text('Who')).dy),
-        );
-        await tester.enterText(taskField, task);
-        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.pump(const Duration(milliseconds: 600));
-
-        expect(createdSession, sessionId);
-        // Handed off as a draft the composer restores, never auto-sent.
-        expect(
-          await DraftStorage().getDraft(sessionId),
-          task.trim().isEmpty ? isNull : 'Fix the flaky auth test',
-        );
-        expect(testSync.messagesForSession(sessionId), isEmpty);
-        expect(tester.takeException(), isNull);
-      });
-    }
 
     testWidgets('Create button is disabled when selected machine is offline', (
       tester,

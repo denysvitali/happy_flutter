@@ -9891,24 +9891,6 @@ abstract class AppLocalizations {
   /// **'Hand off a task'**
   String get polishNewSessionTitle;
 
-  /// No description provided for @polishNewSessionTaskLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'What should the agent do?'**
-  String get polishNewSessionTaskLabel;
-
-  /// No description provided for @polishNewSessionTaskHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. Fix the failing auth tests and open a PR'**
-  String get polishNewSessionTaskHint;
-
-  /// No description provided for @polishNewSessionTaskHelper.
-  ///
-  /// In en, this message translates to:
-  /// **'Optional. Lands in the chat, ready to send.'**
-  String get polishNewSessionTaskHelper;
-
   /// No description provided for @polishNewSessionWhere.
   ///
   /// In en, this message translates to:

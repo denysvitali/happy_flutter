@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -789,6 +790,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
       color: cs.onSurface,
       height: 1.45,
     );
+    // Centre a single line on the in-field actions (44dp button + 2dp
+    // bottom inset) so the hint lines up with the mic and send buttons.
+    final lineHeight = MediaQuery.textScalerOf(
+      context,
+    ).scale((draftStyle?.fontSize ?? 14) * (draftStyle?.height ?? 1));
+    final verticalPadding = math.max(
+      AppSpacing.sm,
+      (AppTouchTarget.min + AppSpacing.xxs - lineHeight) / 2,
+    );
 
     return TextField(
       controller: widget.controller,
@@ -810,11 +820,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.fromLTRB(
+        contentPadding: EdgeInsets.fromLTRB(
           AppSpacing.lg,
-          AppSpacing.md,
+          verticalPadding,
           AppSpacing.xs,
-          AppSpacing.sm,
+          verticalPadding,
         ),
       ),
       style: draftStyle,

@@ -584,6 +584,28 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('single-line hint is centred on the dictation button', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.pump();
+
+    final field = find.byType(TextField);
+    final mic = find.byIcon(Icons.mic_none_rounded);
+    expect(mic, findsOneWidget);
+    expect(
+      tester.getCenter(field).dy,
+      moreOrLessEquals(tester.getCenter(mic).dy, epsilon: 2),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
   testWidgets('active-turn actions do not grow the composer', (tester) async {
     final controller = TextEditingController(text: 'A compact follow-up');
     final composerCard = find.byKey(

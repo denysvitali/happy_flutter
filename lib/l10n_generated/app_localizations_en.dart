@@ -5676,17 +5676,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get polishNewSessionTitle => 'Hand off a task';
 
   @override
-  String get polishNewSessionTaskLabel => 'What should the agent do?';
-
-  @override
-  String get polishNewSessionTaskHint =>
-      'e.g. Fix the failing auth tests and open a PR';
-
-  @override
-  String get polishNewSessionTaskHelper =>
-      'Optional. Lands in the chat, ready to send.';
-
-  @override
   String get polishNewSessionWhere => 'Where';
 
   @override
