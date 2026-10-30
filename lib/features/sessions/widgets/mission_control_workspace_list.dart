@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_type.dart';
@@ -28,7 +29,6 @@ class MissionWorkspaceList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (groups.isEmpty) return const SliverToBoxAdapter();
     final cs = Theme.of(context).colorScheme;
-    final side = BorderSide(color: cs.outlineVariant);
     return SliverPadding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -39,27 +39,11 @@ class MissionWorkspaceList extends StatelessWidget {
           (context, index) {
             final group = groups[index];
             final first = index == 0;
-            final last = index == groups.length - 1;
             return Container(
               key: ValueKey('mission-workspace-${group.header.folderKey}'),
               clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: BorderRadius.vertical(
-                  top: first
-                      ? const Radius.circular(AppRadius.lg)
-                      : Radius.zero,
-                  bottom: last
-                      ? const Radius.circular(AppRadius.lg)
-                      : Radius.zero,
-                ),
-                border: Border(
-                  left: side,
-                  top: first ? side : BorderSide.none,
-                  right: side,
-                  bottom: last ? side : BorderSide.none,
-                ),
-              ),
+              // Flat roster list: no card chrome, just soft rules.
+              decoration: const BoxDecoration(),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -69,7 +53,7 @@ class MissionWorkspaceList extends StatelessWidget {
                       thickness: 1,
                       // Row padding + folder tile + gap: under the title.
                       indent: AppSpacing.smd + 26 + AppSpacing.smd,
-                      color: cs.outlineVariant,
+                      color: cs.onSurface.withValues(alpha: AppOpacity.faint),
                     ),
                   _WorkspaceTile(
                     group: group,

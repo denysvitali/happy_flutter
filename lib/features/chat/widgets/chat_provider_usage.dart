@@ -206,6 +206,9 @@ class _ChatProviderUsageState extends State<ChatProviderUsage>
     final title = widget.flavor == 'codex'
         ? l10n.codexUsageTitle
         : l10n.claudeLimitsTitle;
+    // Nothing to say yet (loading) or ever (unavailable): take no space.
+    // The limits screen stays reachable from the providers usage screen.
+    if (_windows.isEmpty) return const SizedBox.shrink();
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 880),

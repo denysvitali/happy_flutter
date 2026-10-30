@@ -221,6 +221,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _avatarStyleLabel(String style) => switch (style) {
+    'agent' => 'Agent',
     'gradient' => 'Gradient',
     'pixelated' => 'Pixelated',
     'brutalist' => 'Brutalist',
@@ -253,6 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children:
                   [
+                        'agent',
                         'gradient',
                         'pixelated',
                         'brutalist',

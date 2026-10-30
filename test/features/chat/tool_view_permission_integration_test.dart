@@ -61,7 +61,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       expect(actions, hasLength(1));
@@ -86,7 +86,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       // Tap before rebuilding too: the guard must cover the same frame.
       await tester.tap(find.text('Deny'));
       await tester.pump();
@@ -111,11 +111,11 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
       final context = tester.element(find.byType(ToolView));
       expect(find.text(context.l10n.permissionActionFailed), findsOneWidget);
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
       expect(actions, hasLength(2));
       expect(actions.map((action) => action.permissionId), [
@@ -136,7 +136,7 @@ void main() {
           permissionActionDelegate: (_) => completion.future,
         ),
       );
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
       await tester.pumpWidget(const SizedBox.shrink());
       completion.completeError(StateError('transport unavailable'));
@@ -313,7 +313,7 @@ void main() {
       expect(_richTextContent(tester), isNot(contains('"structured_content"')));
     });
 
-    testWidgets('codex Yes emits codex-approve action', (tester) async {
+    testWidgets('codex Allow once emits codex-approve action', (tester) async {
       final actions = <PermissionAction>[];
 
       await tester.pumpWidget(
@@ -326,7 +326,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Yes'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       expect(actions, hasLength(1));
@@ -424,7 +424,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       expect(actions, isEmpty);
@@ -451,7 +451,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       expect(actions, hasLength(1));
@@ -471,7 +471,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Allow'), findsNothing);
+      expect(find.text('Allow once'), findsNothing);
       expect(find.text('Deny'), findsNothing);
       expect(actions, isEmpty);
     });

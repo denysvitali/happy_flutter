@@ -254,7 +254,7 @@ class _MarkdownViewState extends State<MarkdownView> {
 
     final body = RepaintBoundary(
       child: MarkdownBody(
-        data: markdown,
+        data: shortenLongBareUrls(markdown),
         extensionSet: _gitHubFlavoredExtensionSet,
         inlineSyntaxes: _safeInlineSyntaxes,
         builders: _effectiveBuilders,
@@ -511,6 +511,58 @@ Future<void> _openMarkdownLink(String? href) async {
   } catch (error, stackTrace) {
     logger.warning('Failed to open markdown link', error, stackTrace);
   }
+}
+
+/// Bare URLs longer than this render as a short labelled link.
+const int _bareUrlDisplayMax = 48;
+
+final RegExp _bareUrl = RegExp(r'(^|[\s(])(https?://[^\s<>()\[\]]+)');
+
+/// Rewrites long bare URLs ("https://claude.com/cai/oauth/authorize?...")
+/// as `[claude.com/cai/oauth/authorize…](full url)` so a sign-in or docs
+/// link reads as one tappable line instead of eight lines of query string.
+/// The full URL is still what opens, and the message source (copy, share)
+/// is unchanged. Code fences, inline code and existing links are left as-is.
+@visibleForTesting
+String shortenLongBareUrls(String markdown) {
+  if (!markdown.contains('://')) return markdown;
+  var inFence = false;
+  final lines = markdown.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (line.trimLeft().startsWith('```') ||
+        line.trimLeft().startsWith('~~~')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !line.contains('://')) continue;
+    final parts = line.split('`');
+    for (var j = 0; j < parts.length; j += 2) {
+      parts[j] = parts[j].replaceAllMapped(_bareUrl, (m) {
+        final lead = m.group(1)!;
+        var url = m.group(2)!;
+        // Keep sentence punctuation outside the link.
+        var trail = '';
+        while (url.isNotEmpty && '.,;:!?'.contains(url[url.length - 1])) {
+          trail = url[url.length - 1] + trail;
+          url = url.substring(0, url.length - 1);
+        }
+        if (lead == '(' || url.length <= _bareUrlDisplayMax) {
+          return m.group(0)!;
+        }
+        final uri = Uri.tryParse(url);
+        if (uri == null || uri.host.isEmpty) return m.group(0)!;
+        var label = '${uri.host}${uri.path}';
+        if (label.length > _bareUrlDisplayMax - 1) {
+          label = label.substring(0, _bareUrlDisplayMax - 1);
+        }
+        label = label.replaceAll(RegExp(r'[\[\]\\*_`]'), '');
+        return '$lead[$label…]($url)$trail';
+      });
+    }
+    lines[i] = parts.join('`');
+  }
+  return lines.join('\n');
 }
 
 Uri? _normalizeMarkdownHref(String? href) {

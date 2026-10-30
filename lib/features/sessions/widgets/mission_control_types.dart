@@ -9,7 +9,10 @@ import '../../../core/utils/session_status.dart';
 
 /// Horizontal gap between a Mission Control row's lane tile and its text
 /// column; dividers that align with the text use it too.
-const double missionRowTextGap = AppSpacing.smd;
+const double missionRowTextGap = AppSpacing.md;
+
+/// Diameter of the teammate avatar that leads every Mission Control row.
+const double missionAvatarSize = AppAvatarSize.medium;
 
 /// How a session is triaged in Mission Control.
 enum MissionLane {

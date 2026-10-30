@@ -10,8 +10,10 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/agent_identity.dart';
 import '../../../core/utils/text_truncate.dart';
 import '../markdown/markdown.dart';
+import 'chat_agent_scope.dart';
 import 'message_focus_view.dart';
 import 'send_status_indicator.dart';
 
@@ -119,9 +121,17 @@ class _UserBubbleState extends State<UserBubble> {
 
     Widget bubbleFor(BoxConstraints constraints) {
       final appColors = theme.extension<AppColorScheme>();
-      final fill = _userBubbleFill(theme, cs);
-      final onFill = _userBubbleText(theme, cs);
-      final accent = appColors?.bubbleUser ?? cs.primary;
+      // Inside a chat the bubble wears the agent's identity colour (as in
+      // Dots), so each teammate's thread reads as its own; elsewhere it
+      // keeps the neutral accent glass.
+      final identity = ChatAgentScope.maybeOf(context)?.identity;
+      final fill = identity == null
+          ? _userBubbleFill(theme, cs)
+          : _identityBubbleFill(identity, cs);
+      final onFill = identity == null
+          ? _userBubbleText(theme, cs)
+          : _identityBubbleText(identity, cs);
+      final accent = identity?.color ?? appColors?.bubbleUser ?? cs.primary;
 
       return Semantics(
         label: 'User message: ${_truncateForLabel(widget.text)}',
@@ -134,6 +144,7 @@ class _UserBubbleState extends State<UserBubble> {
           decoration: BoxDecoration(
             borderRadius: radius,
             color: fill,
+            // A hairline of the accent gives the pale wash an edge.
             border: Border.all(
               color: accent.withValues(alpha: AppOpacity.medium),
               width: AppBorder.hairline,
@@ -274,6 +285,23 @@ Color _userBubbleText(ThemeData theme, ColorScheme cs) {
   }
   return appColors?.bubbleUser ?? cs.primary;
 }
+
+/// Identity-tinted bubble: a low-chroma wash of the agent's accent over
+/// the pane (16% light, 26% dark). Enough to tell teammates apart, never
+/// saturated enough to read as an error next to a risk warning. Every
+/// palette hue keeps >= 7:1 for the regular ink on top.
+Color _identityBubbleFill(AgentIdentity identity, ColorScheme cs) =>
+    identity.brightness == Brightness.light
+    ? Color.alphaBlend(identity.color.withValues(alpha: 0.16), cs.surface)
+    : Color.alphaBlend(
+        identity.color.withValues(alpha: 0.26),
+        cs.surfaceContainerLow,
+      );
+
+/// Text on [_identityBubbleFill]: the regular ink, which keeps AA contrast
+/// on the softened fill in both themes.
+Color _identityBubbleText(AgentIdentity identity, ColorScheme cs) =>
+    cs.onSurface;
 
 /// Inline thumbnail for an attached image inside a [UserBubble].
 ///

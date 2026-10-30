@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/ui/agent_identity.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_action_tile.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_types.dart';
@@ -57,7 +58,7 @@ Widget _app(Widget child) => ProviderScope(
 );
 
 void main() {
-  testWidgets('phone row lines up tile, text, age, pill and menu', (
+  testWidgets('phone row lines up avatar, text, age, pill and menu', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(376, 900);
@@ -73,19 +74,14 @@ void main() {
     final pill = tester.getRect(
       find.ancestor(of: find.text('1 new'), matching: find.byType(AppBadge)),
     );
-    final tile = tester.getRect(
-      find
-          .ancestor(
-            of: find.byIcon(missionLaneIcon(MissionLane.unread)),
-            matching: find.byType(Container),
-          )
-          .first,
-    );
+    // The row leads with the teammate's agent-identity avatar.
+    final tile = tester.getRect(find.byType(AgentAvatar));
+    expect(tile.size, const Size.square(missionAvatarSize));
     final menu = tester.getRect(find.byTooltip('Session actions'));
     final dots = tester.getRect(find.byIcon(Icons.more_vert_rounded));
 
-    // The tile's top edge matches the title's glyph top (3dp below its line
-    // box), and the text column starts one shared gap after the tile.
+    // The avatar's top edge matches the title's glyph top (3dp below its
+    // line box), and the text column starts one shared gap after it.
     expect(tile.top - title.top, closeTo(3, 0.5));
     expect(title.left - tile.right, closeTo(missionRowTextGap, 0.5));
     expect(preview.left, closeTo(title.left, 0.5));

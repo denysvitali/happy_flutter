@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/features/auth/widgets/agent_mascot_cluster.dart';
 import 'package:happy_flutter/features/sessions/widgets/empty_sessions_view.dart';
 
 void main() {
@@ -80,9 +81,17 @@ void main() {
   });
 
   group('EmptySessionsView (first-time user)', () {
-    testWidgets('renders rocket icon and 3 onboarding steps', (tester) async {
+    testWidgets('renders the mascot hero, promise and 3 onboarding steps', (
+      tester,
+    ) async {
       await tester.pumpWidget(wrap());
-      expect(find.byIcon(Icons.rocket_launch_outlined), findsOneWidget);
+      expect(find.byType(AgentMascotCluster), findsOneWidget);
+      expect(find.text('Your coding agents, in your pocket'), findsOneWidget);
+      expect(
+        find.text('End-to-end encrypted · Runs on your hardware'),
+        findsOneWidget,
+      );
+      expect(find.text('Set up in three steps'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
@@ -264,10 +273,37 @@ void main() {
         ),
       );
 
-      expect(find.text('Start session'), findsOneWidget);
-      await tester.tap(find.text('Start session'));
+      // A single online computer is named on the one primary action.
+      expect(find.text('Your agents are ready'), findsOneWidget);
+      expect(find.text('Start on m1'), findsOneWidget);
+      await tester.tap(find.text('Start on m1'));
       await tester.pump();
       expect(creates, 1);
+    });
+
+    testWidgets('several online computers keep a generic start action', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      Machine online(String id) => Machine(
+        id: id,
+        seq: 0,
+        active: true,
+        activeAt: now,
+        createdAt: 0,
+        updatedAt: 0,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      await tester.pumpWidget(
+        wrap(
+          machines: {'m1': online('m1'), 'm2': online('m2')},
+          onCreateSession: () async {},
+        ),
+      );
+
+      expect(find.text('Start session'), findsOneWidget);
+      expect(find.textContaining('Start on'), findsNothing);
     });
   });
 }

@@ -5642,4 +5642,244 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsBoardSearchHint => 'Search sessions or projects';
+
+  @override
+  String polishComposerAskAgent(String agent) {
+    return 'Ask $agent…';
+  }
+
+  @override
+  String get polishComposerAskGeneric => 'Ask your agent…';
+
+  @override
+  String get polishComposerMore => 'Attach and options';
+
+  @override
+  String get polishComposerAddSection => 'Add to message';
+
+  @override
+  String get polishComposerConversationSection => 'This conversation';
+
+  @override
+  String get polishComposerApprovals => 'Approvals';
+
+  @override
+  String get polishComposerModel => 'Model';
+
+  @override
+  String get polishComposerProfile => 'Provider profile';
+
+  @override
+  String get polishComposerFullEditor => 'Open full editor';
+
+  @override
+  String get polishNewSessionTitle => 'Hand off a task';
+
+  @override
+  String get polishNewSessionTaskLabel => 'What should the agent do?';
+
+  @override
+  String get polishNewSessionTaskHint =>
+      'e.g. Fix the failing auth tests and open a PR';
+
+  @override
+  String get polishNewSessionTaskHelper =>
+      'Optional. Lands in the chat, ready to send.';
+
+  @override
+  String get polishNewSessionWhere => 'Where';
+
+  @override
+  String get polishNewSessionWho => 'Who';
+
+  @override
+  String get polishNewSessionStart => 'Start';
+
+  @override
+  String polishNewSessionOnMachine(String machine) {
+    return 'on $machine';
+  }
+
+  @override
+  String get polishEmptyReadyTitle => 'Your agents are ready';
+
+  @override
+  String polishEmptyReadySubtitle(String machine) {
+    return 'Hand off a task. It keeps running on $machine, even with the app closed.';
+  }
+
+  @override
+  String get polishEmptyReadySubtitleGeneric =>
+      'Hand off a task. It keeps running on your computer, even with the app closed.';
+
+  @override
+  String polishEmptyReadyAction(String machine) {
+    return 'Start on $machine';
+  }
+
+  @override
+  String get polishOnboardingTitle => 'Your coding agents, in your pocket';
+
+  @override
+  String get polishOnboardingPromise =>
+      'Agents run on your own computer. Start them, approve steps and review results from anywhere.';
+
+  @override
+  String get polishOnboardingSetupHeader => 'Set up in three steps';
+
+  @override
+  String get polishTrustLine => 'End-to-end encrypted · Runs on your hardware';
+
+  @override
+  String get polishNewSessionOtherFolder => 'Or choose a computer and folder';
+
+  @override
+  String get polishComposerDefaultModel => 'Default model';
+
+  @override
+  String rosterWantsToRun(String agent) {
+    return '$agent wants to run';
+  }
+
+  @override
+  String rosterWantsToEdit(String agent) {
+    return '$agent wants to edit';
+  }
+
+  @override
+  String rosterWantsToUse(String agent) {
+    return '$agent wants to use';
+  }
+
+  @override
+  String rosterWantsPlanApproval(String agent) {
+    return '$agent wants you to approve its plan';
+  }
+
+  @override
+  String rosterMoreRequests(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get convAgentFallbackName => 'The agent';
+
+  @override
+  String convPermAskRun(String agent) {
+    return 'Allow $agent to run this command?';
+  }
+
+  @override
+  String convPermAskEdit(String agent, String file) {
+    return 'Allow $agent to edit $file?';
+  }
+
+  @override
+  String convPermAskWrite(String agent, String file) {
+    return 'Allow $agent to create $file?';
+  }
+
+  @override
+  String convPermAskPlan(String agent) {
+    return 'Start working on $agent\'s plan?';
+  }
+
+  @override
+  String convPermAskTool(String agent, String tool) {
+    return 'Allow $agent to use $tool?';
+  }
+
+  @override
+  String get convPermAllowOnce => 'Allow once';
+
+  @override
+  String get convPermDeniedLine => 'Denied · not run';
+
+  @override
+  String get convPermExpiredLine => 'Expired · not run';
+
+  @override
+  String get convPermOffline =>
+      'The session is offline. Reconnect its machine to answer.';
+
+  @override
+  String convPermBarTitle(String agent) {
+    return '$agent is waiting for your approval';
+  }
+
+  @override
+  String convPermBarMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get convRiskDelete => 'Deletes files. This can\'t be undone.';
+
+  @override
+  String get convRiskDiscard =>
+      'Discards local changes. This can\'t be undone.';
+
+  @override
+  String get convRiskPush => 'Pushes to a remote repository.';
+
+  @override
+  String get convRiskPublish => 'Publishes outside this machine.';
+
+  @override
+  String get convRiskLive => 'Changes live infrastructure.';
+
+  @override
+  String get convRiskAdmin => 'Runs with administrator rights.';
+
+  @override
+  String get convRiskNetwork => 'Reaches the network.';
+
+  @override
+  String get convRiskCommand => 'Runs a shell command on this machine.';
+
+  @override
+  String get convRiskEditInside => 'Changes a file in this workspace.';
+
+  @override
+  String get convRiskEditOutside => 'Changes a file outside this workspace.';
+
+  @override
+  String get convRiskWeb => 'Fetches content from the web.';
+
+  @override
+  String convWorkSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count steps',
+      one: '1 step',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String convLiveEditing(String file) {
+    return 'Editing $file';
+  }
+
+  @override
+  String convLiveReading(String file) {
+    return 'Reading $file';
+  }
+
+  @override
+  String convLiveRunning(String command) {
+    return 'Running $command';
+  }
+
+  @override
+  String convLiveSearching(String query) {
+    return 'Searching for $query';
+  }
+
+  @override
+  String get convWorkExpand => 'Show all steps';
+
+  @override
+  String get convWorkCollapse => 'Hide steps';
 }

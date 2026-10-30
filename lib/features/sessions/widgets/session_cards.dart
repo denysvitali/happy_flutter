@@ -16,8 +16,9 @@ export 'active_session_card.dart';
 export 'archived_session_card.dart';
 export 'compact_active_session_card.dart';
 
-/// Parses an avatar style string to the corresponding
-/// [AvatarStyle] enum. Returns null if unknown.
+/// Parses an avatar style string to the corresponding [AvatarStyle] enum.
+/// Returns null for 'agent' (the default agent-identity blob) and for
+/// unknown values, which [SessionAvatar] renders as that blob.
 AvatarStyle? parseAvatarStyle(String? style) {
   return switch (style) {
     'gradient' => AvatarStyle.gradient,

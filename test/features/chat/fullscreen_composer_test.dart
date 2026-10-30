@@ -30,6 +30,16 @@ Widget _buildComposer({
   );
 }
 
+/// The full editor lives in the composer's "+" sheet.
+Future<void> _openFullEditor(WidgetTester tester) async {
+  await tester.tap(
+    find.byKey(const ValueKey<String>('composer-attach-button')),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Open full editor'));
+  await tester.pumpAndSettle();
+}
+
 Finder _fullscreenField() {
   return find.descendant(
     of: find.byType(FullscreenComposerScreen),
@@ -55,8 +65,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(ExpandComposerButton));
-    await tester.pumpAndSettle();
+    await _openFullEditor(tester);
 
     expect(_fullscreenField(), findsOneWidget);
     expect(
@@ -93,8 +102,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(ExpandComposerButton));
-    await tester.pumpAndSettle();
+    await _openFullEditor(tester);
 
     // Empty draft cannot send from the editor either.
     expect(
@@ -118,6 +126,27 @@ void main() {
     expect(sends, 1);
   });
 
+  testWidgets('long drafts offer the full editor inline', (tester) async {
+    final controller = TextEditingController(text: 'short');
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        sessionId: 'composer-inline-expand',
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(ExpandComposerButton), findsNothing);
+
+    controller.text = 'line one\nline two';
+    await tester.pump();
+    await tester.tap(find.byType(ExpandComposerButton));
+    await tester.pumpAndSettle();
+    expect(_fullscreenField(), findsOneWidget);
+  });
+
   testWidgets('a blocked session cannot send from the editor', (tester) async {
     final controller = TextEditingController(text: 'queued prompt');
     addTearDown(controller.dispose);
@@ -133,8 +162,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(ExpandComposerButton));
-    await tester.pumpAndSettle();
+    await _openFullEditor(tester);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('fullscreen-composer-send')),

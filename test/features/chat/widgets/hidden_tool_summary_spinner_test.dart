@@ -38,9 +38,33 @@ void main() {
       },
       {'name': 'Bash', 'state': 'error'},
     ]);
-    expect(find.text('Read 1 file · Edited 1 file · 1 failed'), findsOneWidget);
+    expect(
+      find.text('3 steps · Read 1 file · Edited 1 file · 1 failed'),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('a finished group reads as one checked summary row', (
+    tester,
+  ) async {
+    await pump(tester, [
+      {
+        'name': 'Edit',
+        'state': 'completed',
+        'input': {'file_path': 'lib/a.dart'},
+      },
+      {'name': 'Bash', 'state': 'completed'},
+    ]);
+    expect(
+      find.text('2 steps · Edited 1 file · Ran 1 command'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    // Full transparency on demand: the row expands to every step.
+    expect(find.bySemanticsLabel('Show all steps'), findsOneWidget);
   });
 
   testWidgets('a canceled tool does not spin the collapsed summary', (

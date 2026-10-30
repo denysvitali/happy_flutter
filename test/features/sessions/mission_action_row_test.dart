@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/ui/agent_identity.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show formatRelativeTime;
 import 'package:happy_flutter/features/sessions/widgets/mission_control_action_tile.dart';
@@ -94,7 +96,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('inbox preserves workspace and readable multiline updates', (
+  testWidgets('inbox preserves workspace and keeps updates to one line', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(500, 900);
@@ -124,13 +126,14 @@ void main() {
       final workspace = tester.getRect(find.text('git/pmos-pixel7'));
       expect(update.top, greaterThan(workspace.bottom));
       expect(update.width, greaterThan(350));
+      // Roster rows: one outcome line regardless of length, so long and
+      // short updates give the same row height; the full text stays in the
+      // tooltip.
       final height = tester.getSize(find.byType(MissionActionRow)).height;
-      if (preview.startsWith('The modem')) {
-        expect(update.height, greaterThan(25));
-        expect(height, lessThan(100));
-      } else {
-        expect(height, inInclusiveRange(64, 76));
-      }
+      expect(tester.widget<Text>(find.text(preview)).maxLines, 1);
+      expect(update.height, lessThan(25));
+      expect(height, inInclusiveRange(64, 76));
+      expect(find.byTooltip(preview), findsOneWidget);
       expect(find.text('devbox'), findsNothing);
       expect(tester.takeException(), isNull);
     }
@@ -171,7 +174,9 @@ void main() {
       final title = tester.getRect(find.text('Repair mobile networking'));
       expect(update.width, greaterThan(200));
       expect(update.width, closeTo(title.width, 1));
-      expect(update.height, greaterThan(50));
+      // One line even at 2x text; the outcome pill stacks underneath.
+      expect(tester.widget<Text>(find.text(preview)).maxLines, 1);
+      expect(update.height, lessThan(50));
       expect(
         tester.getRect(find.text('23 new')).top,
         greaterThan(update.bottom),
@@ -185,43 +190,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('phone-width row keeps age off the title and wraps preview', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        _app(
-          MissionActionRow(
-            session: _session(title: 'Investigate and fix charging gaps'),
-            entry: SessionUiEntry(
-              lastMessagePreview:
-                  'The battery logo was from the CPU I think, not the '
-                  'charger, so the earlier fix did not apply here',
-              lastMessageTimestamp: DateTime.now().millisecondsSinceEpoch,
-              unreadCount: 2,
+    testWidgets(
+      'phone-width row keeps age off the title and one-line preview',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          _app(
+            MissionActionRow(
+              session: _session(title: 'Investigate and fix charging gaps'),
+              entry: SessionUiEntry(
+                lastMessagePreview:
+                    'The battery logo was from the CPU I think, not the '
+                    'charger, so the earlier fix did not apply here',
+                lastMessageTimestamp: DateTime.now().millisecondsSinceEpoch,
+                unreadCount: 2,
+              ),
+              lane: MissionLane.unread,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+              onArchive: () {},
             ),
-            lane: MissionLane.unread,
-            animateActivity: false,
-            onTap: () {},
-            onLongPress: () {},
-            onArchive: () {},
+            dark: dark,
           ),
-          dark: dark,
-        ),
-      );
-      final title = tester.getRect(
-        find.text('Investigate and fix charging gaps'),
-      );
-      final age = tester.getRect(find.text('Just now'));
-      final preview = find.textContaining('battery logo');
-      expect(age.left, greaterThan(title.right));
-      expect(tester.widget<Text>(preview).maxLines, 2);
-      expect(tester.getSize(preview).height, greaterThan(20));
-      expect(tester.takeException(), isNull);
-    });
+        );
+        final title = tester.getRect(
+          find.text('Investigate and fix charging gaps'),
+        );
+        final age = tester.getRect(find.text('Just now'));
+        final preview = find.textContaining('battery logo');
+        expect(age.left, greaterThan(title.right));
+        expect(tester.widget<Text>(preview).maxLines, 1);
+        expect(tester.getSize(preview).height, lessThan(25));
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets(
       '320px row gives title and preview width at 2x text, dark=$dark',
@@ -769,11 +775,129 @@ void main() {
         if (approvals) {
           expect(find.bySemanticsLabel('Allow'), findsOneWidget);
           expect(find.bySemanticsLabel('Deny'), findsOneWidget);
+          // The request reads as a decision, not a bare tool label.
+          expect(
+            find.textContaining('Claude wants to use Bash', findRichText: true),
+            findsOneWidget,
+          );
         }
         expect(tester.takeException(), isNull);
       }
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('pending command reads as a decision with the agent name', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(
+            title: 'Roll out config',
+            flavor: 'codex',
+            agentState: AgentState(
+              requests: {
+                'a': const RequestInfo(
+                  tool: 'Bash',
+                  arguments: {
+                    'command': 'kubectl rollout restart deploy/api\necho done',
+                  },
+                  createdAt: 1,
+                ),
+                'b': const RequestInfo(tool: 'Read', createdAt: 2),
+              },
+            ),
+          ),
+          entry: const SessionUiEntry(
+            lastMessagePreview: 'Replicas are healthy on the old hash',
+          ),
+          lane: MissionLane.blocked,
+          showInlineApproval: true,
+          animateActivity: false,
+          onTap: () {},
+          onLongPress: () {},
+        ),
+      ),
+    );
+    final decision = find.textContaining(
+      'Codex wants to run kubectl rollout restart deploy/api',
+      findRichText: true,
+    );
+    expect(decision, findsOneWidget);
+    // Only the first line of a multi-line command, plus the extra count.
+    expect(find.textContaining('echo done', findRichText: true), findsNothing);
+    expect(find.textContaining('+1 more', findRichText: true), findsOneWidget);
+    // The agent's latest update moves beside the buttons as context, and
+    // the old bare tool label is gone.
+    expect(find.text('Replicas are healthy on the old hash'), findsOneWidget);
+    expect(find.text('Bash'), findsNothing);
+    expect(find.byIcon(Icons.shield_outlined), findsNothing);
+    // Allow is a calm tonal button, not the solid warning fill.
+    final allow = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Allow'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    final theme = Theme.of(tester.element(find.text('Allow')));
+    final background = allow.style?.backgroundColor?.resolve({});
+    expect(background, isNot(theme.colorScheme.error));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rows lead with the session identity avatar and state dot', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Column(
+          children: [
+            MissionActionRow(
+              session: _session(id: 'live-one', flavor: 'claude'),
+              entry: SessionUiEntry.empty,
+              lane: MissionLane.live,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+            ),
+            MissionActionRow(
+              session: _session(id: 'quiet-one', flavor: 'codex'),
+              entry: SessionUiEntry.empty,
+              lane: MissionLane.quiet,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+            ),
+          ],
+        ),
+      ),
+    );
+    final avatars = tester
+        .widgetList<AgentAvatar>(find.byType(AgentAvatar))
+        .toList();
+    expect(avatars.map((a) => a.identity.seed), ['live-one', 'quiet-one']);
+    expect(avatars.map((a) => a.identity.flavor), ['claude', 'codex']);
+    // Working teammates carry a state dot; quiet ones do not.
+    expect(
+      find.descendant(
+        of: find.byType(MissionActionRow).first,
+        matching: find.byType(AppStatusDot),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MissionActionRow).last,
+        matching: find.byType(AppStatusDot),
+      ),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
   });
 }

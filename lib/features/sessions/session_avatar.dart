@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/ui/agent_identity.dart';
 import '../../core/ui/avatars/avatar_bloom.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_constellation.dart';
@@ -113,6 +114,22 @@ class SessionAvatar extends StatelessWidget {
   }
 
   Widget _buildGeneratedAvatar(BuildContext context) {
+    // No explicit style: render the friendly agent-identity blob, whose
+    // colour is shared with every other surface that shows this agent.
+    if (style == null) {
+      final identity = agentIdentityForSeed(
+        id,
+        brightness: Theme.of(context).brightness,
+        flavor: flavor,
+      );
+      return AgentAvatar(
+        identity: identity,
+        size: size,
+        dimmed: monochrome,
+        showProviderBadge: showFlavorIcon,
+        providerBadge: (f, s) => HarnessLogo(flavor: f, size: s),
+      );
+    }
     final effectiveFlavor = flavor ?? 'claude';
     final circleSize = (size * 0.5).round();
     final iconSize = (size * 0.36).round();

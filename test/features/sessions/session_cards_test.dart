@@ -30,6 +30,10 @@ void main() {
       expect(parseAvatarStyle('prism'), AvatarStyle.prism);
     });
 
+    test('returns null for "agent" so the identity blob renders', () {
+      expect(parseAvatarStyle('agent'), isNull);
+    });
+
     test('returns null for unknown style', () {
       expect(parseAvatarStyle('unknown'), isNull);
     });

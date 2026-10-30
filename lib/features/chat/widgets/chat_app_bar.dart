@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
@@ -14,8 +15,6 @@ import '../../loops/loop_count_badge.dart';
 import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
 import 'chat_app_bar_status.dart';
-import 'session_header_chip.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 // The chip model, the chip builder and the store fallback live in a sibling
 // file (see chat_app_bar_status.dart); re-exported so existing callers can
@@ -154,31 +153,18 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
       behavior: HitTestBehavior.opaque,
       child: Row(
         children: [
-          // Hairline ring frames the avatar against the glass chrome.
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(
-                color:
-                    (Theme.of(context).extension<AppColorScheme>() ??
-                            AppColorScheme.dark())
-                        .glassBorder,
-                width: AppBorder.hairline,
-              ),
-            ),
-            padding: const EdgeInsets.all(AppSpacing.xxs),
-            child: SessionAvatar(
-              id: avatarId,
-              flavor: flavor,
-              size: 34,
-              showFlavorIcon: true,
-              square: true,
-              style: avatarStyle,
-            ),
+          // The agent's face is the identity, resolved exactly like the
+          // roster rows; the provider is the small corner badge.
+          SessionAvatar(
+            id: avatarId,
+            flavor: flavor,
+            size: 36,
+            showFlavorIcon: true,
+            // Same resolution as the roster: the identity blob unless the
+            // user picked another avatar style in settings.
+            style: avatarStyle,
           ),
-          const SizedBox(width: AppSpacing.xs),
+          const SizedBox(width: AppSpacing.smd),
           Expanded(
             child: _TitleReveal(
               sessionTitle: resolvedTitle,
@@ -281,14 +267,14 @@ class _TitleRevealState extends State<_TitleReveal> {
           children: [
             Text(
               widget.sessionTitle,
-              style: widget.textTheme.titleSmall?.copyWith(
+              style: widget.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 height: 1.2,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: AppSpacing.xxs),
             _StatusRow(statusChips: widget.statusChips),
           ],
         ),
@@ -457,73 +443,90 @@ class _VitalPill extends StatelessWidget {
   }
 }
 
-/// Animated status row that cross-fades between chip sets.
+/// One calm status line under the title: a single leading dot or icon
+/// for the most important state, then every state as plain text joined by
+/// middots ("Online · Approval needed"). Only warning and error states keep
+/// their colour; everything else uses the secondary ink.
 class _StatusRow extends StatelessWidget {
   const _StatusRow({required this.statusChips});
 
   final List<ChatAppBarStatusChip> statusChips;
 
+  static bool _isUrgent(Color color) =>
+      color == AppColors.warning || color == AppColors.error;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final chipKey = ValueKey(
       statusChips
           .map((chip) => '${chip.text}:${chip.icon.codePoint}')
           .join('|'),
     );
+    final lead = statusChips.isEmpty
+        ? null
+        : statusChips.firstWhere(
+            (chip) => _isUrgent(chip.color),
+            orElse: () => statusChips.first,
+          );
+    final secondary = AppText.secondary(theme, cs.onSurfaceVariant);
+    // What needs the user reads first, so a narrow bar never fades it out.
+    final ordered = [
+      ...statusChips.where((chip) => _isUrgent(chip.color)),
+      ...statusChips.where((chip) => !_isUrgent(chip.color)),
+    ];
     return AnimatedSwitcher(
       duration: AppDuration.normal,
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, anim) {
-        return FadeTransition(
-          opacity: anim,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.15),
-              end: Offset.zero,
-            ).animate(anim),
-            child: child,
-          ),
-        );
-      },
-      child: statusChips.isEmpty
+      transitionBuilder: (child, anim) =>
+          FadeTransition(opacity: anim, child: child),
+      child: lead == null
           ? const SizedBox.shrink(key: ValueKey('empty-status-row'))
           : SizedBox(
               key: chipKey,
-              height: 22,
-              // Chips keep their intrinsic width and the row scrolls when
-              // they overrun the title column, under a trailing fade that
-              // marks the cut. Sharing the width with `Flexible` truncated
-              // every chip at once — two short chips rendered as "On…" and
-              // "Th…" on a phone-width app bar — while flexing only the
-              // last one overflowed the Row once three chips were present.
+              height: 18,
+              // Long state sets scroll under a trailing fade instead of
+              // truncating every label at once.
               child: _FadingEdge(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
                   child: Row(
                     children: [
-                      for (final (index, chip) in statusChips.indexed) ...[
-                        if (index > 0) const SizedBox(width: AppSpacing.xs),
-                        SessionHeaderChip(
-                          text: chip.text,
-                          tooltip: chip.text,
-                          leading: chip.showDot
-                              ? AppStatusDot(
-                                  color: chip.color,
-                                  pulse: chip.pulse,
-                                  size: 6,
-                                )
-                              : Icon(
-                                  chip.icon,
-                                  size: AppIconSize.xs,
-                                  color: chip.color,
-                                ),
-                          textColor: chip.color,
-                          backgroundColor: chip.color.withValues(alpha: 0.08),
-                          borderColor: chip.color.withValues(alpha: 0.16),
+                      if (lead.showDot)
+                        AppStatusDot(
+                          color: lead.color,
+                          pulse: lead.pulse,
+                          size: 7,
+                        )
+                      else
+                        Icon(
+                          lead.icon,
+                          size: AppIconSize.sm,
+                          color: lead.color,
+                        ),
+                      const SizedBox(width: AppSpacing.xsm),
+                      for (final (index, chip) in ordered.indexed) ...[
+                        if (index > 0) Text(' \u00b7 ', style: secondary),
+                        Tooltip(
+                          message: chip.text,
+                          child: Text(
+                            chip.text,
+                            maxLines: 1,
+                            style: _isUrgent(chip.color)
+                                ? secondary.copyWith(
+                                    color: chip.color,
+                                    fontWeight: FontWeight.w600,
+                                  )
+                                : secondary,
+                          ),
                         ),
                       ],
+                      // Room for the trailing fade, so a line that fits is
+                      // never dimmed at its last letter.
+                      const SizedBox(width: AppSpacing.lg),
                     ],
                   ),
                 ),

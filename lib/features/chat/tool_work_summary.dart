@@ -161,6 +161,46 @@ class ToolWorkSummary {
       tool['name'] is String ? tool['name'] as String : l10n.chatWorkTools,
     );
   }
+
+  /// One specific line for the live status bar ("Editing chat_input.dart",
+  /// "Running flutter analyze lib/"), from the running tool's own input.
+  /// Falls back to [activityLabel] when the input names nothing useful.
+  String? activityDetail(AppLocalizations l10n) {
+    final tool = activeTool;
+    if (tool == null) return null;
+    final name = family(tool);
+    final input = WireParsers.asMap(tool['input']);
+    String? clip(Object? value, [int max = 48]) {
+      if (value is! String) return null;
+      final text = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (text.isEmpty) return null;
+      return text.length <= max ? text : '${text.substring(0, max - 1)}\u2026';
+    }
+
+    String? base(String? path) {
+      if (path == null || path.isEmpty) return null;
+      final slash = path.lastIndexOf('/');
+      return slash < 0 ? path : path.substring(slash + 1);
+    }
+
+    final file = base(filePaths(tool).firstOrNull);
+    if (isEdit(name) && file != null) return l10n.convLiveEditing(file);
+    if (name == 'read' && file != null) return l10n.convLiveReading(file);
+    if (isCommand(name)) {
+      final description = clip(input?['description']);
+      if (description != null) return '$description\u2026';
+      final raw = input?['command'];
+      final command = clip(
+        raw is List ? raw.whereType<String>().join(' ') : raw,
+      );
+      if (command != null) return l10n.convLiveRunning(command);
+    }
+    if (const {'grep', 'glob', 'websearch'}.contains(name)) {
+      final query = clip(input?['pattern'] ?? input?['query'], 32);
+      if (query != null) return l10n.convLiveSearching(query);
+    }
+    return activityLabel(l10n);
+  }
 }
 
 /// The latest resident turn only. Earlier answers and child answers cannot

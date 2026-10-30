@@ -35,7 +35,7 @@ class SessionRecentScreen extends ConsumerWidget {
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
     final avatarStyle = ref.watch(
-      settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
+      settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
     );
 
     String localizeDateGroup(DateGroup group) {
@@ -72,21 +72,6 @@ class SessionRecentScreen extends ConsumerWidget {
 
 /// Parses an avatar style string to the corresponding [AvatarStyle] enum.
 ///
-/// Returns null if the string doesn't match a known style
-/// (causes hash-based selection).
-AvatarStyle? _parseAvatarStyle(String? style) {
-  return switch (style) {
-    'gradient' => AvatarStyle.gradient,
-    'pixelated' => AvatarStyle.pixelated,
-    'brutalist' => AvatarStyle.brutalist,
-    'geometric' => AvatarStyle.geometric,
-    'rings' => AvatarStyle.rings,
-    'constellation' => AvatarStyle.constellation,
-    'wave' => AvatarStyle.wave,
-    _ => null,
-  };
-}
-
 class _SessionRecentList extends StatelessWidget {
   const _SessionRecentList({
     required this.sessionIds,

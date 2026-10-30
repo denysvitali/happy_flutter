@@ -5,7 +5,9 @@ import 'package:happy_flutter/core/components/prime_agent_logo.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/ui/agent_identity.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart';
+import 'package:happy_flutter/features/sessions/harness_logo.dart';
 import 'package:happy_flutter/features/sessions/session_avatar.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_cards.dart';
 
@@ -77,7 +79,7 @@ void main() {
     });
   }
 
-  testWidgets('chat app bar uses the same pixelated session avatar', (
+  testWidgets('chat app bar uses the shared agent-identity avatar', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -109,6 +111,18 @@ void main() {
     final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
     expect(avatar.style, isNull);
     expect(avatar.showFlavorIcon, isTrue);
+    // No explicit style renders the same blob the sessions roster shows,
+    // keyed by the session id with the provider as a badge.
+    final agent = tester.widget<AgentAvatar>(find.byType(AgentAvatar));
+    expect(agent.identity.seed, avatar.id);
+    expect(agent.identity.flavor, 'codex');
+    expect(
+      find.descendant(
+        of: find.byType(AgentAvatar),
+        matching: find.byType(HarnessLogo),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('chat app bar shows machine vitals when provided', (

@@ -445,10 +445,11 @@ class _SessionBoardViewState extends State<SessionBoardView> {
                           Divider(
                             height: 1,
                             thickness: AppBorder.hairline,
+                            // Under the text column, past the avatar.
                             indent:
                                 AppSpacing.lg +
-                                AppAvatarSize.small +
-                                AppSpacing.xsm,
+                                missionAvatarSize +
+                                missionRowTextGap,
                             endIndent: AppSpacing.lg,
                             color: Theme.of(
                               context,

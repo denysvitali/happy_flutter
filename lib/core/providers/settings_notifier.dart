@@ -38,6 +38,7 @@ class SettingsNotifier extends Notifier<Settings> {
     // Sync developer mode to logger so DevLogsScreen captures all logs
     // even in release builds when developer mode was enabled previously.
     logger.setDeveloperMode(settings.developerModeEnabled);
+    _migrateSchema();
   }
 
   Future<void> loadLocalSettings() async {
@@ -46,6 +47,7 @@ class SettingsNotifier extends Notifier<Settings> {
     if (!ref.mounted || generation != _persistenceGeneration) return;
     state = settings;
     logger.setDeveloperMode(settings.developerModeEnabled);
+    _migrateSchema();
   }
 
   void clear() {
@@ -68,6 +70,20 @@ class SettingsNotifier extends Notifier<Settings> {
       developerModeEnabled: state.developerModeEnabled,
     );
     state = preserved;
+    _migrateSchema();
+  }
+
+  /// Schema 3 made 'agent' (the agent-identity blob) the default avatar
+  /// style. Settings still on the old 'brutalist' default move to it once;
+  /// any other style is a user choice and stays. The writes go through
+  /// [updateSetting] so they persist and sync like a user change, and the
+  /// version bump keeps a later pick of 'brutalist' from being undone.
+  void _migrateSchema() {
+    if (state.schemaVersion >= 3) return;
+    if (state.avatarStyle == 'brutalist') {
+      unawaited(updateSetting('avatarStyle', 'agent'));
+    }
+    unawaited(updateSetting('schemaVersion', 3));
   }
 
   Future<void> refreshFromSync() async {

@@ -74,6 +74,7 @@ import 'tools/codex_exec_result.dart';
 import 'tools/known_tools.dart';
 import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
+import 'widgets/chat_agent_scope.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_messages_body.dart';
@@ -2303,14 +2304,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     // key would force the old transcript subtree to remain
                     // alive through an unnecessary cross-fade on every tick.
                     key: const ValueKey('chat-messages-body'),
-                    child: ChatMessagesBody(
-                      isLoading: _isLoadingMessages,
-                      messages: _messages,
-                      loadFailed: _loadFailed,
-                      onRetry: _retry,
-                      onSuggestionTap: _onSuggestionTap,
-                      messageList: _buildMessageList(
-                        hideToolCalls: hideToolCalls,
+                    child: ChatAgentScope(
+                      value: _agentContext(context),
+                      child: ChatMessagesBody(
+                        isLoading: _isLoadingMessages,
+                        messages: _messages,
+                        loadFailed: _loadFailed,
+                        onRetry: _retry,
+                        onSuggestionTap: _onSuggestionTap,
+                        messageList: _buildMessageList(
+                          hideToolCalls: hideToolCalls,
+                        ),
                       ),
                     ),
                   ),
@@ -2535,6 +2539,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final pendingRequests = _session?.agentState?.requests;
     final hasPendingPermission =
         pendingRequests != null && pendingRequests.isNotEmpty;
+    final agentContext = _agentContext(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2574,6 +2579,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             sessionId: widget.sessionId,
             requests: pendingRequests,
             isSessionOnline: _session?.isPresenceOnline ?? false,
+            agentName: agentContext?.agentName,
+            avatar: agentContext?.avatar(size: AppControlSize.md),
           ),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
@@ -2586,7 +2593,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ThinkingStopBar(
             activity: activity,
             onStop: _abortSession,
-            workLabel: turn.summary.activityLabel(context.l10n),
+            workLabel: turn.summary.activityDetail(context.l10n),
             startedAt: turn.startedAt,
           )
         else if (!hasSendIssue &&
@@ -2676,6 +2683,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _stopConfirmTimer?.cancel();
     _stopConfirmTimer = null;
     _stopRequestedAt = 0;
+  }
+
+  /// Display identity of the agent in this chat (name, colour, machine,
+  /// workspace) for the transcript and approval surfaces.
+  ChatAgentContext? _agentContext(BuildContext context) {
+    final session = _session;
+    if (session == null) return null;
+    final machineId = session.metadata?.machineId;
+    final machine = ref.watch(
+      machinesNotifierProvider.select((machines) => machines[machineId ?? '']),
+    );
+    return ChatAgentContext.fromSession(
+      session,
+      brightness: Theme.of(context).brightness,
+      machine: machine,
+      avatarStyle: ref.watch(
+        settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
+      ),
+    );
   }
 
   ChatMachineVitals? _buildMachineVitals() {

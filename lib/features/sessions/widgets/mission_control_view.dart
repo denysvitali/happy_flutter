@@ -9,6 +9,7 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/mission_triage_storage.dart';
 import '../../../core/services/opentelemetry_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/performance_buckets.dart';
 import '../../../core/utils/session_utils.dart';
@@ -684,30 +685,24 @@ class _ActionSection extends StatelessWidget {
     final color = missionLaneColor(context, lane);
     final l10n = context.l10n;
     final reduceMotion = AppMotion.reduceMotion(context);
-    final content = Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+    // Roster feel: a flat, airy list on the page surface. Avatars carry
+    // the colour; rows are separated by space, not boxes or rules.
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: 1,
-                // Align with the title column: row padding + lane tile + gap.
-                indent: AppSpacing.smd + AppControlSize.sm + missionRowTextGap,
-                color: cs.outlineVariant,
-              ),
+            if (i > 0) const SizedBox(height: AppSpacing.xs),
             children[i],
           ],
           if (hiddenCount > 0 || expanded) ...[
-            Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+            Divider(
+              height: 1,
+              thickness: 1,
+              indent: AppSpacing.smd + missionAvatarSize + missionRowTextGap,
+              color: cs.onSurface.withValues(alpha: AppOpacity.faint),
+            ),
             _DisclosureButton(
               label: expanded
                   ? l10n.machineShowLess
@@ -731,14 +726,14 @@ class _ActionSection extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(missionLaneIcon(lane), size: AppIconSize.sm, color: color),
-              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   title,
-                  style: MissionType.label(theme, cs.onSurface),
+                  style: MissionType.label(theme, cs.onSurfaceVariant),
                 ),
               ),
+              // The lane tone survives only in the count, so the header
+              // stays calm while still hinting at urgency.
               _CountBadge(count: count, color: color),
             ],
           ),

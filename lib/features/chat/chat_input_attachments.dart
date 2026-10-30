@@ -1,41 +1,11 @@
 part of 'chat_input.dart';
 
 extension _ChatInputAttachmentActions on _ChatInputState {
-  Future<void> _onAttachTap() async {
+  /// Picks one image from [source] and stages it on the controller.
+  Future<void> _attachFrom(_AttachSource source) async {
     final controller = widget.attachmentController;
-    // Ignore attach while a send is in flight so an image cannot be staged
-    // onto the next message while the controller is being cleared.
     if (controller == null || widget.isSending) return;
     final l10n = AppLocalizations.of(context);
-
-    final source = await showModalBottomSheet<_AttachSource>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        final sheetL10n = AppLocalizations.of(sheetContext);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: Text(sheetL10n.chatAttachFromGallery),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AttachSource.gallery),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: Text(sheetL10n.chatAttachFromCamera),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AttachSource.camera),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (source == null || !mounted) return;
-
     final result = source == _AttachSource.camera
         ? await _attachmentService.pickFromCameraResult()
         : await _attachmentService.pickFromGalleryResult();
@@ -92,22 +62,6 @@ extension _ChatInputAttachmentActions on _ChatInputState {
 }
 
 enum _AttachSource { gallery, camera }
-
-class _AttachButton extends StatelessWidget {
-  const _AttachButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ComposerIconChip(
-      key: const ValueKey<String>('composer-attach-button'),
-      icon: Icons.add_photo_alternate_outlined,
-      tooltip: AppLocalizations.of(context).chatAttachImage,
-      onTap: onTap,
-    );
-  }
-}
 
 class _AttachmentThumb extends StatelessWidget {
   const _AttachmentThumb({required this.image, required this.onRemove});

@@ -15,15 +15,18 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/agent_identity.dart';
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import 'model_selection_resolver.dart' show profileBackendHost;
 import 'send/chat_attachment_controller.dart';
 import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_input_buttons.dart';
-import 'widgets/composer_selector_chip.dart';
+import 'widgets/codex_speed_selector.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/fullscreen_composer.dart';
 import 'widgets/input_toolbar.dart';
@@ -37,6 +40,7 @@ export 'widgets/model_mode.dart' show ChatModelMode;
 
 part 'chat_input_attachments.dart';
 part 'chat_input_dictation.dart';
+part 'chat_input_layout.dart';
 
 /// Loads file paths matching the active `@` query.
 typedef FileSuggestionsLoader =
@@ -205,7 +209,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   final DraftStorage _draftStorage;
   final ImageAttachmentService _attachmentService = ImageAttachmentService();
-  static final _containerRadius = BorderRadius.circular(AppRadius.xl);
 
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
@@ -737,201 +740,23 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
-  Widget _buildCardInputArea(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final appCs =
-        Theme.of(context).extension<AppColorScheme>() ?? AppColorScheme.dark();
-    final cardColor = cs.surfaceContainerLow;
-    final tight = ChatChromeScope.of(context).isTight;
+  Widget _buildCardInputArea(BuildContext context) =>
+      _buildHandoffComposer(context);
 
-    // Only the border color depends on focus state — wrap in a
-    // ValueListenableBuilder so focus changes don't rebuild the
-    // entire ChatInput tree.
-    return ValueListenableBuilder<bool>(
-      valueListenable: _isFocused,
-      builder: (context, isFocused, child) {
-        return AnimatedContainer(
-          key: const ValueKey<String>('chat-composer-card'),
-          duration: AppMotion.duration(context, kBorderAnimDuration),
-          curve: AppCurve.standard,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: _containerRadius,
-            border: Border.all(
-              color: isFocused
-                  ? appCs.accentGradient.first.withValues(
-                      alpha: AppOpacity.strong,
-                    )
-                  : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
-              width: isFocused ? AppBorder.thin : AppBorder.hairline,
-            ),
-            // Resting: one hairline boundary. Focused: accent border + lift.
-            boxShadow: isFocused
-                ? AppElevationShadow.floating(Theme.of(context).brightness)
-                : null,
-          ),
-          child: child,
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Writing area first: the draft owns the full width of the card.
-          // Only the expand utility shares its row, pinned to the first
-          // line. A tight pane folds the toolbar, so dictate and send move
-          // up here to stay reachable.
-          Row(
-            key: const ValueKey<String>('chat-composer-input-row'),
-            crossAxisAlignment: tight
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _isDownloadingModel
-                    ? ValueListenableBuilder<
-                        Map<String, OfflineSttDownloadProgress>
-                      >(
-                        valueListenable: _dictationService.progress,
-                        builder: (context, progressMap, _) {
-                          final p =
-                              progressMap[_dictationService.selectedModelId];
-                          return _buildTextField(context, downloadProgress: p);
-                        },
-                      )
-                    : _buildTextField(context),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: AppSpacing.xxs,
-                  right: AppSpacing.xs,
-                ),
-                child: tight
-                    ? _buildPrimaryActions(context)
-                    : ExpandComposerButton(onTap: _openFullscreenComposer),
-              ),
-            ],
-          ),
-          // Attachments sit between the draft and the toolbar.
-          if (widget.attachmentController != null)
-            _buildAttachmentStrip(context),
-          _buildToolbar(context),
-        ],
-      ),
-    );
-  }
-
-  /// One toolbar under the draft: add and the explicit settings
-  /// (`Approvals: …`, `Model: …`, options) lead; dictate and send close
-  /// the row at the trailing edge.
-  ///
-  /// A **tight** chat pane (Android split screen, a short desktop window)
-  /// folds the whole toolbar while the field is idle and empty — there
-  /// dictate and send live in the draft row, so the composer stays usable
-  /// — and brings it back on focus or content.
-  Widget _buildToolbar(BuildContext context) {
-    final density = ChatChromeScope.of(context);
-    if (!density.isTight) return _toolbarRow(context);
-    return ListenableBuilder(
-      listenable: Listenable.merge([_isFocused, _sendableListenable]),
-      builder: (context, _) => !_isFocused.value && !_hasSendableContent
-          ? const SizedBox.shrink()
-          : _toolbarRow(context),
-    );
-  }
-
-  Widget _toolbarRow(BuildContext context) {
-    final tight = ChatChromeScope.of(context).isTight;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        0,
-        AppSpacing.xs,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        key: const ValueKey<String>('chat-composer-toolbar'),
-        children: [
-          if (widget.attachmentController != null)
-            _AttachButton(onTap: _onAttachTap)
-          else
-            const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _settingsLane(context)),
-          if (tight)
-            ExpandComposerButton(onTap: _openFullscreenComposer)
-          else
-            _buildPrimaryActions(context),
-        ],
-      ),
-    );
-  }
-
-  /// Dictate and send (plus queue during an active Codex turn).
-  Widget _buildPrimaryActions(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _isDownloadingModel
-            ? ValueListenableBuilder<Map<String, OfflineSttDownloadProgress>>(
-                valueListenable: _dictationService.progress,
-                builder: (context, progressMap, _) => _DictationButton(
-                  isRecording: _isRecording,
-                  isTranscribing: _isTranscribing,
-                  isDownloadingModel: true,
-                  downloadProgress:
-                      progressMap[_dictationService.selectedModelId],
-                  onTap: _onDictationTap,
-                ),
-              )
-            : _DictationButton(
-                isRecording: _isRecording,
-                isTranscribing: _isTranscribing,
-                isDownloadingModel: false,
-                onTap: _onDictationTap,
-              ),
-        ListenableBuilder(
-          listenable: _sendableListenable,
-          builder: (context, _) {
-            final send = SendButton(
-              isSending: widget.isSending,
-              isSendDisabled: widget.isSendDisabled || !_hasSendableContent,
-              onTap: _onSendTap,
-              scaleAnimation: _sendScale,
-              lastDeliveryStatus: widget.lastDeliveryStatus,
-              actionLabel: widget.onQueueNextTurn == null
-                  ? null
-                  : context.l10n.chatUpdateCurrentTurn,
-            );
-            // During an active Codex turn send steers the running turn; a
-            // sibling button queues the draft for the next turn.
-            if (!_showFollowUpActions) return send;
-            return Row(
-              key: const ValueKey('chat-follow-up-actions'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                QueueNextTurnButton(
-                  isDisabled:
-                      widget.isSendDisabled ||
-                      widget.isSending ||
-                      !_hasSendableContent,
-                  onTap: _onQueueNextTurnTap,
-                ),
-                send,
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _settingsLane(BuildContext context) {
+  Widget _settingsLane(BuildContext context, {required bool compact}) {
     return InputToolbar(
-      compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+      compact: compact,
       permissionMode: widget.permissionMode,
       onPermissionModeChanged: widget.onPermissionModeChanged,
       modelMode: widget.modelMode,
-      resolvedModelLabel: widget.resolvedModelLabel,
+      // "Default model" instead of a second bare "Default" next to the
+      // approvals chip.
+      resolvedModelLabel:
+          widget.resolvedModelLabel ??
+          ((widget.modelMode ?? ChatModelMode.defaultModel) ==
+                  ChatModelMode.defaultModel
+              ? context.l10n.polishComposerDefaultModel
+              : null),
       availableModels: widget.availableModels,
       canRefreshModels: widget.onRefreshModels != null,
       onShowModelPicker: () =>
@@ -957,6 +782,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     // Full onSurfaceVariant keeps the placeholder above 4.5:1 on the card.
     final hintColor = cs.onSurfaceVariant;
     final l10n = AppLocalizations.of(context);
+    final agentName = _composerAgentName(widget.sessionFlavor);
     // The draft is the clearest content in the composer.
     // Same 14sp as the transcript body and the picker sheets.
     final draftStyle = theme.textTheme.bodyMedium?.copyWith(
@@ -974,7 +800,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ? 'Listening...'
             : _isTranscribing
             ? 'Transcribing...'
-            : l10n.chatInputHint,
+            : agentName != null
+            ? l10n.polishComposerAskAgent(agentName)
+            : l10n.polishComposerAskGeneric,
         hintStyle: draftStyle?.copyWith(color: hintColor),
         filled: false,
         isDense: true,

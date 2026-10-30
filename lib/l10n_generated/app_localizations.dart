@@ -9830,6 +9830,378 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search sessions or projects'**
   String get sessionsBoardSearchHint;
+
+  /// No description provided for @polishComposerAskAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask {agent}…'**
+  String polishComposerAskAgent(String agent);
+
+  /// No description provided for @polishComposerAskGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your agent…'**
+  String get polishComposerAskGeneric;
+
+  /// No description provided for @polishComposerMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach and options'**
+  String get polishComposerMore;
+
+  /// No description provided for @polishComposerAddSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to message'**
+  String get polishComposerAddSection;
+
+  /// No description provided for @polishComposerConversationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation'**
+  String get polishComposerConversationSection;
+
+  /// No description provided for @polishComposerApprovals.
+  ///
+  /// In en, this message translates to:
+  /// **'Approvals'**
+  String get polishComposerApprovals;
+
+  /// No description provided for @polishComposerModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get polishComposerModel;
+
+  /// No description provided for @polishComposerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider profile'**
+  String get polishComposerProfile;
+
+  /// No description provided for @polishComposerFullEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full editor'**
+  String get polishComposerFullEditor;
+
+  /// No description provided for @polishNewSessionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand off a task'**
+  String get polishNewSessionTitle;
+
+  /// No description provided for @polishNewSessionTaskLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What should the agent do?'**
+  String get polishNewSessionTaskLabel;
+
+  /// No description provided for @polishNewSessionTaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Fix the failing auth tests and open a PR'**
+  String get polishNewSessionTaskHint;
+
+  /// No description provided for @polishNewSessionTaskHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Lands in the chat, ready to send.'**
+  String get polishNewSessionTaskHelper;
+
+  /// No description provided for @polishNewSessionWhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Where'**
+  String get polishNewSessionWhere;
+
+  /// No description provided for @polishNewSessionWho.
+  ///
+  /// In en, this message translates to:
+  /// **'Who'**
+  String get polishNewSessionWho;
+
+  /// No description provided for @polishNewSessionStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get polishNewSessionStart;
+
+  /// No description provided for @polishNewSessionOnMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'on {machine}'**
+  String polishNewSessionOnMachine(String machine);
+
+  /// No description provided for @polishEmptyReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agents are ready'**
+  String get polishEmptyReadyTitle;
+
+  /// No description provided for @polishEmptyReadySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand off a task. It keeps running on {machine}, even with the app closed.'**
+  String polishEmptyReadySubtitle(String machine);
+
+  /// No description provided for @polishEmptyReadySubtitleGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand off a task. It keeps running on your computer, even with the app closed.'**
+  String get polishEmptyReadySubtitleGeneric;
+
+  /// No description provided for @polishEmptyReadyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Start on {machine}'**
+  String polishEmptyReadyAction(String machine);
+
+  /// No description provided for @polishOnboardingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your coding agents, in your pocket'**
+  String get polishOnboardingTitle;
+
+  /// No description provided for @polishOnboardingPromise.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents run on your own computer. Start them, approve steps and review results from anywhere.'**
+  String get polishOnboardingPromise;
+
+  /// No description provided for @polishOnboardingSetupHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up in three steps'**
+  String get polishOnboardingSetupHeader;
+
+  /// No description provided for @polishTrustLine.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end encrypted · Runs on your hardware'**
+  String get polishTrustLine;
+
+  /// No description provided for @polishNewSessionOtherFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Or choose a computer and folder'**
+  String get polishNewSessionOtherFolder;
+
+  /// No description provided for @polishComposerDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model'**
+  String get polishComposerDefaultModel;
+
+  /// Pending permission decision lead, followed by the command in monospace
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} wants to run'**
+  String rosterWantsToRun(String agent);
+
+  /// Pending permission decision lead, followed by a file name
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} wants to edit'**
+  String rosterWantsToEdit(String agent);
+
+  /// Pending permission decision lead, followed by a tool name
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} wants to use'**
+  String rosterWantsToUse(String agent);
+
+  /// No description provided for @rosterWantsPlanApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} wants you to approve its plan'**
+  String rosterWantsPlanApproval(String agent);
+
+  /// No description provided for @rosterMoreRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String rosterMoreRequests(int count);
+
+  /// No description provided for @convAgentFallbackName.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent'**
+  String get convAgentFallbackName;
+
+  /// No description provided for @convPermAskRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow {agent} to run this command?'**
+  String convPermAskRun(String agent);
+
+  /// No description provided for @convPermAskEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow {agent} to edit {file}?'**
+  String convPermAskEdit(String agent, String file);
+
+  /// No description provided for @convPermAskWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow {agent} to create {file}?'**
+  String convPermAskWrite(String agent, String file);
+
+  /// No description provided for @convPermAskPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Start working on {agent}\'s plan?'**
+  String convPermAskPlan(String agent);
+
+  /// No description provided for @convPermAskTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow {agent} to use {tool}?'**
+  String convPermAskTool(String agent, String tool);
+
+  /// No description provided for @convPermAllowOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow once'**
+  String get convPermAllowOnce;
+
+  /// No description provided for @convPermDeniedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Denied · not run'**
+  String get convPermDeniedLine;
+
+  /// No description provided for @convPermExpiredLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · not run'**
+  String get convPermExpiredLine;
+
+  /// No description provided for @convPermOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'The session is offline. Reconnect its machine to answer.'**
+  String get convPermOffline;
+
+  /// No description provided for @convPermBarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} is waiting for your approval'**
+  String convPermBarTitle(String agent);
+
+  /// No description provided for @convPermBarMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String convPermBarMore(int count);
+
+  /// No description provided for @convRiskDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletes files. This can\'t be undone.'**
+  String get convRiskDelete;
+
+  /// No description provided for @convRiskDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discards local changes. This can\'t be undone.'**
+  String get convRiskDiscard;
+
+  /// No description provided for @convRiskPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushes to a remote repository.'**
+  String get convRiskPush;
+
+  /// No description provided for @convRiskPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishes outside this machine.'**
+  String get convRiskPublish;
+
+  /// No description provided for @convRiskLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes live infrastructure.'**
+  String get convRiskLive;
+
+  /// No description provided for @convRiskAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs with administrator rights.'**
+  String get convRiskAdmin;
+
+  /// No description provided for @convRiskNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaches the network.'**
+  String get convRiskNetwork;
+
+  /// No description provided for @convRiskCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs a shell command on this machine.'**
+  String get convRiskCommand;
+
+  /// No description provided for @convRiskEditInside.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes a file in this workspace.'**
+  String get convRiskEditInside;
+
+  /// No description provided for @convRiskEditOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes a file outside this workspace.'**
+  String get convRiskEditOutside;
+
+  /// No description provided for @convRiskWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetches content from the web.'**
+  String get convRiskWeb;
+
+  /// No description provided for @convWorkSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 step} other{{count} steps}}'**
+  String convWorkSteps(int count);
+
+  /// No description provided for @convLiveEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing {file}'**
+  String convLiveEditing(String file);
+
+  /// No description provided for @convLiveReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading {file}'**
+  String convLiveReading(String file);
+
+  /// No description provided for @convLiveRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running {command}'**
+  String convLiveRunning(String command);
+
+  /// No description provided for @convLiveSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for {query}'**
+  String convLiveSearching(String query);
+
+  /// No description provided for @convWorkExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all steps'**
+  String get convWorkExpand;
+
+  /// No description provided for @convWorkCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide steps'**
+  String get convWorkCollapse;
 }
 
 class _AppLocalizationsDelegate

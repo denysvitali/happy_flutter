@@ -9,6 +9,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../auth/widgets/agent_mascot_cluster.dart';
 import 'new_session_dialog.dart';
 
 /// Empty sessions view with tiered state.
@@ -62,7 +63,11 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
       );
     }
 
+    final online = machines.values.where((machine) => machine.isOnline);
+    // Name the computer only when the choice is unambiguous.
+    final machineName = online.length == 1 ? online.first.displayLabel : null;
     return _ReturningUserEmptyState(
+      machineName: machineName,
       onNewSession: _isStarting ? null : _startOrConnect,
     );
   }
@@ -150,27 +155,27 @@ class _FirstTimeEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
 
-    return AppEmptyState(
-      icon: Icons.rocket_launch_outlined,
-      title: l10n.emptySessionsFirstTimeTitle,
-      subtitle: l10n.emptySessionsFirstTimeSubtitle,
-      action: Column(
-        mainAxisSize: MainAxisSize.min,
+    return _HeroEmptyState(
+      title: l10n.polishOnboardingTitle,
+      subtitle: l10n.polishOnboardingPromise,
+      primary: _PillButton(
+        onPressed: onConnectComputer,
+        icon: Icons.qr_code_scanner_outlined,
+        label: l10n.sessionsConnectComputer,
+      ),
+      footer: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton.icon(
-            onPressed: onConnectComputer,
-            icon: const Icon(Icons.qr_code_scanner_outlined),
-            label: Text(l10n.sessionsConnectComputer),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(160, AppTouchTarget.min),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
+          Semantics(
+            header: true,
+            child: Text(
+              l10n.polishOnboardingSetupHeader,
+              style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
+          const SizedBox(height: AppSpacing.sm),
           _OnboardingStepCard(
             step: 1,
             label: l10n.emptySessionsFirstTimeStep1Label,
@@ -317,28 +322,172 @@ class _OnboardingStepCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ReturningUserEmptyState extends StatelessWidget {
-  const _ReturningUserEmptyState({required this.onNewSession});
+  const _ReturningUserEmptyState({
+    required this.onNewSession,
+    required this.machineName,
+  });
 
   final VoidCallback? onNewSession;
+
+  /// The single online computer, or null when there are several.
+  final String? machineName;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final machine = machineName;
 
-    return AppEmptyState(
-      icon: Icons.computer_outlined,
-      title: l10n.emptySessionsReturningTitle,
-      subtitle: l10n.emptySessionsReturningSubtitle,
-      action: FilledButton.icon(
+    return _HeroEmptyState(
+      title: l10n.polishEmptyReadyTitle,
+      subtitle: machine == null
+          ? l10n.polishEmptyReadySubtitleGeneric
+          : l10n.polishEmptyReadySubtitle(machine),
+      primary: _PillButton(
         onPressed: onNewSession,
-        icon: const Icon(Icons.add),
-        label: Text(l10n.sessionsStartSession),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(160, AppTouchTarget.min),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+        icon: Icons.add_rounded,
+        label: machine == null
+            ? l10n.sessionsStartSession
+            : l10n.polishEmptyReadyAction(machine),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared hero layout: mascot cluster, one-line promise, one primary action.
+// ---------------------------------------------------------------------------
+
+class _HeroEmptyState extends StatelessWidget {
+  const _HeroEmptyState({
+    required this.title,
+    required this.subtitle,
+    required this.primary,
+    this.footer,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget primary;
+  final Widget? footer;
+
+  static const double _maxWidth = 420;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final extra = footer;
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxl,
+        vertical: AppSpacing.hero,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Center(child: AgentMascotCluster(height: 132)),
+          const SizedBox(height: AppSpacing.xxl),
+          Semantics(
+            container: true,
+            label: context.l10n.a11yEmptyState(title, subtitle),
+            excludeSemantics: true,
+            child: Column(
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          primary,
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.lock_outline_rounded,
+                size: AppIconSize.sm,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  context.l10n.polishTrustLine,
+                  textAlign: TextAlign.center,
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          if (extra != null) ...[
+            const SizedBox(height: AppSpacing.hero),
+            extra,
+          ],
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : 0,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _maxWidth),
+              child: content,
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Full-width pill primary action (Grok/Dots style).
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(AppTouchTarget.comfortable + 4),
+        shape: const StadiumBorder(),
+        textStyle: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }

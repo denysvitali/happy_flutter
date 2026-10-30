@@ -4,9 +4,10 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
+import 'package:happy_flutter/core/ui/agent_identity.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/chat/tools/permission_footer.dart';
+import 'package:happy_flutter/features/chat/widgets/chat_agent_scope.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -40,7 +41,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
       expect(find.text('All edits'), findsNothing);
       expect(find.text('YOLO'), findsNothing);
@@ -87,7 +88,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
       expect(find.text('YOLO'), findsOneWidget);
       expect(
@@ -101,7 +102,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
     });
 
     testWidgets('Allow shows loading spinner while callback runs', (
@@ -124,16 +125,18 @@ void main() {
       );
 
       // Tap Allow
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       // Progress is announced while the stable controls remain disabled.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
       expect(
         tester
-            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Allow'))
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Allow once'),
+            )
             .onPressed,
         isNull,
       );
@@ -149,7 +152,7 @@ void main() {
 
       // Buttons should reappear
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       semantics.dispose();
     });
 
@@ -177,14 +180,14 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('All edits'), findsOneWidget);
 
       completer.complete();
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
     });
 
     testWidgets('Deny shows loading spinner while callback runs', (
@@ -237,12 +240,12 @@ void main() {
       );
 
       // First tap triggers
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
       expect(callCount, 1);
 
       // Stable disabled controls cannot emit a duplicate action.
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
       expect(callCount, 1);
 
@@ -267,13 +270,13 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Allow'));
+      await tester.tap(find.text('Allow once'));
       await tester.pump();
 
       // Error is caught in _wrap, loading clears, buttons
       // reappear
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
     });
 
     testWidgets('does not show clear-context button for claude plan tool', (
@@ -333,7 +336,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Allow'), findsNothing);
+      expect(find.text('Allow once'), findsNothing);
       expect(find.text('All edits'), findsNothing);
       expect(find.text('Deny'), findsNothing);
       // Auto-approved permissions render nothing (Yolo mode).
@@ -357,7 +360,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
       expect(find.text('All edits'), findsNothing);
       expect(find.text('YOLO'), findsNothing);
@@ -369,7 +372,7 @@ void main() {
       expect(find.text('YOLO'), findsNothing);
     });
 
-    testWidgets('renders Allow, For session, Deny for Bash tool', (
+    testWidgets('renders Allow once, For session, Deny for Bash tool', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -386,7 +389,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
       expect(find.text('For session'), findsNothing);
 
@@ -423,8 +426,8 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final interactive = <Finder>[
-        find.widgetWithText(FilledButton, 'Allow'),
-        find.widgetWithText(OutlinedButton, 'Deny'),
+        find.widgetWithText(FilledButton, 'Allow once'),
+        find.widgetWithText(FilledButton, 'Deny'),
         find.widgetWithText(TextButton, 'More approval options'),
       ];
       for (final finder in interactive) {
@@ -434,7 +437,7 @@ void main() {
   });
 
   group('PermissionFooter codex buttons', () {
-    testWidgets('renders Yes, For session, Stop for codex flavor', (
+    testWidgets('renders Allow once, For session, Stop for codex flavor', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -451,7 +454,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Yes'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
       expect(find.text('Stop'), findsOneWidget);
       expect(find.text('For session'), findsNothing);
 
@@ -463,8 +466,9 @@ void main() {
 
   group('PermissionFooter button colors', () {
     // The themed FilledButton paints a gradient through backgroundBuilder, so
-    // a plain backgroundColor is hidden and a forced onPrimary label (dark in
-    // the dark scheme) became unreadable on it.
+    // the primary action is painted solid through AppButtonStyle.solidFilled:
+    // an ink pill (onSurface fill, surface label) — the one strong control on
+    // the card — for both Claude and Codex.
     Widget themed(Widget child) => MaterialApp(
       theme: ThemeHelper.buildDarkTheme(),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -477,7 +481,21 @@ void main() {
       return DefaultTextStyle.of(element).style.color!;
     }
 
-    testWidgets('Allow keeps a white label in the dark theme', (tester) async {
+    Color? fillOf(WidgetTester tester, String text) {
+      final button = tester.widget<FilledButton>(
+        find.ancestor(of: find.text(text), matching: find.byType(FilledButton)),
+      );
+      final ink = button.style!.backgroundBuilder!(
+        tester.element(find.text(text)),
+        const <WidgetState>{},
+        null,
+      );
+      return ((ink as Ink).decoration! as BoxDecoration).color;
+    }
+
+    testWidgets('Allow once is a solid ink pill in the dark theme', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         themed(
           PermissionFooter(
@@ -490,10 +508,15 @@ void main() {
         ),
       );
 
-      expect(labelColor(tester, 'Allow'), Colors.white);
+      final cs = ThemeHelper.buildDarkTheme().colorScheme;
+      expect(fillOf(tester, 'Allow once'), cs.onSurface);
+      expect(labelColor(tester, 'Allow once'), cs.surface);
+      // Declining is a normal answer: a quiet tonal pill, not a red outline.
+      expect(fillOf(tester, 'Deny'), cs.surfaceContainerHighest);
+      expect(labelColor(tester, 'Deny'), cs.onSurface);
     });
 
-    testWidgets('Codex approve paints a solid success fill', (tester) async {
+    testWidgets('Codex approve uses the same ink pill', (tester) async {
       await tester.pumpWidget(
         themed(
           PermissionFooter(
@@ -507,22 +530,149 @@ void main() {
         ),
       );
 
-      final button = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Yes'),
-          matching: find.byType(FilledButton),
+      final cs = ThemeHelper.buildDarkTheme().colorScheme;
+      expect(fillOf(tester, 'Allow once'), cs.onSurface);
+      expect(labelColor(tester, 'Allow once'), cs.surface);
+      expect(find.text('Stop'), findsOneWidget);
+    });
+  });
+
+  group('PermissionFooter question card', () {
+    Widget scoped(Widget child) => _wrap(
+      ChatAgentScope(
+        value: ChatAgentContext(
+          agentName: 'Claude',
+          identity: agentIdentityForSeed(
+            's1',
+            brightness: Brightness.light,
+            flavor: 'claude',
+          ),
+          machineLabel: 'k2 cluster',
+          workspaceLabel: '~/k2-gitops',
+          workspacePath: '/home/denys/k2-gitops',
+        ),
+        child: child,
+      ),
+    );
+
+    testWidgets('asks as the agent with the exact command, place and risk', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        scoped(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'Bash',
+            toolInput: const {
+              'command': 'kubectl -n happy rollout restart deploy/happy-server',
+            },
+            onAllow: () async {},
+            onDeny: () async {},
+          ),
         ),
       );
-      final ink = button.style!.backgroundBuilder!(
-        tester.element(find.text('Yes')),
-        const <WidgetState>{},
-        null,
-      );
+
+      expect(find.text('Allow Claude to run this command?'), findsOneWidget);
+      expect(find.text('k2 cluster · ~/k2-gitops'), findsOneWidget);
+      // The full command, not the 42-character description.
       expect(
-        ((ink as Ink).decoration! as BoxDecoration).color,
-        AppColors.success,
+        find.text(r'$ kubectl -n happy rollout restart deploy/happy-server'),
+        findsOneWidget,
       );
-      expect(labelColor(tester, 'Yes'), Colors.white);
+      expect(find.text('Changes live infrastructure.'), findsOneWidget);
+      expect(find.text('Allow once'), findsOneWidget);
     });
+
+    testWidgets('edits outside the workspace say so', (tester) async {
+      await tester.pumpWidget(
+        scoped(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'Write',
+            toolInput: const {'file_path': '/etc/hosts'},
+            onAllow: () async {},
+            onDeny: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Allow Claude to create hosts?'), findsOneWidget);
+      expect(
+        find.text('Changes a file outside this workspace.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('falls back to the flavor name without a chat scope', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'Bash',
+            flavor: 'claude',
+            toolInput: const {'command': 'ls'},
+            onAllow: () async {},
+            onDeny: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Allow Claude to run this command?'), findsOneWidget);
+      expect(
+        find.text('Runs a shell command on this machine.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an offline session explains why it cannot be answered', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'Bash',
+            isSessionOnline: false,
+            onAllow: () async {},
+            onDeny: () async {},
+          ),
+        ),
+      );
+
+      expect(
+        find.text('The session is offline. Reconnect its machine to answer.'),
+        findsOneWidget,
+      );
+      expect(find.text('Allow once'), findsNothing);
+    });
+
+    for (final (status, label) in [
+      ('denied', 'Denied · not run'),
+      ('canceled', 'Expired · not run'),
+    ]) {
+      testWidgets('a $status request collapses to one line', (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            PermissionFooter(
+              permission: <String, dynamic>{'status': status},
+              sessionId: 's1',
+              toolName: 'Bash',
+              onAllow: () async {},
+              onDeny: () async {},
+            ),
+          ),
+        );
+
+        expect(find.text(label), findsOneWidget);
+        expect(find.text('Allow once'), findsNothing);
+        expect(find.text('Deny'), findsNothing);
+      });
+    }
   });
 }

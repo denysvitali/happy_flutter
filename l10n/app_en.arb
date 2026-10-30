@@ -3056,5 +3056,112 @@
   "sessionsBoardActive": "Open",
   "sessionsBoardNoActive": "No open sessions",
   "sessionsBoardNoArchived": "No archived sessions",
-  "sessionsBoardSearchHint": "Search sessions or projects"
+  "sessionsBoardSearchHint": "Search sessions or projects",
+  "polishComposerAskAgent": "Ask {agent}…",
+  "@polishComposerAskAgent": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "polishComposerAskGeneric": "Ask your agent…",
+  "polishComposerMore": "Attach and options",
+  "polishComposerAddSection": "Add to message",
+  "polishComposerConversationSection": "This conversation",
+  "polishComposerApprovals": "Approvals",
+  "polishComposerModel": "Model",
+  "polishComposerProfile": "Provider profile",
+  "polishComposerFullEditor": "Open full editor",
+  "polishNewSessionTitle": "Hand off a task",
+  "polishNewSessionTaskLabel": "What should the agent do?",
+  "polishNewSessionTaskHint": "e.g. Fix the failing auth tests and open a PR",
+  "polishNewSessionTaskHelper": "Optional. Lands in the chat, ready to send.",
+  "polishNewSessionWhere": "Where",
+  "polishNewSessionWho": "Who",
+  "polishNewSessionStart": "Start",
+  "polishNewSessionOnMachine": "on {machine}",
+  "@polishNewSessionOnMachine": {
+    "placeholders": {
+      "machine": {
+        "type": "String"
+      }
+    }
+  },
+  "polishEmptyReadyTitle": "Your agents are ready",
+  "polishEmptyReadySubtitle": "Hand off a task. It keeps running on {machine}, even with the app closed.",
+  "@polishEmptyReadySubtitle": {
+    "placeholders": {
+      "machine": {
+        "type": "String"
+      }
+    }
+  },
+  "polishEmptyReadySubtitleGeneric": "Hand off a task. It keeps running on your computer, even with the app closed.",
+  "polishEmptyReadyAction": "Start on {machine}",
+  "@polishEmptyReadyAction": {
+    "placeholders": {
+      "machine": {
+        "type": "String"
+      }
+    }
+  },
+  "polishOnboardingTitle": "Your coding agents, in your pocket",
+  "polishOnboardingPromise": "Agents run on your own computer. Start them, approve steps and review results from anywhere.",
+  "polishOnboardingSetupHeader": "Set up in three steps",
+  "polishTrustLine": "End-to-end encrypted · Runs on your hardware",
+  "polishNewSessionOtherFolder": "Or choose a computer and folder",
+  "polishComposerDefaultModel": "Default model",
+  "rosterWantsToRun": "{agent} wants to run",
+  "@rosterWantsToRun": {"description": "Pending permission decision lead, followed by the command in monospace", "placeholders": {"agent": {"type": "String"}}},
+  "rosterWantsToEdit": "{agent} wants to edit",
+  "@rosterWantsToEdit": {"description": "Pending permission decision lead, followed by a file name", "placeholders": {"agent": {"type": "String"}}},
+  "rosterWantsToUse": "{agent} wants to use",
+  "@rosterWantsToUse": {"description": "Pending permission decision lead, followed by a tool name", "placeholders": {"agent": {"type": "String"}}},
+  "rosterWantsPlanApproval": "{agent} wants you to approve its plan",
+  "@rosterWantsPlanApproval": {"placeholders": {"agent": {"type": "String"}}},
+  "rosterMoreRequests": "+{count} more",
+  "@rosterMoreRequests": {"placeholders": {"count": {"type": "int"}}},
+  "convAgentFallbackName": "The agent",
+  "convPermAskRun": "Allow {agent} to run this command?",
+  "@convPermAskRun": {"placeholders": {"agent": {"type": "String"}}},
+  "convPermAskEdit": "Allow {agent} to edit {file}?",
+  "@convPermAskEdit": {"placeholders": {"agent": {"type": "String"}, "file": {"type": "String"}}},
+  "convPermAskWrite": "Allow {agent} to create {file}?",
+  "@convPermAskWrite": {"placeholders": {"agent": {"type": "String"}, "file": {"type": "String"}}},
+  "convPermAskPlan": "Start working on {agent}'s plan?",
+  "@convPermAskPlan": {"placeholders": {"agent": {"type": "String"}}},
+  "convPermAskTool": "Allow {agent} to use {tool}?",
+  "@convPermAskTool": {"placeholders": {"agent": {"type": "String"}, "tool": {"type": "String"}}},
+  "convPermAllowOnce": "Allow once",
+  "convPermDeniedLine": "Denied · not run",
+  "convPermExpiredLine": "Expired · not run",
+  "convPermOffline": "The session is offline. Reconnect its machine to answer.",
+  "convPermBarTitle": "{agent} is waiting for your approval",
+  "@convPermBarTitle": {"placeholders": {"agent": {"type": "String"}}},
+  "convPermBarMore": "+{count} more",
+  "@convPermBarMore": {"placeholders": {"count": {"type": "int"}}},
+  "convRiskDelete": "Deletes files. This can't be undone.",
+  "convRiskDiscard": "Discards local changes. This can't be undone.",
+  "convRiskPush": "Pushes to a remote repository.",
+  "convRiskPublish": "Publishes outside this machine.",
+  "convRiskLive": "Changes live infrastructure.",
+  "convRiskAdmin": "Runs with administrator rights.",
+  "convRiskNetwork": "Reaches the network.",
+  "convRiskCommand": "Runs a shell command on this machine.",
+  "convRiskEditInside": "Changes a file in this workspace.",
+  "convRiskEditOutside": "Changes a file outside this workspace.",
+  "convRiskWeb": "Fetches content from the web.",
+  "convWorkSteps": "{count, plural, =1{1 step} other{{count} steps}}",
+  "@convWorkSteps": {"placeholders": {"count": {"type": "int"}}},
+  "convLiveEditing": "Editing {file}",
+  "@convLiveEditing": {"placeholders": {"file": {"type": "String"}}},
+  "convLiveReading": "Reading {file}",
+  "@convLiveReading": {"placeholders": {"file": {"type": "String"}}},
+  "convLiveRunning": "Running {command}",
+  "@convLiveRunning": {"placeholders": {"command": {"type": "String"}}},
+  "convLiveSearching": "Searching for {query}",
+  "@convLiveSearching": {"placeholders": {"query": {"type": "String"}}},
+  "convWorkExpand": "Show all steps",
+  "convWorkCollapse": "Hide steps"
 }

@@ -244,22 +244,32 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('empty and failed reports never invent zero usage', (
+  testWidgets('empty and failed reports never invent usage or take space', (
     tester,
   ) async {
     Future<List<ChatUsageWindow>> empty(String machine, String flavor) async =>
         [];
     await tester.pumpWidget(_app(empty));
+    // While loading there is nothing to say yet: the strip takes no space.
+    expect(tester.getSize(find.byType(ChatProviderUsage)).height, 0);
     await tester.pump();
     expect(find.byType(AppLinearProgressIndicator), findsNothing);
     expect(find.text('0%'), findsNothing);
+    expect(tester.getSize(find.byType(ChatProviderUsage)).height, 0);
     await tester.pumpWidget(
       _app((machine, flavor) async {
         throw StateError('unavailable');
-      }),
+      }, flavor: 'claude'),
     );
     await tester.pump();
     expect(find.byType(AppLinearProgressIndicator), findsNothing);
+    // An unavailable report never leaves a permanent "not available" row.
+    final context = tester.element(find.byType(ChatProviderUsage));
+    expect(
+      find.text(AppLocalizations.of(context).claudeLimitsNotAvailable),
+      findsNothing,
+    );
+    expect(tester.getSize(find.byType(ChatProviderUsage)).height, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

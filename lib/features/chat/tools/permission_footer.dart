@@ -4,9 +4,13 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../widgets/chat_agent_scope.dart';
+import '../widgets/inline_permission_visibility.dart';
+import 'permission_risk.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -137,175 +141,286 @@ class _PermissionFooterState extends State<PermissionFooter> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
     final permission = widget.permission;
+    final status = permission['status'] as String? ?? 'pending';
+    final permissionId = permission['id'] as String?;
+    return InlinePermissionVisibility(
+      permissionKey: permissionId == null
+          ? null
+          : inlinePermissionKey(widget.sessionId, permissionId),
+      active: status == 'pending',
+      child: _buildCard(context, status),
+    );
+  }
+
+  Widget _buildCard(BuildContext context, String status) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final toolName = widget.toolName;
 
-    final status = permission['status'] as String? ?? 'pending';
-
-    final isPending = status == 'pending';
-    final isApproved = status == 'approved';
-
-    // Don't render anything for auto-approved permissions (e.g. Yolo mode).
-    if (isApproved) return const SizedBox.shrink();
+    // Auto-approved requests (e.g. YOLO) leave no trace: the tool row
+    // already shows that it ran.
+    if (status == 'approved') return const SizedBox.shrink();
+    if (status != 'pending') {
+      return _AnsweredLine(
+        label: status == 'denied'
+            ? l10n.convPermDeniedLine
+            : l10n.convPermExpiredLine,
+        icon: status == 'denied'
+            ? Icons.block_rounded
+            : Icons.timer_off_outlined,
+      );
+    }
 
     final isPlanTool =
         toolName == 'ExitPlanMode' || toolName == 'exit_plan_mode';
-
     final isEditTool =
         toolName == 'Edit' ||
         toolName == 'MultiEdit' ||
         toolName == 'Write' ||
         toolName == 'NotebookEdit' ||
         isPlanTool;
-
     final isCodex = widget.flavor == 'codex' || toolName.startsWith('Codex');
 
-    final isDark = theme.brightness == Brightness.dark;
-    // Adaptive warning colours — amber tint in light mode, dimmed in dark.
-    final warningBg = isDark
-        ? AppColors.permissionSurfaceDark
-        : AppColors.permissionSurfaceLight;
-    final warningBorder = isDark
-        ? AppColors.permissionBorderDark
-        : AppColors.permissionBorderLight;
+    final scope = ChatAgentScope.maybeOf(context);
+    final agent =
+        scope?.agentName ??
+        chatAgentDisplayName(widget.flavor) ??
+        l10n.convAgentFallbackName;
+    final command = permissionCommand(toolName, widget.toolInput);
+    final file = permissionFilePath(widget.toolInput);
+    final question = isPlanTool
+        ? l10n.convPermAskPlan(agent)
+        : command != null
+        ? l10n.convPermAskRun(agent)
+        : file != null && toolName == 'Write'
+        ? l10n.convPermAskWrite(agent, _basename(file))
+        : file != null
+        ? l10n.convPermAskEdit(agent, _basename(file))
+        : l10n.convPermAskTool(agent, toolName);
+    final subject = isPlanTool ? null : command ?? file ?? _actionDescription();
+    final risk = permissionRiskFor(
+      toolName,
+      widget.toolInput,
+      workspacePath: scope?.workspacePath,
+    );
+    final where = scope?.whereLabel;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, AppSpacing.xs, 0, AppSpacing.xs),
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: isPending ? warningBg : theme.colorScheme.surfaceContainerLow,
+        color: cs.surfaceContainerLow,
         border: Border.all(
-          color: isPending
-              ? warningBorder.withValues(alpha: 0.6)
-              : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          width: 1,
+          color: cs.onSurface.withValues(alpha: AppOpacity.subtle),
+          width: AppBorder.thin,
         ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.security_rounded,
-                  size: AppIconSize.sm,
-                  color: isPending
-                      ? AppColors.warning
-                      : theme.colorScheme.onSurfaceVariant,
+          // Who is asking, and where it would happen.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (scope != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                  child: scope.avatar(size: 28),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    isPending
-                        ? l10n.permissionRequired
-                        : isApproved
-                        ? l10n.permissionApproved
-                        : l10n.permissionDeniedLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isPending
-                          ? AppColors.warning
-                          : isApproved
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
+                const SizedBox(width: AppSpacing.smd),
               ],
-            ),
-          ),
-
-          // Action description
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-            child: Text(
-              _actionDescription(),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontFamily: 'monospace',
-                fontFamilyFallback: const ['Courier New', 'Courier'],
-                fontSize: AppFontSize.sm,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-          if (isPending) ...[
-            Divider(
-              height: 1,
-              thickness: 1,
-              color: warningBorder.withValues(alpha: 0.25),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-              child: !widget.isSessionOnline
-                  ? Text(
-                      l10n.permissionSessionOffline,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    )
-                  : isCodex
-                  ? _PermissionActionArea(
-                      loading: _loading,
-                      child: _CodexActionButtons(
-                        enabled: !_loading,
-                        showAdvanced: _showAdvanced,
-                        onToggleAdvanced: _loading
-                            ? null
-                            : () => setState(
-                                () => _showAdvanced = !_showAdvanced,
-                              ),
-                        onCodexApprove: widget.onCodexApprove == null
-                            ? null
-                            : () => _wrap(widget.onCodexApprove),
-                        onCodexApproveForSession:
-                            widget.onCodexApproveForSession == null
-                            ? null
-                            : () => _wrap(widget.onCodexApproveForSession),
-                        onCodexAbort: widget.onCodexAbort == null
-                            ? null
-                            : () => _wrap(widget.onCodexAbort),
-                      ),
-                    )
-                  : _PermissionActionArea(
-                      loading: _loading,
-                      child: _ActionButtons(
-                        enabled: !_loading,
-                        isEditTool: isEditTool,
-                        showAdvanced: _showAdvanced,
-                        onToggleAdvanced: _loading
-                            ? null
-                            : () => setState(
-                                () => _showAdvanced = !_showAdvanced,
-                              ),
-                        onAllow: widget.onAllow == null
-                            ? null
-                            : () => _wrap(widget.onAllow),
-                        onDeny: widget.onDeny == null
-                            ? null
-                            : () => _wrap(widget.onDeny),
-                        onAllowAllEdits: widget.onAllowAllEdits == null
-                            ? null
-                            : () => _wrap(widget.onAllowAllEdits),
-                        onAllowForSession: widget.onAllowForSession == null
-                            ? null
-                            : () => _wrap(widget.onAllowForSession),
-                        onYolo: widget.onYolo == null
-                            ? null
-                            : () => _wrap(widget.onYolo),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      question,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                        height: 1.3,
                       ),
                     ),
+                    if (where != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                        child: Text(
+                          where,
+                          style: AppText.secondary(theme),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (subject != null) ...[
+            const SizedBox(height: AppSpacing.smd),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.smd,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(
+                  alpha: AppOpacity.half,
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Text(
+                command != null ? '\$ $subject' : subject,
+                style: AppText.mono(
+                  theme,
+                  cs.onSurface,
+                ).copyWith(fontSize: AppFontSize.md, height: 1.4),
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
+          if (risk != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _RiskLine(risk: risk),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          if (!widget.isSessionOnline)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Text(
+                l10n.convPermOffline,
+                style: AppText.secondary(theme),
+              ),
+            )
+          else if (isCodex)
+            _PermissionActionArea(
+              loading: _loading,
+              child: _CodexActionButtons(
+                enabled: !_loading,
+                showAdvanced: _showAdvanced,
+                onToggleAdvanced: _loading
+                    ? null
+                    : () => setState(() => _showAdvanced = !_showAdvanced),
+                onCodexApprove: widget.onCodexApprove == null
+                    ? null
+                    : () => _wrap(widget.onCodexApprove),
+                onCodexApproveForSession:
+                    widget.onCodexApproveForSession == null
+                    ? null
+                    : () => _wrap(widget.onCodexApproveForSession),
+                onCodexAbort: widget.onCodexAbort == null
+                    ? null
+                    : () => _wrap(widget.onCodexAbort),
+              ),
+            )
+          else
+            _PermissionActionArea(
+              loading: _loading,
+              child: _ActionButtons(
+                enabled: !_loading,
+                isEditTool: isEditTool,
+                showAdvanced: _showAdvanced,
+                onToggleAdvanced: _loading
+                    ? null
+                    : () => setState(() => _showAdvanced = !_showAdvanced),
+                onAllow: widget.onAllow == null
+                    ? null
+                    : () => _wrap(widget.onAllow),
+                onDeny: widget.onDeny == null
+                    ? null
+                    : () => _wrap(widget.onDeny),
+                onAllowAllEdits: widget.onAllowAllEdits == null
+                    ? null
+                    : () => _wrap(widget.onAllowAllEdits),
+                onAllowForSession: widget.onAllowForSession == null
+                    ? null
+                    : () => _wrap(widget.onAllowForSession),
+                onYolo: widget.onYolo == null
+                    ? null
+                    : () => _wrap(widget.onYolo),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _basename(String path) {
+    final trimmed = path.endsWith('/')
+        ? path.substring(0, path.length - 1)
+        : path;
+    final slash = trimmed.lastIndexOf('/');
+    return slash < 0 ? trimmed : trimmed.substring(slash + 1);
+  }
+}
+
+/// Plain-language consequence: an icon and one line, warning-tinted only
+/// for irreversible or outward-facing actions.
+class _RiskLine extends StatelessWidget {
+  const _RiskLine({required this.risk});
+
+  final PermissionRisk risk;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    // Amber reads on dark surfaces; light mode pulls it toward the ink so
+    // the line keeps text contrast without becoming a warning slab.
+    final color = !risk.destructive
+        ? cs.onSurfaceVariant
+        : theme.brightness == Brightness.dark
+        ? AppColors.warning
+        : Color.lerp(AppColors.warning, cs.onSurface, 0.4)!;
+    return Row(
+      children: [
+        Icon(risk.icon, size: AppIconSize.md, color: color),
+        const SizedBox(width: AppSpacing.xsm),
+        Expanded(
+          child: Text(
+            risk.label(AppLocalizations.of(context)),
+            style: AppText.secondary(theme, color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Settled request: one quiet line so the transcript explains what
+/// happened without keeping a card around.
+class _AnsweredLine extends StatelessWidget {
+  const _AnsweredLine({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: AppIconSize.sm, color: color),
+          const SizedBox(width: AppSpacing.xsm),
+          Flexible(child: Text(label, style: AppText.secondary(theme, color))),
         ],
       ),
     );
@@ -390,53 +505,50 @@ class _ActionButtons extends StatelessWidget {
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton.icon(
+            FilledButton(
               onPressed: enabled ? onAllow : null,
-              icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
-              label: Text(l10n.permissionAllow),
               style: _primaryButtonStyle(theme),
+              child: Text(l10n.convPermAllowOnce),
             ),
-            OutlinedButton.icon(
+            FilledButton(
               onPressed: enabled ? onDeny : null,
-              icon: const Icon(Icons.close_rounded, size: 14),
-              label: Text(l10n.permissionDeny),
               style: _denyButtonStyle(theme),
+              child: Text(l10n.permissionDeny),
             ),
+            if (hasAdvanced)
+              _AdvancedPermissionDisclosure(
+                expanded: showAdvanced,
+                onPressed: onToggleAdvanced,
+              ),
           ],
         ),
-        if (hasAdvanced) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          _AdvancedPermissionDisclosure(
-            expanded: showAdvanced,
-            onPressed: onToggleAdvanced,
-          ),
-          if (showAdvanced)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (isEditTool && onAllowAllEdits != null)
-                    _SecondaryButton(
-                      label: l10n.permissionAllEdits,
-                      onPressed: enabled ? onAllowAllEdits : null,
-                    ),
-                  if (isEditTool && onYolo != null)
-                    _SecondaryButton(
-                      label: l10n.permissionYolo,
-                      onPressed: enabled ? onYolo : null,
-                    ),
-                  if (!isEditTool && onAllowForSession != null)
-                    _SecondaryButton(
-                      label: l10n.permissionForSession,
-                      onPressed: enabled ? onAllowForSession : null,
-                    ),
-                ],
-              ),
+        if (hasAdvanced && showAdvanced)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (isEditTool && onAllowAllEdits != null)
+                  _SecondaryButton(
+                    label: l10n.permissionAllEdits,
+                    onPressed: enabled ? onAllowAllEdits : null,
+                  ),
+                if (isEditTool && onYolo != null)
+                  _SecondaryButton(
+                    label: l10n.permissionYolo,
+                    onPressed: enabled ? onYolo : null,
+                  ),
+                if (!isEditTool && onAllowForSession != null)
+                  _SecondaryButton(
+                    label: l10n.permissionForSession,
+                    onPressed: enabled ? onAllowForSession : null,
+                  ),
+              ],
             ),
-        ],
+          ),
       ],
     );
   }
@@ -471,36 +583,33 @@ class _CodexActionButtons extends StatelessWidget {
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton.icon(
+            FilledButton(
               onPressed: enabled ? onCodexApprove : null,
-              icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
-              label: Text(l10n.permissionYes),
-              style: _primaryButtonStyle(theme, background: AppColors.success),
+              style: _primaryButtonStyle(theme),
+              child: Text(l10n.convPermAllowOnce),
             ),
-            OutlinedButton.icon(
+            FilledButton(
               onPressed: enabled ? onCodexAbort : null,
-              icon: const Icon(Icons.close_rounded, size: 14),
-              label: Text(l10n.permissionStop),
               style: _denyButtonStyle(theme),
+              child: Text(l10n.permissionStop),
             ),
+            if (onCodexApproveForSession != null)
+              _AdvancedPermissionDisclosure(
+                expanded: showAdvanced,
+                onPressed: onToggleAdvanced,
+              ),
           ],
         ),
-        if (onCodexApproveForSession != null) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          _AdvancedPermissionDisclosure(
-            expanded: showAdvanced,
-            onPressed: onToggleAdvanced,
-          ),
-          if (showAdvanced)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: _SecondaryButton(
-                label: l10n.permissionForSession,
-                onPressed: enabled ? onCodexApproveForSession : null,
-              ),
+        if (onCodexApproveForSession != null && showAdvanced)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: _SecondaryButton(
+              label: l10n.permissionForSession,
+              onPressed: enabled ? onCodexApproveForSession : null,
             ),
-        ],
+          ),
       ],
     );
   }
@@ -536,8 +645,9 @@ class _AdvancedPermissionDisclosure extends StatelessWidget {
           ),
           label: Text(label),
           style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             minimumSize: const Size(0, AppTouchTarget.min),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           ),
         ),
       ),
@@ -545,49 +655,44 @@ class _AdvancedPermissionDisclosure extends StatelessWidget {
   }
 }
 
-/// Primary permission action. Colors come from the themed [FilledButton]
-/// (gradient fill, white label); a [background] that carries meaning is
-/// painted solid through [AppButtonStyle.solidFilled], because a plain
-/// `backgroundColor` would sit under the theme gradient.
-ButtonStyle _primaryButtonStyle(ThemeData theme, {Color? background}) {
-  final base = FilledButton.styleFrom(
+/// Primary permission action: a solid ink pill (black in light mode,
+/// white in dark), the one strong control on the card. Painted through
+/// [AppButtonStyle.solidFilled] so the theme gradient does not cover it.
+ButtonStyle _primaryButtonStyle(ThemeData theme) {
+  final cs = theme.colorScheme;
+  return FilledButton.styleFrom(
     minimumSize: const Size(0, AppTouchTarget.min),
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.smd,
-      vertical: AppSpacing.sm,
-    ),
-    textStyle: theme.textTheme.labelMedium?.copyWith(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+    textStyle: theme.textTheme.labelLarge?.copyWith(
       fontWeight: FontWeight.w600,
     ),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-    ),
+    shape: const StadiumBorder(),
     elevation: 0,
-  );
-  if (background == null) return base;
-  return base.merge(
+  ).merge(
     AppButtonStyle.solidFilled(
-      theme.colorScheme,
-      background: background,
-      foreground: Colors.white,
+      cs,
+      background: cs.onSurface,
+      foreground: cs.surface,
     ),
   );
 }
 
+/// Deny: a quiet tonal pill. Declining is a normal answer, not an alarm.
 ButtonStyle _denyButtonStyle(ThemeData theme) {
-  return OutlinedButton.styleFrom(
-    foregroundColor: theme.colorScheme.error,
-    side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+  final cs = theme.colorScheme;
+  return FilledButton.styleFrom(
     minimumSize: const Size(0, AppTouchTarget.min),
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.smd,
-      vertical: AppSpacing.sm,
-    ),
-    textStyle: theme.textTheme.labelMedium?.copyWith(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+    textStyle: theme.textTheme.labelLarge?.copyWith(
       fontWeight: FontWeight.w500,
     ),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
+    shape: const StadiumBorder(),
+    elevation: 0,
+  ).merge(
+    AppButtonStyle.solidFilled(
+      cs,
+      background: cs.surfaceContainerHighest,
+      foreground: cs.onSurface,
     ),
   );
 }
@@ -604,9 +709,9 @@ class _SecondaryButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onSurface,
         side: BorderSide(
-          color: theme.colorScheme.primary.withValues(alpha: 0.4),
+          color: theme.colorScheme.outline.withValues(alpha: AppOpacity.half),
           width: 1,
         ),
         minimumSize: const Size(0, AppTouchTarget.min),
@@ -617,9 +722,7 @@ class _SecondaryButton extends StatelessWidget {
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
+        shape: const StadiumBorder(),
       ),
       child: Text(label),
     );

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../tool_work_summary.dart';
@@ -62,81 +62,89 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
 
     final running = _summary.running;
     final total = tools.length;
+    final l10n = context.l10n;
+    final detail = _summary.describe(l10n);
     final summary = total == 0
-        ? context.l10n.chatActivityThinking
-        : _summary.describe(context.l10n);
+        ? l10n.chatActivityThinking
+        : detail.isEmpty
+        ? l10n.convWorkSteps(total)
+        : '${l10n.convWorkSteps(total)} \u00b7 $detail';
     final needsAttention = _summary.failed > 0 || _summary.approvals > 0;
+    final done = total > 0 && _summary.pending == 0 && !needsAttention;
+    final cs = theme.colorScheme;
+    final ink = needsAttention ? cs.error : cs.onSurfaceVariant;
 
-    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    // One quiet row, like a finished task chip: no fill, a hairline
+    // outline, the step count first and the evidence after it. The full
+    // transcript (real commands, diffs, exit codes) is one tap away.
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Material(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.55,
-          ),
+          color: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             side: BorderSide(
-              color: appCs.glassBorder,
-              width: AppBorder.hairline,
+              color: cs.onSurface.withValues(alpha: AppOpacity.subtle),
+              width: AppBorder.thin,
             ),
           ),
           clipBehavior: Clip.antiAlias,
-          // TODO(l10n): localize 'Expand tool list' / 'Collapse tool list'
           child: Semantics(
             button: true,
-            label: _expanded ? 'Collapse tool list' : 'Expand tool list',
+            expanded: _expanded,
+            label: _expanded ? l10n.convWorkCollapse : l10n.convWorkExpand,
             child: InkWell(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
               onTap: () => setState(() => _expanded = !_expanded),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm + 2,
-                  vertical: AppSpacing.sm,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppTouchTarget.min,
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      total == 0
-                          ? Icons.psychology_outlined
-                          : needsAttention
-                          ? Icons.error_outline_rounded
-                          : Icons.build_circle_outlined,
-                      size: 20,
-                      color: needsAttention
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        summary,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      // Only executing tools justify a spinner; queued rows
+                      // left pending after a turn stay static.
+                      if (running > 0)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: AppCircularProgressIndicator(strokeWidth: 1.6),
+                        )
+                      else
+                        Icon(
+                          total == 0
+                              ? Icons.psychology_outlined
+                              : needsAttention
+                              ? Icons.error_outline_rounded
+                              : done
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: AppIconSize.lg,
+                          color: ink,
+                        ),
+                      const SizedBox(width: AppSpacing.smd),
+                      Expanded(
+                        child: Text(
+                          summary,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: ink,
+                          ),
                         ),
                       ),
-                    ),
-                    // Queued rows may remain pending after a turn ends.
-                    // Their count is useful, but only executing tools
-                    // justify a continuously animated spinner.
-                    if (running > 0) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: AppCircularProgressIndicator(strokeWidth: 1.6),
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(
+                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        size: AppIconSize.lg,
+                        color: cs.onSurfaceVariant,
                       ),
                     ],
-                    const SizedBox(width: AppSpacing.xs),
-                    Icon(
-                      _expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

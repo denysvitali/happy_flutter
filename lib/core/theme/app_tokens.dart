@@ -49,6 +49,9 @@ abstract final class AppSpacing {
 
   /// 32 px – large layout spacing.
   static const double xxxl = 32;
+
+  /// 40 px – airy hero spacing (welcome / empty-state illustrations).
+  static const double hero = 40;
 }
 
 // ─── Border radius ───────────────────────────────────────────────────────────
@@ -92,6 +95,9 @@ abstract final class AppRadius {
 
   /// 24 px – large containers, modals.
   static const double xxl = 24;
+
+  /// 28 px – soft hand-off surfaces (new-session sheet, task field).
+  static const double xxxl = 28;
 
   /// 100 px – fully-pill / stadium shape.
   static const double pill = 100;

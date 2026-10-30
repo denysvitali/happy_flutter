@@ -27,7 +27,9 @@ class Settings {
     _normalizeSettingsJson(json, fallback: fallback.toJson()),
   );
 
-  int schemaVersion = 2;
+  /// 3: 'agent' (the agent-identity blob) replaced 'brutalist' as the
+  /// default avatar style; see SettingsNotifier's load-time migration.
+  int schemaVersion = 3;
   String themeMode = 'system';
   bool viewInline = false;
   bool hideToolCalls = false;
@@ -45,7 +47,7 @@ class Settings {
   bool agentInputEnterToSend = false;
   bool developerModeEnabled = false;
   bool toolCallDebugEnabled = false;
-  String avatarStyle = 'brutalist';
+  String avatarStyle = 'agent';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
   String sessionsViewStyle = 'mission_control';

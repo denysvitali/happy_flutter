@@ -7,8 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart';
-import 'package:happy_flutter/features/chat/widgets/chat_app_bar_status.dart';
+import 'package:happy_flutter/features/chat/widgets/session_header_chip.dart';
 
 Session _session() => Session.fromJson(<String, dynamic>{
   'id': 's1',
@@ -125,6 +126,43 @@ void main() {
         ),
         findsWidgets,
       );
+    });
+
+    testWidgets('renders one status line, urgent states first', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _harness(const [
+          ChatAppBarStatusChip(
+            text: 'Online',
+            color: Color(0xFF4CAF50),
+            showDot: true,
+          ),
+          ChatAppBarStatusChip(
+            text: 'Approval needed',
+            color: AppColors.warning,
+            icon: Icons.shield_outlined,
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      // Plain text joined by a middot — no stacked chip containers.
+      expect(find.byType(SessionHeaderChip), findsNothing);
+      expect(find.text(' · '), findsOneWidget);
+      // The state that needs the user leads the line and keeps its colour,
+      // so a narrow bar never fades it out.
+      final urgent = tester.getTopLeft(find.text('Approval needed')).dx;
+      final online = tester.getTopLeft(find.text('Online')).dx;
+      expect(urgent, lessThan(online));
+      expect(
+        tester.widget<Text>(find.text('Approval needed')).style?.color,
+        AppColors.warning,
+      );
+      expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
     });
 
     testWidgets('capture', (tester) async {

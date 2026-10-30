@@ -28,6 +28,7 @@ Widget _buildComposer({
   FileSuggestionsLoader? onFileSuggestionsRequested,
   MediaQueryData? mediaQueryData,
   OfflineDictationService? dictationService,
+  String? sessionFlavor,
 }) {
   final composer = Scaffold(
     body: Align(
@@ -39,6 +40,7 @@ Widget _buildComposer({
         onSend: onSend,
         onQueueNextTurn: onQueueNextTurn,
         onFileSuggestionsRequested: onFileSuggestionsRequested,
+        sessionFlavor: sessionFlavor,
       ),
     ),
   );
@@ -367,17 +369,20 @@ void main() {
       return tester.getSemantics(find.byType(SendButton));
     }
 
-    expect(sendNode(), isSemantics(hasEnabledState: true, isEnabled: false));
-    await tester.tap(find.byType(SendButton));
+    // An empty draft offers dictation instead of a dead send button.
+    expect(find.byType(SendButton), findsNothing);
+    expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
     expect(sends, 0);
 
     await tester.enterText(find.byType(TextField), '   ');
     await tester.pump();
-    expect(sendNode(), isSemantics(hasEnabledState: true, isEnabled: false));
+    expect(find.byType(SendButton), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'Review this change');
     await tester.pump();
     expect(sendNode(), isSemantics(hasEnabledState: true, isEnabled: true));
+
+    expect(find.byIcon(Icons.mic_none_rounded), findsNothing);
 
     await tester.tap(find.byType(SendButton));
     await tester.pump();
@@ -385,6 +390,45 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     handle.dispose();
+    controller.dispose();
+  });
+
+  testWidgets('send appears with a draft and hides again when cleared', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final inputRow = find.byKey(
+      const ValueKey<String>('chat-composer-input-row'),
+    );
+
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.pump();
+    expect(find.byType(SendButton), findsNothing);
+    expect(
+      find.descendant(
+        of: inputRow,
+        matching: find.byIcon(Icons.mic_none_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    controller.text = 'Ship it';
+    await tester.pump();
+    // Send lives inside the field row, replacing the mic.
+    expect(
+      find.descendant(of: inputRow, matching: find.byType(SendButton)),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.mic_none_rounded), findsNothing);
+
+    controller.clear();
+    await tester.pump();
+    expect(find.byType(SendButton), findsNothing);
+    expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });
 
@@ -403,10 +447,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      tester.getSemantics(find.byType(SendButton)),
-      isSemantics(hasEnabledState: true, isEnabled: false),
-    );
+    expect(find.byType(SendButton), findsNothing);
 
     attachments.add(
       const OutgoingImage(
@@ -464,17 +505,17 @@ void main() {
       find.descendant(of: inputRow, matching: find.byType(TextField)),
       findsOneWidget,
     );
-    // The draft keeps its row to itself; both follow-up actions close the
-    // existing toolbar as icon buttons, so the composer never grows a
-    // second action row.
+    // Both follow-up actions sit inside the field row next to the draft;
+    // the settings row below never carries send actions.
+    expect(find.descendant(of: inputRow, matching: queueButton), findsOne);
     expect(
       find.descendant(of: inputRow, matching: find.byType(SendButton)),
-      findsNothing,
+      findsOneWidget,
     );
-    expect(find.descendant(of: toolbar, matching: queueButton), findsOne);
+    expect(find.descendant(of: toolbar, matching: queueButton), findsNothing);
     expect(
       find.descendant(of: toolbar, matching: find.byType(SendButton)),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('chat-follow-up-actions')),
@@ -586,18 +627,21 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(QueueNextTurnButton), findsNothing);
-    expect(find.byType(SendButton), findsOneWidget);
+    expect(find.byType(SendButton), findsNothing);
 
     controller.text = 'now there is text';
     await tester.pump();
     expect(find.byType(QueueNextTurnButton), findsOneWidget);
+    expect(find.byType(SendButton), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });
 
-  testWidgets('keeps input actions in one composer surface', (tester) async {
-    final controller = TextEditingController();
+  testWidgets('keeps the draft and its actions in one rounded field', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'Draft');
 
     await tester.pumpWidget(
       _buildComposer(controller: controller, onSend: () {}),
@@ -613,16 +657,84 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: composerCard, matching: find.byType(InputToolbar)),
-      findsOneWidget,
-    );
-    expect(
       find.descendant(of: composerCard, matching: find.byType(SendButton)),
       findsOneWidget,
+    );
+    // Attach/options "+" sits beside the field; approvals and model sit
+    // in one settings row underneath it.
+    final plus = find.byKey(const ValueKey<String>('composer-attach-button'));
+    expect(plus, findsOneWidget);
+    expect(find.descendant(of: composerCard, matching: plus), findsNothing);
+    expect(
+      tester.getCenter(plus).dx,
+      lessThan(tester.getTopLeft(composerCard).dx),
+    );
+    expect(
+      find.descendant(of: composerCard, matching: find.byType(InputToolbar)),
+      findsNothing,
+    );
+    expect(find.byType(InputToolbar), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(InputToolbar)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(composerCard).dy),
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
+  });
+
+  testWidgets('names the agent in the placeholder', (tester) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        sessionFlavor: 'claude',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Ask Claude…'), findsOneWidget);
+
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.pump();
+    expect(find.text('Ask your agent…'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('the + sheet offers attachments, model and the full editor', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final attachments = ChatAttachmentController();
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        attachmentController: attachments,
+        onSend: () {},
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('composer-attach-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add to message'), findsOneWidget);
+    expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-sheet-model')), findsOneWidget);
+    expect(find.text('Open full editor'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+    attachments.dispose();
   });
 
   testWidgets('keeps the composer stable with large text', (tester) async {

@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/agent_identity.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../harness_logo.dart';
+import '../session_avatar.dart';
 import 'inline_permission_actions.dart';
 import 'mission_control_triage_menu.dart';
 import 'mission_control_types.dart';
@@ -296,7 +300,7 @@ class MissionActionRow extends StatelessWidget {
                       !largeText ||
                       constraints.maxWidth -
                               AppSpacing.smd * 2 -
-                              AppControlSize.sm -
+                              missionAvatarSize -
                               missionRowTextGap -
                               ageTextWidth -
                               AppSpacing.xs -
@@ -363,6 +367,7 @@ class MissionActionRow extends StatelessWidget {
                                   ),
                                   child: ExcludeSemantics(
                                     child: _LaneTile(
+                                      sessionId: session.id,
                                       lane: lane,
                                       flavor: session.metadata?.flavor,
                                       color: laneColor,
@@ -439,8 +444,9 @@ class MissionActionRow extends StatelessWidget {
                                         ),
                                       ),
                                     ],
-                                    if (secondary.isNotEmpty ||
-                                        showOutcome) ...[
+                                    if (!approval &&
+                                        (secondary.isNotEmpty ||
+                                            showOutcome)) ...[
                                       const SizedBox(height: AppSpacing.xxs),
                                       ConstrainedBox(
                                         constraints: BoxConstraints(
@@ -457,13 +463,12 @@ class MissionActionRow extends StatelessWidget {
                                                   excludeFromSemantics: true,
                                                   child: Text(
                                                     secondary,
+                                                    // Roster rows: one calm
+                                                    // outcome line. Errors keep
+                                                    // two so the failure reads.
                                                     maxLines:
-                                                        inbox ||
-                                                            (trailingAge &&
-                                                                !largeText) ||
-                                                            lane ==
-                                                                MissionLane
-                                                                    .error
+                                                        lane ==
+                                                            MissionLane.error
                                                         ? 2
                                                         : 1,
                                                     overflow:
@@ -494,6 +499,13 @@ class MissionActionRow extends StatelessWidget {
                                             ],
                                           ],
                                         ),
+                                      ),
+                                    ],
+                                    if (approval) ...[
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      PermissionDecisionText(
+                                        agentName: harnessName,
+                                        requests: requests,
                                       ),
                                     ],
                                     if (showOutcome && stackOutcome) ...[
@@ -534,11 +546,17 @@ class MissionActionRow extends StatelessWidget {
                         ),
                         if (approval)
                           Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.xs),
+                            // Indent under the text column so the decision
+                            // reads as part of this teammate's row.
+                            padding: const EdgeInsets.only(
+                              top: AppSpacing.xs,
+                              left: missionAvatarSize + missionRowTextGap,
+                            ),
                             child: InlinePermissionActions(
                               sessionId: session.id,
                               requests: requests,
                               isOnline: session.presence == 'online',
+                              context: secondary,
                             ),
                           ),
                       ],
@@ -583,8 +601,14 @@ const double _titleInkInset = 3;
 /// 24dp; the taller 44dp target used to double the update line's height.
 const double _pillTapHeight = 24;
 
-class _LaneTile extends StatelessWidget {
+/// The teammate's avatar: identity colour + blob from [agentIdentityFor],
+/// the provider as a corner badge, and a small state dot (needs you,
+/// failed, working, unread) at the top-right. Quiet teammates get no dot.
+/// An avatar style the user picked in settings replaces the blob, matching
+/// the chat header and the other session lists.
+class _LaneTile extends ConsumerWidget {
   const _LaneTile({
+    required this.sessionId,
     required this.lane,
     required this.color,
     required this.freshness,
@@ -593,6 +617,7 @@ class _LaneTile extends StatelessWidget {
     this.flavor,
   });
 
+  final String sessionId;
   final MissionLane lane;
   final String? flavor;
   final Color color;
@@ -601,55 +626,72 @@ class _LaneTile extends StatelessWidget {
   final bool selected;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: AppControlSize.sm,
-      height: AppControlSize.sm,
-      decoration: BoxDecoration(
-        // Freshness glow: the tile brightens right after an update and
-        // decays as the stream goes quiet. Blocked/error keep their full
-        // lane container — they need the user regardless of age.
-        color: switch (lane) {
-          MissionLane.blocked ||
-          MissionLane.error => missionLaneContainerColor(context, lane),
-          _ => Color.alphaBlend(
-            color.withValues(
-              alpha: switch (freshness) {
-                StreamFreshness.burst => 0.18,
-                StreamFreshness.fresh => 0.12,
-                StreamFreshness.silent => 0.14,
-                StreamFreshness.aging => 0.06,
-              },
-            ),
-            Theme.of(context).colorScheme.surfaceContainerLow,
-          ),
-        },
-        borderRadius: BorderRadius.circular(AppRadius.smd),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final avatarStyle = ref.watch(
+      settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
+    );
+    final identity = agentIdentityForSeed(
+      sessionId,
+      brightness: Theme.of(context).brightness,
+      flavor: flavor ?? 'claude',
+    );
+    // Working teammates always show their dot; it only pulses while
+    // output is actually streaming, so a stale turn never looks busier.
+    final showDot = lane != MissionLane.quiet;
+    return SizedBox.square(
+      dimension: missionAvatarSize,
       child: Stack(
-        alignment: Alignment.center,
+        clipBehavior: Clip.none,
         children: [
-          // A quiet row has no state worth an icon; the harness mark tells
-          // the user which agent they would be talking to.
-          if (lane == MissionLane.quiet && !selected)
-            Opacity(
-              opacity: 0.85,
-              child: HarnessLogo(
-                flavor: flavor ?? 'claude',
-                size: AppIconSize.md,
-              ),
+          if (avatarStyle == null)
+            AgentAvatar(
+              identity: identity,
+              size: missionAvatarSize,
+              providerBadge: (f, s) => HarnessLogo(flavor: f, size: s),
             )
           else
-            Icon(
-              selected ? Icons.check_rounded : missionLaneIcon(lane),
-              size: AppIconSize.md,
-              color: color,
+            SessionAvatar(
+              id: sessionId,
+              flavor: flavor,
+              size: missionAvatarSize,
+              showFlavorIcon: true,
+              style: avatarStyle,
             ),
-          if (pulse)
+          if (selected)
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_rounded,
+                  size: AppIconSize.md,
+                  color: cs.onPrimary,
+                ),
+              ),
+            )
+          else if (showDot)
+            // Outside the face rect (see agentFaceRect): the dot sits on
+            // the avatar's top-right corner, never over the eyes.
             Positioned(
-              right: AppSpacing.xxs,
-              bottom: AppSpacing.xxs,
-              child: AppStatusDot(color: color, pulse: true, size: 4),
+              top: -AppSpacing.xsm,
+              right: -AppSpacing.xsm,
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.xxs),
+                decoration: BoxDecoration(
+                  // Ring in the page colour so the dot cuts cleanly out of
+                  // the blob on any list background.
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  shape: BoxShape.circle,
+                ),
+                child: AppStatusDot(
+                  color: color,
+                  pulse: pulse,
+                  size: AppSpacing.sm,
+                ),
+              ),
             ),
         ],
       ),

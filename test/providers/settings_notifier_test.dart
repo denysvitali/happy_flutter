@@ -91,6 +91,52 @@ void main() {
       },
     );
 
+    group('schema 3 avatar default migration', () {
+      Future<Settings> loadPersisted(Settings persisted) async {
+        await SettingsStorage().saveSettings(persisted);
+        final notifier = container.read(settingsNotifierProvider.notifier);
+        await notifier.loadSettings();
+        return container.read(settingsNotifierProvider);
+      }
+
+      test('moves the old brutalist default to the agent blob', () async {
+        final loaded = await loadPersisted(
+          Settings()
+            ..schemaVersion = 2
+            ..avatarStyle = 'brutalist',
+        );
+        expect(loaded.avatarStyle, 'agent');
+        expect(loaded.schemaVersion, 3);
+        await pumpEventQueue();
+        expect(repository.snapshot['avatarStyle'], 'agent');
+        expect(repository.snapshot['schemaVersion'], 3);
+      });
+
+      test('keeps any other style the user picked', () async {
+        final loaded = await loadPersisted(
+          Settings()
+            ..schemaVersion = 2
+            ..avatarStyle = 'wave',
+        );
+        expect(loaded.avatarStyle, 'wave');
+        expect(loaded.schemaVersion, 3);
+        await pumpEventQueue();
+        expect(repository.snapshot.containsKey('avatarStyle'), isFalse);
+        expect(repository.snapshot['schemaVersion'], 3);
+      });
+
+      test('a brutalist pick made after the migration stays', () async {
+        final loaded = await loadPersisted(
+          Settings()
+            ..schemaVersion = 3
+            ..avatarStyle = 'brutalist',
+        );
+        expect(loaded.avatarStyle, 'brutalist');
+        await pumpEventQueue();
+        expect(repository.writes, isEmpty);
+      });
+    });
+
     test('overlapping batches keep both sets of local changes', () async {
       final notifier = container.read(settingsNotifierProvider.notifier);
       await Future.wait([
@@ -197,7 +243,7 @@ void main() {
       expect(settings.expandTodos, isTrue);
       expect(settings.showLineNumbers, isTrue);
       expect(settings.agentInputEnterToSend, isFalse);
-      expect(settings.avatarStyle, 'brutalist');
+      expect(settings.avatarStyle, 'agent');
     });
 
     test('initial state has correct defaults for all bool fields', () {
@@ -360,11 +406,11 @@ void main() {
       expect(settings2.themeMode, 'system');
     });
 
-    test('schemaVersion defaults to 2', () {
+    test('schemaVersion defaults to 3', () {
       final c = makeContainer();
       addTearDown(c.dispose);
       final settings = c.read(settingsNotifierProvider);
-      expect(settings.schemaVersion, 2);
+      expect(settings.schemaVersion, 3);
     });
 
     test('favoriteDirectories has default values', () {
