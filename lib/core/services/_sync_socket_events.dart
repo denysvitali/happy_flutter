@@ -872,9 +872,10 @@ extension SyncSocketEvents on Sync {
     if (session == null) return;
 
     _sessions[sessionId] = session.copyWith(archived: archived);
-    if (archived) {
-      _optimisticallyArchivedSessions.add(sessionId);
-    } else {
+    // Server state belongs on the catalog row so a later full snapshot can
+    // repair a missed unarchive event. Only an explicit local archive action
+    // creates a persistent hide override.
+    if (!archived) {
       _optimisticallyArchivedSessions.remove(sessionId);
     }
     _notifyDataChanged({SyncDomain.sessions});

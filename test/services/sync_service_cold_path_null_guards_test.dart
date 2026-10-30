@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/api/sessions_api.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -149,60 +150,67 @@ void main() {
       },
     );
 
-    test('full fetch tolerates missing/malformed top-level fields', () async {
-      ApiClient().testDio!.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            if (options.path == '/v2/sessions') {
+    test(
+      'full fetch rejects malformed rows without replacing catalog',
+      () async {
+        instance.testLastSessionsFetchedAt = 123;
+        instance.testForceFullFetchNext = true;
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (options.path == '/v2/sessions') {
+                handler.resolve(
+                  Response<dynamic>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'sessions': <dynamic>[
+                        // Invalid IDs make the whole catalog untrustworthy.
+                        <String, dynamic>{'seq': 1, 'createdAt': 1700000000000},
+                        'not-a-map',
+                        <String, dynamic>{'id': ''},
+                        // A valid row cannot make a partial snapshot safe.
+                        <String, dynamic>{
+                          'id': 'good-session',
+                          'seq': 1,
+                          'createdAt': 1700000000000,
+                          'updatedAt': 1700000000001,
+                          'active': true,
+                          'activeAt': 1700000000001,
+                          'metadata': 'opaque',
+                          'metadataVersion': 1,
+                          'agentState': null,
+                          'agentStateVersion': 1,
+                          'dataEncryptionKey': null,
+                          'lastSeq': 1,
+                        },
+                      ],
+                      'hasNext': false,
+                      'nextCursor': null,
+                    },
+                  ),
+                );
+                return;
+              }
               handler.resolve(
                 Response<dynamic>(
                   requestOptions: options,
-                  statusCode: 200,
-                  data: <String, dynamic>{
-                    'sessions': <dynamic>[
-                      // Missing id — should be skipped without throwing.
-                      <String, dynamic>{'seq': 1, 'createdAt': 1700000000000},
-                      // Non-map entry — should be skipped.
-                      'not-a-map',
-                      // Empty id — should be skipped.
-                      <String, dynamic>{'id': ''},
-                      // Valid entry — should land.
-                      <String, dynamic>{
-                        'id': 'good-session',
-                        'seq': 1,
-                        'createdAt': 1700000000000,
-                        'updatedAt': 1700000000001,
-                        'active': true,
-                        'activeAt': 1700000000001,
-                        'metadata': 'opaque',
-                        'metadataVersion': 1,
-                        'agentState': null,
-                        'agentStateVersion': 1,
-                        'dataEncryptionKey': null,
-                        'lastSeq': 1,
-                      },
-                    ],
-                    'hasNext': false,
-                    'nextCursor': null,
-                  },
+                  statusCode: 404,
+                  data: <String, dynamic>{},
                 ),
               );
-              return;
-            }
-            handler.resolve(
-              Response<dynamic>(
-                requestOptions: options,
-                statusCode: 404,
-                data: <String, dynamic>{},
-              ),
-            );
-          },
-        ),
-      );
+            },
+          ),
+        );
 
-      await expectLater(instance.fetchSessions(), completes);
-      expect(instance.sessions.length, 1);
-      expect(instance.sessions['good-session'], isNotNull);
-    });
+        await expectLater(
+          instance.fetchSessions(),
+          throwsA(isA<SessionsApiException>()),
+        );
+        expect(instance.sessions, isEmpty);
+        expect(instance.testLastSessionsFetchedAt, 123);
+        expect(instance.testForceFullFetchNext, isTrue);
+      },
+    );
   });
 }

@@ -115,6 +115,41 @@ void main() {
       );
     });
 
+    test('rejection preserves provider keys until explicit logout', () async {
+      var clearedKeys = 0;
+      final rejecting = AuthService.test(
+        apiClient: api,
+        encryption: encryption,
+        credentials: credentials,
+        crypto: crypto,
+        clearApiKeys: () async {
+          clearedKeys++;
+        },
+      );
+      final saved = AuthCredentials(
+        token: 'expired',
+        secret: base64Encode(crypto.seed),
+      );
+      credentials.value = saved;
+      final rejected = _response(401);
+      when(api.get('/v1/auth/verify')).thenAnswer((_) async => rejected);
+      when(api.isAuthError(rejected)).thenReturn(true);
+
+      expect(await rejecting.getAuthState(), AuthState.error);
+      expect(rejecting.lastAuthFailure, AuthFailureKind.rejected);
+      expect(credentials.value, saved);
+      expect(clearedKeys, 0);
+      verifyNever(api.clearToken());
+      verifyNever(api.post('/v1/auth', data: anyNamed('data')));
+      verifyNever(encryption.initialize(any));
+
+      await rejecting.signOut();
+
+      expect(credentials.value, isNull);
+      expect(clearedKeys, 1);
+      verify(api.clearToken()).called(1);
+    });
+
     test('QR request sends the generated public key', () async {
       when(
         api.post('/v1/auth/account/request', data: anyNamed('data')),

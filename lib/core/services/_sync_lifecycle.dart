@@ -55,6 +55,19 @@ int _reconnectWatchdogDelayWithJitterMs(int attempt) {
 }
 
 extension SyncLifecycle on Sync {
+  bool get isLifecycleSuspended => _lifecycleSuspended;
+
+  /// Keep lifecycle and connectivity resumes from rearming rejected traffic.
+  /// Account credentials, pending settings and outbox entries remain intact.
+  void setAuthenticationBlocked(bool blocked) {
+    _authenticationBlocked = blocked;
+    if (blocked) {
+      _initialNetworkPermit?.complete(false);
+      _initialNetworkPermit = null;
+      _suspendRuntime();
+    }
+  }
+
   /// Suspend the sync engine when the app goes to the background.
   ///
   /// Disconnects the socket so the OS does not keep reporting connection
@@ -65,6 +78,11 @@ extension SyncLifecycle on Sync {
   /// ALL timers are cancelled to ensure zero network traffic and battery
   /// drain while the app is backgrounded.
   void suspend() {
+    _lifecycleSuspended = true;
+    _suspendRuntime();
+  }
+
+  void _suspendRuntime() {
     if (!isInitialized) return;
     _clearMessageStreams();
     ApiClient().setSuspended(true);
@@ -226,11 +244,32 @@ extension SyncLifecycle on Sync {
   /// Reconnects the socket and invalidates all syncs so any server-side
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
+    _lifecycleSuspended = false;
+    _resumeRuntime();
+  }
+
+  /// Authentication completion cannot override an independent OS suspension.
+  void resumeAfterAuthentication() {
+    if (_lifecycleSuspended) return;
+    _resumeRuntime();
+  }
+
+  void _resumeRuntime() {
+    if (_authenticationBlocked) return;
     final runtimeGeneration = _runtimeGeneration;
     // Resume can precede auth restoration. Do not leave a previous runtime's
     // background policy blocking the new account's initial reads.
     ApiClient().setSuspended(false);
     if (!isInitialized) return;
+    final initialPermit = _initialNetworkPermit;
+    if (initialPermit != null) {
+      _initialNetworkPermit = null;
+      _deferredSocketDisconnectTimer?.cancel();
+      _deferredSocketDisconnectTimer = null;
+      InvalidateSync.isBackgrounded = false;
+      initialPermit.complete(true);
+      return;
+    }
     powerDiagnostics.recordLifecycle('sync.resume');
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -1011,6 +1050,8 @@ extension SyncLifecycle on Sync {
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    _initialNetworkPermit?.complete(false);
+    _initialNetworkPermit = null;
     // Fence every in-flight fetch before clearing state. Any continuation
     // from the old account observes a stale generation and cannot resurrect
     // sessions, machines, or readiness after logout.

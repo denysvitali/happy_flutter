@@ -80,6 +80,7 @@ import '../types/message_retry_result.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
 import '../types/remote_feature_failure.dart';
+import '../utils/async_lock.dart';
 import '../utils/bounded_concurrency.dart';
 import '../utils/codex_provider_config.dart';
 import '../utils/image_content_blocks.dart';
@@ -789,6 +790,9 @@ what you have, you must use the options mode.
   // State tracking
   bool revenueCatInitialized = false;
   bool isInitialized = false;
+  bool _authenticationBlocked = false;
+  bool _lifecycleSuspended = false;
+  Completer<bool>? _initialNetworkPermit;
   bool _isReady = false;
   // Account/runtime epoch. Every asynchronous state commit captures this
   // value and must abandon work after logout or a subsequent restore.
@@ -849,6 +853,7 @@ what you have, you must use the options mode.
   int _sidechainGrouperSkips = 0;
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   final SessionCatalog _sessionCatalog = SessionCatalog();
+  final AsyncLock _sessionFetchLock = AsyncLock();
   Map<String, Session> get _sessions => _sessionCatalog;
   set _sessions(Map<String, Session> value) =>
       _sessionCatalog.replaceAll(value);

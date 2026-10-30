@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import '../api/api_client.dart';
-import '../api/socket_io_client.dart';
 import '../models/auth.dart';
 import 'auth_service.dart';
 import 'logger_service.dart' show logger;
@@ -12,23 +10,16 @@ typedef OnTokenRefreshFailed = void Function();
 /// Manages token refresh lifecycle across HTTP and WebSocket clients.
 ///
 /// Coordinates token refresh between:
-/// - [ApiClient] - updates the auth token for HTTP requests
-/// - [SocketIoClient] - updates the auth token for WebSocket connections
+/// - HTTP requests and WebSocket connections, updated together by AuthService.
 ///
 /// Ensures only one refresh attempt is in flight at a time and notifies
 /// listeners when token refresh fails irreversibly.
 ///
-/// SERVER CONTRACT (verified against the happy-server Go implementation):
-/// happy-server issues persistent tokens with **no `exp` claim** — they
-/// never expire, and verification results are cached permanently
-/// (`internal/server/auth/tokens.go`). There is also **no
-/// `POST /v1/auth/refresh` route**: such a request falls through to the
-/// grpc-gateway catch-all and returns 404. A 401 from this server therefore
-/// means the token no longer verifies (rotated master secret, revoked or
-/// foreign token), never that it expired. The only recovery is a fresh
-/// sign-in, which is why the HTTP layer calls [notifyReauthRequired] rather
-/// than [refreshToken]. [refreshToken] is kept for servers that do expose a
-/// refresh endpoint, and still returns [AuthForbiddenError] against this one.
+/// happy-server tokens expire after 30 days; legacy tokens without an `exp`
+/// claim remain supported. Rejection can mean expiry, revocation, or a server
+/// key change. The HTTP layer calls [notifyReauthRequired] to verify rejection
+/// and preserve recovery credentials. [refreshToken] is an explicit request
+/// to deployments that expose a refresh endpoint.
 class TokenRefreshManager {
   TokenRefreshManager._();
   static final TokenRefreshManager _instance = TokenRefreshManager._();
@@ -44,6 +35,7 @@ class TokenRefreshManager {
 
   /// Whether a token refresh is currently in flight.
   bool _isRefreshing = false;
+  int _generation = 0;
 
   /// Queue of pending completers that will be resolved when token refresh
   /// completes (whether success or failure).
@@ -94,15 +86,16 @@ class TokenRefreshManager {
   /// Initiates a new token refresh, waiting for all pending requests.
   Future<String> _doRefresh() async {
     _isRefreshing = true;
+    final generation = _generation;
     String? newToken;
 
     try {
       logger.info('TokenRefreshManager: starting token refresh');
       newToken = await _authService.refreshToken();
 
-      // Success: update ApiClient and SocketIoClient with new token.
-      ApiClient().updateToken(newToken);
-      socketIoClient.updateToken(newToken);
+      if (generation != _generation) {
+        throw AuthException('Token refresh superseded by sign-out');
+      }
 
       logger.info('TokenRefreshManager: token refresh succeeded');
 
@@ -113,6 +106,7 @@ class TokenRefreshManager {
 
       return newToken;
     } on AuthForbiddenError catch (e) {
+      if (generation != _generation) rethrow;
       logger.warning(
         'TokenRefreshManager: token refresh failed - '
         'refresh token expired or invalid: ${e.message}',
@@ -128,6 +122,7 @@ class TokenRefreshManager {
 
       rethrow;
     } catch (e, stack) {
+      if (generation != _generation) rethrow;
       logger.error('TokenRefreshManager: token refresh failed: $e', e, stack);
 
       // Resolve pending completers with the error.
@@ -137,17 +132,19 @@ class TokenRefreshManager {
 
       rethrow;
     } finally {
-      _isRefreshing = false;
-      _pendingCompleters.clear();
+      if (generation == _generation) {
+        _isRefreshing = false;
+        _pendingCompleters.clear();
+      }
     }
   }
 
   /// Notifies listeners that the current token is no longer accepted and
   /// the user has to sign in again.
   ///
-  /// Called by the HTTP layer on a 401. See the class doc: this server has
-  /// no refresh endpoint and its tokens never expire, so there is nothing
-  /// to refresh — the app can only re-verify and, on failure, re-auth.
+  /// Called by the HTTP layer on a 401. A rejected bearer token cannot be
+  /// assumed safe to renew; re-verify it and request reauthentication when
+  /// needed.
   ///
   /// Notifications are throttled to one per [_reauthNotifyThrottle] so a
   /// burst of parallel 401s triggers a single auth re-check.
@@ -187,6 +184,7 @@ class TokenRefreshManager {
   ///
   /// Used during sign-out to clear any pending refresh attempts.
   void reset() {
+    _generation++;
     _isRefreshing = false;
     _lastReauthNotifyAt = null;
     for (final completer in _pendingCompleters) {

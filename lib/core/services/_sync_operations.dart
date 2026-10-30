@@ -104,9 +104,9 @@ extension SyncOperations on Sync {
 
   /// Mark a session as optimistically archived.
   ///
-  /// Call this after a successful archive API call. The session will be
-  /// hidden across catalog refreshes until explicitly unarchived.
-  /// Neither inactivity nor archive confirmation should clear this override.
+  /// This explicit local hide survives catalog refreshes until unarchived.
+  /// Server archive events update the session row without creating a local
+  /// override. Neither inactivity nor archive confirmation clears this hide.
   void markSessionArchived(String sessionId) {
     _optimisticallyArchivedSessions.add(sessionId);
     _notifyDataChanged({SyncDomain.sessions});

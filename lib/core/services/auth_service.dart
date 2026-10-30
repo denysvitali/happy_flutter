@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sodium/sodium.dart' show SecureKey, Sodium;
 
 import '../api/api_client.dart';
+import '../api/socket_io_client.dart' as socket_io;
 import '../encryption/crypto_box.dart';
 import '../encryption/sodium_loader.dart';
 import '../models/auth.dart';
@@ -19,6 +20,7 @@ import 'storage_service.dart';
 import 'sync_service.dart';
 
 part '_auth_approval_flow.dart';
+part '_auth_token_refresh.dart';
 
 /// Why an authentication check failed.
 ///
@@ -45,6 +47,7 @@ class AuthService {
       _credentials = const _TokenCredentialStore(),
       _crypto = const _SodiumAuthCrypto(),
       _clearApiKeys = _clearStoredApiKeys,
+      _updateSocketToken = socket_io.socketIoClient.updateToken,
       _now = DateTime.now,
       _delay = Future<void>.delayed,
       _approvalTimeout = const Duration(minutes: 2);
@@ -59,6 +62,7 @@ class AuthService {
     required AuthCredentialStore credentials,
     required AuthCrypto crypto,
     Future<void> Function()? clearApiKeys,
+    void Function(String)? updateSocketToken,
     DateTime Function()? now,
     Future<void> Function(Duration)? delay,
     Duration approvalTimeout = const Duration(minutes: 2),
@@ -67,6 +71,7 @@ class AuthService {
        _credentials = credentials,
        _crypto = crypto,
        _clearApiKeys = clearApiKeys ?? _noopClearApiKeys,
+       _updateSocketToken = updateSocketToken ?? _noopUpdateSocketToken,
        _now = now ?? DateTime.now,
        _delay = delay ?? Future<void>.delayed,
        _approvalTimeout = approvalTimeout;
@@ -78,11 +83,28 @@ class AuthService {
   final AuthCredentialStore _credentials;
   final AuthCrypto _crypto;
   final Future<void> Function() _clearApiKeys;
+  final void Function(String) _updateSocketToken;
   final DateTime Function() _now;
   final Future<void> Function(Duration) _delay;
   final Duration _approvalTimeout;
   bool _cleanupPending = false;
   int _credentialGeneration = 0;
+  Future<void> _credentialMutationTail = Future<void>.value();
+  Future<String>? _refreshFlight;
+  final _credentialChangeListeners = <void Function()>[];
+
+  /// Observe account replacement or sign-out before queued storage mutations.
+  void Function() onCredentialsChanging(void Function() listener) {
+    _credentialChangeListeners.add(listener);
+    return () => _credentialChangeListeners.remove(listener);
+  }
+
+  void _credentialsWillChange() {
+    _credentialGeneration++;
+    for (final listener in List.of(_credentialChangeListeners)) {
+      listener();
+    }
+  }
 
   void invalidateLinkingApprovals() => _credentialGeneration++;
 
@@ -102,85 +124,6 @@ class AuthService {
   static Future<Sodium> get _sodiumInstance async {
     _sodium ??= await loadSodium();
     return _sodium!;
-  }
-
-  /// Refresh the authentication token.
-  ///
-  /// Calls POST /v1/auth/refresh with the current token to obtain a new token.
-  /// Updates the stored credentials with the new token.
-  ///
-  /// SERVER CONTRACT: happy-server does **not** implement this endpoint —
-  /// the request falls through to the grpc-gateway catch-all and returns
-  /// 404 — and its tokens carry no `exp` claim, so they never expire. Against
-  /// that server this method always ends in [AuthForbiddenError], which is
-  /// the honest outcome: a rejected token can only be replaced by a fresh
-  /// sign-in. The method is kept for deployments that do expose a refresh
-  /// endpoint; the HTTP layer no longer calls it on a 401 (see
-  /// [TokenRefreshManager.notifyReauthRequired]).
-  ///
-  /// Returns the new token on success.
-  /// Throws [AuthForbiddenError] if the token is rejected (401/403) or the
-  /// endpoint does not exist (404) — in both cases the user must
-  /// re-authenticate.
-  /// Throws [AuthException] on other errors.
-  Future<String> refreshToken() async {
-    final credentials = await _credentials.getCredentials();
-    if (credentials == null) {
-      throw AuthException('No credentials available for token refresh');
-    }
-
-    try {
-      final response = await _apiClient.post(
-        '/v1/auth/refresh',
-        data: {'token': credentials.token},
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
-        final newToken = data['token'] as String;
-
-        // Update stored credentials with the new token
-        final newCredentials = AuthCredentials(
-          token: newToken,
-          secret: credentials.secret,
-        );
-        await _credentials.setCredentials(newCredentials);
-
-        // Update ApiClient with the new token
-        _apiClient.updateToken(newToken);
-
-        logger.info('Token refreshed successfully');
-        return newToken;
-      } else if (_isReauthStatus(response.statusCode)) {
-        throw AuthForbiddenError(
-          'Token cannot be refreshed (${response.statusCode}) - '
-          're-authentication required',
-          serverResponse: response.data?.toString(),
-        );
-      } else {
-        throw AuthException('Token refresh failed: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      if (_isReauthStatus(e.response?.statusCode)) {
-        throw AuthForbiddenError(
-          'Token cannot be refreshed (${e.response?.statusCode}) - '
-          're-authentication required',
-          serverResponse: e.response?.data?.toString(),
-        );
-      }
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout) {
-        throw AuthException('Connection failed during token refresh');
-      }
-      throw AuthException('Token refresh request failed: ${e.message}');
-    }
-  }
-
-  /// Statuses from the refresh endpoint that mean "sign in again": the
-  /// token was rejected (401/403) or the endpoint does not exist on this
-  /// server (404), which is the case for happy-server.
-  static bool _isReauthStatus(int? statusCode) {
-    return statusCode == 401 || statusCode == 403 || statusCode == 404;
   }
 
   /// Start QR authentication.
@@ -325,13 +268,17 @@ class AuthService {
     } on AuthForbiddenError catch (e, stack) {
       _lastAuthFailure = AuthFailureKind.rejected;
       logger.warning(
-        'AuthService: stored token rejected by server - signing out: '
+        'AuthService: stored token rejected by server - '
+        'preserving account recovery credentials: '
         '${e.message}',
         e,
         stack,
       );
-      await signOut();
-      return AuthState.unauthenticated;
+      // Expiration invalidates the bearer token, not the account secret.
+      // /v1/auth upserts by public key, so blindly signing in with a linked
+      // secret could create or switch accounts. Keep recovery material until
+      // an explicit sign-in or sign-out determines the user's intent.
+      return AuthState.error;
     } on DioException catch (e, stack) {
       _lastAuthFailure = AuthFailureKind.network;
       logger.error(
@@ -371,7 +318,7 @@ class AuthService {
         );
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 403) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
         throw AuthForbiddenError('Token is invalid or has been revoked');
       }
       rethrow;
@@ -380,13 +327,14 @@ class AuthService {
 
   /// Sign out.
   Future<void> signOut() async {
+    _credentialsWillChange();
     _disposeKey(_cachedKeypairSecret);
     _cachedKeypairSecret = null;
     _disposeKey(_pendingQRSecretKey);
     _pendingQRSecretKey = null;
     _disposeKey(_pendingLinkingSecretKey);
     _pendingLinkingSecretKey = null;
-    await _clearAccountCredentials();
+    await _mutateCredentials(_clearAccountCredentials);
   }
 
   Future<void> _clearAccountCredentials() async {
@@ -713,8 +661,12 @@ Timestamp: ${DateTime.now().toIso8601String()}
     }
   }
 
-  Future<void> _persistCredentials(AuthCredentials credentials) async {
-    _credentialGeneration++;
+  Future<void> _persistCredentials(AuthCredentials credentials) {
+    _credentialsWillChange();
+    return _mutateCredentials(() => _storeAccountCredentials(credentials));
+  }
+
+  Future<void> _storeAccountCredentials(AuthCredentials credentials) async {
     final previous = await _credentials.getCredentials();
     final changedAccountContext =
         previous != null && previous.secret != credentials.secret;
@@ -729,6 +681,15 @@ Timestamp: ${DateTime.now().toIso8601String()}
     if (!await _credentials.setCredentials(credentials)) {
       throw AuthException('Unable to store account credentials');
     }
+  }
+
+  Future<T> _mutateCredentials<T>(Future<T> Function() mutation) {
+    final next = _credentialMutationTail.then((_) => mutation());
+    _credentialMutationTail = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return next;
   }
 
   /// Sign a challenge using Ed25519 detached signature.

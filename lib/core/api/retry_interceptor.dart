@@ -104,8 +104,8 @@ String classifyHttpFailure(DioException error) {
 ///
 /// Does NOT retry:
 /// - 4xx client errors (400-499) except 429
-/// - 401 Unauthorized — see [_handleUnauthorized]; the server has no
-///   refresh endpoint, so a 401 means "sign in again", not "retry"
+/// - 401 Unauthorized — see [_handleUnauthorized]; rejected tokens require
+///   verification rather than automatic replay of the failed request
 /// - Cancellation errors
 /// - Requests carrying `extra['disableRetry'] == true`
 ///
@@ -382,15 +382,9 @@ class RetryInterceptor extends Interceptor {
 
   /// Handles a 401 by telling the app to re-authenticate.
   ///
-  /// SERVER CONTRACT (verified against the happy-server Go implementation):
-  /// there is no `POST /v1/auth/refresh` route — such a request falls
-  /// through to the grpc-gateway catch-all and returns 404 — and issued
-  /// tokens carry no `exp` claim, so they never expire
-  /// (`internal/server/auth/tokens.go`). A 401 therefore never means
-  /// "token expired": it means the signature no longer verifies (rotated
-  /// server secret, revoked or foreign token). Neither retrying nor
-  /// refreshing can fix that, so the only honest response is to surface
-  /// "re-authentication required" and let the request fail.
+  /// Tokens may expire or stop verifying after a server key change. Proactive
+  /// bearer renewal happens before expiry; an already rejected request must
+  /// surface verification and reauthentication without replaying its effects.
   void _handleUnauthorized(RequestOptions options) {
     if (options.path.startsWith(_authPathPrefix)) {
       // The re-auth listener re-verifies the token via /v1/auth/verify;
@@ -403,8 +397,7 @@ class RetryInterceptor extends Interceptor {
     }
     logger.warning(
       'RetryInterceptor: 401 on ${options.method} ${options.path} - '
-      're-authentication required (server tokens never expire, so this is '
-      'a revoked or otherwise unverifiable token)',
+      'token expired or rejected; authentication verification required',
     );
     tokenRefreshManager.notifyReauthRequired();
   }

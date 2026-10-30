@@ -201,49 +201,6 @@ void main() {
         );
       },
     );
-
-    test('fetchSessions omits changedSince when _forceFullFetchNext is true', () {
-      // This is a logical/property test: verify the flag clears atomically.
-      instance.testForceFullFetchNext = true;
-      instance.testLastSessionsFetchedAt = 1700000000000;
-
-      // Read + clear the flag (mimicking what fetchSessions does at line 873-874).
-      final forceFullFetch = instance.testForceFullFetchNext;
-      if (forceFullFetch) instance.testForceFullFetchNext = false;
-      final changedSince = forceFullFetch
-          ? null
-          : instance.testLastSessionsFetchedAt;
-
-      expect(forceFullFetch, true);
-      expect(
-        changedSince,
-        isNull,
-        reason: 'changedSince must be null when _forceFullFetchNext is true',
-      );
-      expect(
-        instance.testForceFullFetchNext,
-        false,
-        reason: 'Flag must be cleared after reading',
-      );
-    });
-
-    test('fetchSessions sends changedSince in normal delta mode', () {
-      instance.testForceFullFetchNext = false;
-      instance.testLastSessionsFetchedAt = 1700000000000;
-
-      final forceFullFetch = instance.testForceFullFetchNext;
-      if (forceFullFetch) instance.testForceFullFetchNext = false;
-      final changedSince = forceFullFetch
-          ? null
-          : instance.testLastSessionsFetchedAt;
-
-      expect(forceFullFetch, false);
-      expect(
-        changedSince,
-        1700000000000,
-        reason: 'changedSince must be set in normal delta mode',
-      );
-    });
   });
 
   group('server propagation delay — optimistic insert', () {

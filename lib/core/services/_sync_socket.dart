@@ -172,6 +172,23 @@ extension SyncSocket on Sync {
     // map from MMKV for every session that came back from the cache.
     unawaited(Future<void>.microtask(hydrateAllWorkflowsFromCache));
 
+    // A cold auth restore may finish after the OS backgrounds the app.
+    // Do not touch the persisted outbox or start network traffic until then.
+    var waitedForForeground = false;
+    while (_lifecycleSuspended || _authenticationBlocked) {
+      if (_authenticationBlocked) return;
+      waitedForForeground = true;
+      _suspendRuntime();
+      final permit = Completer<bool>();
+      _initialNetworkPermit = permit;
+      final allowed = await permit.future;
+      if (identical(_initialNetworkPermit, permit)) {
+        _initialNetworkPermit = null;
+      }
+      if (!allowed || runtimeGeneration != _runtimeGeneration) return;
+    }
+    if (waitedForForeground) NetworkMonitorService().resume();
+
     // Setup socket connection
     final serverUrl = getServerUrl();
     socketIoClient.connect(

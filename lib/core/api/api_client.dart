@@ -199,7 +199,12 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          if (_authToken != null) {
+          // Renewal must authenticate the captured stored credential even if
+          // another account updates the client's ambient token before dispatch.
+          final hasRenewalAuthorization =
+              options.path == '/v1/auth/refresh' &&
+              options.headers['Authorization'] is String;
+          if (_authToken != null && !hasRenewalAuthorization) {
             options.headers['Authorization'] = 'Bearer $_authToken';
           }
           options.headers['User-Agent'] = 'HappyFlutter/1.0';

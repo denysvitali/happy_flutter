@@ -22,26 +22,55 @@ extension SyncData on Sync {
 
   /// Fetch sessions from server
   Future<void> fetchSessions() async {
+    final generation = _runtimeGeneration;
+    await _sessionFetchLock.inLock(() async {
+      if (generation != _runtimeGeneration || !isInitialized) return;
+      await _fetchSessionsUnlocked();
+    });
+  }
+
+  Future<void> _fetchSessionsUnlocked() async {
     logger.info('Fetching sessions...');
 
     final runtimeGeneration = _runtimeGeneration;
     final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
     final forceFullFetch = _forceFullFetchNext;
     if (forceFullFetch) _forceFullFetchNext = false;
-    final changedSince = forceFullFetch ? null : _lastSessionsFetchedAt;
+    // Device clocks and replica replay do not define a safe change cursor.
+    // Reconcile the primary catalog until the API has a durable cursor.
+    final catalogRevisionAtStart = _sessionCatalog.revision;
+    void preserveConcurrentChanges(Map<String, Session> snapshot) {
+      final changes = _sessionCatalog.changesSince(catalogRevisionAtStart);
+      if (changes == null) {
+        // A newer full fetch or journal overflow invalidated this snapshot.
+        snapshot
+          ..clear()
+          ..addAll(_sessions);
+        return;
+      }
+      for (final id in changes) {
+        final current = _sessions[id];
+        if (current == null) {
+          snapshot.remove(id);
+        } else {
+          snapshot[id] = current;
+        }
+      }
+    }
+
     var showedConversationProgress = false;
 
     try {
       final apiClient = ApiClient();
       final allSessions = await SessionsApi(
         client: apiClient,
-      ).fetchSessions(limit: 50, changedSince: changedSince);
+      ).fetchSessions(limit: 50);
       if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
 
       if (logger.shouldLog(LogLevel.info)) {
         logger.info(
           'fetchSessions: received ${allSessions.length} sessions '
-          '(changedSince=$changedSince)',
+          '(full catalog)',
         );
       }
       if (allSessions.isNotEmpty) {
@@ -56,26 +85,20 @@ extension SyncData on Sync {
       }
 
       if (allSessions.isEmpty) {
-        if (changedSince != null) {
-          // Delta fetch with no changes -- update timestamp and return.
-          _lastSessionsFetchedAt = fetchStartMs;
-          _scheduleSaveSessionsCache();
-          logger.info('fetchSessions: no changes since delta fetch');
-        } else {
-          // A successful full response is authoritative, including an empty
-          // list. Keeping the previous snapshot here resurrected deleted or
-          // previous-account sessions indefinitely.
-          for (final timer in _presenceTimers.values) {
-            timer.cancel();
+        // Empty is authoritative for unchanged rows; socket additions and
+        // updates received while the request was pending must survive.
+        final snapshot = <String, Session>{};
+        preserveConcurrentChanges(snapshot);
+        for (final id in _presenceTimers.keys.toList()) {
+          if (snapshot[id]?.presence != 'online') {
+            _presenceTimers.remove(id)?.cancel();
           }
-          _presenceTimers.clear();
-          _sessions = <String, Session>{};
-          // Explicit hiding survives omission, even an empty catalog.
-          _lastSessionsFetchedAt = fetchStartMs;
-          _scheduleSaveSessionsCache();
-          _notifyDataChanged({SyncDomain.sessions});
-          logger.info('fetchSessions: authoritative empty full snapshot');
         }
+        _sessions = snapshot;
+        _lastSessionsFetchedAt = fetchStartMs;
+        _scheduleSaveSessionsCache();
+        _notifyDataChanged({SyncDomain.sessions});
+        logger.info('fetchSessions: reconciled empty full snapshot');
         return;
       }
 
@@ -347,8 +370,8 @@ extension SyncData on Sync {
               metadata?['todos'],
               sessionId,
             ),
-            thinking: false,
-            thinkingAt: null,
+            thinking: existing?.thinking ?? false,
+            thinkingAt: existing?.thinkingAt,
             // REST fetches cannot tell us whether the CLI process is
             // actually running -- the server's `active` flag is
             // persistent (true until archived) and stale. For delta
@@ -377,84 +400,54 @@ extension SyncData on Sync {
         }
       }
 
-      if (changedSince == null) {
-        // Full fetch: selectively cancel presence timers. Preserve
-        // timers for sessions that remain 'online' so their countdown
-        // from the last keep-alive is maintained. Without this, dead
-        // sessions (e.g. after a daemon restart) get a fresh 60-second
-        // timer that delays offline detection and allows messages to
-        // be sent to a session with no running process.
-        // Atomic update: build new map then swap to avoid the clear()
-        // window where concurrent operations see an empty _sessions.
-        final newSessions = Map<String, Session>.fromEntries(
-          decryptedSessions.map((s) => MapEntry(s.id, s)),
+      // Build then swap atomically; retain live presence timer deadlines.
+      final newSessions = Map<String, Session>.fromEntries(
+        decryptedSessions.map((s) => MapEntry(s.id, s)),
+      );
+      // Preserve newly spawned placeholders until the server publishes them.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final preservedSessions = <String>[];
+      for (final entry in _sessionSpawnedAt.entries) {
+        final sid = entry.key;
+        final spawnedAt = entry.value;
+        if (newSessions.containsKey(sid)) continue;
+        if (now - spawnedAt >= 60000) continue;
+        // A delete event may have removed this session during the fetch.
+        final preserved = _sessions[sid];
+        if (preserved == null) continue;
+        newSessions[sid] = preserved;
+        preservedSessions.add(sid);
+      }
+      if (preservedSessions.isNotEmpty) {
+        logger.info(
+          '[fetchSessions] Preserved '
+          '${preservedSessions.length} '
+          'optimistic sessions from full fetch: '
+          '$preservedSessions',
         );
-        // Preserve recently-spawned optimistic sessions that the
-        // server hasn't propagated yet (replication lag). Without
-        // this, the full fetch wipes the placeholder added by
-        // createSession(), causing "Session not loaded" errors when
-        // the user tries to send a message immediately after creating
-        // a session.
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final preservedSessions = <String>[];
-        for (final entry in _sessionSpawnedAt.entries) {
-          final sid = entry.key;
-          final spawnedAt = entry.value;
-          if (newSessions.containsKey(sid)) continue;
-          if (now - spawnedAt >= 60000) continue;
-          // Read once into a local to avoid any chance of a racing
-          // mutation between the containsKey check and the `!` deref —
-          // socket events / delete-session can mutate _sessions while
-          // fetchSessions has yielded for awaits on the same iteration.
-          final preserved = _sessions[sid];
-          if (preserved == null) continue;
-          newSessions[sid] = preserved;
-          preservedSessions.add(sid);
-        }
-        if (preservedSessions.isNotEmpty) {
-          logger.info(
-            '[fetchSessions] Preserved '
-            '${preservedSessions.length} '
-            'optimistic sessions from full fetch: '
-            '$preservedSessions',
-          );
-        }
-        // Cancel timers for sessions that were removed or went
-        // offline. Keep timers for sessions that remain 'online' so
-        // their original countdown from the last keep-alive is
-        // preserved.
-        final staleTimerIds = <String>[];
-        for (final entry in _presenceTimers.entries) {
-          final newSession = newSessions[entry.key];
-          if (newSession == null || newSession.presence != 'online') {
-            entry.value.cancel();
-            staleTimerIds.add(entry.key);
-          }
-        }
-        for (final id in staleTimerIds) {
-          _presenceTimers.remove(id);
-        }
-        _sessions = newSessions;
-      } else {
-        // Delta fetch: merge updated sessions, cancel their stale
-        // timers.
-        for (final session in decryptedSessions) {
-          _sessions[session.id] = session;
-          _presenceTimers.remove(session.id)?.cancel();
+      }
+      // HTTP pagination and decryption both yield to live socket handlers.
+      // Their updates/deletes take precedence over this older response.
+      preserveConcurrentChanges(newSessions);
+      // Cancel timers for sessions that were removed or went
+      // offline. Keep timers for sessions that remain 'online' so
+      // their original countdown from the last keep-alive is
+      // preserved.
+      final staleTimerIds = <String>[];
+      for (final entry in _presenceTimers.entries) {
+        final newSession = newSessions[entry.key];
+        if (newSession == null || newSession.presence != 'online') {
+          entry.value.cancel();
+          staleTimerIds.add(entry.key);
         }
       }
-
-      // Catalog refreshes must not undo an explicit archive. Inactivity
-      // is unrelated to archiving, and archived sessions can still be
-      // returned by the catalog. Keep the hide override until an explicit
-      // unarchive event/action (or runtime reset).
-
-      // Start 60 s staleness timers for sessions that came back
-      // 'online' but don't already have a running timer. Existing
-      // timers (from keep-alives) are preserved so their original
-      // countdown is maintained -- this prevents dead sessions from
-      // getting a fresh 60 s window after every fetch.
-      for (final s in decryptedSessions) {
+      for (final id in staleTimerIds) {
+        _presenceTimers.remove(id);
+      }
+      _sessions = newSessions;
+      // Explicit archive overrides survive until unarchive or runtime reset.
+      // Preserve existing timer deadlines so refreshes cannot extend presence.
+      for (final s in _sessions.values) {
         if (s.presence == 'online' && !_presenceTimers.containsKey(s.id)) {
           _presenceTimers[s.id] = Timer(const Duration(seconds: 60), () {
             _presenceTimers.remove(s.id);
@@ -473,10 +466,8 @@ extension SyncData on Sync {
         }
       }
 
-      // Re-apply permission data only for sessions that changed,
-      // not all sessions -- avoids O(sessions x messages) on every
-      // fetch.
-      for (final session in decryptedSessions) {
+      // Re-apply permissions from reconciled rows, including live updates.
+      for (final session in _sessions.values) {
         if (_sessionMessages.containsKey(session.id)) {
           final messagesChanged = _applyPermissionRequests(session.id);
           if (messagesChanged) {
@@ -486,7 +477,7 @@ extension SyncData on Sync {
       }
 
       // Fire local notifications for any new permission requests.
-      _checkForNewPermissionRequests(decryptedSessions);
+      _checkForNewPermissionRequests(_sessions.values.toList());
 
       logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
       _lastSessionsFetchedAt = fetchStartMs;

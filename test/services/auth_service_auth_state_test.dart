@@ -11,9 +11,8 @@ import 'package:happy_flutter/core/services/storage_service.dart';
 /// `ApiClient` accepts every status (`validateStatus: (_) => true`), so a
 /// rejected token comes back as an ordinary [Response] and never as a
 /// [DioException]. These tests pin the behaviour of [AuthService.getAuthState]
-/// on that shape: the 401/403 branch used to sit behind `on DioException` and
-/// therefore never ran, turning a revoked token into a generic
-/// [AuthState.error] with no logging and no sign-out.
+/// on that shape. Rejection must surface as a recoverable error without
+/// deleting the account secret or keys needed to regain access.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -46,33 +45,57 @@ void main() {
       await TokenStorage().removeCredentials();
     });
 
-    test('signs out when the server rejects the stored token with a 401 '
-        'response (not a DioException)', () async {
-      apiClient.testDio!.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            handler.resolve(
-              Response<dynamic>(
-                data: const {'error': 'unauthorized'},
-                statusCode: 401,
-                requestOptions: options,
-              ),
-              true,
-            );
-          },
-        ),
-      );
+    for (final status in [401, 403]) {
+      test('preserves credentials after a $status response', () async {
+        final before = await TokenStorage().getCredentials();
+        apiClient.testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              expect(options.path, '/v1/auth/verify');
+              handler.resolve(
+                Response<dynamic>(
+                  data: const {'error': 'unauthorized'},
+                  statusCode: status,
+                  requestOptions: options,
+                ),
+                true,
+              );
+            },
+          ),
+        );
 
-      final state = await AuthService().getAuthState();
+        final state = await AuthService().getAuthState();
 
-      expect(state, AuthState.unauthenticated);
-      expect(AuthService().lastAuthFailure, AuthFailureKind.rejected);
-      expect(
-        await TokenStorage().getCredentials(),
-        isNull,
-        reason: 'a rejected token must be cleared, not kept',
-      );
-    });
+        expect(state, AuthState.error);
+        expect(AuthService().lastAuthFailure, AuthFailureKind.rejected);
+        expect(await TokenStorage().getCredentials(), before);
+        expect(AuthService().cleanupPending, isFalse);
+      });
+
+      test('classifies a $status DioException as rejection', () async {
+        final before = await TokenStorage().getCredentials();
+        apiClient.testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              handler.reject(
+                DioException(
+                  requestOptions: options,
+                  type: DioExceptionType.badResponse,
+                  response: Response<dynamic>(
+                    statusCode: status,
+                    requestOptions: options,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+
+        expect(await AuthService().getAuthState(), AuthState.error);
+        expect(AuthService().lastAuthFailure, AuthFailureKind.rejected);
+        expect(await TokenStorage().getCredentials(), before);
+      });
+    }
 
     test('reports a transport failure as an error state and keeps the '
         'credentials', () async {
