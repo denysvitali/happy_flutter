@@ -14,11 +14,9 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
-import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/ui/agent_identity.dart';
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'model_selection_resolver.dart' show profileBackendHost;
@@ -771,6 +769,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
           ? null
           : widget.onCodexFastModeChanged,
       maxContext: widget.maxContext,
+      onShowOptions: () => _showComposerSheet(context),
     );
   }
 
@@ -821,7 +820,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
         contentPadding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
+          // The paperclip already insets the text from the pill's edge.
+          widget.attachmentController != null ? AppSpacing.xxs : AppSpacing.lg,
           verticalPadding,
           AppSpacing.xs,
           verticalPadding,

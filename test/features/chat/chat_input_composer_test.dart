@@ -682,14 +682,12 @@ void main() {
       find.descendant(of: composerCard, matching: find.byType(SendButton)),
       findsOneWidget,
     );
-    // Attach/options "+" sits beside the field; approvals and model sit
-    // in one settings row underneath it.
-    final plus = find.byKey(const ValueKey<String>('composer-attach-button'));
-    expect(plus, findsOneWidget);
-    expect(find.descendant(of: composerCard, matching: plus), findsNothing);
+    // There is no separate "+" beside the field; approvals, model and
+    // the single options button sit in one settings row underneath it.
+    expect(find.byIcon(Icons.add_rounded), findsNothing);
     expect(
-      tester.getCenter(plus).dx,
-      lessThan(tester.getTopLeft(composerCard).dx),
+      find.byKey(const ValueKey<String>('composer-options-button')),
+      findsOneWidget,
     );
     expect(
       find.descendant(of: composerCard, matching: find.byType(InputToolbar)),
@@ -728,7 +726,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('the + sheet offers attachments, model and the full editor', (
+  testWidgets('paperclip attaches; options holds model and the full editor', (
     tester,
   ) async {
     final controller = TextEditingController();
@@ -743,14 +741,24 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('composer-attach-button')),
+    final composerCard = find.byKey(
+      const ValueKey<String>('chat-composer-card'),
     );
+    final attach = find.byKey(const ValueKey<String>('composer-attach-button'));
+    expect(find.descendant(of: composerCard, matching: attach), findsOneWidget);
+    await tester.tap(attach);
     await tester.pumpAndSettle();
-
-    expect(find.text('Add to message'), findsOneWidget);
     expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
     expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-sheet-model')), findsNothing);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('composer-options-button')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.photo_library_outlined), findsNothing);
     expect(find.byKey(const ValueKey('composer-sheet-model')), findsOneWidget);
     expect(find.text('Open full editor'), findsOneWidget);
 

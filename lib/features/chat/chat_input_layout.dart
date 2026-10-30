@@ -16,19 +16,14 @@ String? _composerAgentName(String? flavor) => switch (flavor) {
 /// Drafts this long get an inline "open full editor" shortcut.
 const int _inlineExpandThreshold = 80;
 
-/// Hand-off composer layout: a circular "+" beside a rounded field that
-/// names the agent, with dictation inside the field and a send button
-/// that only takes the agent's colour once there is something to send.
-/// Approvals and model stay one tap away in a quiet summary line.
+/// Hand-off composer layout: a rounded field that names the agent, with
+/// attach on its leading edge and dictation/send on its trailing edge.
+/// Approvals and model sit in a quiet line underneath, ending in one
+/// options button that opens every other conversation setting.
 extension _ChatInputPolishLayout on _ChatInputState {
   Widget _buildHandoffComposer(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final identity = agentIdentityForSeed(
-      widget.sessionId,
-      brightness: theme.brightness,
-      flavor: widget.sessionFlavor,
-    );
     final tight = ChatChromeScope.of(context).isTight;
 
     final pill = ValueListenableBuilder<bool>(
@@ -43,7 +38,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
           borderRadius: BorderRadius.circular(AppRadius.xxxl),
           border: Border.all(
             color: isFocused
-                ? identity.color.withValues(alpha: AppOpacity.strong)
+                ? cs.primary.withValues(alpha: AppOpacity.strong)
                 : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
             width: isFocused ? AppBorder.thin : AppBorder.hairline,
           ),
@@ -59,6 +54,17 @@ extension _ChatInputPolishLayout on _ChatInputState {
             key: const ValueKey<String>('chat-composer-input-row'),
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (widget.attachmentController != null)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: AppSpacing.xxs,
+                    bottom: AppSpacing.xxs,
+                  ),
+                  child: _ComposerAttachButton(
+                    enabled: !widget.isSending,
+                    onTap: () => _showAttachSheet(context),
+                  ),
+                ),
               Expanded(
                 child: _isDownloadingModel
                     ? ValueListenableBuilder<
@@ -78,7 +84,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
                   end: AppSpacing.xxs,
                   bottom: AppSpacing.xxs,
                 ),
-                child: _buildInFieldActions(context, identity),
+                child: _buildInFieldActions(context),
               ),
             ],
           ),
@@ -90,14 +96,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _ComposerPlusButton(onTap: () => _showComposerSheet(context)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: pill),
-          ],
-        ),
+        pill,
         if (!tight)
           _settingsLine(context)
         else
@@ -113,7 +112,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
 
   /// Dictation while the field is empty (or busy recording); expand, queue
   /// and send once there is a draft.
-  Widget _buildInFieldActions(BuildContext context, AgentIdentity identity) {
+  Widget _buildInFieldActions(BuildContext context) {
     return ListenableBuilder(
       listenable: _sendableListenable,
       builder: (context, _) {
@@ -124,16 +123,6 @@ extension _ChatInputPolishLayout on _ChatInputState {
         final longDraft =
             widget.controller.text.length > _inlineExpandThreshold ||
             widget.controller.text.contains('\n');
-        final theme = Theme.of(context);
-        final appCs =
-            theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
-        // The send fill carries the agent's identity colour.
-        final tinted = theme.copyWith(
-          extensions: [
-            ...theme.extensions.values.where((e) => e is! AppColorScheme),
-            appCs.copyWith(accentGradient: [identity.color, identity.color]),
-          ],
-        );
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -150,18 +139,15 @@ extension _ChatInputPolishLayout on _ChatInputState {
                       !_hasSendableContent,
                   onTap: _onQueueNextTurnTap,
                 ),
-              Theme(
-                data: tinted,
-                child: SendButton(
-                  isSending: widget.isSending,
-                  isSendDisabled: widget.isSendDisabled || !hasContent,
-                  onTap: _onSendTap,
-                  scaleAnimation: _sendScale,
-                  lastDeliveryStatus: widget.lastDeliveryStatus,
-                  actionLabel: widget.onQueueNextTurn == null
-                      ? null
-                      : context.l10n.chatUpdateCurrentTurn,
-                ),
+              SendButton(
+                isSending: widget.isSending,
+                isSendDisabled: widget.isSendDisabled || !hasContent,
+                onTap: _onSendTap,
+                scaleAnimation: _sendScale,
+                lastDeliveryStatus: widget.lastDeliveryStatus,
+                actionLabel: widget.onQueueNextTurn == null
+                    ? null
+                    : context.l10n.chatUpdateCurrentTurn,
               ),
             ],
           ],
@@ -191,14 +177,14 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
   }
 
-  /// The settings row under the field: approvals and model chips (plus
-  /// options on phones, the full lane on desktop). Attach, dictate and
+  /// The settings row under the field: approvals and model chips (the
+  /// full lane on desktop) and the options button. Attach, dictate and
   /// send live in the field row above, so this row stays quiet.
   Widget _settingsLine(BuildContext context) {
     return Padding(
       key: const ValueKey<String>('chat-composer-toolbar'),
       padding: const EdgeInsetsDirectional.only(
-        start: AppTouchTarget.comfortable + AppSpacing.xs,
+        start: AppSpacing.sm,
         top: AppSpacing.xxs,
       ),
       child: _settingsLane(
@@ -216,13 +202,61 @@ extension _ChatInputPolishLayout on _ChatInputState {
             : model.label);
   }
 
-  /// "+" sheet: attachments first, then everything that shapes this
-  /// conversation (approvals, model, speed, profile, context, editor).
+  /// Attach sheet behind the paperclip: photo library or camera.
+  Future<void> _showAttachSheet(BuildContext context) async {
+    final l10n = context.l10n;
+    final source = await showModalBottomSheet<_AttachSource>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xxxl),
+        ),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ComposerSheetTile(
+                  icon: Icons.photo_library_outlined,
+                  label: l10n.chatAttachFromGallery,
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_AttachSource.gallery),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _ComposerSheetTile(
+                  icon: Icons.photo_camera_outlined,
+                  label: l10n.chatAttachFromCamera,
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_AttachSource.camera),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || source == null) return;
+    await _attachFrom(source);
+  }
+
+  /// Options sheet behind the settings line's options button: everything
+  /// that shapes this conversation (approvals, model, speed, profile,
+  /// context, editor).
   Future<void> _showComposerSheet(BuildContext context) async {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final canAttach = widget.attachmentController != null && !widget.isSending;
     final showApprovals =
         widget.onPermissionModeChanged != null && widget.sessionFlavor != 'har';
     final mode = widget.permissionMode ?? perm.PermissionMode.defaultMode;
@@ -262,33 +296,6 @@ extension _ChatInputPolishLayout on _ChatInputState {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (canAttach) ...[
-                  header(l10n.polishComposerAddSection),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ComposerSheetTile(
-                            icon: Icons.photo_library_outlined,
-                            label: l10n.chatAttachFromGallery,
-                            onTap: () => pop(_ComposerSheetAction.gallery),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: _ComposerSheetTile(
-                            icon: Icons.photo_camera_outlined,
-                            label: l10n.chatAttachFromCamera,
-                            onTap: () => pop(_ComposerSheetAction.camera),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
                 header(l10n.polishComposerConversationSection),
                 if (showApprovals)
                   ListTile(
@@ -374,10 +381,6 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
     if (!mounted || action == null) return;
     switch (action) {
-      case _ComposerSheetAction.gallery:
-        await _attachFrom(_AttachSource.gallery);
-      case _ComposerSheetAction.camera:
-        await _attachFrom(_AttachSource.camera);
       case _ComposerSheetAction.approvals:
         _showApprovalsSheet();
       case _ComposerSheetAction.model:
@@ -439,59 +442,37 @@ extension _ChatInputPolishLayout on _ChatInputState {
   }
 }
 
-enum _ComposerSheetAction {
-  gallery,
-  camera,
-  approvals,
-  model,
-  profile,
-  fullEditor,
-}
+enum _ComposerSheetAction { approvals, model, profile, fullEditor }
 
-/// Separate circular "+" next to the field (attachments and options).
-class _ComposerPlusButton extends StatelessWidget {
-  const _ComposerPlusButton({required this.onTap});
+/// Paperclip on the field's leading edge: attach photos to the message.
+class _ComposerAttachButton extends StatelessWidget {
+  const _ComposerAttachButton({required this.enabled, required this.onTap});
 
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final label = context.l10n.polishComposerMore;
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: Tooltip(
-        message: label,
-        child: Material(
-          key: const ValueKey<String>('composer-attach-button'),
-          color: cs.surfaceContainerLow,
-          shape: CircleBorder(
-            side: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: AppOpacity.medium),
-              width: AppBorder.hairline,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: SizedBox.square(
-              dimension: AppTouchTarget.comfortable,
-              child: Icon(
-                Icons.add_rounded,
-                size: AppIconSize.tab,
-                color: cs.onSurface,
-              ),
-            ),
-          ),
-        ),
+    return IconButton(
+      key: const ValueKey<String>('composer-attach-button'),
+      tooltip: context.l10n.chatAttachImage,
+      onPressed: enabled ? onTap : null,
+      constraints: const BoxConstraints.tightFor(
+        width: AppTouchTarget.min,
+        height: AppTouchTarget.min,
+      ),
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        Icons.attach_file_rounded,
+        size: AppIconSize.xl,
+        color: cs.onSurfaceVariant,
       ),
     );
   }
 }
 
-/// Big rounded tile in the "+" sheet.
+/// Big rounded tile in the attach sheet.
 class _ComposerSheetTile extends StatelessWidget {
   const _ComposerSheetTile({
     required this.icon,

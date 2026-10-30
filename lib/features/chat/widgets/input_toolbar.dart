@@ -189,6 +189,7 @@ class InputToolbar extends StatelessWidget {
     this.resolvedModelLabel,
     this.codexFastMode,
     this.onCodexFastModeChanged,
+    this.onShowOptions,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -214,10 +215,20 @@ class InputToolbar extends StatelessWidget {
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
 
+  /// Opens the composer's full options sheet. When set, the options
+  /// button shows on every layout and replaces the built-in sheet.
+  final VoidCallback? onShowOptions;
+
   @override
   Widget build(BuildContext context) {
+    final options = ComposerIconChip(
+      key: const ValueKey('composer-options-button'),
+      icon: Icons.tune_rounded,
+      tooltip: context.l10n.chatComposerOptions,
+      onTap: onShowOptions ?? () => _showOptions(context),
+    );
     if (sessionFlavor == 'har') {
-      return SingleChildScrollView(
+      final har = SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
@@ -239,6 +250,13 @@ class InputToolbar extends StatelessWidget {
             ),
           ],
         ),
+      );
+      if (onShowOptions == null) return har;
+      return Row(
+        children: [
+          Flexible(child: har),
+          options,
+        ],
       );
     }
     final model = modelMode ?? ChatModelMode.defaultModel;
@@ -305,14 +323,8 @@ class InputToolbar extends StatelessWidget {
       ).createShader(rect),
       child: lane,
     );
-    if (!compact) return scrollingLane;
-    final options = ComposerIconChip(
-      key: const ValueKey('composer-options-button'),
-      icon: Icons.tune_rounded,
-      tooltip: context.l10n.chatComposerOptions,
-      onTap: () => _showOptions(context),
-    );
-    if (onPermissionModeChanged == null) {
+    if (!compact && onShowOptions == null) return scrollingLane;
+    if (!compact || onPermissionModeChanged == null) {
       return Row(
         children: [
           Flexible(child: scrollingLane),
