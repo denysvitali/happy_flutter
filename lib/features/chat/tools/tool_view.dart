@@ -27,6 +27,7 @@ import 'tool_view_helpers.dart';
 import 'tool_view_registry.dart';
 import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
+import 'views/background_shell_badge.dart';
 import 'views/codex_exec_view.dart';
 import 'views/mcp_exec_view.dart';
 import 'views/mcp_result_view.dart';
@@ -648,18 +649,23 @@ class _ToolViewState extends ConsumerState<ToolView>
     // Build status icon
     Widget? statusIcon;
     String? statusLabel;
-    if (permission != null) {
-      final permStatus = permission['status'] as String?;
-      if (permStatus == 'denied' || permStatus == 'canceled') {
-        statusLabel = permStatus == 'denied'
-            ? context.l10n.permissionDeniedLabel
-            : context.l10n.toolStateCanceled;
-        statusIcon = Icon(
-          Icons.remove_circle_outline,
-          size: 18,
-          color: theme.colorScheme.onSurfaceVariant,
-        );
-      }
+    Color? statusColor;
+    final backgroundShell = WireParsers.asMap(widget.tool['backgroundShell']);
+    final permStatus = permission?['status'];
+    if (permStatus == 'denied' || permStatus == 'canceled') {
+      statusLabel = permStatus == 'denied'
+          ? context.l10n.permissionDeniedLabel
+          : context.l10n.toolStateCanceled;
+      statusIcon = Icon(
+        Icons.remove_circle_outline,
+        size: 18,
+        color: theme.colorScheme.onSurfaceVariant,
+      );
+    } else if (backgroundShell != null && state == ToolState.completed) {
+      final cue = BackgroundShellBadge.cue(backgroundShell);
+      statusLabel = cue.label;
+      statusColor = cue.color;
+      statusIcon = Icon(cue.icon, size: 18, color: cue.color);
     } else if (isToolUseError && state != ToolState.error) {
       statusLabel = context.l10n.toolStateStopped;
       statusIcon = Icon(
@@ -740,6 +746,7 @@ class _ToolViewState extends ConsumerState<ToolView>
             createdAt: createdAt,
             statusIcon: statusIcon,
             statusLabel: statusLabel,
+            statusColor: statusColor,
             hasContent: headerHasDisclosure,
             expanded: _expanded,
             showCheckFlash: _showCheckFlash,

@@ -140,6 +140,7 @@ class ToolResultProcessor {
             'result': result['result'],
             'completedAt': result['createdAt'],
             'permission': ?permissionUpdate,
+            'backgroundShell': ?WireParsers.asMap(result['backgroundShell']),
             'agentMetadata': ?WireParsers.asMap(result['agentMetadata']),
             if (WireParsers.asMap(result['agentMetadata']) != null)
               '_agentMetadataObservedAt': result['createdAt'],

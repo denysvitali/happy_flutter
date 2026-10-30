@@ -79,6 +79,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
         List<Map<String, dynamic>> messages,
       ) => buildChatListItems(
         visibleMessages: messages,
+        taskMessages: _messages,
         hideToolCalls: hideToolCalls,
         sidechainOrphanInlineCap: _sidechainOrphansExpanded
             ? null

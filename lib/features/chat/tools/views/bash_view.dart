@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 import '../tool_section_view.dart';
+import 'background_shell_badge.dart';
 import 'terminal_command_bar.dart';
 import 'terminal_output_section.dart';
 
@@ -40,17 +41,28 @@ class BashView extends StatelessWidget {
         ? parseExitCode(result)
         : null;
     final error = state == 'error' && result != null ? result.toString() : null;
+    // A backgrounded command's result is only Claude's launch receipt;
+    // the badge states the same thing and tracks the shell to its end.
+    final backgroundShell = WireParsers.asMap(tool['backgroundShell']);
 
     return ToolSectionView(
-      child: CommandView(
-        command: command,
-        cwd: cwd,
-        description: description,
-        stdout: stdout,
-        stderr: stderr,
-        exitCode: exitCode,
-        error: error,
-        rawResult: result,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CommandView(
+            command: command,
+            cwd: cwd,
+            description: description,
+            stdout: backgroundShell == null ? stdout : null,
+            stderr: backgroundShell == null ? stderr : null,
+            exitCode: backgroundShell == null ? exitCode : null,
+            error: error,
+            rawResult: result,
+          ),
+          if (backgroundShell != null)
+            BackgroundShellBadge(shell: backgroundShell),
+        ],
       ),
     );
   }

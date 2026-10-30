@@ -164,6 +164,14 @@ share an 880px maximum reading width on desktop. Opening and closing an
 inspector keeps the conversation mounted, preserving composer focus, draft
 text, scroll position, and expanded tool rows.
 
+Claude background shell commands keep an “In background” status on their
+Terminal row even after the launch tool returns. Expanding the row shows why
+the command moved to the background (including its timeout) and lets you copy
+the output-file path. Matching task notifications update the row to done,
+failed, or stopped; without a terminal notification it remains pending in the
+background. Active background rows stay visible when completed tools are hidden.
+This is lifecycle tracking, not a live output-file viewer.
+
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
 - **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,700 lines, split across 21 `part` files. `InvalidateSync` provides debounced server fetches with exponential backoff.
 - **Provider Bridge**: Notifiers expose `loadFromSync()` (in-memory read) and `refreshFromSync()` (server fetch + read). Screens use `SyncSubscriptionMixin` (in `lib/core/utils/`) which wraps `sync.onDataChanged` / `onDomainChanged` with deduplication.

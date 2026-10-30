@@ -76,6 +76,7 @@ List<Map<String, dynamic>?> buildChatListItems({
   required bool hideToolCalls,
   required AgentEventRenderPredicate shouldRenderAgentEvent,
   required HideToolCallPredicate shouldHideToolCall,
+  Iterable<Map<String, dynamic>>? taskMessages,
   MessageErrorHandler? onMessageError,
   int? sidechainOrphanInlineCap = kSidechainOrphanInlineCap,
 }) {
@@ -190,10 +191,14 @@ List<Map<String, dynamic>?> buildChatListItems({
     hiddenGroup = <Map<String, dynamic>>[];
   }
 
+  final shellOutcomes = backgroundShellOutcomes(
+    taskMessages ?? visibleMessages,
+  );
   for (var msg in visibleMessages) {
     try {
       if (msg['_orphanRecovery'] == true) continue;
       if (_isInvisibleRow(msg)) continue;
+      msg = withBackgroundShellStatus(msg, shellOutcomes);
       final command = bashCommandOf(msg);
       if (command != null) rememberCommand(command);
       if (msg['kind'] == 'agent-event' &&
@@ -258,7 +263,10 @@ List<Map<String, dynamic>?> buildChatListItems({
         hiddenGroup.add(msg);
         continue;
       }
-      if (shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
+      final shell = msg['backgroundShell'];
+      final activeShell = shell is Map && shell['status'] == 'running';
+      if (!activeShell &&
+          shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
         hiddenGroup.add(msg);
         continue;
       }
@@ -304,6 +312,91 @@ bool _isInvisibleRow(Map<String, dynamic> msg) {
     return cleanThinkingContent(text).isEmpty;
   }
   return msg['isStreaming'] != true && text.trim().isEmpty;
+}
+
+final RegExp _legacyTaskNotification = RegExp(
+  r'^\s*<task-notification>[\s\S]*?<task-id>([^<]+)</task-id>[\s\S]*?<status>([^<]+)</status>',
+);
+
+/// Terminal outcomes of background tasks in [messages], keyed by Claude
+/// task id. Current Claude releases report them as `task_notification`
+/// events (`agentId` + `taskStatus`); older ones as a root user
+/// `<task-notification>` message.
+Map<String, String> backgroundShellOutcomes(
+  Iterable<Map<String, dynamic>> messages,
+) {
+  final outcomes = <String, String>{};
+  final pending = messages.toList();
+  final visited = <Map<String, dynamic>>{};
+  for (var i = 0; i < pending.length; i++) {
+    final msg = pending[i];
+    if (!visited.add(msg)) continue;
+    final children = msg['children'];
+    if (children is List) {
+      pending.addAll(children.whereType<Map<String, dynamic>>());
+    }
+    String? taskId;
+    String? status;
+    if (msg['taskEvent'] == true) {
+      taskId = msg['agentId'] is String ? msg['agentId'] as String : null;
+      status = msg['taskStatus'] is String ? msg['taskStatus'] as String : null;
+    } else if (msg['role'] == 'user' && msg['content'] is String) {
+      final match = _legacyTaskNotification.firstMatch(
+        msg['content'] as String,
+      );
+      taskId = match?.group(1)?.trim();
+      status = match?.group(2)?.trim();
+    }
+    if (taskId == null || taskId.isEmpty || status == null) continue;
+    final outcome = _backgroundShellTerminalStatus(status);
+    if (outcome != null) outcomes[taskId] = outcome;
+  }
+  return outcomes;
+}
+
+String? _backgroundShellTerminalStatus(String status) => switch (status) {
+  'completed' => 'completed',
+  'failed' => 'failed',
+  'stopped' || 'killed' || 'cancelled' || 'canceled' => 'stopped',
+  _ => null,
+};
+
+/// Stamps `backgroundShell.status` on a tool call whose command moved to
+/// a background shell: the reported outcome from [outcomes], otherwise
+/// `running`. Returns [msg] unchanged for every other row.
+Map<String, dynamic> withBackgroundShellStatus(
+  Map<String, dynamic> msg,
+  Map<String, String> outcomes, {
+  Set<Map<String, dynamic>>? visited,
+}) {
+  visited ??= <Map<String, dynamic>>{};
+  if (!visited.add(msg)) return msg;
+  var result = msg;
+  final children = msg['children'];
+  if (children is List) {
+    var changed = false;
+    final projected = <dynamic>[];
+    for (final child in children) {
+      final next = child is Map<String, dynamic>
+          ? withBackgroundShellStatus(child, outcomes, visited: visited)
+          : child;
+      changed |= !identical(child, next);
+      projected.add(next);
+    }
+    if (changed) result = {...result, 'children': projected};
+  }
+  final shell = msg['backgroundShell'];
+  if (msg['kind'] != 'tool-call' || shell is! Map<String, dynamic>) {
+    return result;
+  }
+  final taskId = shell['taskId'];
+  if (taskId is! String) return result;
+  final status = outcomes[taskId] ?? 'running';
+  if (shell['status'] == status) return result;
+  return <String, dynamic>{
+    ...result,
+    'backgroundShell': <String, dynamic>{...shell, 'status': status},
+  };
 }
 
 /// Number of recent shell commands remembered for chip de-duplication.

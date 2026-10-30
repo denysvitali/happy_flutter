@@ -111,6 +111,7 @@ const _messageSignatureKeys = <String>[
   'input',
   'result',
   'permission',
+  'backgroundShell',
   'children',
   'tools',
   'items',

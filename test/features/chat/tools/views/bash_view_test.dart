@@ -40,6 +40,47 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BashView', () {
+    testWidgets(
+      'backgrounded command shows its shell status, not the receipt',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrapTool({
+            'id': 'call',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'toolUseId': 'toolu_bash',
+            'permission': {'status': 'approved'},
+            'state': 'completed',
+            'input': {'command': 'mise run test'},
+            'result':
+                'Command did not complete within its 600s timeout and was '
+                'moved to the background (ID: bit9nvfrb). Output is being '
+                'written to: /tmp/bit9nvfrb.output.',
+            'backgroundShell': {
+              'taskId': 'bit9nvfrb',
+              'reason': 'timeout',
+              'timedOutAfterMs': 600000,
+              'outputPath': '/tmp/bit9nvfrb.output',
+              'status': 'running',
+            },
+          }),
+        );
+        await tester.pumpAndSettle();
+
+        // Collapsed: the header says the command still runs elsewhere.
+        expect(find.text('In background'), findsOneWidget);
+
+        await tester.tap(find.text('In background'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Moved to background after 600s · still running'),
+          findsOneWidget,
+        );
+        expect(_richTextContent(tester), isNot(contains('did not complete')));
+      },
+    );
+
     testWidgets('renders command text', (tester) async {
       await tester.pumpWidget(
         _wrap(

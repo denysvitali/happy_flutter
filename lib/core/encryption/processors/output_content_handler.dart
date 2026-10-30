@@ -649,6 +649,7 @@ void _processOutputContent({
             'isError': c['is_error'] == true,
             'createdAt': createdAt,
             'permissions': c['permissions'],
+            'backgroundShell': ?_backgroundShellReceipt(data, c, msgContent),
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': ?meta.uuid,
             'parentUuid': ?meta.parentUuid,
@@ -746,6 +747,52 @@ void _processOutputContent({
     parentToolUseId: parentToolUseId,
     agentId: agentId,
   );
+}
+
+final RegExp _backgroundOutputPath = RegExp(
+  r'Output is being written to: ([^\r\n]+?)(?:\.(?:\s|$)|$)',
+);
+
+/// Claude's Bash receipt for a command that now runs as a background
+/// shell: launched with `run_in_background`, moved there by the user,
+/// moved so a queued message could arrive, or moved after outliving its
+/// timeout. Claude reports the outcome later through a `local_bash`
+/// task notification keyed by the same `taskId`.
+///
+/// `tool_use_result` describes the message's single tool result, so a
+/// multi-result message carries no receipt.
+Map<String, dynamic>? _backgroundShellReceipt(
+  Map<String, dynamic> data,
+  Map<String, dynamic> block,
+  List<dynamic> content,
+) {
+  final receipt = WireParsers.asMap(data['tool_use_result']);
+  final taskId = receipt?['backgroundTaskId'];
+  if (receipt == null || taskId is! String || taskId.isEmpty) return null;
+  final resultBlocks = content.whereType<Map<String, dynamic>>().where(
+    (c) => c['type'] == DataType.toolResultBlock,
+  );
+  if (resultBlocks.length != 1) return null;
+  final timedOutAfterMs = receipt['timedOutAfterMs'];
+  final reason = timedOutAfterMs is num
+      ? 'timeout'
+      : receipt['backgroundedByUser'] == true
+      ? 'user'
+      : receipt['backgroundedToDeliverMessage'] == true
+      ? 'message'
+      : receipt['backgroundedByTurnAbort'] == true
+      ? 'abort'
+      : 'launched';
+  final text = block['content'];
+  final outputPath = text is String
+      ? _backgroundOutputPath.firstMatch(text)?.group(1)
+      : null;
+  return {
+    'taskId': taskId,
+    'reason': reason,
+    if (timedOutAfterMs is num) 'timedOutAfterMs': timedOutAfterMs.toInt(),
+    'outputPath': ?outputPath,
+  };
 }
 
 String _webSearchState(String? status) {

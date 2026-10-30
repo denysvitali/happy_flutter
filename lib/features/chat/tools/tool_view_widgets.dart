@@ -59,6 +59,7 @@ class ToolHeader extends StatelessWidget {
     this.createdAt,
     this.statusIcon,
     this.statusLabel,
+    this.statusColor,
     this.expanded = false,
     this.onTap,
     this.onLongPress,
@@ -95,6 +96,10 @@ class ToolHeader extends StatelessWidget {
 
   /// Optional status label paired with [statusIcon].
   final String? statusLabel;
+
+  /// Optional label colour paired with [statusIcon]; defaults to the
+  /// colour of [state].
+  final Color? statusColor;
 
   /// Whether this tool card has expandable content.
   final bool hasContent;
@@ -185,6 +190,7 @@ class ToolHeader extends StatelessWidget {
       state: state,
       label: cueLabel,
       statusIcon: statusIcon,
+      statusColor: statusColor,
       needsApproval: hasPermissionRequest,
       showCheckFlash: showCheckFlash,
       constrainLabel: constrainLabel,
@@ -288,6 +294,7 @@ class _ToolStateCue extends StatelessWidget {
     required this.showCheckFlash,
     this.constrainLabel = false,
     this.statusIcon,
+    this.statusColor,
   });
 
   final ToolState state;
@@ -296,6 +303,7 @@ class _ToolStateCue extends StatelessWidget {
   final bool showCheckFlash;
   final bool constrainLabel;
   final Widget? statusIcon;
+  final Color? statusColor;
 
   @override
   Widget build(BuildContext context) {
@@ -306,12 +314,13 @@ class _ToolStateCue extends StatelessWidget {
         (state != ToolState.completed && state != ToolState.error);
     final color = needsApproval
         ? AppColors.warning
-        : switch (state) {
-            ToolState.running => colorScheme.primary,
-            ToolState.completed => AppColors.success,
-            ToolState.error => colorScheme.error,
-            ToolState.pending => colorScheme.onSurfaceVariant,
-          };
+        : statusColor ??
+              switch (state) {
+                ToolState.running => colorScheme.primary,
+                ToolState.completed => AppColors.success,
+                ToolState.error => colorScheme.error,
+                ToolState.pending => colorScheme.onSurfaceVariant,
+              };
     final icon = needsApproval
         ? Icons.security_rounded
         : switch (state) {
