@@ -13,7 +13,7 @@ import 'retry_error_view.dart';
 /// 1. [isLoading] with no cached messages → [ChatLoadingShimmer]
 /// 2. [loadFailed] → [RetryErrorView] (which is itself a button that
 ///    calls [onRetry])
-/// 3. [messages] is empty → [EmptyChatView]
+/// 3. [messages] is empty → [emptyView], or [EmptyChatView] without one
 /// 4. Otherwise → the caller-provided [messageList] widget
 ///
 /// Extracted from chat_screen.dart in batch 18. The widget is
@@ -29,7 +29,12 @@ class ChatMessagesBody extends StatelessWidget {
     required this.onSuggestionTap,
     required this.messageList,
     super.key,
+    this.emptyView,
   });
+
+  /// Replaces [EmptyChatView] when the conversation has no messages, e.g.
+  /// live pod status while a Kubernetes session starts.
+  final Widget? emptyView;
 
   /// Whether messages are loading. Cached content stays mounted during
   /// refresh so scroll, selection and expanded tools are preserved.
@@ -63,10 +68,11 @@ class ChatMessagesBody extends StatelessWidget {
                   key: const ValueKey('chat-error'),
                   onRetry: onRetry,
                 )
-              : EmptyChatView(
-                  key: const ValueKey('chat-empty'),
-                  onSuggestionTap: onSuggestionTap,
-                ))
+              : emptyView ??
+                    EmptyChatView(
+                      key: const ValueKey('chat-empty'),
+                      onSuggestionTap: onSuggestionTap,
+                    ))
         : Column(
             children: [
               if (loadFailed)

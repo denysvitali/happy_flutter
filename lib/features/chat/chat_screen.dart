@@ -2313,6 +2313,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         loadFailed: _loadFailed,
                         onRetry: _retry,
                         onSuggestionTap: _onSuggestionTap,
+                        emptyView: _messages.isEmpty
+                            ? _buildKubernetesStartupPanel(fillHeight: true)
+                            : null,
                         messageList: _buildMessageList(
                           hideToolCalls: hideToolCalls,
                         ),
@@ -2571,7 +2574,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               }
             },
           ),
-        ?_buildKubernetesStartupPanel(),
+        // Before the first message the panel is the chat body instead.
+        if (_messages.isNotEmpty) ?_buildKubernetesStartupPanel(),
         if (!hasSendIssue) ...[
           SessionGoalBanner(sessionId: widget.sessionId),
           SessionTasksBanner(sessionId: widget.sessionId),
@@ -2621,7 +2625,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Live pod status and logs while a Kubernetes session is spawning.
-  Widget? _buildKubernetesStartupPanel() {
+  Widget? _buildKubernetesStartupPanel({bool fillHeight = false}) {
     final session = _session;
     final machineId = session?.metadata?.machineId;
     if (session == null || machineId == null || machineId.isEmpty) {
@@ -2642,8 +2646,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
     if (!show) return null;
     return KubernetesStartupPanel(
-      key: ValueKey('kubernetes-startup-${session.id}'),
+      key: ValueKey(
+        'kubernetes-startup-${fillHeight ? 'body' : 'bar'}-${session.id}',
+      ),
       session: session,
+      fillHeight: fillHeight,
       loadPod: () => sync.machineGetSessionPod(
         machineId: machineId,
         sessionId: session.id,

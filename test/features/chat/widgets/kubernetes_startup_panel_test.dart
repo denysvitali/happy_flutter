@@ -204,4 +204,40 @@ void main() {
     expect(find.text('Logs appear once the container starts.'), findsOneWidget);
     await tester.pumpWidget(_wrap(const SizedBox()));
   });
+
+  testWidgets('fills the chat body with status and logs when fillHeight', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        SizedBox(
+          height: 600,
+          child: KubernetesStartupPanel(
+            session: _session(lifecycle: 'starting'),
+            fillHeight: true,
+            loadPod: () async => _pod(reason: 'PodInitializing'),
+            loadLogs: () async => const SessionPodLogsResponse(
+              podName: 'happy-s1',
+              content: '[checkout] cloning repo\n',
+              truncated: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('kubernetes-startup-body')), findsOneWidget);
+    expect(find.text('Starting Kubernetes pod'), findsOneWidget);
+    expect(find.text('[checkout] cloning repo'), findsOneWidget);
+    // The log pane takes the remaining height instead of a 180px strip.
+    final logs = tester.getSize(
+      find.byKey(const Key('kubernetes-startup-logs')),
+    );
+    expect(logs.height, greaterThan(300));
+    // Body mode has no collapse affordance.
+    expect(find.byIcon(Icons.expand_less_rounded), findsNothing);
+    await tester.pumpWidget(_wrap(const SizedBox()));
+  });
 }

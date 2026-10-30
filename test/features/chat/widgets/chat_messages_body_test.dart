@@ -13,6 +13,7 @@ Widget _wrap({
   VoidCallback? onRetry,
   ValueChanged<String>? onSuggestionTap,
   Widget messageList = const SizedBox(key: ValueKey('message-list')),
+  Widget? emptyView,
 }) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -25,6 +26,7 @@ Widget _wrap({
         onRetry: onRetry ?? () {},
         onSuggestionTap: onSuggestionTap ?? (_) {},
         messageList: messageList,
+        emptyView: emptyView,
       ),
     ),
   );
@@ -100,6 +102,32 @@ void main() {
         expect(find.byType(ChatLoadingShimmer), findsNothing);
       },
     );
+
+    testWidgets('an empty view override replaces the start-conversation view', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          isLoading: false,
+          messages: const [],
+          loadFailed: false,
+          emptyView: const SizedBox(key: ValueKey('pod-startup')),
+        ),
+      );
+      expect(find.byKey(const ValueKey('pod-startup')), findsOneWidget);
+      expect(find.byType(EmptyChatView), findsNothing);
+
+      await tester.pumpWidget(
+        _wrap(
+          isLoading: false,
+          messages: const [1],
+          loadFailed: false,
+          emptyView: const SizedBox(key: ValueKey('pod-startup')),
+        ),
+      );
+      expect(find.byKey(const ValueKey('pod-startup')), findsNothing);
+      expect(find.byKey(const ValueKey('message-list')), findsOneWidget);
+    });
 
     testWidgets('isLoading takes precedence over loadFailed and empty', (
       tester,

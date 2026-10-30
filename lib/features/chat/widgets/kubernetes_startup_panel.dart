@@ -77,8 +77,9 @@ String kubernetesLogTail(String content, {int maxLines = 200}) {
 typedef KubernetesPodLoader = Future<SessionPod?> Function();
 typedef KubernetesPodLogsLoader = Future<SessionPodLogsResponse> Function();
 
-/// Live pod status and log tail shown above the composer while a Kubernetes
-/// session is spawning, so a send never waits behind an opaque "Sending".
+/// Live pod status and log tail shown while a Kubernetes session is spawning:
+/// as the chat body before the first message, and above the composer after
+/// it, so a send never waits behind an opaque "Sending".
 ///
 /// Polls the daemon's `get-session-pod` / `get-session-pod-logs` RPCs every
 /// [pollInterval] while on screen. Polling pauses while the route is covered
@@ -91,7 +92,12 @@ class KubernetesStartupPanel extends StatefulWidget {
     required this.loadLogs,
     super.key,
     this.pollInterval = const Duration(seconds: 2),
+    this.fillHeight = false,
   });
+
+  /// Fills the available height with the log tail instead of a short strip.
+  /// Used as the chat body while a conversation has no messages yet.
+  final bool fillHeight;
 
   final Session session;
   final KubernetesPodLoader loadPod;
@@ -201,11 +207,41 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
         : widget.session.metadata?.podName;
     final message = pod?.message ?? '';
     final logs = _logs;
+    final fill = widget.fillHeight;
+    final expanded = fill || _expanded;
+    final logBox = Container(
+      key: const Key('kubernetes-startup-logs'),
+      constraints: fill ? null : const BoxConstraints(maxHeight: 180),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: logs == null
+          ? Text(
+              l10n.sessionPodWaitingForContainer,
+              style: AppInlineText.chrome(context),
+            )
+          : SingleChildScrollView(
+              controller: _logScroll,
+              child: SelectableText(
+                logs,
+                style: AppText.mono(
+                  theme,
+                  cs.onSurfaceVariant,
+                ).copyWith(fontSize: AppFontSize.sm),
+              ),
+            ),
+    );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      padding: fill
+          ? const EdgeInsets.all(AppSpacing.md)
+          : const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        key: fill ? const Key('kubernetes-startup-body') : null,
+        mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppInlineRow(
@@ -215,14 +251,18 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                     color: AppColors.error,
                   )
                 : Icon(Icons.cloud_sync_outlined, color: cs.primary),
-            onTap: () => setState(() => _expanded = !_expanded),
-            expanded: _expanded,
+            onTap: fill ? null : () => setState(() => _expanded = !_expanded),
+            expanded: expanded,
             semanticLabel: '$title, $stage',
             dense: true,
-            trailing: Icon(
-              _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-              color: cs.onSurfaceVariant,
-            ),
+            trailing: fill
+                ? null
+                : Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: cs.onSurfaceVariant,
+                  ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -248,7 +288,7 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
               ],
             ),
           ),
-          if (_expanded) ...[
+          if (expanded) ...[
             if (message.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -267,31 +307,7 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                   ).copyWith(color: failed ? AppColors.error : null),
                 ),
               ),
-            Container(
-              key: const Key('kubernetes-startup-logs'),
-              constraints: const BoxConstraints(maxHeight: 180),
-              margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: logs == null
-                  ? Text(
-                      l10n.sessionPodWaitingForContainer,
-                      style: AppInlineText.chrome(context),
-                    )
-                  : SingleChildScrollView(
-                      controller: _logScroll,
-                      child: SelectableText(
-                        logs,
-                        style: AppText.mono(
-                          theme,
-                          cs.onSurfaceVariant,
-                        ).copyWith(fontSize: AppFontSize.sm),
-                      ),
-                    ),
-            ),
+            if (fill) Expanded(child: logBox) else logBox,
           ],
         ],
       ),
