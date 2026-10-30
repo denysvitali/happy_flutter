@@ -7,7 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/models/auth.dart';
+import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/providers/profile_notifier.dart';
+import 'package:happy_flutter/core/providers/settings_notifier.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/storage_service.dart';
@@ -24,6 +27,21 @@ class _OutboxStorage extends MMKVStorage {
   Future<String?> getOutboxEntries() async => null;
   @override
   Future<void> saveOutboxEntries(String value) async {}
+}
+
+/// The runtime under test has no settings manager; post-auth loading only
+/// needs notifiers that do not touch it.
+class _StorageFreeSettingsNotifier extends SettingsNotifier {
+  @override
+  Settings build() => Settings();
+
+  @override
+  void loadFromSync() {}
+}
+
+class _StorageFreeProfileNotifier extends ProfileNotifier {
+  @override
+  void loadFromSync() {}
 }
 
 class _Encryption implements Encryption {
@@ -43,6 +61,34 @@ String _token(DateTime expiry) {
     ),
   ).replaceAll('=', '');
   return 'header.$payload.signature';
+}
+
+/// Drives [future] to completion inside the widget test's fake-async zone.
+///
+/// The renewal request path only progresses while the fake clock advances,
+/// so a bare `await` on it never completes under `testWidgets`.
+Future<T> _settle<T>(WidgetTester tester, Future<T> future) async {
+  var done = false;
+  late T value;
+  Object? error;
+  StackTrace? stack;
+  future.then(
+    (result) {
+      value = result;
+      done = true;
+    },
+    onError: (Object e, StackTrace s) {
+      error = e;
+      stack = s;
+      done = true;
+    },
+  );
+  for (var i = 0; i < 500 && !done; i++) {
+    await tester.pump(const Duration(milliseconds: 1));
+  }
+  if (error != null) Error.throwWithStackTrace(error!, stack!);
+  if (!done) fail('future did not settle');
+  return value;
 }
 
 void main() {
@@ -109,8 +155,20 @@ void main() {
           queuedAt: 1,
         ),
       );
-      final container = ProviderContainer();
-      addTearDown(() async {
+      final container = ProviderContainer(
+        overrides: [
+          settingsNotifierProvider.overrideWith(
+            _StorageFreeSettingsNotifier.new,
+          ),
+          profileNotifierProvider.overrideWith(_StorageFreeProfileNotifier.new),
+        ],
+      );
+      // Cancels the outbox, runtime and renewal timers. It must also run
+      // inside the body: addTearDown fires after the pending-timer check.
+      var released = false;
+      Future<void> releaseRuntime() async {
+        if (released) return;
+        released = true;
         container.dispose();
         await runtime.shutdown();
         runtime.setAuthenticationBlocked(false);
@@ -119,13 +177,19 @@ void main() {
         api
           ..clearToken()
           ..dispose();
-        await TokenStorage().removeCredentials();
         tokenRefreshManager.reset();
+      }
+
+      addTearDown(() async {
+        await releaseRuntime();
+        // removeCredentials() blocks in this harness while persisting its
+        // MMKV logout marker; the file's isolate only needs the mock reset.
+        FlutterSecureStorage.setMockInitialValues({});
       });
       final notifier = container.read(authStateNotifierProvider.notifier);
 
       // An invalid renewal response keeps the runtime's pending sends.
-      await notifier.checkAuth(showProgress: false);
+      await _settle(tester, notifier.checkAuth(showProgress: false));
       expect(container.read(authStateNotifierProvider), AuthState.error);
       expect(messageOutbox.contains('retained-send'), isTrue);
 
@@ -141,7 +205,7 @@ void main() {
       // This failure did not set requiresVerification: recovery must still
       // resume pending sends after a valid same-account bearer is committed.
       validResponse = true;
-      await notifier.checkAuth(showProgress: false);
+      await _settle(tester, notifier.checkAuth(showProgress: false));
       expect(
         container.read(authStateNotifierProvider),
         AuthState.authenticated,
@@ -176,7 +240,7 @@ void main() {
       expect(messageOutbox.contains('after-rejection'), isTrue);
 
       serverRejects = false;
-      await notifier.checkAuth(showProgress: false);
+      await _settle(tester, notifier.checkAuth(showProgress: false));
       await tester.pump(const Duration(milliseconds: 1100));
       expect(
         container.read(authStateNotifierProvider),
@@ -207,10 +271,10 @@ void main() {
       renewalStarted = Completer<void>();
       renewalRelease = Completer<void>();
       final pendingCheck = notifier.checkAuth(showProgress: false);
-      await renewalStarted.future;
+      await _settle(tester, renewalStarted.future);
       runtime.suspend();
       renewalRelease.complete();
-      await pendingCheck;
+      await _settle(tester, pendingCheck);
       await tester.pump(const Duration(seconds: 2));
       expect(
         container.read(authStateNotifierProvider),
@@ -231,6 +295,10 @@ void main() {
       expect(InvalidateSync.isBackgrounded, isFalse);
       expect(deliveries, 3);
       expect(messageOutbox.contains('background-renewal'), isFalse);
+
+      // Shutdown awaits real I/O, which fake time cannot advance.
+      await tester.runAsync(releaseRuntime);
+      await tester.pump(const Duration(seconds: 1));
     },
   );
 }
