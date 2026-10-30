@@ -741,6 +741,36 @@ abstract class AppLocalizations {
   /// **'Kill pod'**
   String get sessionPodKill;
 
+  /// No description provided for @sessionPodStartingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting Kubernetes pod'**
+  String get sessionPodStartingTitle;
+
+  /// No description provided for @sessionPodStartFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes pod failed to start'**
+  String get sessionPodStartFailedTitle;
+
+  /// No description provided for @sessionPodStageScheduling.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the pod to be scheduled'**
+  String get sessionPodStageScheduling;
+
+  /// No description provided for @sessionPodStageAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Pod running · waiting for the agent to connect'**
+  String get sessionPodStageAgent;
+
+  /// No description provided for @sessionPodWaitingForContainer.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs appear once the container starts.'**
+  String get sessionPodWaitingForContainer;
+
   /// No description provided for @claudeAuthTitle.
   ///
   /// In en, this message translates to:

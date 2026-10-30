@@ -117,6 +117,13 @@ tests are added for CI, with device and screen-reader acceptance still pending.
 Remaining related gaps: localized settings/task search labels and explicit
 feedback when oversized artifact clipboard content is truncated.
 
+Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
+waits on its pod), the chat shows the live pod phase/reason, failure message and
+a tail of the pod logs above the composer, polling the daemon every 2s until the
+session is reachable. Polling pauses when the chat is covered. Widget/predicate
+regressions are added; device acceptance against a real cluster is pending.
+Init-container logs are not yet exposed by the daemon.
+
 Cached chat refresh/retry, stopped-process new-session recovery, mobile tool
 visibility and composer options, changed-file review navigation, recent
 workspaces, Advanced launch controls, and ordered attention reasons are

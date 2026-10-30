@@ -92,6 +92,7 @@ import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_goal_banner.dart';
 import 'widgets/session_issue_banner.dart';
+import 'widgets/kubernetes_startup_panel.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
@@ -2570,6 +2571,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               }
             },
           ),
+        ?_buildKubernetesStartupPanel(),
         if (!hasSendIssue) ...[
           SessionGoalBanner(sessionId: widget.sessionId),
           SessionTasksBanner(sessionId: widget.sessionId),
@@ -2615,6 +2617,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             },
           ),
       ],
+    );
+  }
+
+  /// Live pod status and logs while a Kubernetes session is spawning.
+  Widget? _buildKubernetesStartupPanel() {
+    final session = _session;
+    final machineId = session?.metadata?.machineId;
+    if (session == null || machineId == null || machineId.isEmpty) {
+      return null;
+    }
+    final isReady = ref.watch(
+      sessionUiEntryProvider(
+        session.id,
+      ).select((entry) => entry.isSessionReadyForMessages),
+    );
+    final show = shouldShowKubernetesStartup(
+      session: session,
+      isReady: isReady,
+      hasPendingRequest: switch (_requestStatus.phase) {
+        ChatRequestPhase.sending || ChatRequestPhase.waiting => true,
+        _ => false,
+      },
+    );
+    if (!show) return null;
+    return KubernetesStartupPanel(
+      key: ValueKey('kubernetes-startup-${session.id}'),
+      session: session,
+      loadPod: () => sync.machineGetSessionPod(
+        machineId: machineId,
+        sessionId: session.id,
+      ),
+      loadLogs: () => sync.machineGetSessionPodLogs(
+        machineId: machineId,
+        sessionId: session.id,
+        tailLines: 200,
+        timestamps: false,
+      ),
     );
   }
 

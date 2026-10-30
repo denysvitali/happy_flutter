@@ -356,6 +356,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionPodKill => 'Kill pod';
 
   @override
+  String get sessionPodStartingTitle => 'Starting Kubernetes pod';
+
+  @override
+  String get sessionPodStartFailedTitle => 'Kubernetes pod failed to start';
+
+  @override
+  String get sessionPodStageScheduling => 'Waiting for the pod to be scheduled';
+
+  @override
+  String get sessionPodStageAgent =>
+      'Pod running · waiting for the agent to connect';
+
+  @override
+  String get sessionPodWaitingForContainer =>
+      'Logs appear once the container starts.';
+
+  @override
   String get claudeAuthTitle => 'Claude Code authentication';
 
   @override
