@@ -293,17 +293,28 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                 horizontal: AppSpacing.lg,
                 vertical: AppSpacing.xs,
               ),
-              child: Row(
+              // Wraps the reset under the agent name when both do not fit
+              // (long names, large text) instead of squeezing the name.
+              child: OverflowBar(
+                alignment: MainAxisAlignment.spaceBetween,
+                overflowAlignment: OverflowBarAlignment.end,
+                spacing: AppSpacing.sm,
                 children: [
-                  const Icon(Icons.filter_alt_outlined),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      selectedAgent,
-                      style: AppText.label(Theme.of(context)),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.filter_alt_outlined),
+                      const SizedBox(width: AppSpacing.sm),
+                      Flexible(
+                        child: Text(
+                          selectedAgent,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.label(Theme.of(context)),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.sm),
                   TextButton(
                     onPressed: () => setState(() => _selectedAgentId = null),
                     child: const Text('All agents'),

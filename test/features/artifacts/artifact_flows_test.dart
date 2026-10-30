@@ -260,6 +260,17 @@ void main() {
     testWidgets('each successful copy renews the feedback duration', (
       tester,
     ) async {
+      // Without a handler the write throws MissingPluginException and the
+      // button never reaches "Done".
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async => null,
+      );
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      });
       final a = detailArtifact();
       await pumpDetail(tester, artifacts: {a.id: a});
       await tester.tap(find.widgetWithText(TextButton, 'Copy'));
