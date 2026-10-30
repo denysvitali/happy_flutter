@@ -110,31 +110,25 @@ List<String> _spawnBackendsForMachine(Machine? machine) {
   return supported.isEmpty ? const ['local'] : supported;
 }
 
-String _defaultSpawnBackendForMachine(Machine? machine) {
+bool _machineSupportsSpawnMode(Machine machine, String mode) =>
+    _spawnBackendsForMachine(machine).contains(mode);
+
+/// Machine (local) execution is the safe default, even when a daemon
+/// advertises Kubernetes as its default; Kubernetes is an explicit choice
+/// unless the preselected daemon supports nothing else.
+String _initialSpawnModeForMachine(Machine? machine) {
   final backends = _spawnBackendsForMachine(machine);
-  // Local execution is the safe default; Kubernetes is an explicit opt-in
-  // unless it is the only supported backend.
-  if (backends.contains('local')) return 'local';
-  final advertisedDefault = machine?.metadata?.defaultSpawnBackend;
-  return backends.contains(advertisedDefault)
-      ? advertisedDefault!
-      : backends.first;
+  return backends.contains('local') ? 'local' : backends.first;
 }
 
-String _selectedSpawnBackendForMachine(Machine? machine, String? selected) {
-  final backends = _spawnBackendsForMachine(machine);
-  return backends.contains(selected)
-      ? selected!
-      : _defaultSpawnBackendForMachine(machine);
-}
-
-String? _spawnBackendRequestValueForMachine(
-  Machine? machine,
-  String? selected,
-) {
+/// The backend sent with the spawn request. Daemons that advertise no
+/// backends predate the field and only spawn locally, so they get none.
+String? _spawnBackendRequestValueForMachine(Machine? machine, String mode) {
   final advertised = machine?.metadata?.spawnBackends;
   if (advertised == null || advertised.isEmpty) return null;
-  return _selectedSpawnBackendForMachine(machine, selected);
+  return _machineSupportsSpawnMode(machine!, mode)
+      ? mode
+      : _initialSpawnModeForMachine(machine);
 }
 
 String kubernetesCheckoutPath(Machine machine, String repositoryUrl) {

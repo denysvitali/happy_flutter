@@ -428,7 +428,7 @@ String _dialogRequirementText(
     case NewSessionCreateBlocker.missingRepositoryRef:
       return l10n.newSessionGitRefRequired;
     case NewSessionCreateBlocker.harLocalBackend:
-      return 'Select the local backend for Har.';
+      return 'Select Machine to start Har.';
     case NewSessionCreateBlocker.creating:
       return l10n.commonCreate;
     case NewSessionCreateBlocker.disconnected:

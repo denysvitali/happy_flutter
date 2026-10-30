@@ -636,8 +636,20 @@ abstract class AppLocalizations {
   /// No description provided for @newSessionSpawnLocal.
   ///
   /// In en, this message translates to:
-  /// **'Local'**
+  /// **'Machine'**
   String get newSessionSpawnLocal;
+
+  /// No description provided for @newSessionKubernetesDaemon.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes daemon'**
+  String get newSessionKubernetesDaemon;
+
+  /// No description provided for @newSessionNoKubernetesMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No daemon can create Kubernetes pods. Enable Kubernetes spawning on a daemon, or pick Machine.'**
+  String get newSessionNoKubernetesMachines;
 
   /// No description provided for @newSessionSpawnKubernetes.
   ///

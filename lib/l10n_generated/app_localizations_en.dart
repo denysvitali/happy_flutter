@@ -300,7 +300,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'This daemon cannot create Kubernetes pods';
 
   @override
-  String get newSessionSpawnLocal => 'Local';
+  String get newSessionSpawnLocal => 'Machine';
+
+  @override
+  String get newSessionKubernetesDaemon => 'Kubernetes daemon';
+
+  @override
+  String get newSessionNoKubernetesMachines =>
+      'No daemon can create Kubernetes pods. Enable Kubernetes spawning on a daemon, or pick Machine.';
 
   @override
   String get newSessionSpawnKubernetes => 'Kubernetes';

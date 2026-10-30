@@ -73,8 +73,12 @@ class _StubSessionsNotifier extends SessionsNotifier {
   _StubSessionsNotifier({
     this.onCreateSession,
     this.onCreateModelMode,
+    this.onCreateSessionArgs,
     this.sessions = const {},
   });
+
+  final void Function(String machineId, String? spawnBackend)?
+  onCreateSessionArgs;
 
   final Map<String, Session> sessions;
 
@@ -105,6 +109,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
     String? repoCommit,
   }) {
     onCreateModelMode?.call(modelMode);
+    onCreateSessionArgs?.call(machineId, spawnBackend);
     final hook = onCreateSession;
     if (hook == null) {
       return super.createSession(
@@ -454,6 +459,8 @@ void main() {
       String? initialRepositoryUrl = 'https://example.com/repo.git',
       Future<String> Function()? onCreateSession,
       ValueChanged<String?>? onCreateModelMode,
+      void Function(String machineId, String? spawnBackend)?
+      onCreateSessionArgs,
     }) {
       return ProviderScope(
         overrides: [
@@ -465,6 +472,7 @@ void main() {
             () => _StubSessionsNotifier(
               onCreateSession: onCreateSession,
               onCreateModelMode: onCreateModelMode,
+              onCreateSessionArgs: onCreateSessionArgs,
               sessions: sessions,
             ),
           ),
@@ -632,7 +640,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        final setupPicker = find.byType(SegmentedButton<String>);
+        final setupPicker = find.ancestor(
+          of: find.text('Simple'),
+          matching: find.byType(SegmentedButton<String>),
+        );
         final simple = find.descendant(
           of: setupPicker,
           matching: find.text('Simple'),
@@ -1043,9 +1054,6 @@ void main() {
       expect(find.text('Git repository'), findsNothing);
       expect(find.text('Branch or ref'), findsNothing);
       expect(find.byType(Autocomplete<String>), findsOneWidget);
-      await tester.tap(find.text('Advanced options'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Kubernetes'));
       await tester.tap(find.text('Kubernetes'));
       await tester.pumpAndSettle();
       expect(find.text('Git repository'), findsOneWidget);
@@ -1169,18 +1177,131 @@ void main() {
         ),
       );
 
-      expect(find.text('Local'), findsNothing);
+      // The Machine / Kubernetes switch sits above everything else.
+      expect(find.byType(SegmentedButton<String>), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Kubernetes')).dy,
+        lessThan(tester.getTopLeft(find.text('Who')).dy),
+      );
       expect(find.text('Worktree'), findsNothing);
       await tester.tap(find.text('Advanced options'));
       await tester.pumpAndSettle();
-      expect(find.text('Local'), findsOneWidget);
-      expect(find.text('Kubernetes'), findsOneWidget);
+      expect(find.text('Worktree'), findsOneWidget);
       expect(find.text('Path'), findsOneWidget);
       expect(find.text('Git repository'), findsNothing);
       final createButton = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Create'),
       );
       expect(createButton.onPressed, isNotNull);
+    });
+
+    testWidgets('Kubernetes mode lists only Kubernetes-capable daemons', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      String? spawnBackend;
+      String? spawnMachine;
+      final spawnStarted = Completer<void>();
+      final finishSpawn = Completer<String>();
+      final testSync = createTestSync();
+      testSync.testEnsureMachineReachableOverride = (_) async {};
+      addTearDown(() {
+        testSync.testEnsureMachineReachableOverride = null;
+      });
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-laptop': _machine(
+              id: 'm-laptop',
+              displayName: 'Laptop',
+              active: true,
+              activeAtMs: now,
+              spawnBackends: const ['local'],
+            ),
+            'm-cluster': _machine(
+              id: 'm-cluster',
+              displayName: 'Cluster',
+              active: true,
+              activeAtMs: now,
+              spawnBackends: const ['local', 'kubernetes'],
+            ),
+          },
+          initialMachineId: 'm-laptop',
+          onCreateSession: () {
+            spawnStarted.complete();
+            return finishSpawn.future;
+          },
+          onCreateSessionArgs: (machineId, backend) {
+            spawnMachine = machineId;
+            spawnBackend = backend;
+          },
+        ),
+      );
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      expect(find.text('Laptop'), findsWidgets);
+      expect(find.text('Cluster'), findsWidgets);
+      await tester.tap(find.text('Laptop').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kubernetes'));
+      await tester.pumpAndSettle();
+      // The laptop cannot run pods, so the online cluster daemon replaces it.
+      expect(find.text('Kubernetes daemon'), findsOneWidget);
+      expect(find.text('Cluster'), findsOneWidget);
+      expect(find.text('Laptop'), findsNothing);
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      expect(find.text('Laptop'), findsNothing);
+      await tester.tap(find.text('Cluster').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Git repository'),
+        'https://github.com/acme/repo.git',
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.pump();
+      await spawnStarted.future;
+      expect(spawnMachine, 'm-cluster');
+      expect(spawnBackend, 'kubernetes');
+      await tester.pumpWidget(const SizedBox.shrink());
+      finishSpawn.complete('kube-session');
+      await tester.pump();
+    });
+
+    testWidgets('Kubernetes mode explains when no daemon supports it', (
+      tester,
+    ) async {
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-laptop': _machine(
+              id: 'm-laptop',
+              displayName: 'Laptop',
+              active: true,
+              activeAtMs: DateTime.now().millisecondsSinceEpoch,
+              spawnBackends: const ['local'],
+            ),
+          },
+          initialMachineId: 'm-laptop',
+        ),
+      );
+      await tester.tap(find.text('Kubernetes'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('No daemon can create Kubernetes pods'),
+        findsOneWidget,
+      );
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
+      );
+      expect(createButton.onPressed, isNull);
     });
 
     testWidgets('Kubernetes session requires repository URL', (tester) async {

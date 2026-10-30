@@ -171,8 +171,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _createError;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
-  String? _selectedSpawnBackend;
-  bool _spawnBackendTouched = false;
+
+  /// Machine ('local') or Kubernetes; chosen at the top of the dialog and
+  /// limits the machine list to daemons that support it.
+  String _spawnMode = 'local';
+  bool _spawnModeTouched = false;
 
   /// Optional first instruction; saved as the new chat's draft.
 
@@ -218,20 +221,27 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final allMachines = ref.watch(machinesNotifierProvider);
     final machineSortNow = DateTime.now().millisecondsSinceEpoch;
-    final machines = allMachines.values.toList()
+    final allMachinesSorted = allMachines.values.toList()
       ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
-    final selectedMachineObj = _selectedMachine != null
+    final selectedMachineRaw = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
-    final spawnBackends = _spawnBackendsForMachine(selectedMachineObj);
-    final selectedSpawnBackend = _spawnBackendTouched
-        ? _selectedSpawnBackendForMachine(
-            selectedMachineObj,
-            _selectedSpawnBackend,
-          )
-        : _defaultSpawnBackendForMachine(selectedMachineObj);
-    final isKubernetes = selectedSpawnBackend == 'kubernetes';
+    final spawnMode = _spawnModeTouched
+        ? _spawnMode
+        : _initialSpawnModeForMachine(selectedMachineRaw);
+    final isKubernetes = spawnMode == 'kubernetes';
+    final machines = allMachinesSorted
+        .where((machine) => _machineSupportsSpawnMode(machine, spawnMode))
+        .toList(growable: false);
+    // A selection the current mode cannot use is treated as no selection so
+    // the dropdown and the create guard agree.
+    final selectedMachineObj =
+        selectedMachineRaw != null &&
+            _machineSupportsSpawnMode(selectedMachineRaw, spawnMode)
+        ? selectedMachineRaw
+        : null;
+    final selectedMachineId = selectedMachineObj?.id;
     final selectedMachineOffline =
         selectedMachineObj != null &&
         !selectedMachineObj.isOnlineAt(machineSortNow);
@@ -287,6 +297,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _SpawnBackendPicker(
+                  backends: const ['local', 'kubernetes'],
+                  selectedBackend: spawnMode,
+                  onSelected: (mode) =>
+                      _selectSpawnMode(mode, allMachinesSorted, machineSortNow),
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 _SectionLabel(text: l10n.polishNewSessionWho),
                 const SizedBox(height: AppSpacing.sm),
                 if (largeText)
@@ -312,8 +329,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   ),
                   if (isKubernetes)
                     Text(
-                      'Har is available on the local backend. Select Local '
-                      'to start it.',
+                      'Har runs on a machine, not in Kubernetes. Select '
+                      'Machine to start it.',
                       style: AppText.secondary(theme, cs.error),
                     ),
                 ],
@@ -322,7 +339,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 const SizedBox(height: AppSpacing.sm),
                 if (!isKubernetes && !largeText)
                   _RecentWorkspaceCards(
-                    machineId: _selectedMachine,
+                    machineId: selectedMachineId,
                     machineLabel: selectedMachineObj?.displayLabel,
                     selectedPath: _selectedPath,
                     onSelected: (path) => setState(() {
@@ -338,12 +355,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   const SizedBox(height: AppSpacing.md),
                 ],
                 if (machines.isEmpty)
-                  Text(l10n.newSessionNoMachinesFound)
+                  Text(
+                    isKubernetes && allMachinesSorted.isNotEmpty
+                        ? l10n.newSessionNoKubernetesMachines
+                        : l10n.newSessionNoMachinesFound,
+                  )
                 else
                   DropdownButtonFormField<String>(
-                    key: ValueKey('new-session-machine-$_selectedMachine'),
-                    decoration: InputDecoration(labelText: l10n.sessionMachine),
-                    initialValue: _selectedMachine,
+                    key: ValueKey(
+                      'new-session-machine-$spawnMode-$selectedMachineId',
+                    ),
+                    decoration: InputDecoration(
+                      labelText: isKubernetes
+                          ? l10n.newSessionKubernetesDaemon
+                          : l10n.sessionMachine,
+                    ),
+                    initialValue: selectedMachineId,
                     isExpanded: true,
                     selectedItemBuilder: (context) => [
                       Text(
@@ -429,12 +456,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         if (_selectedMachine != value) {
                           _selectedPath = null;
                           _selectedRepoUrl = null;
-                          _selectedSpawnBackend =
-                              _defaultSpawnBackendForMachine(
-                                allMachines[value],
-                              );
-                          _spawnBackendTouched = false;
                         }
+                        // Keep the mode the list was filtered by.
+                        _spawnMode = spawnMode;
+                        _spawnModeTouched = true;
                         _selectedMachine = value;
                       });
                     },
@@ -442,7 +467,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 const SizedBox(height: AppSpacing.lg),
                 if (!isKubernetes) ...[
                   _PathField(
-                    machineId: _selectedMachine,
+                    machineId: selectedMachineId,
                     selectedPath: _selectedPath,
                     onChanged: (value) => setState(() {
                       _selectedPath = value;
@@ -457,7 +482,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   // than the one-tap cards above.
                   if (largeText)
                     _RecentWorkspacePicker(
-                      machineId: _selectedMachine,
+                      machineId: selectedMachineId,
                       selectedPath: _selectedPath,
                       onSelected: (path) => setState(() {
                         _selectedPath = path;
@@ -467,7 +492,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 ],
                 if (isKubernetes) ...[
                   _RepositoryUrlField(
-                    machineId: _selectedMachine,
+                    machineId: selectedMachineId,
                     selectedRepoUrl: _selectedRepoUrl,
                     onChanged: (value) {
                       setState(() {
@@ -497,20 +522,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     }),
                   ),
                 ],
-                if (!isKubernetes || spawnBackends.length > 1) ...[
+                if (!isKubernetes) ...[
                   const SizedBox(height: AppSpacing.sm),
                   _NewSessionAdvancedOptions(
-                    isKubernetes: isKubernetes,
                     sessionType: _sessionType,
-                    spawnBackends: spawnBackends,
-                    selectedSpawnBackend: selectedSpawnBackend,
                     onSessionTypeChanged: (value) =>
                         setState(() => _sessionType = value),
-                    onSpawnBackendSelected: (backend) => setState(() {
-                      _selectedSpawnBackend = backend;
-                      _spawnBackendTouched = true;
-                      _createError = null;
-                    }),
                   ),
                 ],
                 if (createBlocker != null) ...[
@@ -598,6 +615,32 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     );
   }
 
+  /// Switches between Machine and Kubernetes. A selected machine that cannot
+  /// run the new mode is replaced by the first online one that can.
+  void _selectSpawnMode(String mode, List<Machine> sortedMachines, int nowMs) {
+    final current = _selectedMachine != null
+        ? ref.read(machinesNotifierProvider)[_selectedMachine]
+        : null;
+    setState(() {
+      _spawnMode = mode;
+      _spawnModeTouched = true;
+      _createError = null;
+      if (current != null && _machineSupportsSpawnMode(current, mode)) return;
+      final replacement = sortedMachines
+          .where(
+            (machine) =>
+                machine.isOnlineAt(nowMs) &&
+                _machineSupportsSpawnMode(machine, mode),
+          )
+          .firstOrNull;
+      if (replacement?.id != _selectedMachine) {
+        _selectedPath = null;
+        _selectedRepoUrl = null;
+      }
+      _selectedMachine = replacement?.id;
+    });
+  }
+
   Future<void> _createSession(BuildContext context) async {
     final l10n = context.l10n;
     final selectedMachineId = _selectedMachine;
@@ -641,9 +684,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       }
       final spawnBackend = _spawnBackendRequestValueForMachine(
         machine,
-        _spawnBackendTouched
-            ? _selectedSpawnBackend
-            : _defaultSpawnBackendForMachine(machine),
+        _spawnModeTouched ? _spawnMode : _initialSpawnModeForMachine(machine),
       );
       final isKubernetes = spawnBackend == 'kubernetes';
       if (isKubernetes && !_machineSupportsKubernetes(machine)) {
