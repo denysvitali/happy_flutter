@@ -288,7 +288,7 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                         style: AppText.mono(
                           theme,
                           cs.onSurfaceVariant,
-                        ).copyWith(fontSize: AppFontSize.xs),
+                        ).copyWith(fontSize: AppFontSize.sm),
                       ),
                     ),
             ),

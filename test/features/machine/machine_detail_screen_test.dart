@@ -438,7 +438,15 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
-        await tester.scrollUntilVisible(find.text('Remove Machine'), 100);
+        await tester.scrollUntilVisible(
+          find.text('Remove Machine'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        // scrollUntilVisible stops once the row is barely on screen; the
+        // tap point can still fall below the 600px test surface.
+        await tester.ensureVisible(find.text('Remove Machine'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Remove Machine'));
         await tester.pumpAndSettle();
 
@@ -463,7 +471,15 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
-        await tester.scrollUntilVisible(find.text('Remove Machine'), 100);
+        await tester.scrollUntilVisible(
+          find.text('Remove Machine'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        // scrollUntilVisible stops once the row is barely on screen; the
+        // tap point can still fall below the 600px test surface.
+        await tester.ensureVisible(find.text('Remove Machine'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Remove Machine'));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(TextButton, 'Delete'));
