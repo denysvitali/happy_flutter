@@ -73,6 +73,33 @@ void main() {
     );
   });
 
+  test('a complete cache restores the catalog delta cursor', () async {
+    await sync.testRestoreSessionsCacheFrom({
+      'sessions': [_rawSession('s-good')],
+      'encryptedDataKeys': {'s-good': 'good-key'},
+      'lastFetchedAt': 1700000000000,
+      'catalogWatermark': 1700000005000,
+      'lastFullCatalogAt': 1700000001000,
+    });
+
+    expect(sync.testSessionsCatalogWatermarkMs, 1700000005000);
+    expect(sync.testLastFullSessionsCatalogAtMs, 1700000001000);
+  });
+
+  test('a cache without a cursor leaves the next catalog read full', () async {
+    sync
+      ..testSessionsCatalogWatermarkMs = 1
+      ..testLastFullSessionsCatalogAtMs = 1;
+    await sync.testRestoreSessionsCacheFrom({
+      'sessions': [_rawSession('s-good')],
+      'encryptedDataKeys': {'s-good': 'good-key'},
+      'lastFetchedAt': 1700000000000,
+    });
+
+    expect(sync.testSessionsCatalogWatermarkMs, isNull);
+    expect(sync.testLastFullSessionsCatalogAtMs, isNull);
+  });
+
   for (final empty in [true, false]) {
     test('archive override survives full catalog (empty=$empty)', () async {
       await ApiClient().initialize(serverUrl: 'http://localhost');

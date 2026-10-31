@@ -2286,6 +2286,10 @@ what you have, you must use the options mode.
   /// throttles the *scheduling*, not the InvalidateSync itself.
   static const Duration _sessionsSyncMinInterval = Duration(seconds: 2);
 
+  /// A REST `activeAt` this recent counts as a live heartbeat, matching the
+  /// keep-alive presence timeout.
+  static const int _restPresenceWindowMs = 60000;
+
   /// Delta catalog reads re-request rows updated this long before the
   /// watermark, covering replica lag and late-committing transactions.
   static const int _sessionsDeltaOverlapMs = 10 * 60 * 1000;

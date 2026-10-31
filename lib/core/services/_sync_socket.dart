@@ -1075,10 +1075,12 @@ extension SyncSocket on Sync {
   }
 
   /// Maximum sessions to store in the on-disk sessions cache.
-  /// Cold-start performance is fine with 200 sessions; capping keeps the
-  /// cache small enough to avoid localStorage quota exhaustion on web
-  /// (~5–10 MB limit shared across all keys).
-  static const int _maxCachedSessions = 200;
+  /// Web keeps 200 to avoid localStorage quota exhaustion (~5–10 MB shared
+  /// across all keys). Native MMKV holds the whole catalog of a heavy
+  /// account: a truncated cache cannot carry the delta cursor, so every cold
+  /// start re-downloaded the full catalog. Restore stays bounded because
+  /// only the most recent rows decode synchronously; the tail is deferred.
+  static const int _maxCachedSessions = kIsWeb ? 200 : 2000;
 
   void _persistSessionsCache({bool durable = false}) =>
       MainIsolateStallTracker.instance.track(

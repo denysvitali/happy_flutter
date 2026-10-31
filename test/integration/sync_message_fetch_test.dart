@@ -211,6 +211,53 @@ void main() {
       },
     );
 
+    test(
+      'a catch-up straddling a reconnect covers the reconnect probe',
+      () async {
+        const sessionId = 'sess-straddle';
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+        sync.testSetSessionLastSeq(sessionId, 9);
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-9', 'seq': 9, 'role': 'user'},
+        ]);
+        sync.testSetVisibleSessionId(sessionId);
+        addTearDown(() => sync.testSetVisibleSessionId(null));
+
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          if (afterSeq == 9) {
+            // The socket reconnects while the first page is in flight; its
+            // snapshot still holds the pre-catch-up cursor.
+            sync.testSimulateReconnectProbe(sessionId);
+            return _buildMessagesResponse([
+              for (var seq = 10; seq <= 12; seq++)
+                _makeAgentMessage('msg-$seq', seq: seq, content: 'm$seq'),
+            ], hasMore: true);
+          }
+          if (afterSeq == 12) {
+            return _buildMessagesResponse([
+              for (var seq = 13; seq <= 15; seq++)
+                _makeAgentMessage('msg-$seq', seq: seq, content: 'm$seq'),
+            ]);
+          }
+          return _buildMessagesResponse([]);
+        };
+
+        await sync.fetchMessages(sessionId);
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          capturedAfterSeq.where((seq) => seq == 9),
+          hasLength(1),
+          reason:
+              'The page requested after the reconnect already verified the '
+              'range above the snapshot; it must not be downloaded again.',
+        );
+        expect(sync.testHasFetchProbe(sessionId), isFalse);
+      },
+    );
+
     test('skips fetch when forceTailRefresh but cursor == server', () async {
       // Regression: when onSessionVisible requests a tail refresh but
       // cursor is already caught up (e.g. duplicate socket events),

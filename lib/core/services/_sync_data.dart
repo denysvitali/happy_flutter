@@ -452,22 +452,17 @@ extension SyncData on Sync {
             ),
             thinking: existing?.thinking ?? false,
             thinkingAt: existing?.thinkingAt,
-            // REST fetches cannot tell us whether the CLI process is
-            // actually running -- the server's `active` flag is
-            // persistent (true until archived) and stale. For delta
-            // fetches, preserve the existing presence if known.
-            // On first-load of a session (e.g. cross-device), fall
-            // back to inferring presence from activeAt freshness:
-            // if the server reports active=true within the same 60 s
-            // window used by _presenceTimers, treat as 'online' so
-            // the user doesn't see their live session as inactive
-            // until the first WebSocket activity event arrives.
-            presence:
-                _sessions[sessionId]?.presence ??
-                (active &&
-                        DateTime.now().millisecondsSinceEpoch - activeAt < 60000
-                    ? 'online'
-                    : 'offline'),
+            // The server's `active` flag is persistent (true until
+            // archived), so it alone cannot prove a running process.
+            // `activeAt` is a heartbeat the server persists (throttled to
+            // 30s), so a beat inside the same 60s window used by
+            // _presenceTimers is as good as an ephemeral keep-alive. It
+            // also promotes rows the local timer had already expired:
+            // after a long background every session was offline, and
+            // stayed so until its next socket keep-alive arrived.
+            presence: active && now - activeAt < Sync._restPresenceWindowMs
+                ? 'online'
+                : existing?.presence ?? 'offline',
             lastSeq: lastSeq,
             lastMessageAt: lastMessageAt,
           );
@@ -530,22 +525,33 @@ extension SyncData on Sync {
       _sessions = newSessions;
       // Explicit archive overrides survive until unarchive or runtime reset.
       // Preserve existing timer deadlines so refreshes cannot extend presence.
+      final timerNowMs = DateTime.now().millisecondsSinceEpoch;
       for (final s in _sessions.values) {
         if (s.presence == 'online' && !_presenceTimers.containsKey(s.id)) {
-          _presenceTimers[s.id] = Timer(const Duration(seconds: 60), () {
-            _presenceTimers.remove(s.id);
-            final current = _sessions[s.id];
-            if (current != null && current.presence == 'online') {
-              _sessions[s.id] = current.copyWith(
-                presence: 'offline',
-                thinking: false,
+          // Expire a REST-inferred presence when its heartbeat would have,
+          // not a full window after this fetch.
+          final remainingMs =
+              (Sync._restPresenceWindowMs - (timerNowMs - s.activeAt)).clamp(
+                1000,
+                Sync._restPresenceWindowMs,
               );
-              _notifyDataChanged({SyncDomain.sessions});
-              // Dead process: running tool rows can never receive their
-              // results — stop them animating forever.
-              _reconcileStuckRunningTools(s.id);
-            }
-          });
+          _presenceTimers[s.id] = Timer(
+            Duration(milliseconds: remainingMs),
+            () {
+              _presenceTimers.remove(s.id);
+              final current = _sessions[s.id];
+              if (current != null && current.presence == 'online') {
+                _sessions[s.id] = current.copyWith(
+                  presence: 'offline',
+                  thinking: false,
+                );
+                _notifyDataChanged({SyncDomain.sessions});
+                // Dead process: running tool rows can never receive their
+                // results — stop them animating forever.
+                _reconcileStuckRunningTools(s.id);
+              }
+            },
+          );
         }
       }
 

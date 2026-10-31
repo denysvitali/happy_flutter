@@ -715,7 +715,6 @@ extension SyncMessaging on Sync {
         var totalDecryptMs = 0;
         var totalHttpMs = 0;
         var hitBudget = false;
-        int? cycleRequestOrder;
         int? cycleVerifiedAfterSeq;
         final cycleLiveFeedEpoch = _liveFeedEpoch;
         final cycleStartAfterSeq = afterSeq;
@@ -790,7 +789,6 @@ extension SyncMessaging on Sync {
           final fetchStart = Stopwatch()..start();
           final pageRequestedAfterSeq = afterSeq;
           final pageRequestOrder = ++_messageFetchWorkOrder;
-          cycleRequestOrder ??= pageRequestOrder;
           cycleVerifiedAfterSeq ??= pageRequestedAfterSeq;
           final Response<dynamic> response;
           if (testFetchMessagesOverride != null) {
@@ -1209,8 +1207,13 @@ extension SyncMessaging on Sync {
           // follow-up cycle replay that same page forever and flash the
           // global "Syncing Messages" banner on each invalidation.
           _checkpointSocketCatchUpCursor(sessionId, afterSeq);
+          // Pages walk forward contiguously, so this cycle has verified
+          // everything above its starting cursor up to a page requested
+          // *now*. Crediting only the first page's order made a long
+          // catch-up that straddled a reconnect re-download its whole range
+          // from the pre-reconnect snapshot.
           _messageFetchCoverage[sessionId] = (
-            requestOrder: cycleRequestOrder,
+            requestOrder: pageRequestOrder,
             verifiedAfterSeq: cycleVerifiedAfterSeq,
           );
 

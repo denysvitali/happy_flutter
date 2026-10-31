@@ -192,6 +192,41 @@ void main() {
       },
     );
 
+    for (final fresh in [true, false]) {
+      test('REST heartbeat ${fresh ? 'revives' : 'leaves'} an expired '
+          'presence', () async {
+        instance.testSessions['beat'] = localSession('beat');
+        final now = DateTime.now().millisecondsSinceEpoch;
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'sessions': [
+                    {
+                      ...wireSession('beat'),
+                      'active': true,
+                      'activeAt': fresh ? now - 5000 : now - 120000,
+                    },
+                  ],
+                  'hasNext': false,
+                },
+              ),
+            ),
+          ),
+        );
+
+        await instance.fetchSessions();
+
+        expect(
+          instance.sessions['beat']?.presence,
+          fresh ? 'online' : 'offline',
+        );
+      });
+    }
+
     group('delta catalog reads', () {
       late List<Map<String, dynamic>> queries;
       late List<List<Map<String, dynamic>>> pages;

@@ -545,6 +545,14 @@ extension SyncTestHelpers on Sync {
     _requestMessageFetchProbe(sessionId);
   }
 
+  /// Simulates a socket reconnect for the visible session: snapshot its
+  /// cursor and queue the reconnect probe, as the reconnect handler does.
+  @visibleForTesting
+  void testSimulateReconnectProbe(String sessionId) {
+    _reconnectCursorSnapshot = _sessionLastSeq[sessionId] ?? 0;
+    _requestMessageFetchProbe(sessionId);
+  }
+
   @visibleForTesting
   bool testHasFetchProbe(String sessionId) =>
       _sessionsNeedingFetchProbe.contains(sessionId);
