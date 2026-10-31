@@ -13,6 +13,35 @@ extension SyncData on Sync {
     return null;
   }
 
+  /// Reconciles a fetched row with a session the socket changed mid-fetch.
+  ///
+  /// A socket patch (thinking, activeAt, archive) only proves the in-memory
+  /// row's live fields are newer. Its encrypted metadata and agentState can
+  /// still be older than the response: a streaming session is patched many
+  /// times per second, so keeping the whole in-memory row pinned a stale
+  /// `lifecycleState: errored` on a running session indefinitely. Each blob
+  /// keeps whichever side has the higher version; equal versions keep the
+  /// in-memory copy so unconfirmed optimistic edits survive.
+  Session _mergeConcurrentSessionChange(Session? fetched, Session current) {
+    if (fetched == null) return current;
+    var merged = current;
+    if (fetched.metadata != null &&
+        fetched.metadataVersion > current.metadataVersion) {
+      merged = merged.copyWith(
+        metadata: fetched.metadata,
+        metadataVersion: fetched.metadataVersion,
+        todos: fetched.todos,
+      );
+    }
+    if (fetched.agentStateVersion > current.agentStateVersion) {
+      merged = merged.copyWith(
+        agentState: fetched.agentState,
+        agentStateVersion: fetched.agentStateVersion,
+      );
+    }
+    return merged;
+  }
+
   /// Placeholder sync callback for session git status. Git status is
   /// managed locally and updated via socket events; this exists so the
   /// [InvalidateSync] manager has a no-op fetcher to schedule.
@@ -43,9 +72,16 @@ extension SyncData on Sync {
       final changes = _sessionCatalog.changesSince(catalogRevisionAtStart);
       if (changes == null) {
         // A newer full fetch or journal overflow invalidated this snapshot.
+        final fetched = Map<String, Session>.of(snapshot);
         snapshot
           ..clear()
-          ..addAll(_sessions);
+          ..addAll({
+            for (final entry in _sessions.entries)
+              entry.key: _mergeConcurrentSessionChange(
+                fetched[entry.key],
+                entry.value,
+              ),
+          });
         return;
       }
       for (final id in changes) {
@@ -53,7 +89,7 @@ extension SyncData on Sync {
         if (current == null) {
           snapshot.remove(id);
         } else {
-          snapshot[id] = current;
+          snapshot[id] = _mergeConcurrentSessionChange(snapshot[id], current);
         }
       }
     }
