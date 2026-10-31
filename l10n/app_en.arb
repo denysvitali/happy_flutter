@@ -319,6 +319,11 @@
   "artifactsDeleteConfirm": "Delete artifact?",
   "artifactsTitleLabel": "TITLE",
   "offlineBannerNoConnection": "No internet connection",
+  "offlineBannerLastUpdated": "Showing saved conversations from {age}",
+  "@offlineBannerLastUpdated": {
+    "description": "Shown while offline or reconnecting: the conversation list is the cached copy from the last successful sync. {age} is a relative time such as '5m ago' or 'Just now'.",
+    "placeholders": {"age": {"type": "String"}}
+  },
   "offlineBannerNoConnectionHint": "Check your network connection. Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.",
   "@offlineBannerNoConnectionHint": {"description": "Recovery guidance when no network link is available. Retry eligibility and manual actions depend on the message failure and session state."},
   "offlineBannerReconnectingHint": "Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.",

@@ -61,6 +61,8 @@ extension SyncSocketEvents on Sync {
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
       _reconnectWatchdogAttempt = 0;
+      // A live socket proves the link is back.
+      _retryNetworkFailedSyncs(reason: 'socket reconnected');
       // Whatever was written while the socket was down was never pushed.
       // The visible chat is probed below; every other session is probed
       // when it is next opened.

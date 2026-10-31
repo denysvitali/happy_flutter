@@ -1738,6 +1738,12 @@ abstract class AppLocalizations {
   /// **'No internet connection'**
   String get offlineBannerNoConnection;
 
+  /// Shown while offline or reconnecting: the conversation list is the cached copy from the last successful sync. {age} is a relative time such as '5m ago' or 'Just now'.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing saved conversations from {age}'**
+  String offlineBannerLastUpdated(String age);
+
   /// Recovery guidance when no network link is available. Retry eligibility and manual actions depend on the message failure and session state.
   ///
   /// In en, this message translates to:

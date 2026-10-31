@@ -859,6 +859,13 @@ what you have, you must use the options mode.
       _sessionCatalog.replaceAll(value);
   int? _lastSessionsFetchedAt;
 
+  /// When the session catalog was last fetched successfully, restored from
+  /// the on-disk cache across launches. Null before the first fetch.
+  DateTime? get lastSessionsSyncedAt {
+    final ms = _lastSessionsFetchedAt;
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
   /// Highest server `updatedAt` seen in a complete catalog read. Delta reads
   /// filter on this server-clock value, never on the device clock.
   int? _sessionsCatalogWatermarkMs;
@@ -2084,6 +2091,24 @@ what you have, you must use the options mode.
     if (explicit != null) return explicit;
     if (_activeSyncCount <= 0 || _runningSyncNames.isEmpty) return null;
     return SyncProgress(label: _fallbackSyncLabel(_runningSyncNames.keys));
+  }
+
+  /// Progress of the work the sessions list is waiting on: the catalog
+  /// fetch and resume catch-up. Background refreshes (settings, profile,
+  /// machines, git status, chats that are not open) are excluded, so the
+  /// status pill does not linger after the conversations are fresh.
+  SyncProgress? get catalogSyncProgress {
+    final explicit = _syncProgress;
+    if (explicit != null) return explicit;
+    if ((_runningSyncNames['fetchSessions'] ?? 0) <= 0) return null;
+    return const SyncProgress(label: 'Updating conversations');
+  }
+
+  /// Whether the open chat is fetching messages it does not have yet.
+  bool get isVisibleChatSyncing {
+    final sessionId = _visibleSessionId;
+    if (sessionId == null) return false;
+    return messagesSync[sessionId]?.isRunning ?? false;
   }
 
   static String _fallbackSyncLabel(Iterable<String> names) {

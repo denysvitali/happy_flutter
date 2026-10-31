@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/retry_interceptor.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
@@ -488,6 +489,73 @@ void main() {
         );
         expect(levels, isNotEmpty);
         expect(levels.every((level) => level == LogLevel.error), isTrue);
+      });
+    });
+
+    group('retryNow', () {
+      test('skips the backoff after a connection-level failure', () {
+        fakeAsync((async) {
+          var calls = 0;
+          final sync = InvalidateSync(() async {
+            calls++;
+            if (calls == 1) {
+              throw Exception('net::ERR_NAME_NOT_RESOLVED');
+            }
+          });
+
+          sync.invalidate();
+          async.flushMicrotasks();
+          expect(calls, 1);
+          expect(sync.isPending, isTrue);
+
+          expect(sync.retryNow(), isTrue);
+          async.flushMicrotasks();
+          expect(calls, 2);
+          expect(sync.isPending, isFalse);
+
+          // The cancelled backoff timer must not fire a third run.
+          async.elapse(const Duration(seconds: 10));
+          expect(calls, 2);
+        });
+      });
+
+      test('keeps the backoff after a server-side failure', () {
+        fakeAsync((async) {
+          var calls = 0;
+          final sync = InvalidateSync(() async {
+            calls++;
+            if (calls == 1) {
+              throw DioException(
+                requestOptions: RequestOptions(path: '/v2/sessions'),
+                type: DioExceptionType.badResponse,
+                response: Response(
+                  requestOptions: RequestOptions(path: '/v2/sessions'),
+                  statusCode: 503,
+                ),
+              );
+            }
+          });
+
+          sync.invalidate();
+          async.flushMicrotasks();
+          expect(sync.retryNow(), isFalse);
+          expect(calls, 1);
+
+          async.elapse(const Duration(seconds: 2));
+          expect(calls, 2);
+        });
+      });
+
+      test('does nothing without a pending retry', () async {
+        var calls = 0;
+        final sync = InvalidateSync(() async {
+          calls++;
+        });
+        expect(sync.retryNow(), isFalse);
+        sync.invalidate();
+        await sync.awaitQueue();
+        expect(sync.retryNow(), isFalse);
+        expect(calls, 1);
       });
     });
   });

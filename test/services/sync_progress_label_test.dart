@@ -187,6 +187,74 @@ void main() {
       await instance.sessionsSync.awaitQueue();
     });
 
+    test('catalog progress ignores background refreshes', () async {
+      final machines = Completer<void>();
+      final sessions = Completer<void>();
+      instance.machinesSync = InvalidateSync(
+        () => machines.future,
+        name: 'fetchMachines',
+        onRunningChanged: instance.testOnSyncRunningChanged,
+      );
+      instance.sessionsSync = InvalidateSync(
+        () => sessions.future,
+        name: 'fetchSessions',
+        onRunningChanged: instance.testOnSyncRunningChanged,
+      );
+
+      instance.machinesSync.invalidate();
+      await Future<void>.delayed(Duration.zero);
+      expect(instance.isSyncing, isTrue);
+      expect(instance.catalogSyncProgress, isNull);
+
+      instance.sessionsSync.invalidate();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        instance.catalogSyncProgress?.label,
+        equals('Updating conversations'),
+      );
+
+      sessions.complete();
+      await instance.sessionsSync.awaitQueue();
+      expect(instance.catalogSyncProgress, isNull);
+      expect(instance.isSyncing, isTrue);
+
+      machines.complete();
+      await instance.machinesSync.awaitQueue();
+    });
+
+    test('visible chat syncing tracks only the open chat', () async {
+      final open = Completer<void>();
+      final other = Completer<void>();
+      instance.messagesSync['open'] = InvalidateSync(
+        () => open.future,
+        name: 'fetchMessages',
+        onRunningChanged: instance.testOnSyncRunningChanged,
+      );
+      instance.messagesSync['other'] = InvalidateSync(
+        () => other.future,
+        name: 'fetchMessages',
+        onRunningChanged: instance.testOnSyncRunningChanged,
+      );
+      instance.testSetVisibleSessionId('open');
+
+      instance.messagesSync['other']!.invalidate();
+      await Future<void>.delayed(Duration.zero);
+      expect(instance.isVisibleChatSyncing, isFalse);
+
+      instance.messagesSync['open']!.invalidate();
+      await Future<void>.delayed(Duration.zero);
+      expect(instance.isVisibleChatSyncing, isTrue);
+
+      open.complete();
+      await instance.messagesSync['open']!.awaitQueue();
+      expect(instance.isVisibleChatSyncing, isFalse);
+
+      other.complete();
+      await instance.messagesSync['other']!.awaitQueue();
+      instance.testSetVisibleSessionId(null);
+      instance.messagesSync.clear();
+    });
+
     test('disposing a running sync clears fallback progress', () async {
       final completer = Completer<void>();
       instance.settingsSync = InvalidateSync(

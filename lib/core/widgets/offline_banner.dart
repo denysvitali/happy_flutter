@@ -9,6 +9,7 @@ import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
 import '../services/sync_service.dart';
 import '../theme/app_tokens.dart';
+import '../utils/utils.dart' show formatRelativeTime;
 
 /// A prominent banner displayed when the device is offline or
 /// the socket is disconnected.
@@ -28,6 +29,13 @@ class OfflineBanner extends ConsumerWidget {
   /// Only promote the transient state to a user-facing outage when it lasts
   /// long enough to be actionable.
   static const reconnectGracePeriod = Duration(seconds: 8);
+
+  /// Source of the last successful conversation sync shown while offline.
+  @visibleForTesting
+  static DateTime? Function() lastSyncedAt = _readLastSyncedAt;
+
+  static DateTime? _readLastSyncedAt() =>
+      sync.isInitialized ? sync.lastSessionsSyncedAt : null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -262,7 +270,61 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: AppFontSize.sm, color: fg),
           ),
+          _LastUpdatedLine(color: fg),
         ],
+      ),
+    );
+  }
+}
+
+/// "Showing saved conversations from 5m ago" — tells the user the list on
+/// screen is the cached copy while live sync is unavailable. Re-renders each
+/// minute so the age stays honest during a long outage; hidden when the last
+/// sync is under a minute old or unknown.
+class _LastUpdatedLine extends StatefulWidget {
+  const _LastUpdatedLine({required this.color});
+
+  final Color color;
+
+  @override
+  State<_LastUpdatedLine> createState() => _LastUpdatedLineState();
+}
+
+class _LastUpdatedLineState extends State<_LastUpdatedLine> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final syncedAt = OfflineBanner.lastSyncedAt();
+    if (syncedAt == null ||
+        DateTime.now().difference(syncedAt) < const Duration(minutes: 1)) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    final age = formatRelativeTime(syncedAt, l10n: l10n);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+      child: Text(
+        l10n.offlineBannerLastUpdated(age),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: AppFontSize.sm,
+          color: widget.color.withValues(alpha: 0.8),
+        ),
       ),
     );
   }
@@ -359,6 +421,7 @@ class _BannerContent extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: AppFontSize.sm, color: fg),
           ),
+          _LastUpdatedLine(color: fg),
         ],
       ),
     );

@@ -152,6 +152,16 @@ Exhausted sessions or machines refreshes remain visible through
 successful refresh. A failed cold-start fetch is not an authoritative empty
 catalog.
 
+`SyncProgressBar` is a floating pill scoped to what the screen waits on:
+`SyncStatusScope.sessions` shows `Sync.catalogSyncProgress` (catalog fetch and
+resume catch-up), `SyncStatusScope.chat` shows `Sync.isVisibleChatSyncing`.
+Background refreshes never surface, and progress waits
+`SyncProgressBar.showDelay` so sub-second refreshes do not flash. While
+offline or reconnecting, `OfflineBanner` reports the age of the saved
+catalog (`Sync.lastSessionsSyncedAt`). Connectivity restore and socket
+reconnect call `InvalidateSync.retryNow()`, which skips the remaining backoff
+only after connection-level failures; server errors keep their backoff.
+
 **Lifecycle handling:** `Sync.suspend()` disconnects socket after a 2s grace (deferred timer; cancels if resumed sooner), cancels all timers, flushes MMKV. `Sync.resume()` reconnects the socket and invalidates syncs; it also forces a fresh connection when a socket still claims `connected` after >45s backgrounded (zombie — the server-side session dies ~45s after heartbeats stop). Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades. A 15s reconnect watchdog armed on resume re-arms itself while disconnected (cancelled on connect/suspend), and `Sync.forceReconnect()` is the manual "Reconnect now" entry point (offline banner) — it dials fresh and arms the same watchdog.
 
 See `docs/SYNC_PATTERNS.md` for subscription template and details.

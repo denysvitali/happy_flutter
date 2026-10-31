@@ -10,8 +10,12 @@ import 'package:happy_flutter/core/widgets/offline_banner.dart';
 import 'package:happy_flutter/l10n_generated/app_localizations.dart';
 
 class _StubNetworkNotifier extends NetworkNotifier {
+  _StubNetworkNotifier([this.online = true]);
+
+  final bool online;
+
   @override
-  bool build() => true;
+  bool build() => online;
 }
 
 class _StubConnectionNotifier extends ConnectionNotifier {
@@ -24,6 +28,11 @@ class _StubConnectionNotifier extends ConnectionNotifier {
 }
 
 void main() {
+  final defaultLastSyncedAt = OfflineBanner.lastSyncedAt;
+  tearDown(() {
+    OfflineBanner.lastSyncedAt = defaultLastSyncedAt;
+  });
+
   testWidgets('hides a routine reconnect during the startup grace period', (
     tester,
   ) async {
@@ -44,18 +53,62 @@ void main() {
     expect(find.text('Live updates disconnected'), findsOneWidget);
     expect(find.text('Reconnect now'), findsOneWidget);
   });
+
+  testWidgets('offline banner says how old the saved conversations are', (
+    tester,
+  ) async {
+    OfflineBanner.lastSyncedAt = () =>
+        DateTime.now().subtract(const Duration(minutes: 5));
+    await tester.pumpWidget(_app(ConnectionStatus.disconnected, online: false));
+
+    expect(find.text('No internet connection'), findsOneWidget);
+    expect(
+      find.text('Showing saved conversations from 5m ago'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('reconnecting banner also reports the saved data age', (
+    tester,
+  ) async {
+    OfflineBanner.lastSyncedAt = () =>
+        DateTime.now().subtract(const Duration(hours: 2));
+    await tester.pumpWidget(_app(ConnectionStatus.error));
+
+    expect(
+      find.text('Showing saved conversations from 2h ago'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('fresh or unknown sync age is not shown', (tester) async {
+    OfflineBanner.lastSyncedAt = () =>
+        DateTime.now().subtract(const Duration(seconds: 20));
+    await tester.pumpWidget(_app(ConnectionStatus.disconnected, online: false));
+    expect(find.textContaining('Showing saved conversations'), findsNothing);
+
+    OfflineBanner.lastSyncedAt = () => null;
+    await tester.pumpWidget(
+      _app(ConnectionStatus.disconnected, online: false, key: UniqueKey()),
+    );
+    expect(find.textContaining('Showing saved conversations'), findsNothing);
+  });
 }
 
-Widget _app(ConnectionStatus status) => ProviderScope(
-  overrides: [
-    networkNotifierProvider.overrideWith(_StubNetworkNotifier.new),
-    connectionNotifierProvider.overrideWith(
-      () => _StubConnectionNotifier(status),
-    ),
-  ],
-  child: const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(body: OfflineBanner()),
-  ),
-);
+Widget _app(ConnectionStatus status, {bool online = true, Key? key}) =>
+    ProviderScope(
+      key: key,
+      overrides: [
+        networkNotifierProvider.overrideWith(
+          () => _StubNetworkNotifier(online),
+        ),
+        connectionNotifierProvider.overrideWith(
+          () => _StubConnectionNotifier(status),
+        ),
+      ],
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: OfflineBanner()),
+      ),
+    );

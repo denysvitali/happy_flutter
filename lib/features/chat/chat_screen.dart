@@ -2340,7 +2340,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     top: 0,
                     left: 0,
                     right: 0,
-                    child: IgnorePointer(child: SyncProgressBar()),
+                    child: IgnorePointer(
+                      child: SyncProgressBar(scope: SyncStatusScope.chat),
+                    ),
                   ),
                 ],
               );

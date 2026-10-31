@@ -908,6 +908,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineBannerNoConnection => 'No internet connection';
 
   @override
+  String offlineBannerLastUpdated(String age) {
+    return 'Showing saved conversations from $age';
+  }
+
+  @override
   String get offlineBannerNoConnectionHint =>
       'Check your network connection. Eligible queued messages may retry when the connection returns. Use Retry on failed messages when available.';
 

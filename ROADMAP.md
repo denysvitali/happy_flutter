@@ -117,6 +117,15 @@ tests are added for CI, with device and screen-reader acceptance still pending.
 Remaining related gaps: localized settings/task search labels and explicit
 feedback when oversized artifact clipboard content is truncated.
 
+Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
+background refresh (settings, machines, git status, unopened chats) and stayed
+through retry backoff, so resumes looked stalled after conversations were
+already fresh. It is now a floating pill scoped to the sessions catalog or the
+open chat, shown only after 700ms. Offline/reconnecting banners state the age
+of the saved conversations, and connectivity restore skips the backoff of
+syncs that failed on a dead link. Widget/unit regressions added; device
+acceptance pending.
+
 Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
 waits on its pod), the chat shows the live pod phase/reason, failure message and
 a tail of the pod logs above the composer, polling the daemon every 2s until the

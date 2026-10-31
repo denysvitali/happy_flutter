@@ -52,6 +52,7 @@ class InvalidateSync {
   DateTime? _lastSuccessAt;
   DateTime? _lastFailureAt;
   String? _lastFailureKind;
+  bool _lastFailureWasConnectionLevel = false;
 
   /// When the last operation completed. Used by Sync to evict stale
   /// per-session InvalidateSync entries and prevent unbounded growth.
@@ -264,6 +265,7 @@ class InvalidateSync {
       if (generation != _runGeneration) return;
       _lastFailureAt = DateTime.now();
       _lastFailureKind = classifySyncFailureReason(error);
+      _lastFailureWasConnectionLevel = isConnectionLevelNetworkError(error);
 
       _retryCount++;
       if (_retryCount <= _maxRetries) {
@@ -406,6 +408,24 @@ class InvalidateSync {
     _retryTimer = Timer(Duration(milliseconds: clampedDelay), () {
       unawaited(_run(generation));
     });
+  }
+
+  /// Starts a backoff retry immediately when its last attempt failed
+  /// because the link was down (DNS, refused connection, Cronet abort).
+  ///
+  /// Called when connectivity or the live socket comes back: the waiting
+  /// retry would otherwise sit out up to [maxDelayMs] after the network is
+  /// already usable. Server-side failures (5xx, timeouts) keep their backoff
+  /// so a struggling server is not hit sooner. Returns whether a retry was
+  /// started.
+  bool retryNow() {
+    if (_disposed || isBackgrounded) return false;
+    final timer = _retryTimer;
+    if (timer == null || !_lastFailureWasConnectionLevel) return false;
+    timer.cancel();
+    _retryTimer = null;
+    unawaited(_run(_runGeneration));
+    return true;
   }
 
   /// Quiesce lifecycle timers without tearing down the sync instance.

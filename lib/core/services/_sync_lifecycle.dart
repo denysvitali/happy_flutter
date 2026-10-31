@@ -370,6 +370,10 @@ extension SyncLifecycle on Sync {
       );
     }
 
+    // Fetches that failed while the link was down retry now, not after
+    // their backoff timer.
+    _retryNetworkFailedSyncs(reason: 'resume');
+
     // Resume lightweight services immediately.
     messageOutbox.resume();
     _wakeReadyOutboxSessions();
@@ -709,6 +713,30 @@ extension SyncLifecycle on Sync {
         }
       },
     );
+  }
+
+  /// Skips the backoff of every sync whose last attempt failed on a
+  /// connection-level error. See [InvalidateSync.retryNow].
+  void _retryNetworkFailedSyncs({required String reason}) {
+    if (!_criticalSyncManagersInitialized) return;
+    var started = 0;
+    for (final manager in <InvalidateSync>[
+      sessionsSync,
+      settingsSync,
+      profileSync,
+      purchasesSync,
+      machinesSync,
+      pushTokenSync,
+      nativeUpdateSync,
+      artifactsSync,
+      sessionGitStatusSync,
+      ...messagesSync.values,
+    ]) {
+      if (manager.retryNow()) started++;
+    }
+    if (started > 0) {
+      logger.info('[Sync] $reason: retrying $started network-failed syncs now');
+    }
   }
 
   /// Runs the deferred/background phases after the resume sessions fetch,

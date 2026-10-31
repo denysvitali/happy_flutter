@@ -220,7 +220,7 @@ Top-level app widgets.
 - `auth_gate.dart` — the auth gate. **Every route wraps its child in `AuthGate`.**
 - `error_boundary.dart` — error boundary widget (Sentry chaining).
 - `offline_banner.dart` — offline state banner.
-- `sync_progress_bar.dart` — initial-sync progress bar.
+- `sync_progress_bar.dart` — floating conversation-sync status pill.
 
 ### `lib/core/wire/`
 
