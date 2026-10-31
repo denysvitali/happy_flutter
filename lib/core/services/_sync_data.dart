@@ -65,12 +65,30 @@ extension SyncData on Sync {
     final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
     final forceFullFetch = _forceFullFetchNext;
     if (forceFullFetch) _forceFullFetchNext = false;
-    // Device clocks and replica replay do not define a safe change cursor.
-    // Reconcile the primary catalog until the API has a durable cursor.
+    // Device clocks do not define a safe change cursor; the watermark is the
+    // server's own `updatedAt`, re-read with an overlap for replica lag.
+    // Hard deletes are invisible to a delta, so a full reconciliation still
+    // runs when forced, without a cursor, or once per interval.
+    final watermark = _sessionsCatalogWatermarkMs;
+    final lastFullAt = _lastFullSessionsCatalogAtMs;
+    final isDelta =
+        !forceFullFetch &&
+        watermark != null &&
+        lastFullAt != null &&
+        _lastSessionsFetchedAt != null &&
+        _sessions.isNotEmpty &&
+        fetchStartMs - lastFullAt < Sync._sessionsFullReconcileIntervalMs;
+    final changedSince = isDelta
+        ? max(0, watermark - Sync._sessionsDeltaOverlapMs)
+        : null;
     final catalogRevisionAtStart = _sessionCatalog.revision;
+    // Set when the journal cannot replay concurrent changes: the live rows
+    // win, so this read did not reconcile the catalog against the server.
+    var reconciliationAbandoned = false;
     void preserveConcurrentChanges(Map<String, Session> snapshot) {
       final changes = _sessionCatalog.changesSince(catalogRevisionAtStart);
       if (changes == null) {
+        reconciliationAbandoned = true;
         // A newer full fetch or journal overflow invalidated this snapshot.
         final fetched = Map<String, Session>.of(snapshot);
         snapshot
@@ -100,14 +118,40 @@ extension SyncData on Sync {
       final apiClient = ApiClient();
       final allSessions = await SessionsApi(
         client: apiClient,
-      ).fetchSessions(limit: 50);
+      ).fetchSessions(limit: 50, changedSince: changedSince);
       if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
 
       if (logger.shouldLog(LogLevel.info)) {
         logger.info(
           'fetchSessions: received ${allSessions.length} sessions '
-          '(full catalog)',
+          '(${isDelta ? 'delta changedSince=$changedSince' : 'full catalog'})',
         );
+      }
+      var fetchedWatermark = isDelta ? watermark : null;
+      for (final row in allSessions) {
+        if (row is! Map<String, dynamic>) continue;
+        final updatedAt = _asSessionInt(row['updatedAt']);
+        if (updatedAt != null &&
+            (fetchedWatermark == null || updatedAt > fetchedWatermark)) {
+          fetchedWatermark = updatedAt;
+        }
+      }
+      void commitCatalogCursor() {
+        _sessionsCatalogWatermarkMs = fetchedWatermark;
+        if (reconciliationAbandoned) {
+          _lastFullSessionsCatalogAtMs = null;
+        } else if (!isDelta) {
+          _lastFullSessionsCatalogAtMs = fetchStartMs;
+        }
+        _lastSessionsFetchedAt = fetchStartMs;
+      }
+
+      if (isDelta && allSessions.isEmpty) {
+        // Nothing changed server-side; the resident catalog stays as is.
+        commitCatalogCursor();
+        _scheduleSaveSessionsCache();
+        logger.info('fetchSessions: no changes since delta cursor');
+        return;
       }
       if (allSessions.isNotEmpty) {
         showedConversationProgress = true;
@@ -131,7 +175,7 @@ extension SyncData on Sync {
           }
         }
         _sessions = snapshot;
-        _lastSessionsFetchedAt = fetchStartMs;
+        commitCatalogCursor();
         _scheduleSaveSessionsCache();
         _notifyDataChanged({SyncDomain.sessions});
         logger.info('fetchSessions: reconciled empty full snapshot');
@@ -437,9 +481,12 @@ extension SyncData on Sync {
       }
 
       // Build then swap atomically; retain live presence timer deadlines.
-      final newSessions = Map<String, Session>.fromEntries(
-        decryptedSessions.map((s) => MapEntry(s.id, s)),
-      );
+      // A delta only carries changed rows, so it overlays the resident
+      // catalog instead of replacing it.
+      final newSessions = <String, Session>{
+        if (isDelta) ..._sessions,
+        for (final s in decryptedSessions) s.id: s,
+      };
       // Preserve newly spawned placeholders until the server publishes them.
       final now = DateTime.now().millisecondsSinceEpoch;
       final preservedSessions = <String>[];
@@ -516,7 +563,7 @@ extension SyncData on Sync {
       _checkForNewPermissionRequests(_sessions.values.toList());
 
       logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
-      _lastSessionsFetchedAt = fetchStartMs;
+      commitCatalogCursor();
       _scheduleSaveSessionsCache();
       _notifyDataChanged({SyncDomain.sessions});
     } on DioException {

@@ -66,6 +66,8 @@ void main() {
       instance = Sync();
       instance.testSessions.clear();
       instance.testLastSessionsFetchedAt = null;
+      instance.testSessionsCatalogWatermarkMs = null;
+      instance.testLastFullSessionsCatalogAtMs = null;
       instance.testForceFullFetchNext = false;
       instance.testIsInitialized = true;
 
@@ -91,6 +93,8 @@ void main() {
       ApiClient().dispose();
       instance.testSessions.clear();
       instance.testLastSessionsFetchedAt = null;
+      instance.testSessionsCatalogWatermarkMs = null;
+      instance.testLastFullSessionsCatalogAtMs = null;
       instance.testForceFullFetchNext = false;
       instance.testIsInitialized = false;
     });
@@ -152,7 +156,7 @@ void main() {
     };
 
     test(
-      'cached and advanced device clocks never filter catalog reads',
+      'device clocks never filter catalog reads; deltas use server time',
       () async {
         instance.testLastSessionsFetchedAt = 9999999999999;
         final queries = <Map<String, dynamic>>[];
@@ -180,13 +184,101 @@ void main() {
         await instance.fetchSessions();
 
         expect(queries, hasLength(2));
-        expect(
-          queries.every((query) => !query.containsKey('changedSince')),
-          isTrue,
-        );
+        expect(queries.first.containsKey('changedSince'), isFalse);
+        // The delta cursor is the server's updatedAt minus the overlap,
+        // never the (advanced) device clock.
+        expect(queries.last['changedSince'], 1700000000000 - 10 * 60 * 1000);
         expect(instance.sessions['server-clock']?.seq, 2);
       },
     );
+
+    group('delta catalog reads', () {
+      late List<Map<String, dynamic>> queries;
+      late List<List<Map<String, dynamic>>> pages;
+
+      setUp(() {
+        queries = [];
+        pages = [];
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              queries.add(Map<String, dynamic>.from(options.queryParameters));
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: {
+                    'sessions': pages.isEmpty ? [] : pages.removeAt(0),
+                    'hasNext': false,
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      });
+
+      Map<String, dynamic> row(String id, int updatedAt, {int seq = 1}) => {
+        ...wireSession(id, seq: seq),
+        'updatedAt': updatedAt,
+      };
+
+      test('overlay changed rows and keep unchanged ones', () async {
+        pages.add([row('a', 1700000000000), row('b', 1700000005000)]);
+        await instance.fetchSessions();
+        expect(instance.testSessionsCatalogWatermarkMs, 1700000005000);
+
+        pages.add([row('b', 1700000009000, seq: 7), row('c', 1700000008000)]);
+        await instance.fetchSessions();
+
+        expect(queries.last['changedSince'], 1700000005000 - 10 * 60 * 1000);
+        expect(instance.sessions.keys, containsAll(<String>['a', 'b', 'c']));
+        expect(instance.sessions['b']?.seq, 7);
+        expect(instance.testSessionsCatalogWatermarkMs, 1700000009000);
+      });
+
+      test('an empty delta leaves the catalog untouched', () async {
+        pages.add([row('a', 1700000000000)]);
+        await instance.fetchSessions();
+        final before = instance.sessions['a'];
+
+        await instance.fetchSessions();
+
+        expect(queries.last.containsKey('changedSince'), isTrue);
+        expect(instance.sessions['a'], same(before));
+        expect(instance.testSessionsCatalogWatermarkMs, 1700000000000);
+      });
+
+      test(
+        'forced and expired reconciliations read the full catalog',
+        () async {
+          pages.add([row('a', 1700000000000), row('gone', 1700000000000)]);
+          await instance.fetchSessions();
+
+          instance.testForceFullFetchNext = true;
+          pages.add([row('a', 1700000000000)]);
+          await instance.fetchSessions();
+          expect(queries.last.containsKey('changedSince'), isFalse);
+          expect(instance.sessions.containsKey('gone'), isFalse);
+
+          instance.testLastFullSessionsCatalogAtMs =
+              DateTime.now().millisecondsSinceEpoch - 25 * 60 * 60 * 1000;
+          pages.add([row('a', 1700000000000)]);
+          await instance.fetchSessions();
+          expect(queries.last.containsKey('changedSince'), isFalse);
+        },
+      );
+
+      test('a reset delta cursor falls back to a full read', () async {
+        pages.add([row('a', 1700000000000)]);
+        await instance.fetchSessions();
+
+        instance.testLastSessionsFetchedAt = null;
+        await instance.fetchSessions();
+
+        expect(queries.last.containsKey('changedSince'), isFalse);
+      });
+    });
 
     for (final empty in [false, true]) {
       for (final duringDecrypt in [false, true]) {
@@ -299,7 +391,8 @@ void main() {
         expect(instance.sessions.keys, ['live']);
         expect(instance.sessions['live'], same(live));
 
-        // A later uncontended refresh can reconcile normally.
+        // The abandoned read is not a full reconciliation, so the later
+        // uncontended refresh reads the whole catalog again.
         await instance.fetchSessions();
         expect(instance.sessions.keys, ['remote']);
       });
@@ -337,6 +430,8 @@ void main() {
 
         final olderFetch = instance.fetchSessions();
         await firstStarted.future;
+        // Deltas cannot remove rows; the later reconciling read is full.
+        instance.testForceFullFetchNext = true;
         final newerFetch = instance.fetchSessions();
         await Future<void>.delayed(Duration.zero);
         expect(requests, 1, reason: 'the later fetch waits for the first');

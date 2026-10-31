@@ -109,6 +109,20 @@ extension SyncTestHelpers on Sync {
   set testLastSessionsFetchedAt(int? value) => _lastSessionsFetchedAt = value;
 
   @visibleForTesting
+  int? get testSessionsCatalogWatermarkMs => _sessionsCatalogWatermarkMs;
+
+  @visibleForTesting
+  set testSessionsCatalogWatermarkMs(int? value) =>
+      _sessionsCatalogWatermarkMs = value;
+
+  @visibleForTesting
+  int? get testLastFullSessionsCatalogAtMs => _lastFullSessionsCatalogAtMs;
+
+  @visibleForTesting
+  set testLastFullSessionsCatalogAtMs(int? value) =>
+      _lastFullSessionsCatalogAtMs = value;
+
+  @visibleForTesting
   bool get testForceFullFetchNext => _forceFullFetchNext;
 
   @visibleForTesting

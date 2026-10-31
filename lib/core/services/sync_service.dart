@@ -858,6 +858,13 @@ what you have, you must use the options mode.
   set _sessions(Map<String, Session> value) =>
       _sessionCatalog.replaceAll(value);
   int? _lastSessionsFetchedAt;
+
+  /// Highest server `updatedAt` seen in a complete catalog read. Delta reads
+  /// filter on this server-clock value, never on the device clock.
+  int? _sessionsCatalogWatermarkMs;
+
+  /// Device time of the last complete (unfiltered) catalog reconciliation.
+  int? _lastFullSessionsCatalogAtMs;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
   int? _lastDeferredPhaseAtMs;
@@ -2278,6 +2285,14 @@ what you have, you must use the options mode.
   /// back-to-back /v2/sessions HTTP requests — the debounce timer only
   /// throttles the *scheduling*, not the InvalidateSync itself.
   static const Duration _sessionsSyncMinInterval = Duration(seconds: 2);
+
+  /// Delta catalog reads re-request rows updated this long before the
+  /// watermark, covering replica lag and late-committing transactions.
+  static const int _sessionsDeltaOverlapMs = 10 * 60 * 1000;
+
+  /// A delta read cannot observe hard deletes; reconcile the full catalog
+  /// at most this often (and whenever a full fetch is forced).
+  static const int _sessionsFullReconcileIntervalMs = 24 * 60 * 60 * 1000;
 
   /// Minimum interval between consecutive settings syncs.  Without this,
   /// profile switching and socket-echo cascades can cause rapid-fire POST

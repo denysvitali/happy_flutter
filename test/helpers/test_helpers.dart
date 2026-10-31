@@ -101,6 +101,11 @@ void resetTestSync(Sync sync) {
   // the next test's sendMessage.
   sync.testClearSpawnGuardState();
   sync.testResetRpcCapabilitiesPolicy();
+  // Without a delta cursor the next catalog read is a full reconciliation.
+  sync
+    ..testLastSessionsFetchedAt = null
+    ..testSessionsCatalogWatermarkMs = null
+    ..testLastFullSessionsCatalogAtMs = null;
   // Clear per-session message/regroup/orphan state so residue from a
   // previous test does not survive into the next (matches the
   // per-session fields cleared by Sync.shutdown()).

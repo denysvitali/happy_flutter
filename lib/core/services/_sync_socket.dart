@@ -299,6 +299,8 @@ extension SyncSocket on Sync {
 
     if (resetSessionDeltaCursor) {
       _lastSessionsFetchedAt = null;
+      _sessionsCatalogWatermarkMs = null;
+      _lastFullSessionsCatalogAtMs = null;
     }
 
     // Phase 0: Critical syncs - immediate invalidation.
@@ -908,6 +910,12 @@ extension SyncSocket on Sync {
       // (after this cold-start full fetch completes) use incremental sync
       // instead of re-fetching everything.
       _lastSessionsFetchedAt = WireParsers.parseInt(cache['lastFetchedAt']);
+      _sessionsCatalogWatermarkMs = WireParsers.parseInt(
+        cache['catalogWatermark'],
+      );
+      _lastFullSessionsCatalogAtMs = WireParsers.parseInt(
+        cache['lastFullCatalogAt'],
+      );
 
       // If any cached session has messages on the server (lastSeq > 0)
       // but no lastMessageAt locally, the cache predates the field and
@@ -949,6 +957,8 @@ extension SyncSocket on Sync {
       _sessionDataKeys.clear();
       _sessionEncryptedDataKeys.clear();
       _lastSessionsFetchedAt = null;
+      _sessionsCatalogWatermarkMs = null;
+      _lastFullSessionsCatalogAtMs = null;
       SessionsCacheStorage.instance.clearSessionsCache();
     }
   }
@@ -1104,8 +1114,15 @@ extension SyncSocket on Sync {
       }
     }
 
+    // A capped cache is not the whole catalog: a cold start must reconcile
+    // fully rather than overlay a delta on a truncated snapshot.
+    final cacheHoldsCatalog = _sessionJsonCache.length >= _sessions.length;
     final snapshot = <String, dynamic>{
       'lastFetchedAt': _lastSessionsFetchedAt,
+      if (cacheHoldsCatalog) ...{
+        'catalogWatermark': _sessionsCatalogWatermarkMs,
+        'lastFullCatalogAt': _lastFullSessionsCatalogAtMs,
+      },
       'sessions': [for (final e in _sessionJsonCache.values) e.$2],
       'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
     };

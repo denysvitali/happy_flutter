@@ -1307,6 +1307,8 @@ extension SyncLifecycle on Sync {
     _optimisticallyArchivedSessions.clear();
     _sessions.clear();
     _lastSessionsFetchedAt = null;
+    _sessionsCatalogWatermarkMs = null;
+    _lastFullSessionsCatalogAtMs = null;
     SessionsCacheStorage.instance.clearSessionsCache();
     _machines.clear();
     _sessionGitStatus.clear();
