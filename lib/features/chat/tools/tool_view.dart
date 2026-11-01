@@ -1167,23 +1167,20 @@ class _StaggerFadeContent extends StatelessWidget {
     final start = index * staggerStep;
     final end = (start + _kStaggerFadeWindow).clamp(0.0, 1.0);
 
-    final curvedAnim = CurvedAnimation(
-      parent: controller,
-      curve: Interval(start, end, curve: AppCurve.exit),
-    );
-    final opacity = Tween<double>(begin: 1.0, end: 0.0).animate(curvedAnim);
-    final slideY = Tween<double>(
-      begin: 0.0,
-      end: _kStaggerSlideOffset,
-    ).animate(curvedAnim);
+    // Evaluate the interval inline: a CurvedAnimation built here would add
+    // a status listener to [controller] on every rebuild and never detach.
+    final interval = Interval(start, end, curve: AppCurve.exit);
 
     return AnimatedBuilder(
       animation: controller,
       child: child,
-      builder: (context, innerChild) => Transform.translate(
-        offset: Offset(0, slideY.value),
-        child: Opacity(opacity: opacity.value, child: innerChild),
-      ),
+      builder: (context, innerChild) {
+        final t = interval.transform(controller.value);
+        return Transform.translate(
+          offset: Offset(0, _kStaggerSlideOffset * t),
+          child: Opacity(opacity: 1.0 - t, child: innerChild),
+        );
+      },
     );
   }
 }

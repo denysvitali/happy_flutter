@@ -48,6 +48,7 @@ extension _ChatInputAttachmentActions on _ChatInputState {
                 children: [
                   for (var i = 0; i < images.length; i++)
                     _AttachmentThumb(
+                      key: ObjectKey(images[i]),
                       image: images[i],
                       onRemove: () => controller.remove(images[i]),
                     ),
@@ -63,14 +64,52 @@ extension _ChatInputAttachmentActions on _ChatInputState {
 
 enum _AttachSource { gallery, camera }
 
-class _AttachmentThumb extends StatelessWidget {
-  const _AttachmentThumb({required this.image, required this.onRemove});
+class _AttachmentThumb extends StatefulWidget {
+  const _AttachmentThumb({
+    required this.image,
+    required this.onRemove,
+    super.key,
+  });
 
   final OutgoingImage image;
   final VoidCallback onRemove;
 
   @override
+  State<_AttachmentThumb> createState() => _AttachmentThumbState();
+}
+
+class _AttachmentThumbState extends State<_AttachmentThumb> {
+  static const double _size = 56;
+
+  // The composer rebuilds on every keystroke; decode the base64 payload once
+  // per image instead of on each build.
+  late Uint8List _bytes = base64Decode(widget.image.base64Data);
+
+  @override
+  void didUpdateWidget(_AttachmentThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.image.base64Data, widget.image.base64Data)) {
+      _bytes = base64Decode(widget.image.base64Data);
+    }
+  }
+
+  /// Decodes at thumbnail resolution: the shorter side covers the box, so
+  /// [BoxFit.cover] stays sharp without holding a full-size bitmap.
+  ImageProvider _provider(BuildContext context) {
+    final px = (_size * MediaQuery.devicePixelRatioOf(context)).ceil();
+    final w = widget.image.width;
+    final h = widget.image.height;
+    final landscape = w != null && h != null && w > h;
+    return ResizeImage(
+      MemoryImage(_bytes),
+      width: landscape ? null : px,
+      height: landscape ? px : null,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final onRemove = widget.onRemove;
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
     return Padding(
@@ -80,10 +119,10 @@ class _AttachmentThumb extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Image.memory(
-              base64Decode(image.base64Data),
-              width: 56,
-              height: 56,
+            child: Image(
+              image: _provider(context),
+              width: _size,
+              height: _size,
               fit: BoxFit.cover,
               gaplessPlayback: true,
             ),

@@ -355,7 +355,19 @@ class _UserImageThumb extends StatelessWidget {
         constraints: const BoxConstraints(maxHeight: _maxThumbHeight),
         child: ClipRRect(
           borderRadius: borderRadius,
-          child: Image.network(url, fit: BoxFit.contain),
+          // Decode at the thumbnail's physical height, not the original.
+          child: Image(
+            image: ResizeImage(
+              NetworkImage(url),
+              height: math.max(
+                1,
+                (_maxThumbHeight * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+              ),
+              policy: ResizeImagePolicy.fit,
+            ),
+            fit: BoxFit.contain,
+          ),
         ),
       );
     }

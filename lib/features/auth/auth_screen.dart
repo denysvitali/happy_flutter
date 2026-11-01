@@ -328,7 +328,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   Widget build(BuildContext context) {
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return Scaffold(
       appBar: _buildAppBar(context),
@@ -388,7 +388,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   Widget _buildLandingScreen(BuildContext context, bool isLandscape) {
     final theme = Theme.of(context);
-    final padding = MediaQuery.of(context).padding;
+    final padding = MediaQuery.paddingOf(context);
 
     final notices = _buildNotices(context);
     final header = AuthHeader(theme: theme);
@@ -543,7 +543,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   Widget _buildQRScreen(BuildContext context, bool isLandscape) {
     final theme = Theme.of(context);
-    final padding = MediaQuery.of(context).padding;
+    final padding = MediaQuery.paddingOf(context);
 
     final instructions = QRInstructions(theme: theme);
 

@@ -115,7 +115,7 @@ class _CreateLoopSheetState extends ConsumerState<CreateLoopSheet> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final viewInsets = MediaQuery.of(context).viewInsets;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
       child: SafeArea(

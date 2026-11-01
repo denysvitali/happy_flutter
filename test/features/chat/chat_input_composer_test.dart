@@ -475,6 +475,51 @@ void main() {
     attachments.dispose();
   });
 
+  testWidgets('attachment thumbnails decode once, at thumbnail size', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final attachments = ChatAttachmentController();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        attachmentController: attachments,
+        onSend: () {},
+      ),
+    );
+    attachments.add(
+      const OutgoingImage(
+        mediaType: 'image/png',
+        base64Data:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR'
+            '42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        width: 1600,
+        height: 1200,
+      ),
+    );
+    await tester.pump();
+
+    Image thumb() => tester.widget<Image>(
+      find.byWidgetPredicate((w) => w is Image && w.width == 56),
+    );
+    final resize = thumb().image as ResizeImage;
+    // Landscape: the shorter side (height) covers the 56dp box.
+    final dpr = tester.view.devicePixelRatio;
+    expect(resize.height, (56 * dpr).ceil());
+    expect(resize.width, isNull);
+    final bytes = (resize.imageProvider as MemoryImage).bytes;
+
+    // Typing rebuilds the composer; the decoded bytes must be reused.
+    controller.text = 'hello';
+    await tester.pump();
+    final after = (thumb().image as ResizeImage).imageProvider as MemoryImage;
+    expect(identical(after.bytes, bytes), isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+    attachments.dispose();
+  });
+
   testWidgets('offers a distinct next-turn action for active Codex turns', (
     tester,
   ) async {

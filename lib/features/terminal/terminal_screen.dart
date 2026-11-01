@@ -134,7 +134,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     // Resolved once per build so every nested widget reads the same
     // palette. The extension is registered in ThemeHelper so it's
     // guaranteed to be present.
