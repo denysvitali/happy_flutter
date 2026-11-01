@@ -493,7 +493,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           AppBanner(
             tone: AppBadgeTone.warning,
             title: l10n.sessionInfoCliOutdated,
-            message: 'Run: npm install -g happy-coder@latest',
+            message: l10n.sessionInfoCliUpdateRun(
+              'npm install -g happy-coder@latest',
+            ),
             trailing: const Icon(Icons.copy_outlined),
             onTap: () => _copyToClipboard(
               'npm install -g happy-coder@latest',

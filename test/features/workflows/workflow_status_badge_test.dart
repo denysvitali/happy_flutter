@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/workflow_run.dart';
 import 'package:happy_flutter/features/workflows/workflow_status_badge.dart';
 
 Widget _harness(String status) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Scaffold(body: WorkflowStatusBadge(status: status)),
 );
 

@@ -258,7 +258,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
         actions: [
           if (agents.isNotEmpty)
             PopupMenuButton<String>(
-              tooltip: 'Filter tasks by agent',
+              tooltip: context.l10n.zenFilterByAgent,
               icon: Icon(
                 Icons.people_alt_outlined,
                 color: selectedAgent == null

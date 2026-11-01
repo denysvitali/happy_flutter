@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../core/models/workflow_run.dart';
@@ -13,31 +14,34 @@ class WorkflowStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, tone) = _resolve(status);
+    final (label, tone) = _resolve(status, context.l10n);
     return AppBadge(label: label, tone: tone, showToneIcon: false);
   }
 
-  (String, AppBadgeTone) _resolve(String status) {
+  (String, AppBadgeTone) _resolve(String status, AppLocalizations l10n) {
     switch (status) {
       case WorkflowStatus.running:
-        return ('Running', AppBadgeTone.info);
+        return (l10n.workflowStatusRunning, AppBadgeTone.info);
       case WorkflowStatus.paused:
-        return ('Paused', AppBadgeTone.warning);
+        return (l10n.workflowStatusPaused, AppBadgeTone.warning);
       case WorkflowStatus.completed:
-        return ('Completed', AppBadgeTone.success);
+        return (l10n.workflowStatusCompleted, AppBadgeTone.success);
       case WorkflowStatus.failed:
-        return ('Failed', AppBadgeTone.danger);
+        return (l10n.workflowStatusFailed, AppBadgeTone.danger);
       case WorkflowStatus.killed:
-        return ('Killed', AppBadgeTone.danger);
+        return (l10n.workflowStatusKilled, AppBadgeTone.danger);
       case WorkflowStatus.cancelled:
-        return ('Cancelled', AppBadgeTone.neutral);
+        return (l10n.workflowStatusCancelled, AppBadgeTone.neutral);
       case WorkflowStatus.asyncLaunched:
-        return ('Launching', AppBadgeTone.info);
+        return (l10n.workflowStatusLaunching, AppBadgeTone.info);
       case WorkflowStatus.queued:
       case WorkflowStatus.pending:
-        return ('Queued', AppBadgeTone.warning);
+        return (l10n.workflowStatusQueued, AppBadgeTone.warning);
       default:
-        return (status.isEmpty ? 'Unknown' : status, AppBadgeTone.neutral);
+        return (
+          status.isEmpty ? l10n.workflowStatusUnknown : status,
+          AppBadgeTone.neutral,
+        );
     }
   }
 }

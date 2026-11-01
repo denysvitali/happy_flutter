@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_tokens.dart';
@@ -44,12 +45,12 @@ class _SettingsSearchFieldState extends State<SettingsSearchField> {
         focusNode: _focusNode,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: 'Search settings',
+          hintText: context.l10n.settingsSearchHint,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: widget.query.isEmpty
               ? null
               : IconButton(
-                  tooltip: 'Clear search',
+                  tooltip: context.l10n.commonClearSearch,
                   icon: const Icon(Icons.close),
                   onPressed: _clearSearch,
                 ),

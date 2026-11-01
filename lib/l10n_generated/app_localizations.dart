@@ -10232,6 +10232,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide steps'**
   String get convWorkCollapse;
+
+  /// No description provided for @commonPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get commonPreview;
+
+  /// No description provided for @settingsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings'**
+  String get settingsSearchHint;
+
+  /// No description provided for @zenFilterByAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter tasks by agent'**
+  String get zenFilterByAgent;
+
+  /// No description provided for @sessionInfoCliUpdateRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run: {command}'**
+  String sessionInfoCliUpdateRun(String command);
+
+  /// No description provided for @workflowStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get workflowStatusRunning;
+
+  /// No description provided for @workflowStatusPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get workflowStatusPaused;
+
+  /// No description provided for @workflowStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get workflowStatusCompleted;
+
+  /// No description provided for @workflowStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get workflowStatusFailed;
+
+  /// No description provided for @workflowStatusKilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Killed'**
+  String get workflowStatusKilled;
+
+  /// No description provided for @workflowStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get workflowStatusCancelled;
+
+  /// No description provided for @workflowStatusLaunching.
+  ///
+  /// In en, this message translates to:
+  /// **'Launching'**
+  String get workflowStatusLaunching;
+
+  /// No description provided for @workflowStatusQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get workflowStatusQueued;
+
+  /// No description provided for @workflowStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get workflowStatusUnknown;
 }
 
 class _AppLocalizationsDelegate

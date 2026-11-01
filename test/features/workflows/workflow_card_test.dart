@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/workflow_run.dart';
 import 'package:happy_flutter/features/workflows/workflow_card.dart';
 
 Widget _harness(WorkflowRun run) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Scaffold(
     body: WorkflowCard(run: run, onTap: () {}),
   ),
@@ -116,6 +119,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: WorkflowCard(
             run: _run(runId: 'wf_abc', name: 'wf_abc'),

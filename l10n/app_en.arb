@@ -3172,5 +3172,23 @@
   "convLiveSearching": "Searching for {query}",
   "@convLiveSearching": {"placeholders": {"query": {"type": "String"}}},
   "convWorkExpand": "Show all steps",
-  "convWorkCollapse": "Hide steps"
+  "convWorkCollapse": "Hide steps",
+  "commonPreview": "Preview",
+  "settingsSearchHint": "Search settings",
+  "zenFilterByAgent": "Filter tasks by agent",
+  "sessionInfoCliUpdateRun": "Run: {command}",
+  "workflowStatusRunning": "Running",
+  "workflowStatusPaused": "Paused",
+  "workflowStatusCompleted": "Completed",
+  "workflowStatusFailed": "Failed",
+  "workflowStatusKilled": "Killed",
+  "workflowStatusCancelled": "Cancelled",
+  "workflowStatusLaunching": "Launching",
+  "workflowStatusQueued": "Queued",
+  "workflowStatusUnknown": "Unknown",
+  "@sessionInfoCliUpdateRun": {
+    "placeholders": {
+      "command": {"type": "String"}
+    }
+  }
 }

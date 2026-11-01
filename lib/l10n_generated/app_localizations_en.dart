@@ -5900,4 +5900,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get convWorkCollapse => 'Hide steps';
+
+  @override
+  String get commonPreview => 'Preview';
+
+  @override
+  String get settingsSearchHint => 'Search settings';
+
+  @override
+  String get zenFilterByAgent => 'Filter tasks by agent';
+
+  @override
+  String sessionInfoCliUpdateRun(String command) {
+    return 'Run: $command';
+  }
+
+  @override
+  String get workflowStatusRunning => 'Running';
+
+  @override
+  String get workflowStatusPaused => 'Paused';
+
+  @override
+  String get workflowStatusCompleted => 'Completed';
+
+  @override
+  String get workflowStatusFailed => 'Failed';
+
+  @override
+  String get workflowStatusKilled => 'Killed';
+
+  @override
+  String get workflowStatusCancelled => 'Cancelled';
+
+  @override
+  String get workflowStatusLaunching => 'Launching';
+
+  @override
+  String get workflowStatusQueued => 'Queued';
+
+  @override
+  String get workflowStatusUnknown => 'Unknown';
 }
