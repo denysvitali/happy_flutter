@@ -347,6 +347,39 @@ extension SyncTestHelpers on Sync {
         .toSet();
   }
 
+  /// Test helper: drop the in-memory walk-back ledger (tracked orphans,
+  /// counters, suppression) while keeping the persisted give-up marker, as a
+  /// new process or a chat reopened after the background trim would.
+  @visibleForTesting
+  void testForgetOrphanWalkbackRuntimeState(String sessionId) {
+    _orphanWalkbackOrphanIds.remove(sessionId);
+    _orphanWalkbackParentKeys.remove(sessionId);
+    _orphanFetchOlderNoProgressCount.remove(sessionId);
+    _orphanFetchOlderAttemptedMs.remove(sessionId);
+    _orphanSuppressedUntilMs.remove(sessionId);
+    _sidechainRegroupSweepCount.remove(sessionId);
+  }
+
+  /// Test helper: the persisted give-up parent keys for [sessionId].
+  @visibleForTesting
+  Set<String>? testOrphanGiveUpParentKeys(String sessionId) {
+    _loadOrphanWalkbackGiveUpSignatures();
+    return _decodeOrphanParentSignature(
+      _orphanWalkbackGiveUpSignatures[sessionId],
+    );
+  }
+
+  /// Test helper: run the upsert-time give-up lift for an incoming batch.
+  @visibleForTesting
+  void testLiftOrphanGiveUp(
+    String sessionId,
+    List<Map<String, dynamic>> incoming,
+  ) => _liftOrphanGiveUpIfNewParentArrived(
+    sessionId,
+    _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[],
+    incoming,
+  );
+
   @visibleForTesting
   void testGroupSidechainMessages(String sessionId) {
     _groupSidechainMessages(sessionId);

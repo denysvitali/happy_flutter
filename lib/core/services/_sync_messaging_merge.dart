@@ -308,11 +308,58 @@ extension SyncMessagingMerge on Sync {
     }
   }
 
+  /// Upper bound on parent keys one session's give-up marker accumulates.
+  /// Past it the marker falls back to the latest exhausted group alone.
+  static const int _orphanGiveUpMaxParentKeys = 1000;
+
+  Set<String>? _decodeOrphanParentSignature(String? signature) {
+    if (signature == null) return null;
+    try {
+      final decoded = jsonDecode(signature);
+      if (decoded is! List) return null;
+      return decoded.whereType<String>().toSet();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether every parent in [parentKeys] already exhausted a walk-back.
+  ///
+  /// The persisted group is the full set of parents the last walk-back
+  /// searched for and could not find. A later window that holds only some
+  /// of those orphans — a cold start from the 200-row cache, or a chat
+  /// trimmed while in the background — must not download the whole history
+  /// again to look for the same parents. Production showed exactly that:
+  /// one chat re-walked ~1.9 MB 500-row pages to seq 0 on every reopen
+  /// because its smaller window's parent set no longer equalled the marker.
+  bool _isOrphanParentGroupGivenUp(String sessionId, Set<String> parentKeys) {
+    if (parentKeys.isEmpty) return false;
+    _loadOrphanWalkbackGiveUpSignatures();
+    final givenUp = _decodeOrphanParentSignature(
+      _orphanWalkbackGiveUpSignatures[sessionId],
+    );
+    return givenUp != null && givenUp.containsAll(parentKeys);
+  }
+
   void _markOrphanWalkbackGiveUp(String sessionId, String? signature) {
     if (signature == null) return;
     _loadOrphanWalkbackGiveUpSignatures();
-    if (_orphanWalkbackGiveUpSignatures[sessionId] == signature) return;
-    _orphanWalkbackGiveUpSignatures[sessionId] = signature;
+    final current = _orphanWalkbackGiveUpSignatures[sessionId];
+    if (current == signature) return;
+    var next = signature;
+    final previous = _decodeOrphanParentSignature(current);
+    final incoming = _decodeOrphanParentSignature(signature);
+    if (previous != null && incoming != null) {
+      // Parents already proven missing stay missing until one arrives, which
+      // clears the marker. Keep the union so alternating windows do not
+      // re-arm each other's walk-backs.
+      if (previous.containsAll(incoming)) return;
+      final union = {...previous, ...incoming};
+      if (union.length <= _orphanGiveUpMaxParentKeys) {
+        next = _orphanParentGroupSignature(union) ?? signature;
+      }
+    }
+    _orphanWalkbackGiveUpSignatures[sessionId] = next;
     _persistOrphanWalkbackGiveUpSignatures();
   }
 
@@ -341,7 +388,7 @@ extension SyncMessagingMerge on Sync {
     }
 
     _orphanWalkbackParentKeys[sessionId] = parentKeys;
-    return _orphanParentGroupSignature(parentKeys) == persisted;
+    return _isOrphanParentGroupGivenUp(sessionId, parentKeys);
   }
 
   bool _isAgentContainerTool(Map<String, dynamic> message) {
@@ -363,19 +410,23 @@ extension SyncMessagingMerge on Sync {
     _loadOrphanWalkbackGiveUpSignatures();
     if (!_orphanWalkbackGiveUpSignatures.containsKey(sessionId)) return;
 
-    final trackedParents = _orphanWalkbackParentKeys[sessionId] ??=
-        _orphanParentKeys(existing);
+    final trackedParents = <String>{
+      ...(_orphanWalkbackParentKeys[sessionId] ??= _orphanParentKeys(existing)),
+      ...?_decodeOrphanParentSignature(
+        _orphanWalkbackGiveUpSignatures[sessionId],
+      ),
+    };
     final parentArrived = incoming.any(
       (message) =>
           _isAgentContainerTool(message) &&
           _messageIdentityKeys(message).any(trackedParents.contains),
     );
-    final newParentGroupArrived = incoming
-        .where(isVisibleSidechainOrphan)
-        .map(WireParsers.sidechainParentToolUseId)
-        .whereType<String>()
-        .any((parentKey) => !trackedParents.contains(parentKey));
-    if (parentArrived || newParentGroupArrived) {
+    // A new parent group needs no clearing: the marker only suppresses
+    // windows whose parents are all inside it, so new orphans still get
+    // their own walk-back. Clearing on every new sidechain child (even one
+    // whose parent Task is resident) re-armed a full-history walk-back for
+    // the old, proven-missing parents on each reopen.
+    if (parentArrived) {
       _clearOrphanWalkbackGiveUp(sessionId);
     }
   }
@@ -519,14 +570,12 @@ extension SyncMessagingMerge on Sync {
     final orphanParentSignature = _orphanParentGroupSignature(
       _orphanWalkbackParentKeys[sessionId]!,
     );
-    _loadOrphanWalkbackGiveUpSignatures();
-    if (orphanParentSignature != null &&
-        _orphanWalkbackGiveUpSignatures[sessionId] == orphanParentSignature) {
-      // This parent group already exhausted both pagination and the
-      // resident-window recovery path, possibly in a previous process.
-      // Keep rendering the children inline without another O(n) grouping
-      // pass. A real parent Task or a disjoint parent group clears this
-      // signature in [_upsertSessionMessages].
+    if (_hasPersistedOrphanGiveUp(sessionId, messages)) {
+      // Every parent of these orphans already exhausted both pagination and
+      // the resident-window recovery path, possibly in a previous process
+      // with a larger window. Keep rendering the children inline without
+      // another O(n) grouping pass or history download. A real parent Task
+      // clears the marker; a new parent group falls outside it.
       _sidechainRegroupSweepCount.remove(sessionId);
       return;
     }
