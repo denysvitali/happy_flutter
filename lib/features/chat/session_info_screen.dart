@@ -24,6 +24,8 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -488,56 +490,14 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         // CLI Version Outdated Warning
         if (isCliOutdated) ...[
-          AppCard(
-            padding: EdgeInsets.zero,
-            color: theme.colorScheme.tertiaryContainer,
-            borderColor: theme.colorScheme.tertiary,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              onTap: () => _copyToClipboard(
-                'npm install -g happy-coder@latest',
-                message: l10n.sessionInfoUpdateCommandCopied,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_outlined,
-                      color: theme.colorScheme.onTertiaryContainer,
-                      size: 28,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.sessionInfoCliOutdated,
-                            style: AppText.title(
-                              theme,
-                              theme.colorScheme.onTertiaryContainer,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            'Run: npm install -g happy-coder@latest',
-                            style: AppText.secondary(
-                              theme,
-                              theme.colorScheme.onTertiaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.copy_outlined,
-                      color: theme.colorScheme.onTertiaryContainer,
-                      size: 16,
-                    ),
-                  ],
-                ),
-              ),
+          AppBanner(
+            tone: AppBadgeTone.warning,
+            title: l10n.sessionInfoCliOutdated,
+            message: 'Run: npm install -g happy-coder@latest',
+            trailing: const Icon(Icons.copy_outlined),
+            onTap: () => _copyToClipboard(
+              'npm install -g happy-coder@latest',
+              message: l10n.sessionInfoUpdateCommandCopied,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -744,7 +704,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     label: l10n.sessionInfoLabelCliVersion,
                     value: meta.version!,
                     iconColor: isCliOutdated
-                        ? theme.colorScheme.tertiary
+                        ? AppToneColors.of(
+                            context,
+                            AppBadgeTone.warning,
+                          ).iconColor
                         : null,
                   ),
                 ],
@@ -886,12 +849,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 children: meta.tools!.map((tool) {
-                  return Chip(
-                    label: Text(tool, style: AppText.secondary(theme)),
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  );
+                  return AppBadge(label: tool);
                 }).toList(),
               ),
             ),
@@ -954,6 +912,13 @@ class _SessionPodCard extends StatelessWidget {
       SessionPodDisplayState.archived => l10n.sessionPodArchived,
       SessionPodDisplayState.failed => l10n.sessionPodFailed,
     };
+    final stateTone = switch (state) {
+      SessionPodDisplayState.scheduling => AppBadgeTone.info,
+      SessionPodDisplayState.ready => AppBadgeTone.success,
+      SessionPodDisplayState.paused => AppBadgeTone.warning,
+      SessionPodDisplayState.archived => AppBadgeTone.neutral,
+      SessionPodDisplayState.failed => AppBadgeTone.danger,
+    };
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -979,7 +944,7 @@ class _SessionPodCard extends StatelessWidget {
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
-                Chip(label: Text(stateLabel)),
+                AppBadge(label: stateLabel, tone: stateTone),
                 IconButton(
                   onPressed: loading ? null : onRefresh,
                   icon: const Icon(Icons.refresh),
@@ -1008,9 +973,9 @@ class _SessionPodCard extends StatelessWidget {
             ],
             if (error != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                l10n.sessionPodLoadFailed,
-                style: TextStyle(color: theme.colorScheme.error),
+              AppBanner(
+                tone: AppBadgeTone.danger,
+                title: l10n.sessionPodLoadFailed,
               ),
             ],
             const SizedBox(height: AppSpacing.md),

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/components/app_badge.dart';
+import '../../core/components/app_banner.dart';
 import '../../core/components/app_card.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
@@ -22,7 +24,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppFontSize, AppRadius, AppSpacing, AppTouchTarget;
+    show AppFontSize, AppSpacing, AppTouchTarget;
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/snack.dart';
 import '../../core/utils/utils.dart';
@@ -202,66 +204,30 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             ),
             if (cliOutdated) ...[
               const SizedBox(height: AppSpacing.md),
-              Card(
-                color: cs.tertiaryContainer,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  onTap: () async {
-                    await setClipboardTextSafely(
-                      'npm install -g happy-coder@latest',
-                    );
-                    if (context.mounted) {
-                      context.showSnack(
-                        context.l10n.machineCompatibilityCopied,
-                      );
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.system_update_alt_rounded,
-                          color: cs.onTertiaryContainer,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.l10n.machineCompatibilityTitle,
-                                style: AppText.title(
-                                  theme,
-                                  cs.onTertiaryContainer,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(
-                                context.l10n.machineCompatibilityMessage(
-                                  cliVersion,
-                                  minimumCliVersion,
-                                ),
-                                style: AppText.secondary(
-                                  theme,
-                                  cs.onTertiaryContainer,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                context.l10n.machineCompatibilityAction,
-                                style: AppText.badge(
-                                  theme,
-                                  cs.onTertiaryContainer,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+              AppBanner(
+                tone: AppBadgeTone.warning,
+                icon: Icons.system_update_alt_rounded,
+                title: context.l10n.machineCompatibilityTitle,
+                message: context.l10n.machineCompatibilityMessage(
+                  cliVersion,
+                  minimumCliVersion,
+                ),
+                footer: Text(
+                  context.l10n.machineCompatibilityAction,
+                  style: AppText.badge(
+                    theme,
+                    AppToneColors.of(context, AppBadgeTone.warning).foreground,
                   ),
                 ),
+                trailing: const Icon(Icons.copy_outlined),
+                onTap: () async {
+                  await setClipboardTextSafely(
+                    'npm install -g happy-coder@latest',
+                  );
+                  if (context.mounted) {
+                    context.showSnack(context.l10n.machineCompatibilityCopied);
+                  }
+                },
               ),
             ],
             const SizedBox(height: AppSpacing.xxl),

@@ -14,6 +14,7 @@
 library;
 
 export 'package:happy_flutter/core/components/app_badge.dart';
+export 'package:happy_flutter/core/components/app_banner.dart';
 export 'package:happy_flutter/core/components/app_card.dart';
 export 'package:happy_flutter/core/components/app_empty_state.dart';
 export 'package:happy_flutter/core/components/app_error_state.dart';

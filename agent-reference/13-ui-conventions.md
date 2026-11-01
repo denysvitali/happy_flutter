@@ -163,7 +163,8 @@ fails if a parallel copy comes back):
 | Primary / secondary / tertiary button | themed `FilledButton` / `OutlinedButton` / `TextButton` | `ElevatedButton`, per-site `styleFrom` sizes |
 | Destructive button | `AppButtonStyle.destructive` / `.destructiveFilled` | `styleFrom(foregroundColor: cs.error)` (the themed FilledButton paints a gradient over `backgroundColor`) |
 | Dense button | `AppButtonStyle.compact` | ad-hoc `minimumSize: Size(44, 32)` |
-| Status / count pill | `AppBadge` (full-radius, `AppBadge.defaultPadding`) | `Container` + `Text` with `AppRadius.pill` |
+| Status / count pill | `AppBadge` (full-radius, `AppBadge.defaultPadding`; status dots go in `leading`) | `Container` + `Text` with `AppRadius.pill`, raw `Chip` for status |
+| Inline alert / warning | `AppBanner` (`AppBadgeTone`; shares `AppToneColors` with `AppBadge`) | tonal `AppCard`/`Card` with `tertiaryContainer` or per-site error text |
 | Filter / choice chip | themed `ChoiceChip`/`FilterChip` with `VisualDensity.compact` (28px) | custom `InkWell` pills |
 | Composer setting | `ComposerSelectorChip` (28px) | — |
 | Icon in a tinted box | `AppIconTile` (`AppControlSize.md`/`lg`) | hand-built circles/squares |

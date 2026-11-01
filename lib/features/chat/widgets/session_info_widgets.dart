@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_badge.dart';
+import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
@@ -18,40 +19,16 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final activeColor = cs.primary;
-    final inactiveColor = cs.onSurfaceVariant;
-    final chipColor = isActive ? activeColor : inactiveColor;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: AppOpacity.soft),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: AppSpacing.sm,
-            height: AppSpacing.sm,
-            decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: AppSpacing.xsm),
-          Text(
-            isActive
-                ? AppLocalizations.of(context).sessionInfoActive
-                : AppLocalizations.of(context).sessionInfoInactive,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: AppFontSize.md,
-              fontWeight: FontWeight.w500,
-              color: chipColor,
-            ),
-          ),
-        ],
+    // Same AppBadge shell as every other session pill, so the status and
+    // sandbox pills share one height, radius and type role.
+    final tone = isActive ? AppBadgeTone.success : AppBadgeTone.neutral;
+    final l10n = AppLocalizations.of(context);
+    return AppBadge(
+      tone: tone,
+      label: isActive ? l10n.sessionInfoActive : l10n.sessionInfoInactive,
+      leading: AppStatusDot(
+        color: AppToneColors.of(context, tone).iconColor,
+        size: AppSpacing.xsm,
       ),
     );
   }

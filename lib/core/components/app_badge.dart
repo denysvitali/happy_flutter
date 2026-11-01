@@ -157,55 +157,80 @@ class AppBadge extends StatelessWidget {
     );
   }
 
-  _AppBadgeVisuals _visualsFor(BuildContext context) {
+  AppToneColors _visualsFor(BuildContext context) =>
+      AppToneColors.of(context, tone);
+}
+
+/// The one semantic palette for every toned surface: [AppBadge] pills and
+/// [AppBanner] alerts resolve their colors here, so a warning pill and a
+/// warning banner can never drift apart.
+@immutable
+class AppToneColors {
+  /// Creates a resolved tone palette.
+  const AppToneColors({
+    required this.background,
+    required this.foreground,
+    required this.iconColor,
+    required this.border,
+    this.icon,
+  });
+
+  /// Resolves [tone] against the current theme.
+  factory AppToneColors.of(BuildContext context, AppBadgeTone tone) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final appColors = theme.extension<AppColorScheme>();
 
     return switch (tone) {
-      AppBadgeTone.neutral => _AppBadgeVisuals(
+      AppBadgeTone.neutral => AppToneColors(
         background: cs.surfaceContainerHighest,
         foreground: cs.onSurfaceVariant,
         iconColor: cs.onSurfaceVariant,
+        border: cs.outlineVariant,
       ),
-      AppBadgeTone.info => _AppBadgeVisuals(
+      AppBadgeTone.info => AppToneColors(
         background: appColors?.infoContainer ?? cs.primaryContainer,
         foreground: appColors?.textPrimary ?? cs.onPrimaryContainer,
         iconColor: appColors?.info ?? cs.primary,
+        border: appColors?.info ?? cs.primary,
         icon: Icons.info_outline_rounded,
       ),
-      AppBadgeTone.success => _AppBadgeVisuals(
+      AppBadgeTone.success => AppToneColors(
         background: appColors?.successContainer ?? cs.secondaryContainer,
         foreground: appColors?.textPrimary ?? cs.onSecondaryContainer,
         iconColor: appColors?.success ?? cs.secondary,
+        border: appColors?.success ?? cs.secondary,
         icon: Icons.check_circle_outline_rounded,
       ),
-      AppBadgeTone.warning => _AppBadgeVisuals(
+      AppBadgeTone.warning => AppToneColors(
         background: appColors?.warningContainer ?? cs.tertiaryContainer,
         foreground: appColors?.textPrimary ?? cs.onTertiaryContainer,
         iconColor: appColors?.warning ?? cs.tertiary,
+        border: appColors?.warning ?? cs.tertiary,
         icon: Icons.warning_amber_rounded,
       ),
-      AppBadgeTone.danger => _AppBadgeVisuals(
+      AppBadgeTone.danger => AppToneColors(
         background: appColors?.dangerContainer ?? cs.errorContainer,
         foreground: appColors?.textPrimary ?? cs.onErrorContainer,
         iconColor: appColors?.danger ?? cs.error,
+        border: appColors?.danger ?? cs.error,
         icon: Icons.error_outline_rounded,
       ),
     };
   }
-}
 
-class _AppBadgeVisuals {
-  const _AppBadgeVisuals({
-    required this.background,
-    required this.foreground,
-    required this.iconColor,
-    this.icon,
-  });
-
+  /// Container fill.
   final Color background;
+
+  /// Text color on [background].
   final Color foreground;
+
+  /// Icon/indicator color; the saturated tone hue.
   final Color iconColor;
+
+  /// Outline color; banners draw it at reduced opacity.
+  final Color border;
+
+  /// Default glyph for the tone; null for neutral.
   final IconData? icon;
 }
