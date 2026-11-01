@@ -231,13 +231,7 @@ class _ResultCountChip extends StatelessWidget {
       label: count == 0
           ? 'No files found'
           : '$count file${count != 1 ? 's' : ''} found',
-      backgroundColor: cs.primary.withValues(alpha: 0.12),
-      foregroundColor: cs.primary,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxxs,
-      ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
+      color: cs.primary,
     );
   }
 }
@@ -318,19 +312,7 @@ class _FileRow extends StatelessWidget {
             ),
             // Extension tag
             if (ext.isNotEmpty)
-              AppBadge(
-                label: ext,
-                backgroundColor: color.withValues(alpha: 0.12),
-                foregroundColor: color,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxs2,
-                  vertical: AppSpacing.xxs,
-                ),
-                labelStyle: const TextStyle(
-                  fontSize: AppFontSize.sm,
-                  fontFamily: 'monospace',
-                ),
-              ),
+              AppBadge(label: ext, color: color, monospace: true),
           ],
         ),
       ),

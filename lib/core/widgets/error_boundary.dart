@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart'
     show FlutterExceptionHandler, kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -612,26 +613,14 @@ class ErrorSnackbarManager {
                             ),
                           ),
                         if (count > 1)
-                          Container(
-                            margin: EdgeInsets.only(
+                          Padding(
+                            padding: EdgeInsets.only(
                               left: title != null ? AppSpacing.xs : 0,
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
+                            child: AppBadge(
+                              label: 'x$count',
                               color: theme.colorScheme.error,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.pill,
-                              ),
-                            ),
-                            child: Text(
-                              'x$count',
-                              style: AppText.badge(
-                                theme,
-                                theme.colorScheme.onError,
-                              ),
+                              solid: true,
                             ),
                           ),
                       ],

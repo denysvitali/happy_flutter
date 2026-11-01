@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_badge.dart';
 
 import '../models/todo.dart';
 import '../theme/app_colors.dart';
@@ -65,20 +66,7 @@ class _TaskDetailDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: AppMotion.hoverOpacity),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                statusLabel,
-                style: AppText.label(theme, statusColor),
-              ),
-            ),
+            AppBadge(label: statusLabel, color: statusColor),
             const SizedBox(height: AppSpacing.md),
             if (item.parentId case final parentId? when parentId.isNotEmpty)
               Text(

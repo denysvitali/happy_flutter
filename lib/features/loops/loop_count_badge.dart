@@ -43,9 +43,7 @@ class LoopCountBadge extends ConsumerWidget {
         child: AppBadge(
           leading: const Icon(Icons.schedule),
           label: l10n.loopsBadgeCount(count),
-          foregroundColor: cs.primary,
-          backgroundColor: cs.primary.withValues(alpha: 0.12),
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          color: cs.primary,
         ),
       ),
     );

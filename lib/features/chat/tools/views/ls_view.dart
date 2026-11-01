@@ -337,17 +337,7 @@ class _CountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBadge(
-      leading: Icon(icon, size: AppIconSize.xs, color: color),
-      label: '$count $label',
-      backgroundColor: color.withValues(alpha: 0.10),
-      foregroundColor: color,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxxs,
-      ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
-    );
+    return AppBadge(leading: Icon(icon), label: '$count $label', color: color);
   }
 }
 
@@ -438,19 +428,7 @@ class _EntryRow extends StatelessWidget {
             // Extension tag (files only)
             if (!entry.isDirectory && entry.extension.isNotEmpty) ...[
               const SizedBox(width: AppSpacing.xsm),
-              AppBadge(
-                label: entry.extension,
-                backgroundColor: color.withValues(alpha: 0.12),
-                foregroundColor: color,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxs2,
-                  vertical: AppSpacing.xxs,
-                ),
-                labelStyle: const TextStyle(
-                  fontSize: AppFontSize.sm,
-                  fontFamily: 'monospace',
-                ),
-              ),
+              AppBadge(label: entry.extension, color: color, monospace: true),
             ],
           ],
         ),

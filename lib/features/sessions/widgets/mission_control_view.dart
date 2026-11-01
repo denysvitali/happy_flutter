@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
@@ -765,23 +766,7 @@ class _CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 34,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xsm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        '$count',
-        textAlign: TextAlign.center,
-        style: MissionType.badge(theme, color),
-      ),
-    );
+    return AppBadge(label: '$count', minWidth: 34, color: color);
   }
 }
 

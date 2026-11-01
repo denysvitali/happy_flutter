@@ -373,17 +373,10 @@ class ArchiveCountdownBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return AppBadge(
-      leading: const Icon(
-        Icons.hourglass_bottom_outlined,
-        size: AppIconSize.xs,
-      ),
+      leading: const Icon(Icons.hourglass_bottom_outlined),
       label: label,
-      backgroundColor: cs.surfaceContainer,
-      borderColor: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-      padding: AppBadge.defaultPadding,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      outlined: true,
     );
   }
 }

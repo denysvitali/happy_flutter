@@ -395,50 +395,6 @@ class PermissionModeSelector extends ConsumerWidget {
   }
 }
 
-/// Compact permission mode badge for display
-class PermissionModeBadge extends StatelessWidget {
-  const PermissionModeBadge({
-    required this.mode,
-    super.key,
-    this.fontSize = 11,
-    this.showIcon = false,
-    this.padding,
-  });
-  final PermissionMode mode;
-  final double fontSize;
-  final bool showIcon;
-  final EdgeInsetsGeometry? padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding:
-          padding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: mode.color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showIcon) ...[
-            Icon(mode.icon, size: fontSize + 2, color: mode.color),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            mode.localizedDisplayName(AppLocalizations.of(context)),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: mode.color,
-              fontWeight: FontWeight.w500,
-              fontSize: fontSize,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Large permission mode selector for settings overlay
 class PermissionModeSettingsList extends StatelessWidget {
   const PermissionModeSettingsList({

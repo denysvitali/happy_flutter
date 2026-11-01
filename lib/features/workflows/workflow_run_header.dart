@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/workflow_run.dart';
@@ -149,35 +151,15 @@ class _WorkflowRefreshWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Semantics(
       liveRegion: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: cs.errorContainer,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.cloud_off_outlined, color: cs.onErrorContainer),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  context.l10n.workflowRefreshWarning,
-                  style: TextStyle(color: cs.onErrorContainer),
-                ),
-              ),
-              TextButton(
-                onPressed: onRetry,
-                child: Text(context.l10n.commonRetry),
-              ),
-            ],
-          ),
+      child: AppBanner(
+        tone: AppBadgeTone.warning,
+        icon: Icons.cloud_off_outlined,
+        message: context.l10n.workflowRefreshWarning,
+        trailing: TextButton(
+          onPressed: onRetry,
+          child: Text(context.l10n.commonRetry),
         ),
       ),
     );

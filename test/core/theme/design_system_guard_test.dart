@@ -131,4 +131,27 @@ void main() {
       'sftp_log_stats_tab.dart',
     },
   );
+
+  expectNone(
+    'alerts: use AppBanner / AppToneColors, not raw status containers',
+    RegExp(r'\b(tertiaryContainer|errorContainer|warningContainer)\b'),
+    allow: {
+      'core/theme/',
+      'theme_helper.dart',
+      'app_badge.dart', // defines AppToneColors
+      // Sync pill and error snackbar are app-shell chrome with own shapes.
+      'sync_progress_bar.dart',
+      'error_boundary.dart',
+      // Decorative error illustration, not an alert surface.
+      'auth_scan_failed_card.dart',
+      // Permission Allow button and lane container, not alerts.
+      'inline_permission_actions.dart',
+      'mission_control_types.dart',
+      // Error detail sheet code frame.
+      'error_message_widget.dart',
+      // Dense transcript tool output and dev screens.
+      'chat/tools/',
+      'features/dev/',
+    },
+  );
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/components/task_detail_dialog.dart';
@@ -217,11 +218,8 @@ class _PriorityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // Resolve from the canonical AppColors.priority* tokens so the chip
     // matches the Zen section header (zen_home.dart _Priority.borderColor).
-    // Prior to this, medium/low used colorScheme.primary / onSurfaceVariant,
-    // which disagreed with the section header's iOS amber/gray.
     final (label, color) = switch (priority) {
       'critical' => ('Critical', AppColors.priorityCritical),
       'high' => ('High', AppColors.priorityHigh),
@@ -229,16 +227,6 @@ class _PriorityChip extends StatelessWidget {
       _ => ('Low', AppColors.priorityLow),
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: AppMotion.hoverOpacity),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Text(label, style: AppText.label(theme, color)),
-    );
+    return AppBadge(label: label, color: color);
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../i18n/app_localizations.dart';
+import 'app_badge.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/app_circular_progress_indicator.dart';
@@ -18,33 +19,31 @@ class TranscriptionStartupStatusBar extends ConsumerWidget {
     }
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final (icon, text, foreground, background) = switch (state.status) {
+    final (icon, text, tone) = switch (state.status) {
       OfflineDictationStatus.initializing => (
         Icons.graphic_eq,
         context.l10n.transcriptionInitializing,
-        colorScheme.primary,
-        colorScheme.primaryContainer,
+        AppBadgeTone.info,
       ),
       OfflineDictationStatus.ready => (
         Icons.check_circle,
         context.l10n.transcriptionReady,
-        colorScheme.onPrimaryContainer,
-        colorScheme.primaryContainer,
+        AppBadgeTone.success,
       ),
       OfflineDictationStatus.error => (
         Icons.warning_amber_rounded,
         state.message ?? context.l10n.transcriptionUnavailable,
-        colorScheme.onErrorContainer,
-        colorScheme.errorContainer,
+        AppBadgeTone.danger,
       ),
       OfflineDictationStatus.idle => (
         Icons.graphic_eq,
         '',
-        colorScheme.onSurface,
-        colorScheme.surface,
+        AppBadgeTone.neutral,
       ),
     };
+    final colors = AppToneColors.of(context, tone);
+    final foreground = colors.foreground;
+    final background = colors.background;
 
     return Material(
       color: background,

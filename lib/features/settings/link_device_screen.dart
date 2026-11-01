@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -218,38 +219,21 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               if (_error != null)
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: cs.errorContainer,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(color: cs.error.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: cs.onErrorContainer),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: cs.onErrorContainer,
-                            fontSize: AppFontSize.sm,
-                          ),
-                        ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: AppBanner(
+                    tone: AppBadgeTone.danger,
+                    message: _error,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: l10n.commonDismissError,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: AppTouchTarget.min,
+                        minHeight: AppTouchTarget.min,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: AppIconSize.lg),
-                        tooltip: l10n.commonDismissError,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: AppTouchTarget.min,
-                          minHeight: AppTouchTarget.min,
-                        ),
-                        onPressed: () => setState(() => _error = null),
-                      ),
-                    ],
+                      onPressed: () => setState(() => _error = null),
+                    ),
                   ),
                 ),
               Expanded(child: _buildModeContent(cs, l10n)),

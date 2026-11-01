@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -226,24 +227,10 @@ class _CapabilityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: cs.outlineVariant, width: AppBorder.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.sm, color: cs.primary),
-          const SizedBox(width: AppSpacing.xs),
-          Text(label, style: Theme.of(context).textTheme.labelMedium),
-        ],
-      ),
+    return AppBadge(
+      label: label,
+      leading: Icon(icon, color: cs.primary),
+      outlined: true,
     );
   }
 }

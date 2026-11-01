@@ -163,8 +163,9 @@ fails if a parallel copy comes back):
 | Primary / secondary / tertiary button | themed `FilledButton` / `OutlinedButton` / `TextButton` | `ElevatedButton`, per-site `styleFrom` sizes |
 | Destructive button | `AppButtonStyle.destructive` / `.destructiveFilled` | `styleFrom(foregroundColor: cs.error)` (the themed FilledButton paints a gradient over `backgroundColor`) |
 | Dense button | `AppButtonStyle.compact` | ad-hoc `minimumSize: Size(44, 32)` |
-| Status / count pill | `AppBadge` (full-radius, `AppBadge.defaultPadding`; status dots go in `leading`) | `Container` + `Text` with `AppRadius.pill`, raw `Chip` for status |
-| Inline alert / warning | `AppBanner` (`AppBadgeTone`; shares `AppToneColors` with `AppBadge`) | tonal `AppCard`/`Card` with `tertiaryContainer` or per-site error text |
+| Status / count pill | `AppBadge` — fixed padding/radius/type; choose `tone`, or a categorical `color` (+ `solid`, `outlined`, `monospace`); status dots go in `leading` | `Container` + `Text` with `AppRadius.pill`, raw `Chip` for status, per-site alphas/weights |
+| Inline alert / warning | `AppBanner` (`AppBadgeTone`; optional `title`, `footer`, `elevated` for chat chrome) | tonal `AppCard`/`Card`/`Container` with `errorContainer`/`tertiaryContainer` (guarded by `design_system_guard_test`) |
+| Status colors | `AppToneColors.of(context, tone)` — the one palette for pills, banners and shell strips; info is primary blue, never amber | `cs.tertiary*` as "warning", ad-hoc `withValues(alpha:)` tints |
 | Filter / choice chip | themed `ChoiceChip`/`FilterChip` with `VisualDensity.compact` (28px) | custom `InkWell` pills |
 | Composer setting | `ComposerSelectorChip` (28px) | — |
 | Icon in a tinted box | `AppIconTile` (`AppControlSize.md`/`lg`) | hand-built circles/squares |

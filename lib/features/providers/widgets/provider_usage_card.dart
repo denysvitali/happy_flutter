@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -388,33 +390,6 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: AppScreenPadding.compact,
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: colorScheme.error,
-            size: AppSpacing.lg,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              error,
-              style: AppText.secondary(
-                Theme.of(context),
-                colorScheme.onErrorContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return AppBanner(tone: AppBadgeTone.danger, message: error);
   }
 }

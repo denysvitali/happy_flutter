@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -374,29 +375,10 @@ class _LaneBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final color = missionLaneColor(context, lane);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(color.withValues(alpha: 0.12), cs.surface),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(missionLaneIcon(lane), size: 12, color: color),
-          const SizedBox(width: AppSpacing.xxxs),
-          Text(
-            missionLaneTitle(context, lane),
-            style: AppText.badge(theme, color),
-          ),
-        ],
-      ),
+    return AppBadge(
+      label: missionLaneTitle(context, lane),
+      leading: Icon(missionLaneIcon(lane)),
+      color: missionLaneColor(context, lane),
     );
   }
 }

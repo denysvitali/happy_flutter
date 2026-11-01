@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../i18n/app_localizations.dart';
@@ -85,9 +86,9 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bg = cs.secondaryContainer;
-    final fg = cs.onSecondaryContainer;
+    final tone = AppToneColors.of(context, AppBadgeTone.info);
+    final bg = tone.background;
+    final fg = tone.foreground;
 
     return Container(
       width: double.infinity,

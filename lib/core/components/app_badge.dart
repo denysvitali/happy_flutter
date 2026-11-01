@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_color_scheme.dart';
+import '../theme/app_colors.dart' show AppOpacity;
 import '../theme/app_tokens.dart';
 
 /// Semantic appearance for an [AppBadge].
@@ -9,16 +10,16 @@ import '../theme/app_tokens.dart';
 /// understandable without relying on color alone.
 enum AppBadgeTone { neutral, info, success, warning, danger }
 
-/// A generic, token-standardized badge/chip: an optional [leading] widget, a
-/// [label], and an optional [trailing] widget laid out in a rounded container.
+/// The one pill: an optional [leading] widget, a [label], and an optional
+/// [trailing] widget in a full-radius container.
 ///
-/// Consolidates the many hand-rolled `Container` + `BoxDecoration` + `Row`
-/// badge/chip widgets (status pills, count badges, type tags, info chips).
-/// Colors and dimensions default to design tokens but every aspect is
-/// overridable so callers can match their existing look.
+/// Geometry and type are fixed — every badge has the same padding, radius,
+/// label size and weight — so pills line up and match wherever they appear.
+/// Callers choose only *meaning*: a semantic [tone], or a categorical [color]
+/// hue, optionally [solid] (filled counters), [outlined] or [monospace].
 class AppBadge extends StatelessWidget {
-  /// The one padding every status pill uses, so badges of the same text size
-  /// have the same height wherever they appear.
+  /// The one padding every pill uses. Exposed for the few non-badge pills
+  /// (e.g. gradient counters) that must match badge height.
   static const EdgeInsets defaultPadding = EdgeInsets.symmetric(
     horizontal: AppSpacing.xsm,
     vertical: AppSpacing.xxs,
@@ -30,17 +31,20 @@ class AppBadge extends StatelessWidget {
     super.key,
     this.leading,
     this.trailing,
-    this.backgroundColor,
-    this.borderColor,
-    this.foregroundColor,
-    this.padding,
-    this.labelStyle,
-    this.minWidth,
     this.tone = AppBadgeTone.neutral,
+    this.color,
+    this.solid = false,
+    this.outlined = false,
+    this.monospace = false,
+    this.minWidth,
     this.showToneIcon = true,
-  });
+  }) : assert(
+         color == null || tone == AppBadgeTone.neutral,
+         'Pass either a semantic tone or a categorical color, not both.',
+       );
 
-  /// Optional widget shown before the label (e.g. an [Icon]).
+  /// Optional widget shown before the label (e.g. an [Icon]). Icons inherit
+  /// the badge's icon color and size unless they set their own.
   final Widget? leading;
 
   /// The badge text.
@@ -49,32 +53,26 @@ class AppBadge extends StatelessWidget {
   /// Optional widget shown after the label.
   final Widget? trailing;
 
-  /// Container fill color. Defaults to `surfaceContainerHighest`.
-  final Color? backgroundColor;
+  /// Semantic appearance. Non-neutral tones add a default icon.
+  final AppBadgeTone tone;
 
-  /// Border color. When null no border is drawn.
-  final Color? borderColor;
+  /// Categorical hue (file type, priority, lane) for meaning that is not a
+  /// status tone. Tinted at one fixed strength unless [solid].
+  final Color? color;
 
-  /// Color applied to the label (and to a leading/trailing [Icon] via
-  /// [IconTheme]). Defaults to `onSurfaceVariant`.
-  final Color? foregroundColor;
+  /// Fill with the full hue and contrasting text — for counters that must
+  /// pop (unread counts).
+  final bool solid;
 
-  /// Inner padding. Defaults to the standardized badge padding
-  /// (horizontal `AppSpacing.xs + 2`, vertical `2`).
-  final EdgeInsets? padding;
+  /// Adds a hairline `outlineVariant` border.
+  final bool outlined;
 
-  /// Style override for the label text. Merged over the default compact style.
-  final TextStyle? labelStyle;
+  /// Renders the label in the monospace family (extensions, exit codes).
+  final bool monospace;
 
   /// Minimum badge width; the label centers inside it. Keeps one- and
   /// two-digit counters the same width.
   final double? minWidth;
-
-  /// Semantic appearance used when explicit colors are not provided.
-  ///
-  /// Defaults to [AppBadgeTone.neutral], which preserves the original badge
-  /// appearance and does not add an icon.
-  final AppBadgeTone tone;
 
   /// Whether a semantic default icon is shown when [leading] is null.
   ///
@@ -83,9 +81,26 @@ class AppBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visuals = _visualsFor(context);
-    final fg = foregroundColor ?? visuals.foreground;
-    final iconColor = foregroundColor ?? visuals.iconColor;
+    final visuals = AppToneColors.of(context, tone);
+    final hue = color ?? (solid ? visuals.iconColor : null);
+    final Color fg;
+    final Color iconColor;
+    final Color background;
+    if (hue == null) {
+      fg = visuals.foreground;
+      iconColor = visuals.iconColor;
+      background = visuals.background;
+    } else if (solid) {
+      fg = ThemeData.estimateBrightnessForColor(hue) == Brightness.dark
+          ? Colors.white
+          : Colors.black;
+      iconColor = fg;
+      background = hue;
+    } else {
+      fg = hue;
+      iconColor = hue;
+      background = hue.withValues(alpha: AppOpacity.soft);
+    }
     final effectiveLeading =
         leading ??
         (showToneIcon && visuals.icon != null
@@ -95,22 +110,31 @@ class AppBadge extends StatelessWidget {
     final resolvedLabelStyle = TextStyle(
       fontSize: AppFontSize.sm,
       fontWeight: FontWeight.w600,
+      fontFamily: monospace ? 'monospace' : null,
+      fontFeatures: const [FontFeature.tabularFigures()],
       color: fg,
-    ).merge(labelStyle);
+    );
 
     return Container(
       constraints: minWidth == null
           ? null
           : BoxConstraints(minWidth: minWidth!),
       alignment: minWidth == null ? null : Alignment.center,
-      padding: padding ?? defaultPadding,
+      padding: defaultPadding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? visuals.background,
+        color: background,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: borderColor != null
-            ? Border.all(color: borderColor!, width: AppBorder.hairline)
-            : null,
       ),
+      // Painted over, not laid out: an outline must not make the pill taller.
+      foregroundDecoration: outlined
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: AppBorder.hairline,
+              ),
+            )
+          : null,
       child: IconTheme.merge(
         data: IconThemeData(color: iconColor, size: AppFontSize.sm),
         child: Row(
@@ -156,9 +180,6 @@ class AppBadge extends StatelessWidget {
       ),
     );
   }
-
-  AppToneColors _visualsFor(BuildContext context) =>
-      AppToneColors.of(context, tone);
 }
 
 /// The one semantic palette for every toned surface: [AppBadge] pills and
@@ -179,7 +200,13 @@ class AppToneColors {
   factory AppToneColors.of(BuildContext context, AppBadgeTone tone) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final appColors = theme.extension<AppColorScheme>();
+    // Same palette with or without the theme extension, so a bare
+    // ThemeData never forks the semantic colors.
+    final app =
+        theme.extension<AppColorScheme>() ??
+        (theme.brightness == Brightness.dark
+            ? AppColorScheme.dark()
+            : AppColorScheme.light());
 
     return switch (tone) {
       AppBadgeTone.neutral => AppToneColors(
@@ -188,32 +215,34 @@ class AppToneColors {
         iconColor: cs.onSurfaceVariant,
         border: cs.outlineVariant,
       ),
+      // Info is the primary hue, never amber: it must read differently from
+      // warning at a glance.
       AppBadgeTone.info => AppToneColors(
-        background: appColors?.infoContainer ?? cs.primaryContainer,
-        foreground: appColors?.textPrimary ?? cs.onPrimaryContainer,
-        iconColor: appColors?.info ?? cs.primary,
-        border: appColors?.info ?? cs.primary,
+        background: cs.primaryContainer,
+        foreground: cs.onPrimaryContainer,
+        iconColor: cs.primary,
+        border: cs.primary,
         icon: Icons.info_outline_rounded,
       ),
       AppBadgeTone.success => AppToneColors(
-        background: appColors?.successContainer ?? cs.secondaryContainer,
-        foreground: appColors?.textPrimary ?? cs.onSecondaryContainer,
-        iconColor: appColors?.success ?? cs.secondary,
-        border: appColors?.success ?? cs.secondary,
+        background: app.successContainer,
+        foreground: app.textPrimary,
+        iconColor: app.success,
+        border: app.success,
         icon: Icons.check_circle_outline_rounded,
       ),
       AppBadgeTone.warning => AppToneColors(
-        background: appColors?.warningContainer ?? cs.tertiaryContainer,
-        foreground: appColors?.textPrimary ?? cs.onTertiaryContainer,
-        iconColor: appColors?.warning ?? cs.tertiary,
-        border: appColors?.warning ?? cs.tertiary,
+        background: app.warningContainer,
+        foreground: app.onWarningContainer,
+        iconColor: app.warning,
+        border: app.warning,
         icon: Icons.warning_amber_rounded,
       ),
       AppBadgeTone.danger => AppToneColors(
-        background: appColors?.dangerContainer ?? cs.errorContainer,
-        foreground: appColors?.textPrimary ?? cs.onErrorContainer,
-        iconColor: appColors?.danger ?? cs.error,
-        border: appColors?.danger ?? cs.error,
+        background: app.dangerContainer,
+        foreground: app.textPrimary,
+        iconColor: app.danger,
+        border: app.danger,
         icon: Icons.error_outline_rounded,
       ),
     };

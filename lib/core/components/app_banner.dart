@@ -4,6 +4,8 @@ import '../theme/app_text.dart';
 import '../theme/app_tokens.dart';
 import 'app_badge.dart';
 
+export 'app_badge.dart' show AppBadgeTone, AppToneColors;
+
 /// A toned, full-width alert: icon, title, optional message and trailing
 /// affordance inside a rounded, hairline-bordered panel.
 ///
@@ -15,29 +17,34 @@ class AppBanner extends StatelessWidget {
   /// Creates an [AppBanner].
   const AppBanner({
     required this.tone,
-    required this.title,
     super.key,
+    this.title,
     this.message,
     this.icon,
+    this.leading,
     this.trailing,
     this.onTap,
     this.footer,
-  });
+    this.elevated = false,
+  }) : assert(title != null || message != null, 'Needs a title or message.');
 
   /// Semantic appearance; also supplies the default [icon].
   final AppBadgeTone tone;
 
-  /// One-line headline.
-  final String title;
+  /// Bold headline; omit for a single plain-text alert.
+  final String? title;
 
-  /// Optional supporting text below [title].
+  /// Supporting text, or the whole alert when [title] is null.
   final String? message;
 
   /// Overrides the tone's default glyph.
   final IconData? icon;
 
-  /// Optional widget at the end of the row (e.g. a copy glyph). An [Icon]
-  /// picks up the tone's icon color and size.
+  /// Replaces the glyph entirely (e.g. a progress spinner while checking).
+  final Widget? leading;
+
+  /// Optional widget at the end of the row (e.g. a copy glyph). A bare
+  /// [Icon] picks up the banner's text color.
   final Widget? trailing;
 
   /// Makes the whole banner tappable.
@@ -45,6 +52,10 @@ class AppBanner extends StatelessWidget {
 
   /// Optional content below [message] (e.g. an action button).
   final Widget? footer;
+
+  /// Floats the banner with a low shadow — for chat chrome that overlays
+  /// scrolling content.
+  final bool elevated;
 
   @override
   Widget build(BuildContext context) {
@@ -56,22 +67,31 @@ class AppBanner extends StatelessWidget {
     final content = Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: IconTheme.merge(
-        data: IconThemeData(color: colors.iconColor, size: AppIconSize.xl),
+        // Icons take the text color: a saturated hue on its own container
+        // fails non-text contrast; the container already carries the tone.
+        data: IconThemeData(color: colors.foreground, size: AppIconSize.xl),
         child: Row(
-          crossAxisAlignment: message == null && footer == null
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
+          crossAxisAlignment: title != null && message != null || footer != null
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
           children: [
-            Icon(glyph),
+            SizedBox.square(
+              dimension: AppIconSize.xl,
+              child: Center(child: leading ?? Icon(glyph)),
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: AppText.title(theme, colors.foreground)),
+                  if (title != null)
+                    Text(
+                      title!,
+                      style: AppText.title(theme, colors.foreground),
+                    ),
                   if (message != null) ...[
-                    const SizedBox(height: AppSpacing.xxs),
+                    if (title != null) const SizedBox(height: AppSpacing.xxs),
                     Text(
                       message!,
                       style: AppText.secondary(theme, colors.foreground),
@@ -98,6 +118,8 @@ class AppBanner extends StatelessWidget {
 
     return Material(
       color: colors.background,
+      elevation: elevated ? AppElevation.low : 0,
+      shadowColor: Colors.black.withValues(alpha: 0.24),
       shape: RoundedRectangleBorder(
         borderRadius: radius,
         side: BorderSide(

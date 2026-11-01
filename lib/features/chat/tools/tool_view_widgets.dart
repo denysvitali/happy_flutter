@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_inline_row.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
@@ -6,7 +7,6 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'elapsed_time.dart';
 import 'tool_status_indicator.dart';
-import 'tool_view_helpers.dart';
 
 /// Outer chrome for a boxed tool result card (bash, read, diff, patch…).
 ///
@@ -388,8 +388,6 @@ class ToolStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = stateColor(state, Theme.of(context).colorScheme);
-
     final icon = switch (state) {
       ToolState.completed => Icons.check_rounded,
       ToolState.error => Icons.error_outline_rounded,
@@ -403,32 +401,14 @@ class ToolStatusBadge extends StatelessWidget {
       ToolState.pending => context.l10n.toolStateQueued,
     };
 
-    return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: bg.withValues(alpha: 0.35), width: 0.5),
-      ),
-      alignment: Alignment.center,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: bg),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppFontSize.sm,
-              fontWeight: FontWeight.w600,
-              color: bg,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
+    final tone = switch (state) {
+      ToolState.completed => AppBadgeTone.success,
+      ToolState.error => AppBadgeTone.danger,
+      ToolState.running => AppBadgeTone.info,
+      ToolState.pending => AppBadgeTone.neutral,
+    };
+
+    return AppBadge(label: label, tone: tone, leading: Icon(icon));
   }
 }
 

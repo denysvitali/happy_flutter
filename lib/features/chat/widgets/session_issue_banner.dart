@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'chat_app_bar.dart' show SendIssue;
 
@@ -9,9 +8,8 @@ import 'chat_app_bar.dart' show SendIssue;
 /// lifecycle error (e.g. the local agent process is gone, or the
 /// session is in a recoverable error state).
 ///
-/// Aurora glass family: the same rounded panel geometry and hairline
-/// border rhythm as [SessionGoalBanner], but the status material stays
-/// danger/warning — semantics live in colour, not in silhouette.
+/// Renders through [AppBanner], so it shares geometry and the tone palette
+/// with every other alert in the app.
 ///
 /// Renders in two variants based on [SendIssue.blocksSend]:
 /// - blocksSend=true: error-colored banner with an explicit recovery action.
@@ -38,96 +36,48 @@ class SessionIssueBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final appCs =
-        theme.extension<AppColorScheme>() ??
-        (theme.brightness == Brightness.dark
-            ? AppColorScheme.dark()
-            : AppColorScheme.light());
-    final containerColor = issue.blocksSend
-        ? cs.errorContainer
-        : appCs.warningContainer;
-    final borderColor = issue.blocksSend ? cs.error : appCs.warning;
-    final foregroundColor = issue.blocksSend
-        ? cs.onErrorContainer
-        : appCs.onWarningContainer;
+    final tone = issue.blocksSend ? AppBadgeTone.danger : AppBadgeTone.warning;
+    final foreground = AppToneColors.of(context, tone).foreground;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
-      child: Material(
-        color: containerColor.withValues(alpha: 0.72),
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: BorderSide(
-            color: borderColor.withValues(alpha: 0.35),
-            width: AppBorder.hairline,
-          ),
-        ),
-        elevation: AppElevation.low,
-        shadowColor: Colors.black.withValues(alpha: 0.24),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.smd,
-            AppSpacing.sm,
-            AppSpacing.xxs,
-            AppSpacing.sm,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                issue.blocksSend
-                    ? Icons.error_outline_rounded
-                    : Icons.restart_alt_rounded,
-                size: 18,
-                color: foregroundColor,
-              ),
-              const SizedBox(width: AppSpacing.smd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      issue.title,
-                      style: AppText.badge(theme, foregroundColor),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      issue.message,
-                      style: AppText.secondary(theme, foregroundColor),
-                    ),
-                    if (actionLabel != null && onAction != null)
-                      TextButton(
-                        onPressed: onAction,
-                        style: TextButton.styleFrom(
-                          foregroundColor: foregroundColor,
-                        ),
-                        child: Text(actionLabel!),
-                      ),
-                  ],
-                ),
-              ),
-              if (onCopy != null)
-                IconButton(
-                  onPressed: onCopy,
-                  icon: Icon(Icons.copy_rounded, color: foregroundColor),
-                  tooltip: MaterialLocalizations.of(context).copyButtonLabel,
-                  constraints: const BoxConstraints(
-                    minWidth: AppTouchTarget.min,
-                    minHeight: AppTouchTarget.min,
-                  ),
+      child: AppBanner(
+        tone: tone,
+        elevated: true,
+        icon: issue.blocksSend
+            ? Icons.error_outline_rounded
+            : Icons.restart_alt_rounded,
+        title: issue.title,
+        message: issue.message,
+        footer: actionLabel != null && onAction != null
+            ? TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: foreground,
+                  // Align the label with the message text above it.
                   padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(0, AppTouchTarget.min),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-            ],
-          ),
-        ),
+                child: Text(actionLabel!),
+              )
+            : null,
+        trailing: onCopy == null
+            ? null
+            : IconButton(
+                onPressed: onCopy,
+                icon: Icon(Icons.copy_rounded, color: foreground),
+                tooltip: MaterialLocalizations.of(context).copyButtonLabel,
+                constraints: const BoxConstraints(
+                  minWidth: AppTouchTarget.min,
+                  minHeight: AppTouchTarget.min,
+                ),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
       ),
     );
   }

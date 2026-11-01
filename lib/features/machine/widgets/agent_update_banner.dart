@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -6,7 +7,6 @@ import '../../../core/models/provider_versions.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Per-machine banner shown above [MachineProviderVersions] when a coding
 /// agent on this machine has an update available. The user can update from the
@@ -144,7 +144,6 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
 
     final updatable = <MapEntry<CodingAgent, ProviderVersion>>[];
     for (final agent in CodingAgent.values) {
@@ -166,64 +165,30 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
           : AppDuration.normal,
       curve: AppCurve.standard,
       alignment: Alignment.topCenter,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_loading && updatable.isEmpty)
-              Row(
-                children: [
-                  const SizedBox.square(
-                    dimension: 16,
-                    child: AppCircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(l10n.machineAgentsChecking),
-                ],
-              )
-            else ...[
-              for (final entry in updatable) ...[
-                Row(
-                  children: [
-                    Icon(
-                      Icons.system_update_alt_rounded,
-                      size: 18,
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        l10n.machineAgentsBannerTitle(entry.key.displayName),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_loading && updatable.isEmpty)
+            AppBanner(
+              tone: AppBadgeTone.info,
+              leading: const SizedBox.square(
+                dimension: AppIconSize.md,
+                child: AppCircularProgressIndicator(strokeWidth: 2),
+              ),
+              message: l10n.machineAgentsChecking,
+            )
+          else
+            for (final (i, entry) in updatable.indexed) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.sm),
+              AppBanner(
+                tone: AppBadgeTone.info,
+                icon: Icons.system_update_alt_rounded,
+                title: l10n.machineAgentsBannerTitle(entry.key.displayName),
+                message: l10n.machineAgentsBannerSubtitle(
+                  entry.value.version ?? l10n.machineAgentsUnknown,
+                  entry.value.latestVersion ?? l10n.machineAgentsUnknown,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  l10n.machineAgentsBannerSubtitle(
-                    entry.value.version ?? l10n.machineAgentsUnknown,
-                    entry.value.latestVersion ?? l10n.machineAgentsUnknown,
-                  ),
-                  style: AppText.secondary(
-                    theme,
-                    theme.colorScheme.onSecondaryContainer,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
+                footer: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
@@ -239,17 +204,13 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
                     ),
                   ],
                 ),
-              ],
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                _error!,
-                style: AppText.secondary(theme, theme.colorScheme.error),
               ),
             ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppBanner(tone: AppBadgeTone.danger, message: _error),
           ],
-        ),
+        ],
       ),
     );
   }

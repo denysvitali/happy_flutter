@@ -732,9 +732,7 @@ class _OutcomePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = context.l10n;
-    final color = missionLaneColor(context, lane);
     final silenceMs = nowMs - since;
     final isSilent = live && silenceMs >= missionSilentThreshold.inMilliseconds;
     final displayLane = isSilent ? MissionLane.blocked : lane;
@@ -754,11 +752,7 @@ class _OutcomePill extends StatelessWidget {
     };
     final pill = AppBadge(
       label: label,
-      backgroundColor: missionLaneContainerColor(context, displayLane),
-      foregroundColor: isSilent
-          ? missionLaneColor(context, MissionLane.blocked)
-          : color,
-      labelStyle: AppText.badge(theme, missionLaneColor(context, displayLane)),
+      color: missionLaneColor(context, displayLane),
     );
     if (onMarkRead == null) return pill;
     return Semantics(

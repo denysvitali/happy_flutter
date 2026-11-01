@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -285,39 +286,16 @@ class _ErrorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = theme.colorScheme;
     final errorType = msg['errorType'] as String? ?? 'unknown';
     final errorMessage = msg['errorMessage'] as String? ?? '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: InkWell(
+      child: AppBanner(
+        tone: AppBadgeTone.danger,
+        message: '$errorType: $errorMessage',
+        trailing: const Icon(Icons.chevron_right),
         onTap: () => _showErrorSheet(context),
-        borderRadius: BorderRadius.circular(AppRadius.xsm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.smd,
-            vertical: AppSpacing.xsm,
-          ),
-          decoration: BoxDecoration(
-            color: cs.errorContainer.withValues(alpha: AppOpacity.half),
-            borderRadius: BorderRadius.circular(AppRadius.xsm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, size: 14, color: cs.error),
-              const SizedBox(width: AppSpacing.xsm),
-              Flexible(
-                child: Text(
-                  '$errorType: $errorMessage',
-                  style: AppText.secondary(theme, cs.onErrorContainer),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

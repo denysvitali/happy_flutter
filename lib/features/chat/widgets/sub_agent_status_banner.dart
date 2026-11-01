@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide LogLevel, Logger;
@@ -11,7 +12,6 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/services/sync_service.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'agents_list_sheet.dart';
 import 'chat_chrome_density.dart';
@@ -274,31 +274,27 @@ class _BannerBody extends StatelessWidget {
     // Status lives in the material, not in silhouette: the fill stays a
     // status container while the panel geometry (radius, hairline edge,
     // floating margin) matches the goal/issue banners.
-    final Color backgroundColor;
-    final Color foregroundColor;
+    final AppBadgeTone tone;
     final IconData icon;
     final String label;
     if (hasErrors) {
-      backgroundColor = theme.colorScheme.errorContainer;
-      foregroundColor = theme.colorScheme.onErrorContainer;
+      tone = AppBadgeTone.danger;
       icon = Icons.warning_amber_rounded;
       label = l10n.subAgentBannerError(progress.error, progress.total);
     } else if (isComplete) {
-      backgroundColor = Color.alphaBlend(
-        AppColors.success.withValues(alpha: 0.16),
-        theme.colorScheme.surface,
-      );
-      foregroundColor = AppColors.success;
+      tone = AppBadgeTone.success;
       icon = Icons.check_circle_rounded;
       label = l10n.subAgentBannerComplete(progress.total);
     } else {
-      // Opaque. 0.6 alpha let the list's top fade bleed through and
-      // printed a ghost "Task completed …" row under the banner.
-      backgroundColor = theme.colorScheme.primaryContainer;
-      foregroundColor = theme.colorScheme.onPrimaryContainer;
+      tone = AppBadgeTone.info;
       icon = Icons.rocket_launch_rounded;
       label = l10n.subAgentBannerRunning(progress.running, progress.total);
     }
+    // Shared tone palette (opaque containers), so this strip matches every
+    // other alert's colors.
+    final colors = AppToneColors.of(context, tone);
+    final backgroundColor = colors.background;
+    final foregroundColor = colors.foreground;
     final dimForeground = foregroundColor.withValues(alpha: 0.8);
 
     // Short panes drop the floating margin and the row's breathing room —
@@ -317,7 +313,7 @@ class _BannerBody extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           side: BorderSide(
-            color: foregroundColor.withValues(alpha: 0.18),
+            color: colors.border.withValues(alpha: 0.35),
             width: AppBorder.hairline,
           ),
         ),

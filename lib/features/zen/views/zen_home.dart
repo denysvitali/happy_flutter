@@ -466,12 +466,7 @@ class _PrioritySectionHeader extends StatelessWidget {
                 ),
               ),
             ),
-            AppBadge(
-              label: '$count',
-              foregroundColor: borderColor,
-              backgroundColor: borderColor.withValues(alpha: 0.15),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+            AppBadge(label: '$count', color: borderColor),
             const SizedBox(width: AppSpacing.sm),
             AnimatedRotation(
               turns: collapsed ? -0.25 : 0,
@@ -575,12 +570,7 @@ class _DirectorySectionHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            AppBadge(
-              label: '$count',
-              foregroundColor: accent,
-              backgroundColor: accent.withValues(alpha: 0.15),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+            AppBadge(label: '$count', color: accent),
             const SizedBox(width: AppSpacing.sm),
             AnimatedRotation(
               turns: collapsed ? -0.25 : 0,

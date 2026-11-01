@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../core/models/workflow_run.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
 
 /// Colored status chip for a [WorkflowRun].
 class WorkflowStatusBadge extends StatelessWidget {
@@ -14,51 +13,31 @@ class WorkflowStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final (label, color) = _resolve(status, cs);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: AppFontSize.sm,
-          fontWeight: FontWeight.w600,
-          color: color,
-          letterSpacing: 0.2,
-        ),
-      ),
-    );
+    final (label, tone) = _resolve(status);
+    return AppBadge(label: label, tone: tone, showToneIcon: false);
   }
 
-  (String, Color) _resolve(String status, ColorScheme cs) {
+  (String, AppBadgeTone) _resolve(String status) {
     switch (status) {
       case WorkflowStatus.running:
-        return ('Running', cs.primary);
+        return ('Running', AppBadgeTone.info);
       case WorkflowStatus.paused:
-        return ('Paused', cs.tertiary);
+        return ('Paused', AppBadgeTone.warning);
       case WorkflowStatus.completed:
-        return ('Completed', AppColors.success);
+        return ('Completed', AppBadgeTone.success);
       case WorkflowStatus.failed:
-        return ('Failed', cs.error);
+        return ('Failed', AppBadgeTone.danger);
       case WorkflowStatus.killed:
-        return ('Killed', cs.error);
+        return ('Killed', AppBadgeTone.danger);
       case WorkflowStatus.cancelled:
-        return ('Cancelled', cs.onSurfaceVariant);
+        return ('Cancelled', AppBadgeTone.neutral);
       case WorkflowStatus.asyncLaunched:
-        return ('Launching', cs.primary);
+        return ('Launching', AppBadgeTone.info);
       case WorkflowStatus.queued:
       case WorkflowStatus.pending:
-        return ('Queued', cs.tertiary);
+        return ('Queued', AppBadgeTone.warning);
       default:
-        return (status.isEmpty ? 'Unknown' : status, cs.onSurfaceVariant);
+        return (status.isEmpty ? 'Unknown' : status, AppBadgeTone.neutral);
     }
   }
 }

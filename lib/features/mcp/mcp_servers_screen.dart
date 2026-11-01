@@ -487,26 +487,20 @@ class _ServerRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: AppBadge(
                   label: l10n.mcpBadgeNeedsAuth,
-                  backgroundColor: AppColors.warning.withValues(alpha: 0.15),
-                  foregroundColor: AppColors.warning,
+                  tone: AppBadgeTone.warning,
                 ),
               ),
             if (server.shadowed)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: AppBadge(
-                  label: l10n.mcpBadgeShadowed,
-                  backgroundColor: cs.surfaceContainerHighest,
-                  foregroundColor: cs.onSurfaceVariant,
-                ),
+                child: AppBadge(label: l10n.mcpBadgeShadowed),
               ),
             if (server.awaitingApproval)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: AppBadge(
                   label: l10n.mcpBadgeAwaitingApproval,
-                  backgroundColor: AppColors.warning.withValues(alpha: 0.15),
-                  foregroundColor: AppColors.warning,
+                  tone: AppBadgeTone.warning,
                 ),
               ),
             if (busy)

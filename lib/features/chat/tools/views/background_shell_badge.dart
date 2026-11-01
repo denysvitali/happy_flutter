@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -70,42 +71,21 @@ class BackgroundShellBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (:icon, :color, label: _) = cue(shell);
+    final (:icon, color: _, label: _) = cue(shell);
     final outputPath = shell['outputPath'] as String?;
     final taskId = shell['taskId'] as String?;
 
-    final badge = Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs - 1,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: AppOpacity.subtle),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: AppSpacing.xxs2),
-          Flexible(
-            child: Text(
-              describe(shell),
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (outputPath != null) ...[
-            const SizedBox(width: AppSpacing.xxs2),
-            Icon(Icons.copy_rounded, size: 12, color: color),
-          ],
-        ],
-      ),
+    final tone = switch (shell['status']) {
+      'completed' => AppBadgeTone.success,
+      'failed' => AppBadgeTone.danger,
+      'stopped' => AppBadgeTone.warning,
+      _ => AppBadgeTone.info,
+    };
+    final badge = AppBadge(
+      label: describe(shell),
+      tone: tone,
+      leading: Icon(icon),
+      trailing: outputPath == null ? null : const Icon(Icons.copy_rounded),
     );
 
     return Padding(
@@ -119,7 +99,7 @@ class BackgroundShellBadge extends StatelessWidget {
           child: outputPath == null
               ? badge
               : InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   onTap: () => _copyOutputPath(context, outputPath),
                   child: badge,
                 ),

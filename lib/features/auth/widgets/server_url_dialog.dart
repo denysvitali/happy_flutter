@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/socket_io_client.dart';
@@ -319,92 +322,42 @@ class _ErrorDetailBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: cs.errorContainer,
-        borderRadius: BorderRadius.circular(AppRadius.smd),
-        border: Border.all(
-          color: cs.error.withValues(alpha: AppOpacity.medium),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+    final colors = AppToneColors.of(context, AppBadgeTone.danger);
+    return AppBanner(
+      tone: AppBadgeTone.danger,
+      title: l10n.authConnectionFailed,
+      trailing: errorType == null
+          ? null
+          : AppBadge(
+              label: errorType!,
+              tone: AppBadgeTone.danger,
+              showToneIcon: false,
+            ),
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(Icons.error_outline, color: cs.onErrorContainer, size: 18),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  l10n.authConnectionFailed,
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: cs.onErrorContainer,
-                  ),
-                ),
-              ),
-              if (errorType != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.error.withValues(alpha: AppOpacity.soft),
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Text(
-                    errorType!,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: cs.onErrorContainer,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
           SelectableText(
             errorMessage,
-            style: TextStyle(
-              color: cs.onErrorContainer,
-              fontSize: AppFontSize.sm,
-              fontFamily: 'monospace',
-            ),
+            style: AppText.mono(theme, colors.foreground),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () async {
-                  await setClipboardTextSafely(errorMessage);
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.authErrorDetailsCopied),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.content_copy, size: AppSpacing.lg),
-                label: Text(
-                  l10n.commonCopy,
-                  style: TextStyle(fontSize: AppFontSize.sm),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.onErrorContainer,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              onPressed: () async {
+                await setClipboardTextSafely(errorMessage);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(l10n.authErrorDetailsCopied),
+                    duration: const Duration(seconds: 2),
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+              icon: const Icon(Icons.content_copy, size: AppIconSize.md),
+              label: Text(l10n.commonCopy),
+              style: TextButton.styleFrom(foregroundColor: colors.foreground),
+            ),
           ),
         ],
       ),

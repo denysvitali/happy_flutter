@@ -27,16 +27,7 @@ class MatchCountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = colorScheme;
     final displayLabel = label ?? '$count match${count != 1 ? 'es' : ''}';
-    return AppBadge(
-      label: displayLabel,
-      backgroundColor: cs.tertiary.withValues(alpha: 0.12),
-      foregroundColor: cs.tertiary,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxxs,
-      ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
-    );
+    return AppBadge(label: displayLabel, color: cs.tertiary);
   }
 }
 
@@ -292,16 +283,7 @@ class MatchCountPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBadge(
-      label: '$count',
-      backgroundColor: cs.secondary.withValues(alpha: 0.12),
-      foregroundColor: cs.secondary,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xsm,
-        vertical: 1,
-      ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
-    );
+    return AppBadge(label: '$count', color: cs.secondary);
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
@@ -242,67 +243,39 @@ class _GoalStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final l10n = context.l10n;
-
-    late final Color bg;
-    late final Color fg;
-    late final String label;
-    late final IconData icon;
-
-    switch (loop.loopStatus) {
-      case LoopStatus.complete:
-        bg = AppColors.success.withValues(alpha: 0.12);
-        fg = AppColors.success;
-        label = l10n.goalLoopsStatusComplete;
-        icon = Icons.check_circle;
-      case LoopStatus.blocked:
-        bg = AppColors.warning.withValues(alpha: 0.12);
-        fg = AppColors.warning;
-        label = l10n.goalLoopsStatusBlocked;
-        icon = Icons.pan_tool_outlined;
-      case LoopStatus.stalled:
-        bg = AppColors.warning.withValues(alpha: 0.12);
-        fg = AppColors.warning;
-        label = l10n.goalLoopsStatusStalled;
-        icon = Icons.sync_problem;
-      case LoopStatus.exhausted:
-        bg = cs.surfaceContainerHighest;
-        fg = cs.onSurfaceVariant;
-        label = l10n.goalLoopsStatusExhausted;
-        icon = Icons.hourglass_disabled;
-      case LoopStatus.running:
-        if (loop.paused) {
-          bg = cs.secondaryContainer;
-          fg = cs.onSecondaryContainer;
-          label = l10n.loopsStatusPaused;
-          icon = Icons.pause;
-        } else {
-          bg = cs.primaryContainer;
-          fg = cs.onPrimaryContainer;
-          label = l10n.goalLoopsStatusRunning;
-          icon = Icons.autorenew;
-        }
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+    final (label, tone, icon) = switch (loop.loopStatus) {
+      LoopStatus.complete => (
+        l10n.goalLoopsStatusComplete,
+        AppBadgeTone.success,
+        Icons.check_circle,
       ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+      LoopStatus.blocked => (
+        l10n.goalLoopsStatusBlocked,
+        AppBadgeTone.warning,
+        Icons.pan_tool_outlined,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(label, style: AppText.label(theme, fg)),
-        ],
+      LoopStatus.stalled => (
+        l10n.goalLoopsStatusStalled,
+        AppBadgeTone.warning,
+        Icons.sync_problem,
       ),
-    );
+      LoopStatus.exhausted => (
+        l10n.goalLoopsStatusExhausted,
+        AppBadgeTone.neutral,
+        Icons.hourglass_disabled,
+      ),
+      LoopStatus.running when loop.paused => (
+        l10n.loopsStatusPaused,
+        AppBadgeTone.neutral,
+        Icons.pause,
+      ),
+      LoopStatus.running => (
+        l10n.goalLoopsStatusRunning,
+        AppBadgeTone.info,
+        Icons.autorenew,
+      ),
+    };
+    return AppBadge(label: label, tone: tone, leading: Icon(icon));
   }
 }

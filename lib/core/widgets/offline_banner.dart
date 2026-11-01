@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/socket_io_client.dart'
@@ -185,9 +186,9 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
-    final bg = cs.tertiaryContainer;
-    final fg = cs.onTertiaryContainer;
+    final tone = AppToneColors.of(context, AppBadgeTone.warning);
+    final bg = tone.background;
+    final fg = tone.foreground;
 
     final remaining = _secondsRemaining;
     final disconnectReason = socketIoClient.lastDisconnectReason;
@@ -376,10 +377,13 @@ class _BannerContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
-    final bg = isError ? cs.errorContainer : cs.tertiaryContainer;
-    final fg = isError ? cs.onErrorContainer : cs.onTertiaryContainer;
+    final tone = AppToneColors.of(
+      context,
+      isError ? AppBadgeTone.danger : AppBadgeTone.warning,
+    );
+    final bg = tone.background;
+    final fg = tone.foreground;
 
     return Container(
       width: double.infinity,

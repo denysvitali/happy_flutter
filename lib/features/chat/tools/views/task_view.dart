@@ -289,21 +289,7 @@ class _InfoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBadge(
-      leading: Icon(icon, size: AppFontSize.sm, color: color),
-      label: label,
-      backgroundColor: color.withValues(alpha: 0.15),
-      foregroundColor: color,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xsm,
-        vertical: AppSpacing.xxs,
-      ),
-      labelStyle: const TextStyle(
-        fontSize: AppFontSize.sm,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.2,
-      ),
-    );
+    return AppBadge(leading: Icon(icon), label: label, color: color);
   }
 }
 

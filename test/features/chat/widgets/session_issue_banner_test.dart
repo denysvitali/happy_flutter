@@ -99,10 +99,11 @@ void main() {
           reason: 'Long diagnostics must wrap into multiple lines',
         );
         for (final icon in [Icons.restart_alt_rounded, Icons.copy_rounded]) {
-          expect(
-            tester.widget<Icon>(find.byIcon(icon)).color,
-            appColors.onWarningContainer,
-          );
+          final glyph = tester.widget<Icon>(find.byIcon(icon));
+          final resolved =
+              glyph.color ??
+              IconTheme.of(tester.element(find.byIcon(icon))).color;
+          expect(resolved, appColors.onWarningContainer);
         }
         expect(tester.takeException(), isNull);
       });

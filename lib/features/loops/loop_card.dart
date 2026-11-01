@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -212,45 +212,12 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = context.l10n;
-    final Color bg;
-    final Color fg;
-    final String label;
-    final IconData icon;
-    if (isExpired) {
-      bg = AppColors.error.withValues(alpha: 0.1);
-      fg = AppColors.error;
-      label = l10n.loopsStatusExpired;
-      icon = Icons.history;
-    } else if (loop.paused) {
-      bg = theme.colorScheme.secondaryContainer;
-      fg = theme.colorScheme.onSecondaryContainer;
-      label = l10n.loopsStatusPaused;
-      icon = Icons.pause;
-    } else {
-      bg = AppColors.success.withValues(alpha: 0.1);
-      fg = AppColors.success;
-      label = l10n.loopsStatusActive;
-      icon = Icons.check_circle;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(label, style: AppText.label(theme, fg)),
-        ],
-      ),
-    );
+    final (label, tone, icon) = isExpired
+        ? (l10n.loopsStatusExpired, AppBadgeTone.danger, Icons.history)
+        : loop.paused
+        ? (l10n.loopsStatusPaused, AppBadgeTone.neutral, Icons.pause)
+        : (l10n.loopsStatusActive, AppBadgeTone.success, Icons.check_circle);
+    return AppBadge(label: label, tone: tone, leading: Icon(icon));
   }
 }

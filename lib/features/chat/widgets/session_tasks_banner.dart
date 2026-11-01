@@ -318,13 +318,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBadge(
-      label: label,
-      foregroundColor: color,
-      backgroundColor: color.withValues(alpha: 0.10),
-      borderColor: color.withValues(alpha: 0.18),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
+    return AppBadge(label: label, color: color);
   }
 }
 

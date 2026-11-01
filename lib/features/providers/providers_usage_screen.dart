@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -482,36 +484,12 @@ class _ProviderRefreshError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return Material(
-      color: cs.errorContainer,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.sm,
-          AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: cs.onErrorContainer),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                message,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.label(theme, cs.onErrorContainer),
-              ),
-            ),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(context.l10n.commonRetry),
-            ),
-          ],
-        ),
+    return AppBanner(
+      tone: AppBadgeTone.warning,
+      message: message,
+      trailing: TextButton(
+        onPressed: onRetry,
+        child: Text(context.l10n.commonRetry),
       ),
     );
   }

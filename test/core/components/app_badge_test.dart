@@ -77,20 +77,17 @@ void main() {
       expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
     });
 
-    testWidgets('explicit colors and leading widget override tone defaults', (
+    testWidgets('categorical color tints at one fixed strength', (
       tester,
     ) async {
-      const background = Color(0xFF102030);
-      const foreground = Color(0xFFF0E0D0);
+      const hue = Color(0xFF7C3AED);
 
       await tester.pumpWidget(
         buildApp(
           child: const AppBadge(
             label: 'Custom',
-            tone: AppBadgeTone.danger,
             leading: Icon(Icons.flag_outlined),
-            backgroundColor: background,
-            foregroundColor: foreground,
+            color: hue,
           ),
         ),
       );
@@ -98,10 +95,52 @@ void main() {
       final iconContext = tester.element(find.byIcon(Icons.flag_outlined));
       final label = tester.widget<Text>(find.text('Custom'));
 
-      expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
-      expect(badgeDecoration(tester).color, background);
-      expect(IconTheme.of(iconContext).color, foreground);
-      expect(label.style?.color, foreground);
+      expect(badgeDecoration(tester).color, hue.withValues(alpha: 0.15));
+      expect(IconTheme.of(iconContext).color, hue);
+      expect(label.style?.color, hue);
+    });
+
+    testWidgets('solid counters fill with the hue and contrasting text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppBadge(
+            label: '3',
+            color: Color(0xFF2563EB),
+            solid: true,
+          ),
+        ),
+      );
+
+      expect(badgeDecoration(tester).color, const Color(0xFF2563EB));
+      expect(tester.widget<Text>(find.text('3')).style?.color, Colors.white);
+    });
+
+    testWidgets('every variant shares one height', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBadge(label: 'a'),
+              AppBadge(label: 'b', tone: AppBadgeTone.warning),
+              AppBadge(label: 'c', color: Colors.teal),
+              AppBadge(label: 'd', outlined: true),
+              AppBadge(label: 'e', monospace: true),
+              AppBadge(label: '9', solid: true, color: Colors.red),
+              AppBadge(label: 'f', leading: Icon(Icons.folder_outlined)),
+            ],
+          ),
+        ),
+      );
+
+      final heights = find
+          .byType(AppBadge)
+          .evaluate()
+          .map((e) => e.size!.height)
+          .toSet();
+      expect(heights, hasLength(1));
     });
 
     testWidgets('semantic tone uses dark theme container and readable text', (

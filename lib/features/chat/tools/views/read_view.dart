@@ -282,18 +282,8 @@ class _FileHeader extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xsm),
                   AppBadge(
                     label: extension.replaceFirst('.', ''),
-                    backgroundColor: cs.surfaceContainerHigh,
-                    borderColor: cs.outlineVariant,
-                    foregroundColor: cs.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxs2,
-                      vertical: 1,
-                    ),
-                    labelStyle: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    outlined: true,
+                    monospace: true,
                   ),
                 ],
               ],
@@ -399,22 +389,7 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return AppBadge(
-      label: label,
-      backgroundColor: cs.surfaceContainerHigh,
-      borderColor: cs.outlineVariant,
-      foregroundColor: cs.onSurfaceVariant,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xxs2,
-        vertical: AppSpacing.xs - 1,
-      ),
-      labelStyle: const TextStyle(
-        fontSize: AppFontSize.sm,
-        fontWeight: FontWeight.normal,
-        fontFamily: 'monospace',
-      ),
-    );
+    return AppBadge(label: label, outlined: true, monospace: true);
   }
 }
 

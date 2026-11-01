@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,33 +93,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              Builder(
-                builder: (context) {
-                  final cs = Theme.of(context).colorScheme;
-                  return Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: cs.errorContainer,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(
-                        color: cs.error.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: cs.onErrorContainer),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(
-                            _error ?? '',
-                            style: TextStyle(color: cs.onErrorContainer),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+              AppBanner(tone: AppBadgeTone.danger, message: _error),
             ],
             const SizedBox(height: AppSpacing.xxl),
             SizedBox(

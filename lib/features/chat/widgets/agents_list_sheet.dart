@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -654,36 +655,7 @@ class _AgentTypeBadge extends StatelessWidget {
     final cs = theme.colorScheme;
     final icon = _iconForType(type);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.xs, color: cs.onPrimaryContainer),
-          const SizedBox(width: 3),
-          Flexible(
-            child: Text(
-              type,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w500,
-                color: cs.onPrimaryContainer,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return AppBadge(label: type, leading: Icon(icon), color: cs.primary);
   }
 
   IconData _iconForType(String type) {
@@ -710,35 +682,7 @@ class _InfoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: cs.tertiaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.xs, color: cs.onTertiaryContainer),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppFontSize.sm,
-              fontWeight: FontWeight.w500,
-              color: cs.onTertiaryContainer,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
+    return AppBadge(label: label, leading: Icon(icon));
   }
 }
 
@@ -749,25 +693,6 @@ class _ChildCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Text(
-        '$count',
-        style: AppText.secondary(
-          theme,
-          cs.onSurfaceVariant.withValues(alpha: 0.7),
-        ),
-      ),
-    );
+    return AppBadge(label: '$count');
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_banner.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -20,8 +21,6 @@ class ErrorMessageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final errorType = messageData['errorType'] as String? ?? 'unknown';
     final errorMessage =
         messageData['errorMessage'] as String? ?? 'Unknown error';
@@ -33,42 +32,11 @@ class ErrorMessageWidget extends StatelessWidget {
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: cs.errorContainer,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.error_outline, size: 18, color: cs.onErrorContainer),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      errorType.replaceAll('_', ' '),
-                      style: AppText.label(theme, cs.onErrorContainer),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      errorMessage,
-                      style: AppText.secondary(
-                        theme,
-                        cs.onErrorContainer.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: cs.onErrorContainer.withValues(alpha: 0.6),
-              ),
-            ],
-          ),
+        child: AppBanner(
+          tone: AppBadgeTone.danger,
+          title: errorType.replaceAll('_', ' '),
+          message: errorMessage,
+          trailing: const Icon(Icons.chevron_right),
         ),
       ),
     );

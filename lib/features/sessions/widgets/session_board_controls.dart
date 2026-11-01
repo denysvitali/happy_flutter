@@ -112,7 +112,7 @@ class _StatusFilter extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              AppBadge(label: '$count', labelStyle: AppText.badge(theme)),
+              AppBadge(label: '$count'),
             ],
           ),
         ),

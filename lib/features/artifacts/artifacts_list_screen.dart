@@ -552,13 +552,7 @@ class _TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBadge(
-      label: label,
-      foregroundColor: color,
-      backgroundColor: color.withValues(alpha: AppOpacity.soft),
-      borderColor: color.withValues(alpha: 0.25),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-    );
+    return AppBadge(label: label, color: color);
   }
 }
 

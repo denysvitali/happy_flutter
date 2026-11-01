@@ -166,10 +166,8 @@ class TodoProgressBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBadge(
-      leading: const Icon(Icons.lightbulb_outline, size: AppIconSize.xs),
+      leading: const Icon(Icons.lightbulb_outline),
       label: '$completed/$total',
-      padding: AppBadge.defaultPadding,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
     );
   }
 }
@@ -186,8 +184,8 @@ class UnreadBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return AppBadge(
       label: count > 99 ? '99+' : '$count',
-      foregroundColor: cs.onPrimary,
-      backgroundColor: cs.primary,
+      color: cs.primary,
+      solid: true,
     );
   }
 }
