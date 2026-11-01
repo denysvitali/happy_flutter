@@ -11,6 +11,7 @@ import 'package:record/record.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import 'logger_service.dart' show logger;
+import 'sherpa_runtime.dart';
 
 /// Offline ASR model family. Drives how
 /// [OfflineSttResolvedFiles] map onto sherpa-onnx's
@@ -631,6 +632,7 @@ class OfflineDictationService {
       final req = _OfflineTranscriptionRequest(
         audioPath: audioPath,
         files: files,
+        runtime: await SherpaRuntime.ensure(),
       );
       final text = await Isolate.run(() => _transcribeInWorker(req));
       if (text.isEmpty) {
@@ -734,6 +736,7 @@ class OfflineDictationService {
     final files = await _ensureFilesOnce(selectedModel);
     final req = _OfflineTranscriptionRequest(
       files: files,
+      runtime: await SherpaRuntime.ensure(),
       samples: samples,
       sampleRate: sampleRate,
     );
@@ -774,6 +777,9 @@ class OfflineDictationService {
       p.join(supportDir.path, 'speech', 'stt', model.id),
     );
     await modelDir.create(recursive: true);
+    if (await SherpaRuntime.find() == null) {
+      await _ensureRuntime(model.id);
+    }
     final resolved = resolveOfflineSttFiles(model, modelDir.path);
     if (resolved.allExist) {
       logger.info('[OfflineSTT] ensureFiles: cache hit at ${modelDir.path}');
@@ -800,6 +806,43 @@ class OfflineDictationService {
     }
     logger.info('[OfflineSTT] ensureFiles: ready at ${modelDir.path}');
     return after;
+  }
+
+  /// Release APKs fetch the shared speech runtime before the first model.
+  Future<void> _ensureRuntime(String modelId) async {
+    logger.info('[OfflineSTT] ensureFiles: fetching speech runtime');
+    _errors.remove(modelId);
+    _setStatusFor(modelId, OfflineSttStatus.downloading);
+    var lastPercent = -1;
+    try {
+      await SherpaRuntime.ensure(
+        onProgress: (received, total) {
+          final fraction = total == null
+              ? null
+              : (received / total).clamp(0.0, 1.0);
+          final percent = ((fraction ?? 0) * 100).floor();
+          if (percent == lastPercent) return;
+          lastPercent = percent;
+          _setProgressFor(
+            modelId,
+            OfflineSttDownloadProgress(
+              modelId: modelId,
+              phase: 'downloading',
+              receivedBytes: received,
+              totalBytes: total,
+              fraction: fraction,
+            ),
+          );
+        },
+      );
+    } catch (error, stack) {
+      logger.warning('[OfflineSTT] speech runtime fetch failed', error, stack);
+      throw OfflineDictationException(
+        'Failed to download offline speech runtime: $error',
+      );
+    } finally {
+      _clearProgressFor(modelId);
+    }
   }
 
   Future<void> _downloadAndExtract(
@@ -1064,7 +1107,7 @@ Future<void> _verifyAndExtractModelArchive({
 }
 
 String _transcribeInWorker(_OfflineTranscriptionRequest request) {
-  sherpa.initBindings();
+  bindSherpaRuntime(request.runtime);
   final files = request.files;
   final sherpa.OfflineModelConfig modelConfig;
   switch (files.family) {
@@ -1146,6 +1189,7 @@ String _transcribeInWorker(_OfflineTranscriptionRequest request) {
 class _OfflineTranscriptionRequest {
   const _OfflineTranscriptionRequest({
     required this.files,
+    required this.runtime,
     this.audioPath,
     this.samples,
     this.sampleRate = 16000,
@@ -1155,4 +1199,5 @@ class _OfflineTranscriptionRequest {
   final Float32List? samples;
   final int sampleRate;
   final OfflineSttResolvedFiles files;
+  final SherpaRuntimeLibs runtime;
 }

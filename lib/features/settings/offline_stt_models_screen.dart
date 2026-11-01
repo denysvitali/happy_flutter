@@ -145,7 +145,8 @@ class _OfflineSttModelsScreenState
                       'Tap a model to select it. The first download per '
                       "model fetches the archive from sherpa-onnx's "
                       'GitHub release. First mic use also downloads the '
-                      'selected model if needed.',
+                      'selected model if needed. The first model on '
+                      'Android also fetches the ~12MB speech engine.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -290,7 +291,7 @@ class _ModelRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: 'Delete',
+            tooltip: context.l10n.commonDelete,
             icon: const Icon(Icons.delete_outline),
             onPressed: onDelete,
           ),

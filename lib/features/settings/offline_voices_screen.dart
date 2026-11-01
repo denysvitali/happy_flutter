@@ -150,7 +150,8 @@ class _OfflineVoicesScreenState extends ConsumerState<OfflineVoicesScreen> {
                 child: Text(
                   'Tap a voice to select it. The first download per '
                   "voice fetches the model from sherpa-onnx's GitHub "
-                  'release.',
+                  'release; the first offline voice on Android also '
+                  'fetches the ~12MB speech engine.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -297,12 +298,12 @@ class _VoiceRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: 'Preview',
+            tooltip: context.l10n.commonPreview,
             icon: const Icon(Icons.play_arrow),
             onPressed: onPreview,
           ),
           IconButton(
-            tooltip: 'Delete',
+            tooltip: context.l10n.commonDelete,
             icon: const Icon(Icons.delete_outline),
             onPressed: onDelete,
           ),

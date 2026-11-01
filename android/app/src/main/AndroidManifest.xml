@@ -65,6 +65,11 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="happy_default" />
+        <!-- Unbundled ML Kit barcode model (gradle.properties): Play services
+             fetches it at install time instead of the APK carrying ~3MB. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

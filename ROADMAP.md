@@ -157,6 +157,16 @@ Regressions are updated; device acceptance is pending.
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.
 
+## APK size
+
+Release APK v1.0.0-319500 was 31.4MB; 11.5MB was the sherpa-onnx runtime
+(onnxruntime + C API) and ~3MB the bundled ML Kit barcode model. Release
+builds now exclude both: the speech runtime downloads on first offline voice
+use from the pinned pub.dev archive (SHA-256 verified, atomic install), and
+QR scanning uses Play services' unbundled model. Debug APKs keep the bundled
+runtime. Expected release APK ~17MB; CI build size and device acceptance
+(first offline voice/dictation download, QR link scan) are pending.
+
 ## CPU and idle-work qualification
 
 Process-wide CPU telemetry and complete zero-frame window accounting are added.

@@ -116,6 +116,8 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true
+            // The sherpa-onnx C++ wrapper is unused; Dart binds the C API.
+            excludes += "**/libsherpa-onnx-cxx-api.so"
         }
     }
 
@@ -126,6 +128,17 @@ android {
 
 kotlin {
     jvmToolchain(17)
+}
+
+// Release APKs download the offline-speech runtime (onnxruntime + sherpa C
+// API, ~11MB compressed) on first use; see lib/core/services/
+// sherpa_runtime.dart. Debug builds keep the bundled copies for every ABI.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.addAll(
+            listOf("**/libonnxruntime.so", "**/libsherpa-onnx-c-api.so")
+        )
+    }
 }
 
 flutter {
