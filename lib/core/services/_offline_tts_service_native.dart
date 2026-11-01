@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import 'logger_service.dart' show logger;
+import 'sherpa_runtime.dart';
 
 /// Identifies a sherpa-onnx TTS voice model.
 ///
@@ -434,8 +435,10 @@ class OfflineTtsService {
       // Run a tiny probe in a worker isolate to bind FFI symbols and
       // catch missing/incompatible libraries up front. We don't keep
       // the bindings — they're per-isolate — but a successful probe
-      // means subsequent generate workers will succeed too.
-      await Isolate.run(_initBindingsProbe);
+      // means subsequent generate workers will succeed too. Release
+      // APKs fetch the runtime on first use; skip the probe until then.
+      final runtime = await SherpaRuntime.find();
+      if (runtime != null) await compute(_initBindingsProbe, runtime);
     } catch (e) {
       // Mark the offline engine as permanently unusable on this
       // device so [speak] short-circuits to the system engine instead
@@ -581,6 +584,7 @@ class OfflineTtsService {
     );
 
     final files = await _ensureFilesOnce(voice);
+    final runtime = await SherpaRuntime.ensure();
 
     // Increment the generation counter; if a newer call arrives
     // before this one finishes generating, we'll bail out instead of
@@ -604,6 +608,7 @@ class OfflineTtsService {
       tokens: files.tokens,
       dataDir: files.dataDir,
       outputWavPath: wavPath,
+      runtime: runtime,
     );
     final swGen = Stopwatch()..start();
     final result = await compute(_generateInWorker, ttsReq);
@@ -708,6 +713,11 @@ class OfflineTtsService {
       p.join(supportDir.path, 'speech', 'tts', voice.id),
     );
     await modelDir.create(recursive: true);
+    if (await SherpaRuntime.find() == null) {
+      logger.info('[OfflineTTS] ensureFiles: fetching speech runtime');
+      _setStatusFor(voice.id, OfflineTtsStatus.downloading);
+      await SherpaRuntime.ensure();
+    }
     final resolved = _resolveFor(voice, modelDir);
     if (resolved.allExist) {
       logger.info('[OfflineTTS] ensureFiles: cache hit at ${modelDir.path}');
@@ -1061,12 +1071,14 @@ class _TtsRequest {
     required this.tokens,
     required this.dataDir,
     required this.outputWavPath,
+    required this.runtime,
   });
   final String text;
   final String model;
   final String tokens;
   final String dataDir;
   final String outputWavPath;
+  final SherpaRuntimeLibs runtime;
 }
 
 class _TtsResult {
@@ -1079,14 +1091,14 @@ class _TtsResult {
 /// [OfflineTtsService._doInitialize] as a fail-fast probe — if the
 /// native library is missing or incompatible for this device's ABI
 /// the exception fires here, well before a user-initiated speak.
-void _initBindingsProbe() {
-  sherpa.initBindings();
+void _initBindingsProbe(SherpaRuntimeLibs runtime) {
+  bindSherpaRuntime(runtime);
 }
 
 _TtsResult _generateInWorker(_TtsRequest req) {
   // Bindings are isolate-local; this also enables `sherpa.writeWave`
   // below to find the FFI symbols.
-  sherpa.initBindings();
+  bindSherpaRuntime(req.runtime);
   final config = sherpa.OfflineTtsConfig(
     model: sherpa.OfflineTtsModelConfig(
       vits: sherpa.OfflineTtsVitsModelConfig(

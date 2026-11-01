@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'tool_view_helpers.dart' show toolStateTone;
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_inline_row.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -401,14 +402,11 @@ class ToolStatusBadge extends StatelessWidget {
       ToolState.pending => context.l10n.toolStateQueued,
     };
 
-    final tone = switch (state) {
-      ToolState.completed => AppBadgeTone.success,
-      ToolState.error => AppBadgeTone.danger,
-      ToolState.running => AppBadgeTone.info,
-      ToolState.pending => AppBadgeTone.neutral,
-    };
-
-    return AppBadge(label: label, tone: tone, leading: Icon(icon));
+    return AppBadge(
+      label: label,
+      tone: toolStateTone(state),
+      leading: Icon(icon),
+    );
   }
 }
 

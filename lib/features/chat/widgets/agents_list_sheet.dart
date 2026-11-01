@@ -1,13 +1,14 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view_helpers.dart'
+    show toolStateTone;
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/sync_service.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../../core/wire/wire_parsers.dart';
@@ -532,17 +533,10 @@ class _AgentTile extends StatelessWidget {
     final canOpenConversation =
         navigationId != null && agent['_subagentsCatalogSynthetic'] != true;
 
-    final Color borderColor;
-    switch (toolState) {
-      case ToolState.running:
-        borderColor = cs.primary.withAlpha(100);
-      case ToolState.completed:
-        borderColor = AppColors.success.withAlpha(100);
-      case ToolState.error:
-        borderColor = cs.error.withAlpha(100);
-      case ToolState.pending:
-        borderColor = cs.outlineVariant;
-    }
+    // Pending rows keep a plain edge; others share the tone outline.
+    final borderColor = toolState == ToolState.pending
+        ? cs.outlineVariant
+        : AppToneColors.of(context, toolStateTone(toolState)).outline;
 
     return InkWell(
       onTap: canOpenConversation

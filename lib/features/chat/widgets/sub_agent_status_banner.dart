@@ -312,10 +312,7 @@ class _BannerBody extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: BorderSide(
-            color: colors.border.withValues(alpha: 0.35),
-            width: AppBorder.hairline,
-          ),
+          side: BorderSide(color: colors.outline, width: AppBorder.hairline),
         ),
         elevation: AppElevation.low,
         shadowColor: Colors.black.withValues(alpha: 0.24),

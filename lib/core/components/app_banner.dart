@@ -122,10 +122,7 @@ class AppBanner extends StatelessWidget {
       shadowColor: Colors.black.withValues(alpha: 0.24),
       shape: RoundedRectangleBorder(
         borderRadius: radius,
-        side: BorderSide(
-          color: colors.border.withValues(alpha: 0.35),
-          width: AppBorder.hairline,
-        ),
+        side: BorderSide(color: colors.outline, width: AppBorder.hairline),
       ),
       clipBehavior: Clip.antiAlias,
       child: onTap == null

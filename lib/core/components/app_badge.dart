@@ -262,4 +262,7 @@ class AppToneColors {
 
   /// Default glyph for the tone; null for neutral.
   final IconData? icon;
+
+  /// The hairline edge every toned surface uses ([border] at 35%).
+  Color get outline => border.withValues(alpha: 0.35);
 }

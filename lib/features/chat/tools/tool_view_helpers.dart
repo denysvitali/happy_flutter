@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'known_tools.dart';
@@ -38,6 +39,15 @@ bool isPermissionNotDeniedOrCanceled(Map<String, dynamic>? permission) {
   final status = permission['status'];
   return status != 'denied' && status != 'canceled';
 }
+
+/// The semantic tone for a tool state — the one mapping badges, cards and
+/// borders share.
+AppBadgeTone toolStateTone(ToolState state) => switch (state) {
+  ToolState.completed => AppBadgeTone.success,
+  ToolState.error => AppBadgeTone.danger,
+  ToolState.running => AppBadgeTone.info,
+  ToolState.pending => AppBadgeTone.neutral,
+};
 
 /// Returns the accent/background color for a given tool state.
 Color stateColor(ToolState state, ColorScheme cs) {

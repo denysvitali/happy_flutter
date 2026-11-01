@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view_helpers.dart'
+    show toolStateTone;
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:go_router/go_router.dart';
 
@@ -140,17 +143,10 @@ class AgentConversationMessage extends StatelessWidget {
     final childCount = children?.length ?? 0;
     final msgId = msg['id'] as String?;
 
-    final Color borderColor;
-    switch (toolState) {
-      case ToolState.running:
-        borderColor = theme.colorScheme.primary.withAlpha(80);
-      case ToolState.completed:
-        borderColor = AppColors.success.withAlpha(80);
-      case ToolState.error:
-        borderColor = theme.colorScheme.error.withAlpha(80);
-      case ToolState.pending:
-        borderColor = theme.colorScheme.outlineVariant;
-    }
+    // Pending rows keep a plain edge; others share the tone outline.
+    final borderColor = toolState == ToolState.pending
+        ? theme.colorScheme.outlineVariant
+        : AppToneColors.of(context, toolStateTone(toolState)).outline;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxs),
