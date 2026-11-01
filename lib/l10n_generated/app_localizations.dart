@@ -10310,6 +10310,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get workflowStatusUnknown;
+
+  /// No description provided for @clipboardCopiedTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied the first {copied} of {total} characters — too large for the clipboard'**
+  String clipboardCopiedTruncated(int copied, int total);
 }
 
 class _AppLocalizationsDelegate

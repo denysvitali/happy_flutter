@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:happy_flutter/core/components/app_banner.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/code_viewer_theme.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'message_detail_sheet.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -99,15 +99,8 @@ class ErrorMessageWidget extends StatelessWidget {
                   ),
                   TextButton.icon(
                     onPressed: () async {
-                      await setClipboardTextSafely(jsonString);
-                      if (!ctx.mounted || !context.mounted) return;
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.commonCopy),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
+                      await copyWithFeedback(context, jsonString);
                     },
                     icon: const Icon(Icons.copy, size: 18),
                     label: Text(l10n.commonCopy),

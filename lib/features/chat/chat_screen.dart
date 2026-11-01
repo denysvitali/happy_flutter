@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart'
     show ValueListenable, kDebugMode, listEquals, visibleForTesting;
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,7 +38,6 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
-import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/model_context_window.dart';
 import '../../core/utils/network_errors.dart';
 import '../../core/utils/session_context_usage.dart';
@@ -1946,20 +1946,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _copySessionIssue(_SessionSendIssue issue) async {
-    final result = await setClipboardTextSafely(
-      '${issue.title}\n${issue.message}',
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result.success
-              ? context.l10n.commonCopiedToClipboard
-              : context.l10n.textSelectionFailedToCopy,
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    await copyWithFeedback(context, '${issue.title}\n${issue.message}');
   }
 
   /// Recomputes the memoized backward scans over [_messages]:

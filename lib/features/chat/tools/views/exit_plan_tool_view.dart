@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import '../../../../core/i18n/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/clipboard_utils.dart';
 import '../../../../core/wire/wire_parsers.dart';
 import '../../markdown/markdown_view.dart';
 import '../tool_section_view.dart';
@@ -86,8 +86,12 @@ class _CopyPlanButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(4),
         onTap: () async {
-          await setClipboardTextSafely(text);
-          onCopied();
+          final result = await copyWithFeedback(
+            context,
+            text,
+            announceSuccess: false,
+          );
+          if (result.success) onCopied();
         },
         child: Padding(
           padding: const EdgeInsets.all(6),

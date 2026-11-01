@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 
 /// A tap-to-copy icon button for tool views: copies [text] to the clipboard
 /// and briefly swaps to a checkmark for 2 seconds to confirm the copy.
@@ -32,8 +32,12 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
 
   Future<void> _handleCopy() async {
     final text = await widget.prepareText?.call(widget.text) ?? widget.text;
-    await setClipboardTextSafely(text);
-    if (!mounted) return;
+    final result = await copyWithFeedback(
+      context,
+      text,
+      announceSuccess: false,
+    );
+    if (!mounted || !result.success) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted) return;

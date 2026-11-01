@@ -114,8 +114,9 @@ the selection and a direct reset. Workflow refresh retains cached runs, reports
 fetch failures, and stays available on empty lists. Two independent source
 reviews informed follow-up fixes. Scoped static analysis passes; regression
 tests are added for CI, with device and screen-reader acceptance still pending.
-Remaining related gaps: localized settings/task search labels and explicit
-feedback when oversized artifact clipboard content is truncated.
+Settings search/Zen filter labels are now localized, and `copyWithFeedback`
+reports truncated or failed clipboard writes (artifacts, files, code blocks,
+messages) instead of claiming success; regression tests added for CI.
 
 Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
 background refresh (settings, machines, git status, unopened chats) and stayed

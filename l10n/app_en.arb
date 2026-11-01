@@ -3190,5 +3190,12 @@
     "placeholders": {
       "command": {"type": "String"}
     }
+  },
+  "clipboardCopiedTruncated": "Copied the first {copied} of {total} characters — too large for the clipboard",
+  "@clipboardCopiedTruncated": {
+    "placeholders": {
+      "copied": {"type": "int"},
+      "total": {"type": "int"}
+    }
   }
 }

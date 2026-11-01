@@ -5941,4 +5941,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workflowStatusUnknown => 'Unknown';
+
+  @override
+  String clipboardCopiedTruncated(int copied, int total) {
+    return 'Copied the first $copied of $total characters — too large for the clipboard';
+  }
 }

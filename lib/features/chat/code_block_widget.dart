@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -11,7 +12,6 @@ import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/theme/language_colors.dart';
-import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/syntax_cache.dart';
 import '../../core/utils/text_truncate.dart';
 import 'code_block_line_spans.dart';
@@ -755,8 +755,12 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   }
 
   Future<void> _copyToClipboard() async {
-    await setClipboardTextSafely(widget.code);
-    if (!mounted) return;
+    final result = await copyWithFeedback(
+      context,
+      widget.code,
+      announceSuccess: false,
+    );
+    if (!mounted || !result.success) return;
     setState(() => _copied = true);
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);

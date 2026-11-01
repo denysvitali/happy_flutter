@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -7,7 +8,6 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'package:happy_flutter/core/components/app_icon_tile.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -191,15 +191,8 @@ void showRawMarkdownSheet(
                 ),
                 TextButton.icon(
                   onPressed: () async {
-                    await setClipboardTextSafely(markdown);
-                    if (!ctx.mounted || !context.mounted) return;
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.commonCopy),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
+                    await copyWithFeedback(context, markdown);
                   },
                   icon: const Icon(Icons.copy, size: 18),
                   label: Text(l10n.commonCopy),

@@ -148,7 +148,7 @@ void main() {
     await tester.tap(find.byTooltip('Copy file'));
     await tester.pump();
     expect(find.byTooltip('Copied!'), findsNothing);
-    expect(find.text('Could not copy file'), findsOneWidget);
+    expect(find.text('Failed to copy text to clipboard'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

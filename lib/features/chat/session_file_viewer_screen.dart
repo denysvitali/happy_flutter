@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -283,11 +284,25 @@ class _SessionFileViewerScreenState
         copyGeneration != _copyGeneration) {
       return;
     }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final l10n = context.l10n;
     if (!result.success) {
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(const SnackBar(content: Text('Could not copy file')));
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.textSelectionFailedToCopy)),
+      );
       return;
+    }
+    if (result.truncated) {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.clipboardCopiedTruncated(
+              result.charactersCopied,
+              result.originalCharacters,
+            ),
+          ),
+        ),
+      );
     }
     _copyResetTimer?.cancel();
     setState(() => _copied = true);

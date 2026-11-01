@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -12,7 +13,6 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/ansi_span_cache.dart';
-import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
 import '../../core/wire/send_message_arguments.dart';
 import '../../core/wire/wire_parsers.dart';
@@ -1265,14 +1265,7 @@ class _CopyButton extends StatelessWidget {
         } else {
           copyText = AnsiParser.strip(content);
         }
-        await setClipboardTextSafely(copyText);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.commonCopiedToClipboard),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        await copyWithFeedback(context, copyText);
       },
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,

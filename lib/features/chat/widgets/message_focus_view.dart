@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +11,6 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'message_detail_sheet.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -93,14 +93,7 @@ Future<void> showMessageFocusView(
 
   switch (followUp) {
     case _FocusFollowUp.copy:
-      await setClipboardTextSafely(text);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.commonCopiedToClipboard),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+      await copyWithFeedback(context, text);
     case _FocusFollowUp.selectText:
       showRawMarkdownSheet(context, text);
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -262,23 +263,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     String? message,
     int maxBytes = defaultClipboardMaxBytes,
   }) async {
-    final result = await setClipboardTextSafely(text, maxBytes: maxBytes);
-    if (!mounted) return;
-    final l10n = AppLocalizations.of(context);
-    final copiedMessage = message ?? l10n.sessionInfoCopied;
-    final snackBarMessage = result.success
-        ? _clipboardSuccessMessage(copiedMessage, result.truncated)
-        : l10n.textSelectionFailedToCopy;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(snackBarMessage),
-        duration: const Duration(seconds: 2),
-      ),
+    await copyWithFeedback(
+      context,
+      text,
+      successMessage: message ?? AppLocalizations.of(context).sessionInfoCopied,
+      maxBytes: maxBytes,
     );
   }
-
-  String _clipboardSuccessMessage(String message, bool truncated) =>
-      truncated ? '$message (truncated)' : message;
 
   Future<void> _exportDebugInfo() async {
     await _copyToClipboard(

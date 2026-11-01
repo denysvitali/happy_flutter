@@ -429,6 +429,14 @@ class _ContentBlockState extends State<_ContentBlock> {
       context.showSnack(context.l10n.textSelectionFailedToCopy);
       return;
     }
+    if (result.truncated) {
+      context.showSnack(
+        context.l10n.clipboardCopiedTruncated(
+          result.charactersCopied,
+          result.originalCharacters,
+        ),
+      );
+    }
     setState(() => _copied = true);
     _copyResetTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
