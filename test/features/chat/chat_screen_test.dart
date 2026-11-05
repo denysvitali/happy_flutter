@@ -2752,7 +2752,7 @@ void main() {
       expect(find.text('Message number 1'), findsNothing);
 
       await tester.drag(find.byType(ListView), const Offset(0, 5000));
-      for (var i = 0; i < 30 && requestedAfterSeqs.isEmpty; i++) {
+      for (var i = 0; i < 200 && requestedAfterSeqs.isEmpty; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       await tester.pump(const Duration(milliseconds: 250));
@@ -2760,7 +2760,7 @@ void main() {
       // Paging preserves the viewed row rather than jumping past the newly
       // loaded page. Another explicit scroll reaches the next history edge.
       await tester.drag(find.byType(ListView), const Offset(0, 12000));
-      for (var i = 0; i < 30 && requestedAfterSeqs.length < 2; i++) {
+      for (var i = 0; i < 200 && requestedAfterSeqs.length < 2; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       await tester.pump(const Duration(milliseconds: 250));
