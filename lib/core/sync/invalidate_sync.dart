@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/retry_interceptor.dart';
+import '../fsm/state_machine.dart';
 import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart';
 import '../services/power_diagnostics_service.dart';
@@ -23,6 +24,54 @@ bool hasUnrecoveredSyncFailure(InvalidateSync manager) {
   return successAt == null || failureAt > successAt;
 }
 
+/// Lifecycle of one [InvalidateSync] manager.
+///
+/// Whether another run is wanted (`invalidated`) and who awaits the cycle
+/// (`awaitQueue`) are orthogonal to the phase and tracked separately.
+enum InvalidateSyncPhase {
+  /// Nothing executing or scheduled.
+  idle,
+
+  /// Waiting out `minInterval` since the last run before starting the next.
+  coolingDown,
+
+  /// The action is executing.
+  running,
+
+  /// A failed attempt armed a backoff timer; the cycle is still in flight.
+  retryWaiting,
+
+  /// Torn down (logout/shutdown). Terminal: invalidations are ignored.
+  disposed,
+}
+
+/// Every legal [InvalidateSyncPhase] edge.
+///
+/// `suspend()` returns any live phase to [InvalidateSyncPhase.idle];
+/// `dispose()` reaches [InvalidateSyncPhase.disposed] from anywhere.
+const invalidateSyncTransitions = TransitionTable<InvalidateSyncPhase>({
+  InvalidateSyncPhase.idle: {
+    InvalidateSyncPhase.coolingDown,
+    InvalidateSyncPhase.running,
+    InvalidateSyncPhase.disposed,
+  },
+  InvalidateSyncPhase.coolingDown: {
+    InvalidateSyncPhase.idle,
+    InvalidateSyncPhase.disposed,
+  },
+  InvalidateSyncPhase.running: {
+    InvalidateSyncPhase.idle,
+    InvalidateSyncPhase.retryWaiting,
+    InvalidateSyncPhase.disposed,
+  },
+  InvalidateSyncPhase.retryWaiting: {
+    InvalidateSyncPhase.running,
+    InvalidateSyncPhase.idle,
+    InvalidateSyncPhase.disposed,
+  },
+  InvalidateSyncPhase.disposed: {},
+});
+
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
   InvalidateSync(
@@ -34,16 +83,22 @@ class InvalidateSync {
   }) : _minInterval = minInterval,
        _name = name,
        _onRunningChanged = onRunningChanged,
-       _maxRetries = maxRetries ?? defaultMaxRetries;
+       _maxRetries = maxRetries ?? defaultMaxRetries {
+    _machine = StateMachine<InvalidateSyncPhase>(
+      name: 'InvalidateSync',
+      initial: InvalidateSyncPhase.idle,
+      table: invalidateSyncTransitions,
+      onTransition: _onPhaseChanged,
+    );
+  }
   final Future<void> Function() _action;
   final Duration? _minInterval;
   final String? _name;
   final void Function(String? name, bool isRunning)? _onRunningChanged;
   final int _maxRetries;
+  late final StateMachine<InvalidateSyncPhase> _machine;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
-  bool _running = false;
-  bool _disposed = false;
   int _retryCount = 0;
   int _runGeneration = 0;
   Timer? _retryTimer;
@@ -87,15 +142,26 @@ class InvalidateSync {
   /// How many times a failed action is retried before giving up.
   int get maxRetries => _maxRetries;
 
-  /// Whether a sync action is currently executing.
-  bool get isRunning => _running;
+  /// Current lifecycle phase.
+  InvalidateSyncPhase get phase => _machine.state;
+
+  bool get _disposed => phase == InvalidateSyncPhase.disposed;
+
+  /// Whether a sync cycle is in flight: executing or backing off between
+  /// attempts. Backoff counts as running so a later invalidation joins the
+  /// current cycle instead of starting a parallel one.
+  bool get isRunning => _isBusy(phase);
+
+  static bool _isBusy(InvalidateSyncPhase phase) =>
+      phase == InvalidateSyncPhase.running ||
+      phase == InvalidateSyncPhase.retryWaiting;
 
   /// Whether a sync is pending (either in-flight or awaiting cooldown).
   bool get isPending =>
       _currentOperation != null ||
       _invalidated ||
-      _retryTimer != null ||
-      _cooldownTimer != null;
+      phase == InvalidateSyncPhase.coolingDown ||
+      phase == InvalidateSyncPhase.retryWaiting;
 
   /// Diagnostic counter — incremented every time an operation is skipped in
   /// _run() because isBackgrounded is true.  If this grows quickly, it means
@@ -136,7 +202,7 @@ class InvalidateSync {
       unawaited(operation.future.catchError((Object _) {}));
     }
 
-    if (_running || _cooldownTimer != null) {
+    if (phase != InvalidateSyncPhase.idle) {
       return;
     }
 
@@ -146,8 +212,10 @@ class InvalidateSync {
       final elapsed = DateTime.now().difference(_lastRunEnd!);
       if (elapsed < _minInterval) {
         final remaining = _minInterval - elapsed;
+        _machine.transition(InvalidateSyncPhase.coolingDown);
         _cooldownTimer = Timer(remaining, () {
           _cooldownTimer = null;
+          _machine.transition(InvalidateSyncPhase.idle, reason: 'cooldown');
           // Don't re-trigger if backgrounded — let the next resume cycle
           // handle it so we don't wake the app from background.
           if (_invalidated && !isBackgrounded) {
@@ -166,15 +234,26 @@ class InvalidateSync {
     unawaited(_run(_runGeneration));
   }
 
-  void _setRunning(bool value) {
-    if (_running != value) {
-      _running = value;
-      _onRunningChanged?.call(_name, value);
-    }
+  void _onPhaseChanged(
+    InvalidateSyncPhase from,
+    InvalidateSyncPhase to,
+    String? _,
+  ) {
+    final busy = _isBusy(to);
+    if (_isBusy(from) != busy) _onRunningChanged?.call(_name, busy);
+  }
+
+  /// Leaves the current cycle for [InvalidateSyncPhase.idle] unless the
+  /// manager is already disposed (terminal).
+  void _settle({String? reason}) {
+    if (_disposed) return;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _machine.transition(InvalidateSyncPhase.idle, reason: reason);
   }
 
   void _completeOperation() {
-    _setRunning(false);
+    _settle();
     _retryCount = 0;
     final operation = _currentOperation;
     _currentOperation = null;
@@ -221,9 +300,9 @@ class InvalidateSync {
       return;
     }
 
-    _setRunning(true);
     _retryTimer?.cancel();
     _retryTimer = null;
+    _machine.transition(InvalidateSyncPhase.running);
     _invalidated = false;
 
     // Start a transaction for this sync operation to capture it in
@@ -273,7 +352,7 @@ class InvalidateSync {
       } else {
         final operation = _currentOperation;
         _currentOperation = null;
-        _setRunning(false);
+        _settle(reason: 'retries exhausted');
         // Stamp the run end on the failure path too.  Without this,
         // [_minInterval] only throttles *successful* cycles: a run that
         // exhausts its retries left _lastRunEnd at its previous value (often
@@ -405,6 +484,7 @@ class InvalidateSync {
 
     _retryTimer?.cancel();
     final generation = _runGeneration;
+    _machine.transition(InvalidateSyncPhase.retryWaiting);
     _retryTimer = Timer(Duration(milliseconds: clampedDelay), () {
       unawaited(_run(generation));
     });
@@ -420,10 +500,10 @@ class InvalidateSync {
   /// started.
   bool retryNow() {
     if (_disposed || isBackgrounded) return false;
-    final timer = _retryTimer;
-    if (timer == null || !_lastFailureWasConnectionLevel) return false;
-    timer.cancel();
-    _retryTimer = null;
+    if (phase != InvalidateSyncPhase.retryWaiting ||
+        !_lastFailureWasConnectionLevel) {
+      return false;
+    }
     unawaited(_run(_runGeneration));
     return true;
   }
@@ -440,14 +520,15 @@ class InvalidateSync {
     _cooldownTimer?.cancel();
     _cooldownTimer = null;
     _runGeneration++;
+    if (_disposed) return;
 
     // Complete awaiters and mark the manager idle even if the underlying
     // action is still awaiting a platform/network timeout. Android Cronet can
     // leave those requests alive for tens of seconds after backgrounding; if
-    // _running stays true, the next foreground invalidate() is ignored and the
-    // app appears stuck syncing until the old request finally unwinds.
+    // the phase stays running, the next foreground invalidate() is ignored
+    // and the app appears stuck syncing until the old request finally unwinds.
     _invalidated = false;
-    _setRunning(false);
+    _machine.transition(InvalidateSyncPhase.idle, reason: 'suspend');
     final op = _currentOperation;
     _currentOperation = null;
     if (op != null && !op.isCompleted) {
@@ -463,11 +544,12 @@ class InvalidateSync {
   /// unhandled StateError crash in every caller that doesn't wrap the await
   /// in a try/catch (which is most of them).
   void dispose() {
-    _disposed = true;
     _runGeneration++;
     _retryTimer?.cancel();
+    _retryTimer = null;
     _cooldownTimer?.cancel();
-    _setRunning(false);
+    _cooldownTimer = null;
+    _machine.transition(InvalidateSyncPhase.disposed, reason: 'dispose');
     final op = _currentOperation;
     _currentOperation = null;
     if (op != null && !op.isCompleted) {
