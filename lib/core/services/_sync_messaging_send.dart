@@ -936,7 +936,21 @@ extension SyncMessagingSend on Sync {
               },
             );
       try {
-        ready = await waitForAgentReady(targetSessionId, waitBudget);
+        final readyFuture = waitForAgentReady(targetSessionId, waitBudget);
+        // A restored (or spuriously restored) process can already be live
+        // while its next alive-batch is up to 10s away (7295dbbc: 10.1s).
+        // Its own RPC manifest is direct proof; the wait above still owns
+        // the decision and its budget.
+        if (recentlySpawned && !isSessionReadyForMessages(targetSessionId)) {
+          otelWaitSpan?.setAttribute('agent.liveness_probe', true);
+          unawaited(
+            _probeLivenessWhileWaiting(
+              targetSessionId,
+              budget: Duration(milliseconds: waitBudget),
+            ),
+          );
+        }
+        ready = await readyFuture;
         if (runtimeIsStale()) return;
         otelWaitSpan?.setAttribute('agent.ready', ready);
       } catch (error, stack) {

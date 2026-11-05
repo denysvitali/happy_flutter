@@ -336,6 +336,38 @@ extension SyncSendTargetResolution on Sync {
         session: session,
         sessionEncryption: sessionEncryption,
       );
+    } else if (!restorePrime &&
+        !configurationChanged &&
+        !lifecycleErrored &&
+        !session.archived &&
+        (lifecycleState == 'running' || lifecycleState == 'starting')) {
+      // Presence goes stale while backgrounded; a resumed send used to
+      // respawn a live process (7295dbbc) and then wait for its next
+      // heartbeat. Only that process can answer its own manifest.
+      if (await _confirmSessionLiveness(
+        sessionId,
+        timeout: const Duration(milliseconds: 2500),
+      )) {
+        checkRuntime();
+        return (
+          sessionId: sessionId,
+          session: _sessions[sessionId] ?? session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
+      checkRuntime();
+      // Another send may have started the replacement while this probed.
+      if (_autoRestoreCompleters.containsKey(sessionId)) {
+        return _resolveSendTargetSession(
+          sessionId: sessionId,
+          session: _sessions[sessionId] ?? session,
+          sessionEncryption: sessionEncryption,
+          effectivePermissionMode: effectivePermissionMode,
+          profileId: profileId,
+          modelMode: modelMode,
+          localId: localId,
+        );
+      }
     }
 
     final machineId = session.metadata?.machineId;

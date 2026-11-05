@@ -545,22 +545,15 @@ extension SyncMessagingRpc on Sync {
     }
 
     checkRuntime();
-    if (method == 'spawn-happy-session') {
-      // Readiness is safe to retry; the spawn itself is never replayed after
-      // an ambiguous response. Include readiness in the original RPC budget.
-      await ensureMachineReachable(machineId, timeout: timeout);
-    }
-    checkRuntime();
-    final capabilityTimeout = timeout - clock.elapsed;
-    if (capabilityTimeout <= Duration.zero) {
-      throw const SocketAckTimeoutException('rpc-call');
-    }
-    if (override == null) {
-      await ensureMachineRPCSupported(machineId, method).timeout(
-        capabilityTimeout,
-        onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
-      );
-    }
+    // Spawn readiness is safe to retry; the spawn itself is never replayed
+    // after an ambiguous response. Readiness and the manifest check run
+    // concurrently inside the original RPC budget.
+    await _machineRpcPreflight(
+      machineId,
+      method,
+      timeout: timeout,
+      checkCapabilities: override == null,
+    );
     checkRuntime();
     final remaining = timeout - clock.elapsed;
     if (remaining <= Duration.zero) {

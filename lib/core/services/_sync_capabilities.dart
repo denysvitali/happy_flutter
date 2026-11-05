@@ -409,4 +409,136 @@ extension SyncCapabilities on Sync {
       throw _unsupportedCapabilityError(capabilities, method);
     }
   }
+
+  /// Runs the spawn readiness ping and the manifest check concurrently.
+  ///
+  /// Both are idempotent and independent, so a spawn pays the slower of the
+  /// two instead of their sum. Production trace 7b3dad3f… waited for a 3.2s
+  /// ping, then a 4s capability-probe timeout, before even dispatching its
+  /// 13s spawn. A failed ping still wins: the manifest result is discarded
+  /// and the guarded RPC is never sent. Non-spawn methods skip the ping.
+  Future<void> _machineRpcPreflight(
+    String machineId,
+    String method, {
+    required Duration timeout,
+    required bool checkCapabilities,
+  }) async {
+    final clock = Stopwatch()..start();
+    final capabilityCheck = checkCapabilities
+        ? ensureMachineRPCSupported(machineId, method)
+        : null;
+    // Observe now: a manifest failure while the ping is pending must not
+    // surface as an unhandled async error.
+    unawaited(
+      capabilityCheck?.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+    );
+    if (method == 'spawn-happy-session') {
+      await ensureMachineReachable(machineId, timeout: timeout);
+    }
+    if (capabilityCheck == null) return;
+    final remaining = timeout - clock.elapsed;
+    if (remaining <= Duration.zero) {
+      throw const SocketAckTimeoutException('rpc-call');
+    }
+    await capabilityCheck.timeout(
+      remaining,
+      onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
+    );
+  }
+
+  /// Asks the session's own process for its RPC manifest, bypassing every
+  /// capability cache. Only the registered process can answer it, so a
+  /// manifest proves the agent is connected right now; it is recorded as a
+  /// keep-alive. Any failure (handler offline, timeout, legacy CLI) proves
+  /// nothing and leaves readiness to the existing heartbeat/lifecycle gates.
+  Future<bool> _confirmSessionLiveness(
+    String sessionId, {
+    required Duration timeout,
+  }) async {
+    if (timeout <= Duration.zero || InvalidateSync.isBackgrounded) {
+      return false;
+    }
+    final generation = _runtimeGeneration;
+    // sessionRPC would otherwise wait for a connection or a full catalog
+    // refresh. Check the real socket: test connectivity overrides have no
+    // transport behind them.
+    if (testSessionRPCOverride == null &&
+        (socketIoClient.connectionStatus != ConnectionStatus.connected ||
+            encryption.getSessionEncryption(sessionId) == null)) {
+      return false;
+    }
+    final Object? raw;
+    try {
+      raw = await sessionRPC(
+        sessionId,
+        'rpc-capabilities',
+        const <String, dynamic>{},
+        timeout: timeout,
+      ).timeout(timeout);
+    } catch (_) {
+      return false;
+    }
+    if (generation != _runtimeGeneration || !isInitialized) return false;
+    if (raw is! Map ||
+        RpcCapabilities.tryFromJson(Map<String, dynamic>.from(raw)) == null) {
+      return false;
+    }
+    final session = _sessions[sessionId];
+    if (session == null || session.hasLifecycleError || session.archived) {
+      return false;
+    }
+    _recordRpcCapabilityPolicy('session', 'liveness_confirmed');
+    handleEphemeralUpdate(<String, dynamic>{
+      'type': 'session-alive',
+      'id': sessionId,
+    });
+    return true;
+  }
+
+  @visibleForTesting
+  Future<void> testMachineRpcPreflight(
+    String machineId,
+    String method, {
+    Duration timeout = const Duration(seconds: 30),
+  }) => _machineRpcPreflight(
+    machineId,
+    method,
+    timeout: timeout,
+    checkCapabilities: true,
+  );
+
+  @visibleForTesting
+  Future<bool> testConfirmSessionLiveness(
+    String sessionId, {
+    Duration timeout = const Duration(milliseconds: 2500),
+  }) => _confirmSessionLiveness(sessionId, timeout: timeout);
+
+  /// Re-probes liveness while a send waits for readiness. Stops once the
+  /// session is ready, fails terminally, the runtime changes, or [budget]
+  /// is spent. Each probe is bounded so a dead handler costs at most its
+  /// server miss window.
+  Future<void> _probeLivenessWhileWaiting(
+    String sessionId, {
+    required Duration budget,
+  }) async {
+    const probeTimeout = Duration(milliseconds: 2500);
+    const spacing = Duration(seconds: 2);
+    final generation = _runtimeGeneration;
+    final clock = Stopwatch()..start();
+    while (clock.elapsed < budget) {
+      if (generation != _runtimeGeneration || !isInitialized) return;
+      final session = _sessions[sessionId];
+      if (session == null || session.hasLifecycleError) return;
+      if (_isSessionReady(session)) return;
+      final left = budget - clock.elapsed;
+      final confirmed = await _confirmSessionLiveness(
+        sessionId,
+        timeout: left < probeTimeout ? left : probeTimeout,
+      );
+      if (confirmed) return;
+      final wait = budget - clock.elapsed;
+      if (wait <= Duration.zero) return;
+      await Future<void>.delayed(wait < spacing ? wait : spacing);
+    }
+  }
 }
