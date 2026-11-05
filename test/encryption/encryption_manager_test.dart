@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -104,6 +105,48 @@ void main() {
 
       expect(enc.getSessionEncryption('session-a'), isNull);
       expect(enc.getMachineEncryption('machine-a'), isNull);
+    });
+  });
+
+  group('Encryption — data-key unwrap memo', () {
+    late Encryption enc;
+
+    setUp(() async {
+      enc = await Encryption.create(_testMasterSecret);
+    });
+
+    String wrapped(Uint8List bytes) => base64Encode(bytes);
+
+    test('repeat unwraps of one wrapped key hit the memo', () async {
+      final key = _randomKey();
+      final wrappedKey = wrapped(await enc.encryptEncryptionKey(key));
+
+      final first = await enc.decryptEncryptionKey(wrappedKey);
+      final second = await enc.decryptEncryptionKey(wrappedKey);
+
+      expect(first, key);
+      expect(second, key);
+      expect(enc.debugUnwrappedDataKeyCount, 1);
+      // Callers get independent copies; mutating one cannot poison the memo.
+      second![0] ^= 0xff;
+      expect(await enc.decryptEncryptionKey(wrappedKey), key);
+    });
+
+    test('a failed unwrap is not memoized', () async {
+      final other = await Encryption.create(_randomKey());
+      final foreign = wrapped(await other.encryptEncryptionKey(_randomKey()));
+
+      expect(await enc.decryptEncryptionKey(foreign), isNull);
+      expect(enc.debugUnwrappedDataKeyCount, 0);
+    });
+
+    test('clearAllCaches drops memoized keys', () async {
+      final wrappedKey = wrapped(await enc.encryptEncryptionKey(_randomKey()));
+      await enc.decryptEncryptionKey(wrappedKey);
+
+      enc.clearAllCaches();
+
+      expect(enc.debugUnwrappedDataKeyCount, 0);
     });
   });
 }

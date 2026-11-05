@@ -19,7 +19,8 @@
 //      batches go to the isolate.
 //   4. Concurrent fan-out (multiple sessions decrypting at once)
 //      completes without inter-batch contamination — this is the
-//      access pattern in `_preDecryptSessions` in `_sync_data.dart`.
+//      access pattern in `_preDecryptSessions`
+//      (`_sync_data_catalog_decode.dart`).
 //   5. Partial corruption returns `null` for the bad item and valid
 //      JSON for the rest, with the result list length preserved.
 

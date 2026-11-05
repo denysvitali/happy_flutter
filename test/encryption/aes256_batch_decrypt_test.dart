@@ -213,7 +213,7 @@ void main() {
     // `_secretKey` into a local before the closure so only sendable
     // Uint8Lists are captured. This test asserts a concurrent fan-out
     // of `decryptInIsolate` calls (the access pattern introduced by
-    // `_preDecryptSessions` in `_sync_data.dart`) completes without
+    // `_preDecryptSessions` in `_sync_data_catalog_decode.dart`) completes without
     // throwing ArgumentError.
     test(
       'concurrent decryptInIsolate fan-out does not throw ArgumentError',

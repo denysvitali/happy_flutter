@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:uuid/uuid.dart';
 
 import '../services/logger_service.dart' show logger;
@@ -183,8 +184,28 @@ class Encryption {
     }
   }
 
+  /// Successful data-key unwraps, keyed by the wrapped (base64) key.
+  ///
+  /// Every full catalog read hands back the same wrapped key for every
+  /// session, and each unwrap is an X25519 `crypto_box_open` FFI call on the
+  /// UI isolate. At 1,258 sessions that was a large share of the ~550 ms
+  /// frozen frames seen after full reads. The ciphertext alone determines
+  /// the plaintext under this instance's (account-scoped) key pair, so a hit
+  /// is exact; failures are never memoized.
+  final Map<String, Uint8List> _unwrappedDataKeys = {};
+  static const int _maxUnwrappedDataKeys = 4096;
+
+  @visibleForTesting
+  int get debugUnwrappedDataKeyCount => _unwrappedDataKeys.length;
+
   /// Decrypt encrypted data encryption key
   Future<Uint8List?> decryptEncryptionKey(String encrypted) async {
+    final memo = _unwrappedDataKeys.remove(encrypted);
+    if (memo != null) {
+      // Re-insert to keep the map in least-recently-used order.
+      _unwrappedDataKeys[encrypted] = memo;
+      return Uint8List.fromList(memo);
+    }
     final encryptedKey = Base64Utils.decode(encrypted, Encoding.base64);
     if (encryptedKey[0] != 0) {
       return null;
@@ -195,6 +216,12 @@ class Encryption {
       _contentKeyPair.secretKey,
     );
 
+    if (decrypted != null) {
+      _unwrappedDataKeys[encrypted] = Uint8List.fromList(decrypted);
+      if (_unwrappedDataKeys.length > _maxUnwrappedDataKeys) {
+        _unwrappedDataKeys.remove(_unwrappedDataKeys.keys.first);
+      }
+    }
     return decrypted;
   }
 
@@ -221,6 +248,7 @@ class Encryption {
   /// Clear all caches
   void clearAllCaches() {
     _cache.clearAll();
+    _unwrappedDataKeys.clear();
   }
 
   /// Expose legacy secret key bytes for isolate-based decryption.

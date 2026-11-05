@@ -225,23 +225,31 @@ extension SyncData on Sync {
         // session in the page at once, so the batch is the honest
         // granularity and it keeps this off the per-session path.
         var dekFailures = 0;
-        final decryptedKeys = await Future.wait(
-          sessionDecryptTasks.map(
-            (t) => encryption
-                .decryptEncryptionKey(t.dataEncryptionKey)
-                .catchError((Object e) {
-                  if (logger.shouldLog(LogLevel.info)) {
-                    logger.info(
-                      '[Encryption] DEK decryption threw for session '
-                      '${t.sessionId}: $e '
-                      '-- falling back to legacy encryption.',
-                    );
-                  }
-                  return null;
-                }),
-          ),
+        // Unchanged wrapped keys hit Encryption's unwrap memo; the rest are
+        // X25519 FFI calls, sliced so a cold catalog cannot freeze a frame.
+        final decryptedKeys = await runInYieldingBatches(
+          sessionDecryptTasks,
+          (t) => encryption
+              .decryptEncryptionKey(t.dataEncryptionKey)
+              .catchError((Object e) {
+                if (logger.shouldLog(LogLevel.info)) {
+                  logger.info(
+                    '[Encryption] DEK decryption threw for session '
+                    '${t.sessionId}: $e '
+                    '-- falling back to legacy encryption.',
+                  );
+                }
+                return null;
+              }),
+          name: 'sessions_fetch.unwrap_keys',
+          isStale: () => runtimeGeneration != _runtimeGeneration,
+          batchSize: 32,
         );
-        if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+        if (decryptedKeys == null ||
+            !isInitialized ||
+            runtimeGeneration != _runtimeGeneration) {
+          return;
+        }
 
         for (var i = 0; i < sessionDecryptTasks.length; i++) {
           final sessionId = sessionDecryptTasks[i].sessionId;
@@ -305,8 +313,15 @@ extension SyncData on Sync {
       // and NaCl yields interleave naturally, dropping fetchSessions
       // p95 from ~1s to roughly the slowest single decrypt.
       final preDecryptStartMs = DateTime.now().millisecondsSinceEpoch;
-      final preDecrypted = await _preDecryptSessions(allSessions);
-      if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
+      final preDecrypted = await _preDecryptSessions(
+        allSessions,
+        runtimeGeneration: runtimeGeneration,
+      );
+      if (preDecrypted == null ||
+          runtimeGeneration != _runtimeGeneration ||
+          !isInitialized) {
+        return;
+      }
       final preDecryptMs =
           DateTime.now().millisecondsSinceEpoch - preDecryptStartMs;
       if (allSessions.length > 1 && logger.shouldLog(LogLevel.info)) {
@@ -317,6 +332,8 @@ extension SyncData on Sync {
       }
 
       final decryptedSessions = <Session>[];
+      final tracker = MainIsolateStallTracker.instance;
+      final assembleStart = tracker.now();
       for (var i = 0; i < allSessions.length; i++) {
         if (i == 0 || (i + 1) % 10 == 0 || i == allSessions.length - 1) {
           _setSyncProgress(
@@ -403,36 +420,9 @@ extension SyncData on Sync {
             lastMessageAt = existingLm;
           }
 
-          // Pull pre-decrypted blobs from the parallel pass above.
-          // Empty/missing entries (e.g. session had no encryption)
-          // map to null fields, matching the original behavior.
+          // Parsed blobs from the pre-decrypt pass above. Missing entries
+          // (e.g. session had no encryption) map to null fields.
           final pre = preDecrypted[sessionId];
-          final metadata = pre?.metadata;
-          final agentState = pre?.agentState;
-
-          Metadata? parsedMetadata;
-          if (metadata != null) {
-            try {
-              parsedMetadata = Metadata.fromJson(metadata);
-            } catch (e) {
-              logger.warning(
-                'Failed to parse session metadata for $sessionId',
-                e,
-              );
-            }
-          }
-
-          AgentState? parsedAgentState;
-          if (agentState != null && agentState.isNotEmpty) {
-            try {
-              parsedAgentState = AgentState.fromJson(agentState);
-            } catch (e) {
-              logger.warning(
-                'Failed to parse session agentState for $sessionId',
-                e,
-              );
-            }
-          }
 
           final processedSession = Session(
             id: sessionId,
@@ -442,14 +432,13 @@ extension SyncData on Sync {
             active: active,
             activeAt: activeAt,
             archived: _asSessionBool(session['archived']) ?? false,
-            metadata: parsedMetadata,
+            metadata: pre?.metadata,
             metadataVersion: metadataVersion,
-            agentState: parsedAgentState,
+            agentState: pre?.agentState,
             agentStateVersion: agentStateVersion,
-            todos: TodoItem.listFromJsonForSession(
-              metadata?['todos'],
-              sessionId,
-            ),
+            todos: pre == null
+                ? TodoItem.listFromJsonForSession(null, sessionId)
+                : pre.todos,
             thinking: existing?.thinking ?? false,
             thinkingAt: existing?.thinkingAt,
             // The server's `active` flag is persistent (true until
@@ -467,13 +456,21 @@ extension SyncData on Sync {
             lastMessageAt: lastMessageAt,
           );
 
-          decryptedSessions.add(processedSession);
+          // An unchanged row keeps its resident instance, so identity-keyed
+          // consumers (cache persistence, session UI diffing) skip it.
+          if (existing != null && processedSession == existing) {
+            _catalogDecodeMemo.adopt(existing);
+            decryptedSessions.add(existing);
+          } else {
+            decryptedSessions.add(processedSession);
+          }
         } catch (error) {
           // Log error in ALL builds (not just debug) so we can detect
           // malformed session data in production
           logger.error('Failed to process session $sessionId', error);
         }
       }
+      tracker.record('sessions_fetch.assemble', assembleStart, tracker.now());
 
       // Build then swap atomically; retain live presence timer deadlines.
       // A delta only carries changed rows, so it overlays the resident
@@ -523,6 +520,7 @@ extension SyncData on Sync {
         _presenceTimers.remove(id);
       }
       _sessions = newSessions;
+      if (!isDelta) _catalogDecodeMemo.retainOnly(newSessions.keys.toSet());
       // Explicit archive overrides survive until unarchive or runtime reset.
       // Preserve existing timer deadlines so refreshes cannot extend presence.
       final timerNowMs = DateTime.now().millisecondsSinceEpoch;
@@ -791,104 +789,4 @@ extension SyncData on Sync {
       );
     }
   }
-
-  /// Decrypt every session's `metadata` + `agentState` concurrently.
-  ///
-  /// The previous implementation `await`-ed each decrypt sequentially
-  /// inside the assembly for-loop, serializing up to 100 isolate-bound
-  /// AES-GCM calls (50 sessions × 2 fields) on cold-start delta
-  /// fetches. Running them through `Future.wait` lets:
-  ///   * the AES backend's `Isolate.run` calls execute truly in
-  ///     parallel on a multi-core device, and
-  ///   * cache hits (delta fetches where versions are unchanged)
-  ///     resolve instantly without queuing behind earlier awaits.
-  ///
-  /// Returns a sessionId-keyed map; sessions whose payload is invalid
-  /// or which lack a registered encryptor are simply absent (the
-  /// caller treats that as "no decrypted content available", matching
-  /// the original null-handling).
-  Future<Map<String, _DecryptedSessionContent>> _preDecryptSessions(
-    List<dynamic> allSessions,
-  ) async {
-    final tasks = <Future<MapEntry<String, _DecryptedSessionContent>?>>[];
-    for (final raw in allSessions) {
-      if (raw is! Map<String, dynamic>) continue;
-      final sessionId = WireParsers.parseString(raw['id']);
-      if (sessionId == null || sessionId.isEmpty) continue;
-      final sessionEncryption = encryption.getSessionEncryption(sessionId);
-      if (sessionEncryption == null) continue;
-      final metadataVersion = _asSessionInt(raw['metadataVersion']) ?? 0;
-      final agentStateVersion = _asSessionInt(raw['agentStateVersion']) ?? 0;
-      final metadataCipher = WireParsers.parseString(raw['metadata']) ?? '';
-      final agentStateCipher = WireParsers.parseString(raw['agentState']);
-      tasks.add(() async {
-        Future<Map<String, dynamic>?> metadataFuture;
-        Future<Map<String, dynamic>> agentStateFuture;
-        try {
-          metadataFuture = sessionEncryption.decryptMetadata(
-            metadataVersion,
-            metadataCipher,
-          );
-        } catch (e) {
-          logger.warning(
-            'Failed to start session metadata decrypt for $sessionId',
-            e,
-          );
-          metadataFuture = Future<Map<String, dynamic>?>.value(null);
-        }
-        try {
-          agentStateFuture = sessionEncryption.decryptAgentState(
-            agentStateVersion,
-            agentStateCipher,
-          );
-        } catch (e) {
-          logger.warning(
-            'Failed to start session agentState decrypt for $sessionId',
-            e,
-          );
-          agentStateFuture = Future<Map<String, dynamic>>.value({});
-        }
-        Map<String, dynamic>? metadata;
-        Map<String, dynamic>? agentState;
-        try {
-          metadata = await metadataFuture;
-        } catch (e) {
-          logger.warning(
-            'Failed to decrypt session metadata for $sessionId',
-            e,
-          );
-        }
-        try {
-          agentState = await agentStateFuture;
-        } catch (e) {
-          logger.warning(
-            'Failed to decrypt session agentState for $sessionId',
-            e,
-          );
-        }
-        return MapEntry(
-          sessionId,
-          _DecryptedSessionContent(metadata: metadata, agentState: agentState),
-        );
-      }());
-    }
-    final results = await Future.wait(tasks);
-    final map = <String, _DecryptedSessionContent>{};
-    for (final entry in results) {
-      if (entry == null) continue;
-      map[entry.key] = entry.value;
-    }
-    return map;
-  }
-}
-
-/// Decrypted bundle for one session — output of [_preDecryptSessions].
-class _DecryptedSessionContent {
-  const _DecryptedSessionContent({
-    required this.metadata,
-    required this.agentState,
-  });
-
-  final Map<String, dynamic>? metadata;
-  final Map<String, dynamic>? agentState;
 }

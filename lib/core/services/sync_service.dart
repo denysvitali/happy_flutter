@@ -113,12 +113,14 @@ import 'message_cursor_manager.dart';
 import 'notification_service.dart';
 import '_sync_session_restore_split.dart';
 import 'session_activity_coordinator.dart';
+import 'session_catalog_decode_memo.dart';
 import 'sidechain_diagnostics.dart';
 import 'sidechain_grouper.dart';
 import 'stuck_agent_sentinel.dart';
 import 'tool_result_processor.dart';
 
 part '_sync_data.dart';
+part '_sync_data_catalog_decode.dart';
 part '_sync_capabilities.dart';
 part '_sync_data_artifacts.dart';
 part '_sync_data_machines.dart';
@@ -561,6 +563,10 @@ what you have, you must use the options mode.
   // Data key storage
   final Map<String, Uint8List> _sessionDataKeys = {};
   final Map<String, String> _sessionEncryptedDataKeys = {};
+
+  /// Parsed catalog blobs from the last read; see [SessionCatalogDecodeMemo].
+  final SessionCatalogDecodeMemo _catalogDecodeMemo =
+      SessionCatalogDecodeMemo();
   final Map<String, Uint8List> _machineDataKeys = {};
 
   /// Per-session rate-limiter for encryption-key recovery attempts. When a

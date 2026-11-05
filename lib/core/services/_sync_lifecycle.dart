@@ -1320,6 +1320,7 @@ extension SyncLifecycle on Sync {
     _sessionDataKeys.clear();
     _sessionEncryptedDataKeys.clear();
     _sessionEncryptionRecoveryAttempts.clear();
+    _catalogDecodeMemo.clear();
     _machineDataKeys.clear();
     artifactManager?.clear();
     for (final timer in _saveMsgsDebounceTimers.values) {

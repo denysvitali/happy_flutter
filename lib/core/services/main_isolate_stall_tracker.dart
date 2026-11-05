@@ -32,6 +32,10 @@ class MainIsolateStallTracker {
 
   static int _monotonicMicros() => Timeline.now;
 
+  /// Current time on the tracker's clock, for callers that [record] work
+  /// spanning awaits (a slice of microtasks) rather than one sync body.
+  int now() => clock();
+
   /// Run [body] synchronously and remember it when it was long enough to
   /// delay a frame. Must not wrap async work: only the synchronous part
   /// would be measured.

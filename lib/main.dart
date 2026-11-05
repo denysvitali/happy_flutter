@@ -25,6 +25,7 @@ import 'core/services/app_visibility_coordinator.dart';
 import 'core/services/desktop_updater_service.dart';
 import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
+import 'core/services/main_isolate_stall_tracker.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/opentelemetry_service.dart';
@@ -724,9 +725,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
           enableSentryTransactions:
               sentryEnableFrameMetrics && sentryTracesSampleRate > 0,
         );
-        sync.resume();
-        // Re-apply theme in case system dark/light mode changed.
-        _applyThemeFromSettings();
+        // Tracked so a slow resume handler is named on the first frozen
+        // frame instead of being folded into the `post_resume` heuristic.
+        MainIsolateStallTracker.instance.track('app.resume_handlers', () {
+          sync.resume();
+          // Re-apply theme in case system dark/light mode changed.
+          _applyThemeFromSettings();
+        });
       },
     );
   }

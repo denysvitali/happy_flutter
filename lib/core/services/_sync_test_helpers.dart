@@ -962,6 +962,7 @@ extension SyncTestHelpers on Sync {
     _sessionDataKeys.clear();
     _sessionEncryptedDataKeys.clear();
     _machineDataKeys.clear();
+    _catalogDecodeMemo.clear();
     _sessionEncryptionRecoveryAttempts.clear();
     _dekFallbackCaptured.clear();
     _sessionContentSignatures.clear();
