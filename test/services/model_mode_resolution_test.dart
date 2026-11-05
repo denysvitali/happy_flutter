@@ -486,6 +486,50 @@ void main() {
       );
     });
 
+    test('preserves a user-entered custom model on a Claude gateway', () {
+      // The picker keeps "Custom…" slugs on third-party gateways; the send
+      // path used to drop them to 'default' because profile.models did not
+      // list them, so Claude Code spawned its default Opus model instead.
+      final profile = AIBackendProfile(
+        id: 'llm-proxy',
+        name: 'llm-proxy',
+        anthropicConfig: AnthropicConfig(baseUrl: 'http://llm-proxy.example'),
+        models: const ['grok/grok-4.7'],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          agy: false,
+        ),
+      );
+
+      sync.testSettingsSnapshot = Settings()..customModelModes = [];
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'workbuddy/deepseek-v4.1-flash',
+          'claude',
+          profile,
+        ),
+        'default',
+      );
+
+      sync.testSettingsSnapshot = Settings()
+        ..customModelModes = ['workbuddy/deepseek-v4.1-flash'];
+      for (final pick in [
+        'workbuddy/deepseek-v4.1-flash',
+        'workbuddy/deepseek-v4.1-flash:high',
+        'workbuddy/deepseek-v4.1-flash[1m]',
+      ]) {
+        expect(
+          sync.testNormalizeModelModeForAgentWithProfile(
+            pick,
+            'claude',
+            profile,
+          ),
+          pick,
+        );
+      }
+    });
+
     test('preserves a model from an existing profile env var', () {
       // Profiles saved before the model-list field was added only have the
       // provider model in ANTHROPIC_MODEL. That model is still authoritative.

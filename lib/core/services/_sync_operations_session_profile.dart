@@ -293,7 +293,8 @@ extension SyncSpawnProfileResolution on Sync {
         agent == 'claude' &&
         profile != null &&
         _isThirdPartyAnthropicBaseUrl(_anthropicBaseUrlForProfile(profile)) &&
-        _profileOwnsModel(profile, modelMode);
+        (_profileOwnsModel(profile, modelMode) ||
+            _isUserCustomModel(modelMode));
     if (agent == 'claude' &&
         _isNonClaudeModelMode(modelMode) &&
         !configuredClaudeGatewayModel) {
@@ -345,6 +346,22 @@ extension SyncSpawnProfileResolution on Sync {
     logger.warning(
       '[spawn] dropping model pick "$modelMode" for agent=$agent '
       'profile=${profile?.id ?? 'none'}: $reason',
+    );
+  }
+
+  /// True when the user typed [modelMode] into the picker's "Custom…" dialog.
+  /// The picker keeps such picks on third-party gateway profiles, so the
+  /// send path must too; otherwise the chip shows the custom slug while the
+  /// session respawns with `default` (production case: llm-proxy pick
+  /// `workbuddy/deepseek-v4.1-flash` spawned Claude Opus, session
+  /// cad86fe068c922659d9ba6446).
+  bool _isUserCustomModel(String modelMode) {
+    final base = modelMode.endsWith('[1m]')
+        ? modelMode.substring(0, modelMode.length - '[1m]'.length)
+        : modelMode;
+    return settingsSnapshot.customModelModes.any(
+      (custom) =>
+          custom.isNotEmpty && (base == custom || base.startsWith('$custom:')),
     );
   }
 
