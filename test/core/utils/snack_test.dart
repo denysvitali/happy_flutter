@@ -63,6 +63,8 @@ void main() {
       cs.onErrorContainer,
     );
 
+    // Let the entrance animation finish so the action is hittable.
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Retry'));
     await tester.pump();
     expect(retried, isTrue);
