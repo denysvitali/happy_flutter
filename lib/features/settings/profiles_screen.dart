@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/components/tablet/master_detail_scaffold.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
@@ -18,7 +19,6 @@ import '../../core/utils/shell_script_parser.dart';
 import '../../core/utils/snack.dart';
 import 'profile_editor_screen.dart';
 import 'widgets/profile_badge.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -494,22 +494,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           );
 
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              l10n.profilesImportParsed.replaceAll(
-                '{count}',
-                '${result.envVars.length}',
-              ),
-            ),
+        messenger.showSnack(
+          l10n.profilesImportParsed.replaceAll(
+            '{count}',
+            '${result.envVars.length}',
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(l10n.profilesFailedToSave)),
-        );
+        messenger.showSnack(l10n.profilesFailedToSave, tone: SnackTone.error);
       }
     }
   }
@@ -523,54 +517,40 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     return suggestProfileName(result.envVars) ?? fallbackName;
   }
 
-  void _confirmDeleteProfile(
+  Future<void> _confirmDeleteProfile(
     BuildContext context,
     WidgetRef ref,
     AIBackendProfile profile,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context);
-        return AlertDialog(
-          title: Text(l10n.profilesDeleteTitle),
-          content: Text(l10n.profilesDeleteConfirm(profile.name)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10n.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(
-                Theme.of(context).colorScheme,
-              ),
-              onPressed: () {
-                final settings = ref.read(settingsNotifierProvider);
-                final notifier = ref.read(settingsNotifierProvider.notifier);
-                final updatedProfiles = settings.profiles
-                    .where((p) => p.id != profile.id)
-                    .toList();
-                notifier.updateSetting('profiles', updatedProfiles);
-                final updatedLastUsedProfiles = Map<String, String>.from(
-                  settings.lastUsedProfilesByAgent,
-                )..removeWhere((_, value) => value == profile.id);
-                notifier.updateSetting(
-                  'lastUsedProfilesByAgent',
-                  updatedLastUsedProfiles,
-                );
-                // Sweep DraftStorage so per-session profile mappings do not
-                // outlive the profile itself. Without this, ChatScreen
-                // _loadInitialSettings hits the firstWhere fallback every
-                // time the user opens an affected session.
-                unawaited(DraftStorage().sweepProfileReferences(profile.id));
-                Navigator.pop(context);
-              },
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
+  ) async {
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.profilesDeleteTitle,
+      content: l10n.profilesDeleteConfirm(profile.name),
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
+    if (!confirmed || !context.mounted) return;
+    final settings = ref.read(settingsNotifierProvider);
+    final notifier = ref.read(settingsNotifierProvider.notifier);
+    final updatedProfiles = settings.profiles
+        .where((p) => p.id != profile.id)
+        .toList();
+    unawaited(notifier.updateSetting('profiles', updatedProfiles));
+    final updatedLastUsedProfiles = Map<String, String>.from(
+      settings.lastUsedProfilesByAgent,
+    )..removeWhere((_, value) => value == profile.id);
+    unawaited(
+      notifier.updateSetting(
+        'lastUsedProfilesByAgent',
+        updatedLastUsedProfiles,
+      ),
+    );
+    // Sweep DraftStorage so per-session profile mappings do not
+    // outlive the profile itself. Without this, ChatScreen
+    // _loadInitialSettings hits the firstWhere fallback every
+    // time the user opens an affected session.
+    unawaited(DraftStorage().sweepProfileReferences(profile.id));
   }
 
   void _duplicateProfile(

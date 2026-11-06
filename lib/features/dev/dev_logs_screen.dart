@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -12,7 +11,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 import '../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 
 /// Debug logs screen - available when developer mode is enabled
 class DevLogsScreen extends ConsumerWidget {
@@ -196,29 +195,16 @@ class DevLogsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context);
-        return AlertDialog(
-          title: Text(l10n.devLogsClearTitle),
-          content: Text(l10n.devLogsClearConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => context.pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => context.pop(true),
-              style: AppButtonStyle.destructive(Theme.of(context).colorScheme),
-              child: Text(l10n.devLogsClearAction),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.devLogsClearTitle,
+      content: l10n.devLogsClearConfirm,
+      confirmLabel: l10n.devLogsClearAction,
+      isDestructive: true,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       ref.read(loggerNotifierProvider.notifier).clear();
     }
   }
@@ -247,7 +233,7 @@ class DevLogsScreen extends ConsumerWidget {
                 controller.dispose();
                 Navigator.pop(context);
               },
-              child: Text(dialogL10n.devLogsClearAction),
+              child: Text(dialogL10n.commonCancel),
             ),
             FilledButton(
               onPressed: () {
@@ -371,11 +357,10 @@ class LogEntryWidget extends StatelessWidget {
         onLongPress: () async {
           await setClipboardTextSafely(entry.toFormattedString());
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context).devLogsLogEntryCopied),
-              duration: const Duration(seconds: 1),
-            ),
+          context.showSnack(
+            AppLocalizations.of(context).devLogsLogEntryCopied,
+            duration: const Duration(seconds: 1),
+            replaceCurrent: true,
           );
         },
         child: Container(
@@ -579,14 +564,11 @@ class LogEntryWidget extends StatelessWidget {
                               await setClipboardTextSafely(buffer.toString());
                               if (!ctx.mounted || !context.mounted) return;
                               Navigator.of(ctx).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    ).devLogsLogEntryCopied,
-                                  ),
-                                ),
+                              context.showSnack(
+                                AppLocalizations.of(
+                                  context,
+                                ).devLogsLogEntryCopied,
+                                replaceCurrent: true,
                               );
                             },
                             icon: const Icon(Icons.error_outline, size: 18),
@@ -602,14 +584,11 @@ class LogEntryWidget extends StatelessWidget {
                             );
                             if (!ctx.mounted || !context.mounted) return;
                             Navigator.of(ctx).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  ).devLogsLogEntryCopied,
-                                ),
-                              ),
+                            context.showSnack(
+                              AppLocalizations.of(
+                                context,
+                              ).devLogsLogEntryCopied,
+                              replaceCurrent: true,
                             );
                           },
                           icon: const Icon(Icons.copy, size: 18),

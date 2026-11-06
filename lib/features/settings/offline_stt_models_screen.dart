@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/settings_section.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_dictation_service.dart';
@@ -9,6 +10,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/voice_status_subtitles.dart';
+import '../../core/utils/snack.dart';
 
 /// Manage downloadable offline speech-to-text models for dictation.
 ///
@@ -39,20 +41,17 @@ class _OfflineSttModelsScreenState
     try {
       await _service.ensureModel(model.id);
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Downloaded ${model.displayName}')),
-      );
+      messenger.showSnack('Downloaded ${model.displayName}');
     } catch (e) {
       if (!mounted) return;
       final detail = _service.errorFor(model.id) ?? e;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Download failed: $detail'),
-          duration: const Duration(seconds: 10),
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () => unawaitedSafe(_download(model)),
-          ),
+      messenger.showSnack(
+        'Download failed: $detail',
+        duration: const Duration(seconds: 10),
+        tone: SnackTone.error,
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () => unawaitedSafe(_download(model)),
         ),
       );
     }
@@ -60,27 +59,15 @@ class _OfflineSttModelsScreenState
 
   Future<void> _delete(OfflineSttModel model) async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${model.displayName}?'),
-        content: const Text(
-          'The model files will be removed from this device. '
-          'You can re-download them at any time.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.offlineDeleteItemTitle(model.displayName),
+      content: l10n.offlineSttModelDeleteMessage,
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     try {
       await _service.deleteModel(model.id);
       if (!mounted) return;
@@ -93,7 +80,7 @@ class _OfflineSttModelsScreenState
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      messenger.showSnack('Delete failed: $e', tone: SnackTone.error);
     }
   }
 

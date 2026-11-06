@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/message_outbox.dart';
 import '../../../core/services/server_config.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/snack.dart';
 
 /// Account-blind legacy records are never displayed or automatically adopted.
 class LegacyOutboxRecoveryTile extends ConsumerStatefulWidget {
@@ -45,26 +47,18 @@ class _LegacyOutboxRecoveryTileState
         port: server.hasPort ? server.port : null,
         path: server.path,
       ).toString();
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(l10n.legacyOutboxTitle),
-          content: Text(
-            l10n.legacyOutboxConfirm(preview.count, sessionId, account, origin),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l10n.legacyOutboxRecover),
-            ),
-          ],
+      final confirmed = await showConfirmDialog(
+        context,
+        title: l10n.legacyOutboxTitle,
+        content: l10n.legacyOutboxConfirm(
+          preview.count,
+          sessionId,
+          account,
+          origin,
         ),
+        confirmLabel: l10n.legacyOutboxRecover,
       );
-      if (!mounted || confirmed != true) return;
+      if (!mounted || !confirmed) return;
       final recovered = await messageOutbox.recoverLegacy(preview);
       if (!mounted) return;
       if (recovered) Sync().reconcileOutboxStatuses(sessionId);
@@ -76,8 +70,7 @@ class _LegacyOutboxRecoveryTileState
     }
   }
 
-  void _message(String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _message(String text) => context.showSnack(text);
 
   @override
   Widget build(BuildContext context) {

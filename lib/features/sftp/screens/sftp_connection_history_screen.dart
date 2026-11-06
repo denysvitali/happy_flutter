@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/dialogs/confirm_dialog.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
@@ -12,7 +14,6 @@ import '../services/connection_history_store.dart';
 import 'widgets/connection_event_card.dart';
 import 'widgets/device_analytics_card.dart';
 import '../../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 export '../models/connection_event.dart';
 export '../services/connection_history_store.dart';
@@ -90,29 +91,16 @@ class _SftpConnectionHistoryScreenState
   }
 
   Future<void> _clearHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear History'),
-        content: const Text(
-          'Clear all connection history?\n\n'
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sftpClearHistory,
+      content: l10n.sftpClearHistoryMessage,
+      confirmLabel: l10n.commonClear,
+      isDestructive: true,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       await connectionHistoryStore.clear();
       unawaited(_loadEvents());
     }
@@ -127,12 +115,12 @@ class _SftpConnectionHistoryScreenState
       IconButton(
         icon: const Icon(Icons.file_upload),
         onPressed: _events.isNotEmpty ? _exportHistory : null,
-        tooltip: 'Export',
+        tooltip: context.l10n.commonExport,
       ),
       IconButton(
         icon: const Icon(Icons.delete_outline),
         onPressed: _events.isNotEmpty ? _clearHistory : null,
-        tooltip: 'Clear history',
+        tooltip: context.l10n.sftpClearHistory,
       ),
     ];
 
@@ -190,7 +178,7 @@ class _SftpConnectionHistoryScreenState
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: widget.onClose,
-                    tooltip: 'Close',
+                    tooltip: context.l10n.commonClose,
                   ),
               ],
             ),

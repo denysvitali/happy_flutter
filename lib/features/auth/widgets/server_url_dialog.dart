@@ -16,6 +16,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/package_info_cache.dart';
+import '../../../core/utils/snack.dart';
 
 /// Dialog for configuring the server URL.
 class ServerUrlDialog extends StatefulWidget {
@@ -119,11 +120,9 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
 
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.authServerUrlSaved),
-          duration: const Duration(seconds: 3),
-        ),
+      context.showSnack(
+        context.l10n.authServerUrlSaved,
+        duration: const Duration(seconds: 3),
       );
     }
   }
@@ -208,7 +207,7 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
                         suffixIcon: _controller.text.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear),
-                                tooltip: 'Clear',
+                                tooltip: context.l10n.serverUrlClear,
                                 onPressed: () {
                                   _controller.clear();
                                   setState(() {});
@@ -271,11 +270,9 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
                       setServerUrl(null);
                       ApiClient().refreshServerUrl();
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.settingsServerResetSuccess),
-                          duration: const Duration(seconds: 3),
-                        ),
+                      context.showSnack(
+                        l10n.settingsServerResetSuccess,
+                        duration: const Duration(seconds: 3),
                       );
                     },
                     child: Text(l10n.settingsServerResetToDefault),
@@ -347,11 +344,10 @@ class _ErrorDetailBox extends StatelessWidget {
               onPressed: () async {
                 await setClipboardTextSafely(errorMessage);
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.authErrorDetailsCopied),
-                    duration: const Duration(seconds: 2),
-                  ),
+                context.showSnack(
+                  l10n.authErrorDetailsCopied,
+                  duration: const Duration(seconds: 2),
+                  replaceCurrent: true,
                 );
               },
               icon: const Icon(Icons.content_copy, size: AppIconSize.md),

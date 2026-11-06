@@ -12,9 +12,10 @@ import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_error_state.dart';
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'markdown/markdown_view.dart';
 import 'syntax_highlighter.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -321,10 +322,11 @@ class _SessionFileViewerScreenState
         IconButton(
           icon: Icon(
             _copied ? Icons.check_rounded : Icons.content_copy_rounded,
-            size: 20,
+            size: AppIconSize.xl,
           ),
-          // TODO(i18n): copy tooltip not yet localized
-          tooltip: _copied ? 'Copied!' : 'Copy file',
+          tooltip: _copied
+              ? context.l10n.sessionFileCopied
+              : context.l10n.sessionFileCopy,
           onPressed: _copyToClipboard,
         ),
       // Markdown preview / code toggle
@@ -334,12 +336,11 @@ class _SessionFileViewerScreenState
             _viewMode == _ViewMode.preview
                 ? Icons.code_rounded
                 : Icons.visibility_rounded,
-            size: 20,
+            size: AppIconSize.xl,
           ),
-          // TODO(i18n): view-mode tooltip not yet localized
           tooltip: _viewMode == _ViewMode.preview
-              ? 'View source'
-              : 'View preview',
+              ? context.l10n.sessionFileViewSource
+              : context.l10n.sessionFileViewPreview,
           onPressed: () => setState(() {
             _viewMode = _viewMode == _ViewMode.preview
                 ? _ViewMode.code
@@ -380,14 +381,13 @@ class _SessionFileViewerScreenState
 
   Widget _buildContent(ThemeData theme) {
     if (_loading) {
-      return const Center(child: AppCircularProgressIndicator());
+      return const AppLoadingIndicator();
     }
 
     if (_error != null) {
-      return AppEmptyState(
-        icon: Icons.error_outline,
-        title: 'Could not load file',
-        subtitle: _error,
+      return AppErrorState(
+        title: context.l10n.sessionFileLoadFailed,
+        message: _error!,
       );
     }
 

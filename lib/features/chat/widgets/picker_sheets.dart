@@ -584,11 +584,15 @@ class _GroupedModelPickerContentState
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_rounded, size: 18, color: cs.primary),
+              Icon(
+                Icons.check_rounded,
+                size: AppIconSize.lg,
+                color: cs.primary,
+              ),
             IconButton(
-              icon: const Icon(Icons.close_rounded, size: 18),
+              icon: const Icon(Icons.close_rounded, size: AppIconSize.lg),
               color: cs.onSurfaceVariant,
-              tooltip: 'Remove',
+              tooltip: context.l10n.commonRemove,
               visualDensity: VisualDensity.compact,
               onPressed: () {
                 HapticFeedback.selectionClick();
@@ -668,7 +672,7 @@ class _CustomModelDialogState extends State<_CustomModelDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Custom Model'),
+      title: const Text('Custom model'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -705,7 +709,7 @@ class _CustomModelDialogState extends State<_CustomModelDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () {

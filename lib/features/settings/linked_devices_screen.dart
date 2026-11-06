@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_loading_indicator.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
 import '../../core/services/auth_service.dart';
@@ -12,8 +14,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/routing/safe_pop.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/datetime_extensions.dart';
-import '../../core/widgets/app_circular_progress_indicator.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
+import '../../core/utils/snack.dart';
 
 /// Linked devices screen
 class LinkedDevicesScreen extends ConsumerStatefulWidget {
@@ -55,37 +56,23 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
   Future<void> _unlinkDevice(DeviceInfo device) async {
     final l10n = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final l10nDialog = AppLocalizations.of(context);
-        final cs = Theme.of(context).colorScheme;
-        return AlertDialog(
-          title: Text(l10nDialog.accountUnlinkDevice),
-          content: Text(l10nDialog.accountUnlinkConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l10nDialog.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(cs),
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l10nDialog.accountUnlink),
-            ),
-          ],
-        );
-      },
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.accountUnlinkDevice,
+      content: l10n.accountUnlinkConfirm,
+      confirmLabel: l10n.accountUnlink,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     final success = await AuthService().unlinkDevice(device.id);
     if (success) {
       unawaited(_loadDevices());
     } else {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.accountFailedToUnlink)),
+      scaffoldMessenger.showSnack(
+        l10n.accountFailedToUnlink,
+        tone: SnackTone.error,
       );
     }
   }
@@ -103,9 +90,12 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: AppCircularProgressIndicator())
+          ? const AppLoadingIndicator()
           : _devices.isEmpty
-          ? const AppEmptyState(icon: Icons.devices, title: 'No linked devices')
+          ? AppEmptyState(
+              icon: Icons.devices,
+              title: l10n.linkedDevicesEmptyTitle,
+            )
           : ListView.builder(
               padding: AppScreenPadding.settings,
               itemCount: _devices.length,

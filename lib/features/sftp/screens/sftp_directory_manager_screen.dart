@@ -8,13 +8,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/components/app_card.dart';
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/dialogs/confirm_dialog.dart';
+import '../../../core/components/app_error_state.dart';
+import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/components/tablet/master_detail_scaffold.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
-import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
 import 'sftp_connection_history_screen.dart';
@@ -22,6 +24,7 @@ import 'sftp_log_viewer_screen.dart';
 import '../../../core/utils/utils.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../../core/utils/snack.dart';
 
 /// Right-pane modes when the directory manager is rendered as a
 /// master-detail layout on wider viewports.
@@ -135,30 +138,16 @@ class _SftpDirectoryManagerScreenState
   }
 
   Future<void> _removeShare() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Share'),
-        content: Text(
-          'Stop sharing "${_dir.name}"?\n\n'
-          'The directory will no longer be accessible '
-          'via SFTP, but the files will not be deleted.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sftpRemoveShareTitle,
+      content: l10n.sftpRemoveShareMessage(_dir.name),
+      confirmLabel: l10n.commonRemove,
+      isDestructive: true,
     );
 
-    if ((confirmed ?? false) && mounted) {
+    if (confirmed && mounted) {
       await ref.read(sftpNotifierProvider.notifier).removeDirectory(_dir.id);
       if (mounted) {
         Navigator.pop(context);
@@ -172,11 +161,10 @@ class _SftpDirectoryManagerScreenState
     await setClipboardTextSafely(ref);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connection reference copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
+      context.showSnack(
+        'Connection reference copied to clipboard',
+        duration: const Duration(seconds: 2),
+        replaceCurrent: true,
       );
     }
   }
@@ -199,8 +187,9 @@ class _SftpDirectoryManagerScreenState
     final uri = Uri.file(filePath);
     final launched = await launchUrl(uri);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No app found to open this file')),
+      context.showSnack(
+        'No app found to open this file',
+        tone: SnackTone.error,
       );
     }
   }
@@ -331,27 +320,27 @@ class _SftpDirectoryManagerScreenState
           IconButton(
             icon: const Icon(Icons.article_outlined),
             onPressed: _showLogs,
-            tooltip: 'View logs',
+            tooltip: context.l10n.sftpViewLogs,
           ),
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: _showHistory,
-            tooltip: 'Connection history',
+            tooltip: context.l10n.sftpConnectionHistory,
           ),
           IconButton(
             icon: const Icon(Icons.link),
             onPressed: _copyShareUrl,
-            tooltip: 'Copy connection info',
+            tooltip: context.l10n.sftpCopyConnectionInfo,
           ),
           IconButton(
             icon: const Icon(Icons.sort),
             onPressed: _showSortOptions,
-            tooltip: 'Sort',
+            tooltip: context.l10n.sftpSort,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDirectory,
-            tooltip: 'Refresh',
+            tooltip: context.l10n.commonRefresh,
           ),
         ],
       ),
@@ -448,24 +437,18 @@ class _SftpDirectoryManagerScreenState
         // Content
         Expanded(
           child: _isLoading
-              ? const Center(child: AppCircularProgressIndicator())
+              ? const AppLoadingIndicator()
               : _error != null
-              ? AppEmptyState(
-                  icon: Icons.error_outline,
-                  title: 'Something went wrong',
-                  subtitle: _error,
-                  action: FilledButton(
-                    onPressed: _loadDirectory,
-                    child: const Text('Retry'),
-                  ),
+              ? AppErrorState(
+                  title: context.l10n.sftpDirectoryLoadFailed,
+                  message: _error!,
+                  onRetry: _loadDirectory,
                 )
               : _entities.isEmpty
               ? AppEmptyState(
                   icon: Icons.folder_off,
-                  title: 'Empty directory',
-                  subtitle:
-                      'No files or '
-                      'folders here yet',
+                  title: context.l10n.sftpEmptyDirectoryTitle,
+                  subtitle: context.l10n.sftpEmptyDirectorySubtitle,
                 )
               : RefreshIndicator(
                   onRefresh: _loadDirectory,

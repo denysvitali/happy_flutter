@@ -37,6 +37,7 @@ extension _SessionBatchActions on _SessionsScreenState {
       title: l10n.sessionsArchiveSession,
       content: l10n.sessionsArchiveNConfirm(ids.length),
       confirmLabel: l10n.sessionsArchive,
+      isDestructive: true,
     );
     if (!confirmed || !mounted) return;
     await _runSelectionBatch(
@@ -107,9 +108,7 @@ extension _SessionBatchActions on _SessionsScreenState {
       if (mounted) {
         _exitSelectionMode(completed: true);
         if (failures > 0) {
-          messenger.showSnackBar(
-            SnackBar(content: Text(failureMessage(failures))),
-          );
+          messenger.showSnack(failureMessage(failures), tone: SnackTone.error);
         }
       }
     }

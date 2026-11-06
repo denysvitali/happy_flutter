@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -12,7 +13,6 @@ import '../models/sftp_log.dart';
 import 'widgets/sftp_log_entry_card.dart';
 import 'widgets/sftp_log_stats_tab.dart';
 import '../../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 export 'widgets/sftp_log_entry_card.dart';
 export 'widgets/sftp_log_stats_tab.dart';
@@ -149,30 +149,18 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
   }
 
   Future<void> _clearLogs() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear Logs'),
-        content: Text(
-          _selectedDeviceId != null
-              ? 'Clear all logs for this device?'
-              : 'Clear all SFTP logs?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sftpClearLogsTitle,
+      content: _selectedDeviceId != null
+          ? l10n.sftpClearDeviceLogsMessage
+          : l10n.sftpClearAllLogsMessage,
+      confirmLabel: l10n.commonClear,
+      isDestructive: true,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       if (_selectedDeviceId != null) {
         await sftpLogStore.clearDeviceLogs(_selectedDeviceId!);
       } else {
@@ -198,7 +186,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
       IconButton(
         icon: const Icon(Icons.file_upload),
         onPressed: _filteredLogs.isNotEmpty ? _exportLogs : null,
-        tooltip: 'Export logs',
+        tooltip: context.l10n.sftpExportLogs,
       ),
       PopupMenuButton<String>(
         onSelected: (value) {
@@ -274,7 +262,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: widget.onClose,
-                    tooltip: 'Close',
+                    tooltip: context.l10n.commonClose,
                   ),
               ],
             ),
@@ -380,10 +368,10 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search logs...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
+                    prefixIcon: const Icon(Icons.search, size: AppIconSize.xl),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
+                            icon: const Icon(Icons.clear, size: AppIconSize.lg),
                             tooltip: context.l10n.commonClearSearch,
                             onPressed: () {
                               _searchController.clear();

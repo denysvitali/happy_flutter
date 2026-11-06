@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/sessions_api.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/tablet/embedded_pane.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -24,11 +25,11 @@ import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_banner.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../core/utils/snack.dart';
 
 // Reusable thin divider used inside the metadata/info cards.
 const _kRowDivider = Divider(
@@ -161,9 +162,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         message: message,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.sessionStartupResumeSaved)),
-      );
+      context.showSnack(context.l10n.sessionStartupResumeSaved);
     } catch (error, stack) {
       logger.warning('Failed to update startup resume setting', error, stack);
       _showError(saveFailedMessage);
@@ -281,13 +280,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
   void _showError(String message) {
     if (!mounted) return;
-    final cs = Theme.of(context).colorScheme;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: cs.error,
-        duration: const Duration(seconds: 3),
-      ),
+    context.showSnack(
+      message,
+      tone: SnackTone.error,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -296,31 +292,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final sessionId = widget.session.id;
     final embedded = widget.embedded;
     final api = SessionsApi();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.sessionsArchiveSession),
-          content: Text(l10n.sessionsArchiveConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(
-                Theme.of(ctx).colorScheme,
-              ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.sessionsArchive),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sessionsArchiveSession,
+      content: l10n.sessionsArchiveConfirm,
+      confirmLabel: l10n.sessionsArchive,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
     if (!mounted) return;
 
     setState(() => _isArchiving = true);
@@ -355,31 +336,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final sessionId = widget.session.id;
     final embedded = widget.embedded;
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.chatDeleteSession),
-          content: Text(l10n.sessionsDeleteConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(
-                Theme.of(ctx).colorScheme,
-              ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.chatDeleteSession,
+      content: l10n.sessionsDeleteConfirm,
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
     if (!mounted) return;
     setState(() => _isDeleting = true);
     final deleted = await sessionsNotifier.optimisticDelete(sessionId);
@@ -939,6 +905,7 @@ class _SessionPodCard extends StatelessWidget {
                 ),
                 AppBadge(label: stateLabel, tone: stateTone),
                 IconButton(
+                  tooltip: l10n.commonRefresh,
                   onPressed: loading ? null : onRefresh,
                   icon: const Icon(Icons.refresh),
                 ),
