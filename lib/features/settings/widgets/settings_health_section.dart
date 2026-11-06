@@ -13,6 +13,7 @@ import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../../core/utils/snack.dart';
 
 class SettingsHealthSection extends ConsumerWidget {
   const SettingsHealthSection({
@@ -238,14 +239,14 @@ class SettingsHealthSection extends ConsumerWidget {
                             health.toRedactedText(),
                           );
                           if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                result.success
-                                    ? l10n.commonCopiedToClipboard
-                                    : l10n.textSelectionFailedToCopy,
-                              ),
-                            ),
+                          context.showSnack(
+                            result.success
+                                ? l10n.commonCopiedToClipboard
+                                : l10n.textSelectionFailedToCopy,
+                            tone: result.success
+                                ? SnackTone.neutral
+                                : SnackTone.error,
+                            replaceCurrent: true,
                           );
                         },
                         icon: const Icon(Icons.copy_outlined),

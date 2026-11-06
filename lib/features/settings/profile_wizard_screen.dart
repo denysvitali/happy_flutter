@@ -354,7 +354,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           );
       if (mounted) safePop<void>(context, fallbackRouteName: 'profiles');
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(failedToSaveMsg)));
+      messenger.showSnack(failedToSaveMsg, tone: SnackTone.error);
     }
   }
 

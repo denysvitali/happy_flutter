@@ -172,8 +172,9 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
           .read(artifactsNotifierProvider.notifier)
           .optimisticRemove(artifact.id);
       if (!deleted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(l10n.artifactsFailedToDelete)),
+        messenger.showSnack(
+          l10n.artifactsFailedToDelete,
+          tone: SnackTone.error,
         );
       }
     }

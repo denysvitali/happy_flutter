@@ -25,18 +25,24 @@ Future<ClipboardWriteResult> copyWithFeedback(
   if (!context.mounted) return result;
   final l10n = context.l10n;
   if (!result.success) {
-    context.showSnack(l10n.textSelectionFailedToCopy);
+    context.showSnack(
+      l10n.textSelectionFailedToCopy,
+      tone: SnackTone.error,
+      replaceCurrent: true,
+    );
   } else if (result.truncated) {
     context.showSnack(
       l10n.clipboardCopiedTruncated(
         result.charactersCopied,
         result.originalCharacters,
       ),
+      replaceCurrent: true,
     );
   } else if (announceSuccess) {
     context.showSnack(
       successMessage ?? l10n.commonCopiedToClipboard,
       duration: const Duration(seconds: 2),
+      replaceCurrent: true,
     );
   }
   return result;

@@ -11,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
 import '../theme/app_tokens.dart';
 import 'app_circular_progress_indicator.dart';
+import '../utils/snack.dart';
 
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
@@ -106,18 +107,17 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       final message = success
           ? l10n.authDeviceLinkedSuccess
           : l10n.authFailedToLinkDevice;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      context.showSnack(
+        message,
+        tone: success ? SnackTone.neutral : SnackTone.error,
+      );
       if (success) {
         ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
       }
     } catch (error, stack) {
       logger.warning('Failed to approve staged linking request', error, stack);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.authFailedToLinkDevice)));
+        context.showSnack(l10n.authFailedToLinkDevice, tone: SnackTone.error);
       }
     } finally {
       if (mounted &&

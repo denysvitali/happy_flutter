@@ -80,14 +80,10 @@ extension _ChatInputDictationActions on _ChatInputState {
     if (needsDownload && mounted) {
       _setComposerState(() => _isDownloadingModel = true);
       final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Downloading ${selected.displayName}'
-            '${selected.sizeLabel.isEmpty ? '' : ' (${selected.sizeLabel})'}…',
-          ),
-          duration: const Duration(seconds: 8),
-        ),
+      messenger?.showSnack(
+        'Downloading ${selected.displayName}'
+        '${selected.sizeLabel.isEmpty ? '' : ' (${selected.sizeLabel})'}…',
+        duration: const Duration(seconds: 8),
       );
     }
     try {

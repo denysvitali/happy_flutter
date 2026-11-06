@@ -82,5 +82,19 @@ void main() {
     expect(result.success, isFalse);
     expect(find.text('Copied to clipboard'), findsNothing);
     expect(find.text('Failed to copy text to clipboard'), findsOneWidget);
+    final bar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(bar.backgroundColor, Theme.of(ctx).colorScheme.errorContainer);
+  });
+
+  testWidgets('repeated copies replace the toast instead of queueing', (
+    tester,
+  ) async {
+    await pump(tester);
+    await copyWithFeedback(ctx, 'one');
+    await tester.pump();
+    await copyWithFeedback(ctx, 'two', successMessage: 'Copied again');
+    await tester.pumpAndSettle();
+    expect(find.text('Copied to clipboard'), findsNothing);
+    expect(find.text('Copied again'), findsOneWidget);
   });
 }

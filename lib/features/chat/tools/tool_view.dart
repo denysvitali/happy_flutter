@@ -34,6 +34,7 @@ import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
 import 'views/todo_view.dart';
 import 'views/web_search_view.dart';
+import '../../../core/utils/snack.dart';
 
 // Re-export public helpers so existing imports continue to work.
 export 'tool_view_helpers.dart'
@@ -464,9 +465,7 @@ class _ToolViewState extends ConsumerState<ToolView>
         : receipt.scope == 'session'
         ? l10n.permissionAppliedForSession
         : l10n.permissionAppliedOnce;
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.maybeOf(context)?.showSnack(message);
   }
 
   @override

@@ -11,6 +11,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../auth/widgets/agent_mascot_cluster.dart';
 import 'new_session_dialog.dart';
+import '../../../core/utils/snack.dart';
 
 /// Empty sessions view with tiered state.
 ///
@@ -100,13 +101,12 @@ class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
 
   void _showActionError({VoidCallback? onRetry}) {
     final l10n = context.l10n;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.commonError),
-        action: onRetry == null
-            ? null
-            : SnackBarAction(label: l10n.commonRetry, onPressed: onRetry),
-      ),
+    context.showSnack(
+      l10n.commonError,
+      tone: SnackTone.error,
+      action: onRetry == null
+          ? null
+          : SnackBarAction(label: l10n.commonRetry, onPressed: onRetry),
     );
   }
 

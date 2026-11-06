@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../../core/utils/snack.dart';
 
 /// Aurora-glass status chip for a sub-agent task completion event,
 /// sibling of the agent-event start/progress markers so a task's
@@ -54,11 +55,10 @@ class TaskEventSummaryCard extends StatelessWidget {
     if (path == null) return;
     await Clipboard.setData(ClipboardData(text: path));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied transcript path: $path'),
-        duration: const Duration(seconds: 3),
-      ),
+    context.showSnack(
+      'Copied transcript path: $path',
+      duration: const Duration(seconds: 3),
+      replaceCurrent: true,
     );
   }
 

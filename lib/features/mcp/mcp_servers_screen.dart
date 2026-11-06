@@ -23,6 +23,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../features/settings/widgets/machine_picker.dart';
 import 'mcp_server_edit_screen.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../core/utils/snack.dart';
 
 /// Remote management of a machine's Claude Code MCP servers.
 ///
@@ -132,9 +133,7 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
         ? fallback
         : response.failureKind.localizedRemoteFeatureFailure(context.l10n);
     setState(() => _error = message);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    context.showSnack(message, tone: SnackTone.error);
   }
 
   Future<void> _toggle(McpServer server, bool enabled) async {
@@ -171,13 +170,11 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
     setState(() => _busyIdentity = null);
     _applyResult(response, fallback: context.l10n.mcpToggleFailed(server.name));
     if (enabled && response.success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.mcpEnabledWithUndo),
-          action: SnackBarAction(
-            label: context.l10n.commonUndo,
-            onPressed: () => unawaited(_toggle(server, false)),
-          ),
+      context.showSnack(
+        context.l10n.mcpEnabledWithUndo,
+        action: SnackBarAction(
+          label: context.l10n.commonUndo,
+          onPressed: () => unawaited(_toggle(server, false)),
         ),
       );
     }

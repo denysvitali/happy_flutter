@@ -37,6 +37,7 @@ import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
 import 'sessions_view_style.dart';
 import 'unread_focus_cards.dart';
+import '../../../core/utils/snack.dart';
 
 // ─── Main widget ──────────────────────────────────────
 
@@ -898,15 +899,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       onToggleMuteFolder: (folderKey) {
         triageNotifier.toggleMute(folderKey);
         final muted = ref.read(missionTriageProvider).isMuted(folderKey);
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 2),
-            content: Text(
-              muted
-                  ? context.l10n.missionControlMuteWorkspace
-                  : context.l10n.missionControlUnmuteWorkspace,
-            ),
-          ),
+        ScaffoldMessenger.maybeOf(context)?.showSnack(
+          muted
+              ? context.l10n.missionControlMuteWorkspace
+              : context.l10n.missionControlUnmuteWorkspace,
+          duration: const Duration(seconds: 2),
+          replaceCurrent: true,
         );
       },
       actionCardBuilder:

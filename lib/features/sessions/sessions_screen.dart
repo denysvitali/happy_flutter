@@ -33,6 +33,7 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_collection_app_bar.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
+import '../../core/utils/snack.dart';
 
 part 'session_batch_actions.dart';
 
@@ -325,11 +326,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                   const Duration(seconds: 2)) {
             _lastBackPressTime = now;
             _pendingNav = _NavigationAction.exitConfirm;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.l10n.sessionsPressBackToExit),
-                duration: const Duration(seconds: 2),
-              ),
+            context.showSnack(
+              context.l10n.sessionsPressBackToExit,
+              duration: const Duration(seconds: 2),
+              replaceCurrent: true,
             );
             _pendingNav = null;
           }

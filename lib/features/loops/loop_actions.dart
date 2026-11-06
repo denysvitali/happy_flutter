@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/utils/snack.dart';
 
 /// Deletes a loop and reports failures consistently across loop screens.
 Future<void> deleteLoopWithFeedback({
@@ -64,12 +65,12 @@ Future<void> runLoopActionWithFeedback({
   try {
     await action();
     if (successLabel != null && isMounted()) {
-      messenger.showSnackBar(SnackBar(content: Text(successLabel)));
+      messenger.showSnack(successLabel);
     }
   } catch (e, st) {
     if (shouldHandleError != null && !shouldHandleError(e)) rethrow;
     logger.warning('$failureLogMessage: $e', e, st);
     if (!isMounted()) return;
-    messenger.showSnackBar(SnackBar(content: Text('$failureLabel: $e')));
+    messenger.showSnack('$failureLabel: $e', tone: SnackTone.error);
   }
 }

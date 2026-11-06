@@ -15,6 +15,7 @@ import 'mission_control_types.dart';
 import 'session_cards.dart';
 import 'workspace_identity.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../../core/utils/snack.dart';
 
 /// Same rejection text the chat composer sends on Stop, so the agent
 /// sees one consistent signal regardless of where the stop came from.
@@ -78,21 +79,18 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
           .abortSession(widget.session.id, reason: peekAbortReason);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 2),
-            content: Text(l10n.missionControlPeekStopRequested),
-          ),
+        ScaffoldMessenger.maybeOf(context)?.showSnack(
+          l10n.missionControlPeekStopRequested,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (_) {
       if (mounted) {
         setState(() => _stopping = false);
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 2),
-            content: Text(l10n.missionControlPeekStopFailed),
-          ),
+        ScaffoldMessenger.maybeOf(context)?.showSnack(
+          l10n.missionControlPeekStopFailed,
+          duration: const Duration(seconds: 2),
+          tone: SnackTone.error,
         );
       }
     }

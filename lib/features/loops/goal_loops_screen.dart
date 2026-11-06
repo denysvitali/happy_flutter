@@ -13,6 +13,7 @@ import '../../core/theme/app_tokens.dart';
 import 'create_goal_loop_sheet.dart';
 import 'goal_loop_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
+import '../../core/utils/snack.dart';
 
 /// Goal loops across every machine.
 ///
@@ -110,7 +111,7 @@ class GoalLoopsScreen extends ConsumerWidget {
     final message = res.failureKind == null
         ? fallbackError
         : res.failureKind.localizedRemoteFeatureFailure(l10n);
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    messenger.showSnack(message, tone: SnackTone.error);
   }
 }
 

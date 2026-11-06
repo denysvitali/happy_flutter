@@ -11,6 +11,7 @@ import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../widgets/chat_agent_scope.dart';
 import '../widgets/inline_permission_visibility.dart';
 import 'permission_risk.dart';
+import '../../../core/utils/snack.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -127,9 +128,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
         } else {
           label = l10n.permissionActionFailed;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(label), behavior: SnackBarBehavior.floating),
-        );
+        context.showSnack(label, tone: SnackTone.error);
       }
     } finally {
       if (mounted) setState(() => _loading = false);

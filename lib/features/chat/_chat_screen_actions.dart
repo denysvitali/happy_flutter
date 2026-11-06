@@ -551,9 +551,7 @@ extension _ChatScreenActions on _ChatScreenState {
           modelMode: _effectiveModelModeString ?? 'default',
         );
     _composerRevision.value++;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.codexSpeedApplyHint)));
+    context.showSnack(context.l10n.codexSpeedApplyHint, replaceCurrent: true);
   }
 
   void _onModelModeChanged(ChatModelMode model) {
@@ -603,19 +601,16 @@ extension _ChatScreenActions on _ChatScreenState {
     // other agents use the existing configuration restart path.
     final isRunning = _session?.isPresenceOnline ?? false;
     if (isRunning && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            // Running Prime Agent switches model in place on the next send.
-            flavor == 'prime-agent'
-                ? 'Model and effort changes apply from your next message.'
-                : flavor == 'opencode'
-                ? 'Model changes apply from your next message.'
-                : 'Model changed. The session will restart '
-                      'automatically on the next message.',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
+      context.showSnack(
+        // Running Prime Agent switches model in place on the next send.
+        flavor == 'prime-agent'
+            ? 'Model and effort changes apply from your next message.'
+            : flavor == 'opencode'
+            ? 'Model changes apply from your next message.'
+            : 'Model changed. The session will restart '
+                  'automatically on the next message.',
+        duration: const Duration(seconds: 3),
+        replaceCurrent: true,
       );
     }
   }
@@ -821,14 +816,11 @@ extension _ChatScreenActions on _ChatScreenState {
     // No manual restart required.
     final isRunning = _session?.isPresenceOnline ?? false;
     if (isRunning && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Profile changed. The session will restart '
-            'automatically on the next message.',
-          ),
-          duration: Duration(seconds: 3),
-        ),
+      context.showSnack(
+        'Profile changed. The session will restart '
+        'automatically on the next message.',
+        duration: const Duration(seconds: 3),
+        replaceCurrent: true,
       );
     }
   }
@@ -964,13 +956,10 @@ extension _ChatScreenActions on _ChatScreenState {
         } else {
           logger.warning(message, e, st);
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Stop request failed. The agent may still be running.',
-            ),
-            action: SnackBarAction(label: 'Retry', onPressed: _abortSession),
-          ),
+        context.showSnack(
+          'Stop request failed. The agent may still be running.',
+          tone: SnackTone.error,
+          action: SnackBarAction(label: 'Retry', onPressed: _abortSession),
         );
       }
     } finally {
@@ -1014,12 +1003,9 @@ extension _ChatScreenActions on _ChatScreenState {
         st,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
-            ),
-          ),
+        context.showSnack(
+          safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
+          tone: SnackTone.error,
         );
       }
     } finally {
@@ -1070,9 +1056,7 @@ extension _ChatScreenActions on _ChatScreenState {
     final message = attachmentDataUnavailable
         ? context.l10n.chatImageNotCached
         : context.l10n.chatFailedToSend;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    context.showSnack(message, tone: SnackTone.error);
   }
 
   Future<void> _sendMessage({String? codexDeliveryMode}) async {
@@ -1084,8 +1068,9 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
     if (!ImageAttachmentService.fitsMessagePayload(attachments)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.chatImagePayloadTooLarge)),
+      context.showSnack(
+        context.l10n.chatImagePayloadTooLarge,
+        tone: SnackTone.error,
       );
       return;
     }
@@ -1141,12 +1126,9 @@ extension _ChatScreenActions on _ChatScreenState {
             _controller.text = text;
             _isSending = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                safeUiFailureMessage(context.l10n, SafeUiFailure.chatClear),
-              ),
-            ),
+          context.showSnack(
+            safeUiFailureMessage(context.l10n, SafeUiFailure.chatClear),
+            tone: SnackTone.error,
           );
         }
       } finally {
@@ -1306,12 +1288,9 @@ extension _ChatScreenActions on _ChatScreenState {
           _isSending = false;
           _invalidateNeighborCache();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
-            ),
-          ),
+        context.showSnack(
+          safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
+          tone: SnackTone.error,
         );
       }
     } finally {
@@ -1494,9 +1473,7 @@ extension _ChatScreenActions on _ChatScreenState {
       ),
     );
     if (created != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.loopsLoopScheduled(created.id))),
-      );
+      context.showSnack(l10n.loopsLoopScheduled(created.id));
     }
   }
 
@@ -1555,11 +1532,6 @@ extension _ChatScreenActions on _ChatScreenState {
       );
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.chatFailedToSend),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    context.showSnack(context.l10n.chatFailedToSend, tone: SnackTone.error);
   }
 }

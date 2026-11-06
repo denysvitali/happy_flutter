@@ -84,7 +84,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
       ),
     );
   } catch (e) {
-    scaffoldMessenger.showSnackBar(SnackBar(content: Text('$errorPrefix: $e')));
+    scaffoldMessenger.showSnack('$errorPrefix: $e', tone: SnackTone.error);
   }
 }
 
@@ -104,11 +104,12 @@ Future<void> copyBackupKeyToClipboard(BuildContext context) async {
   try {
     final key = await AuthService().generateBackupKey();
     await _copySecretWithExpiry(key);
-    scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text('$copiedMsg ${l10n.accountClipboardExpiry}')),
+    scaffoldMessenger.showSnack(
+      '$copiedMsg ${l10n.accountClipboardExpiry}',
+      replaceCurrent: true,
     );
   } catch (e) {
-    scaffoldMessenger.showSnackBar(SnackBar(content: Text('$errorPrefix: $e')));
+    scaffoldMessenger.showSnack('$errorPrefix: $e', tone: SnackTone.error);
   }
 }
 

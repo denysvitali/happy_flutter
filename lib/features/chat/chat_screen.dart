@@ -99,6 +99,7 @@ import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
 import 'widgets/turn_review_bar.dart';
+import '../../core/utils/snack.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -1940,9 +1941,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showSendBlockedSnackBar(_SessionSendIssue issue) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(issue.snackBarText)));
+    context.showSnack(issue.snackBarText, replaceCurrent: true);
   }
 
   Future<void> _copySessionIssue(_SessionSendIssue issue) async {

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../tool_section_view.dart';
 import '../tool_view_helpers.dart'
     show mcpToolTextResult, tryDecodeJsonCollection;
+import '../../../../core/utils/snack.dart';
 
 /// One query's worth of search results.
 ///
@@ -461,8 +462,9 @@ class _SourceTile extends StatelessWidget {
       logger.warning('Failed to open search result', error, stackTrace);
     }
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.webSearchOpenPageFailed)),
+    context.showSnack(
+      context.l10n.webSearchOpenPageFailed,
+      tone: SnackTone.error,
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../../../core/utils/snack.dart';
 
 /// Status of a Bash command that Claude moved to a background shell.
 ///
@@ -111,11 +112,10 @@ class BackgroundShellBadge extends StatelessWidget {
   Future<void> _copyOutputPath(BuildContext context, String path) async {
     await Clipboard.setData(ClipboardData(text: path));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied output path: $path'),
-        duration: const Duration(seconds: 3),
-      ),
+    context.showSnack(
+      'Copied output path: $path',
+      duration: const Duration(seconds: 3),
+      replaceCurrent: true,
     );
   }
 }
