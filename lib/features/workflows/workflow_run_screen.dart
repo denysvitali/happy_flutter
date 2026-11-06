@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/components/app_error_state.dart';
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/workflow_run.dart';
@@ -11,7 +13,6 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/wire/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_phase_section.dart';
@@ -274,7 +275,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     // noise — show it once in the stat row instead.
     final commonModel = projection?.commonModel;
     final body = _loading && run == null
-        ? const Center(child: AppCircularProgressIndicator())
+        ? const AppLoadingIndicator()
         : run == null
         ? _ErrorState(
             error: _error ?? context.l10n.workflowNotFoundSafe,
@@ -444,22 +445,7 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48),
-          const SizedBox(height: AppSpacing.md),
-          Text(error),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: Text(context.l10n.commonRetry),
-          ),
-        ],
-      ),
-    );
+    return AppErrorState(message: error, onRetry: onRetry);
   }
 }
 

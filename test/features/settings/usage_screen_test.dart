@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/components/app_error_state.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -109,8 +110,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // API call will fail in test, so error state should show
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // API call will fail in test, so the shared error state should show
+      expect(find.byType(AppErrorState), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
     testWidgets('shows retry button in error state', (tester) async {

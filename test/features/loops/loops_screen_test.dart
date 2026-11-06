@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_error_state.dart';
 import 'package:happy_flutter/core/components/app_loading_indicator.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/loop.dart';
@@ -183,6 +184,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text("Couldn't load loops"), findsOneWidget);
+      expect(find.byType(AppErrorState), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 

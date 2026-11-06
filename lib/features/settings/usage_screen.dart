@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/usage_api.dart';
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_error_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -230,15 +231,10 @@ class _UsageErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppEmptyState(
-      icon: Icons.error_outline,
+    return AppErrorState(
       title: l10n.failedToLoad,
-      subtitle: error,
-      action: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
-        label: Text(l10n.commonRetry),
-      ),
+      message: error,
+      onRetry: onRetry,
     );
   }
 }

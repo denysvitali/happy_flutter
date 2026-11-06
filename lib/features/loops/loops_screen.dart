@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_error_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
@@ -176,12 +177,10 @@ class _LoopsEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Center(
-      child: AppEmptyState(
-        icon: Icons.schedule_outlined,
-        title: l10n.loopsEmptyTitle,
-        subtitle: l10n.loopsEmptyDescription,
-      ),
+    return AppEmptyState(
+      icon: Icons.schedule_outlined,
+      title: l10n.loopsEmptyTitle,
+      subtitle: l10n.loopsEmptyDescription,
     );
   }
 }
@@ -195,17 +194,10 @@ class _LoopsErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Center(
-      child: AppEmptyState(
-        icon: Icons.error_outline,
-        title: l10n.loopsLoadFailed,
-        subtitle: error,
-        action: FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh),
-          label: Text(l10n.commonRetry),
-        ),
-      ),
+    return AppErrorState(
+      title: l10n.loopsLoadFailed,
+      message: error,
+      onRetry: onRetry,
     );
   }
 }

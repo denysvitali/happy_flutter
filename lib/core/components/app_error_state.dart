@@ -9,7 +9,9 @@ const double _kMaxWidth = 360;
 /// Centered error placeholder with an icon, message, and optional retry.
 ///
 /// Consolidates the hand-rolled error containers used across screens.
-/// The icon uses [ColorScheme.error]; the message uses
+/// The icon uses [ColorScheme.error]. With a [title], the title uses
+/// [TextTheme.titleMedium] and the message becomes secondary detail in
+/// [ColorScheme.onSurfaceVariant]; without one, the message uses
 /// [TextTheme.bodyMedium]. When [onRetry] is provided, a retry button is
 /// shown beneath the message.
 class AppErrorState extends StatelessWidget {
@@ -20,7 +22,13 @@ class AppErrorState extends StatelessWidget {
     this.onRetry,
     this.icon,
     this.retryLabel,
+    this.title,
   });
+
+  /// Optional headline shown above [message] (e.g. "Couldn't load loops").
+  ///
+  /// When set, [message] is rendered as secondary detail text.
+  final String? title;
 
   /// The error message to display.
   final String message;
@@ -42,6 +50,8 @@ class AppErrorState extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final l10n = context.l10n;
+    final title = this.title;
+    final hasTitle = title != null && title.isNotEmpty;
 
     final content = Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -53,7 +63,7 @@ class AppErrorState extends StatelessWidget {
           Semantics(
             container: true,
             liveRegion: true,
-            label: l10n.a11yErrorState(message),
+            label: l10n.a11yErrorState(hasTitle ? '$title. $message' : message),
             excludeSemantics: true,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -64,9 +74,21 @@ class AppErrorState extends StatelessWidget {
                   color: cs.error,
                 ),
                 const SizedBox(height: AppSpacing.md),
+                if (hasTitle) ...[
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
                 Text(
                   message,
-                  style: theme.textTheme.bodyMedium,
+                  style: hasTitle
+                      ? theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        )
+                      : theme.textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ],

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_error_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
@@ -343,20 +344,16 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isUnsupported) {
-      return Center(
-        child: AppEmptyState(
-          icon: Icons.update_disabled,
-          title: context.l10n.workflowsUnavailableTitle,
-          subtitle: context.l10n.workflowsUnavailableSubtitle,
-        ),
+      return AppEmptyState(
+        icon: Icons.update_disabled,
+        title: context.l10n.workflowsUnavailableTitle,
+        subtitle: context.l10n.workflowsUnavailableSubtitle,
       );
     }
-    return Center(
-      child: AppEmptyState(
-        icon: Icons.account_tree_outlined,
-        title: context.l10n.workflowsEmptyTitle,
-        subtitle: context.l10n.workflowsEmptySubtitle,
-      ),
+    return AppEmptyState(
+      icon: Icons.account_tree_outlined,
+      title: context.l10n.workflowsEmptyTitle,
+      subtitle: context.l10n.workflowsEmptySubtitle,
     );
   }
 }
@@ -369,17 +366,10 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: AppEmptyState(
-        icon: Icons.error_outline,
-        title: context.l10n.workflowsLoadFailedTitle,
-        subtitle: error,
-        action: FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh),
-          label: Text(context.l10n.commonRetry),
-        ),
-      ),
+    return AppErrorState(
+      title: context.l10n.workflowsLoadFailedTitle,
+      message: error,
+      onRetry: onRetry,
     );
   }
 }
