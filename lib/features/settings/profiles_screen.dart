@@ -71,6 +71,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       padding: AppScreenPadding.settings,
       children: [
         SettingsSection(
+          dense: true,
           title: l10n.profilesTitle,
           children: [
             _buildProfileRow(
@@ -183,8 +184,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxl),
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: SettingsSection(
+        dense: true,
         title: title,
         children: [
           ...profiles.map((profile) {
@@ -315,6 +317,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         onAddToProfiles != null;
 
     final row = SettingsRow(
+      dense: true,
       icon: icon,
       iconColor: iconColor,
       title: profile?.name ?? l10n.profilesNone,
@@ -336,6 +339,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           ],
           if (hasActions)
             PopupMenuButton<_ProfileAction>(
+              // Narrow hit box: the default 48dp square adds a wide blank
+              // gutter after the badge on every row.
+              style: IconButton.styleFrom(
+                minimumSize: const Size(
+                  AppControlSize.md,
+                  AppTouchTarget.comfortable,
+                ),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               icon: Icon(
                 Icons.more_vert,
                 size: AppSpacing.xl,

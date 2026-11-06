@@ -13,23 +13,34 @@ const double kSettingsIconContainerSize = AppControlSize.lg;
 /// at large text scales — the constraint is a floor, never a cap.
 const double kSettingsRowMinHeightWithSubtitle = 56;
 
+/// Leading icon tile edge for [SettingsRow.dense] list rows.
+const double kSettingsDenseIconContainerSize = AppControlSize.md;
+
+/// Horizontal row padding for [SettingsRow.dense] list rows.
+const double kSettingsDenseRowHorizontalPadding = AppSpacing.md;
+
+/// Gap between the icon tile and labels in [SettingsRow.dense] rows.
+const double kSettingsDenseIconGap = AppSpacing.smd;
+
 /// 36x36 rounded icon container used as the leading widget in settings rows.
 ///
 /// Uses a tinted background derived from the icon colour for a modern,
 /// iOS-style grouped settings look.
 class SettingsIconContainer extends StatelessWidget {
-  const SettingsIconContainer({required this.icon, this.color, super.key});
+  const SettingsIconContainer({
+    required this.icon,
+    this.color,
+    this.size = kSettingsIconContainerSize,
+    super.key,
+  });
 
   final IconData icon;
   final Color? color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return AppIconTile(
-      icon: icon,
-      color: color,
-      size: kSettingsIconContainerSize,
-    );
+    return AppIconTile(icon: icon, color: color, size: size);
   }
 }
 
@@ -56,6 +67,7 @@ class SettingsRow extends StatelessWidget {
     this.onTap,
     this.semanticsButton,
     this.semanticsEnabled,
+    this.dense = false,
   });
 
   final IconData icon;
@@ -67,11 +79,17 @@ class SettingsRow extends StatelessWidget {
   final bool? semanticsButton;
   final bool? semanticsEnabled;
 
+  /// Compact list-row metrics for long homogeneous lists (e.g. profiles):
+  /// smaller icon tile, tighter padding, single-line subtitle at normal
+  /// text scale. Pair with [SettingsSection.dense] so dividers line up.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final maxLines = _labelMaxLines(context);
+    final subMaxLines = dense && maxLines != null ? 1 : maxLines;
     final sub = subtitle;
     final semanticsLabel = sub == null || sub.isEmpty
         ? title
@@ -91,19 +109,29 @@ class SettingsRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: subtitle != null
+          minHeight: dense
+              ? AppTouchTarget.comfortable
+              : subtitle != null
               ? kSettingsRowMinHeightWithSubtitle
               : AppTouchTarget.comfortable,
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: dense
+                ? kSettingsDenseRowHorizontalPadding
+                : AppSpacing.lg,
+            vertical: dense ? AppSpacing.xs : AppSpacing.sm,
           ),
           child: Row(
             children: [
-              SettingsIconContainer(icon: icon, color: iconColor),
-              const SizedBox(width: AppSpacing.md),
+              SettingsIconContainer(
+                icon: icon,
+                color: iconColor,
+                size: dense
+                    ? kSettingsDenseIconContainerSize
+                    : kSettingsIconContainerSize,
+              ),
+              SizedBox(width: dense ? kSettingsDenseIconGap : AppSpacing.md),
               // The title and subtitle are folded into the row node's
               // label, so their own nodes are dropped. Only the label
               // copy is excluded — `trailing` keeps its semantics.
@@ -124,12 +152,12 @@ class SettingsRow extends StatelessWidget {
                             : TextOverflow.ellipsis,
                       ),
                       if (sub != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
+                        if (!dense) const SizedBox(height: AppSpacing.xxs),
                         Text(
                           sub,
                           style: AppText.secondary(theme, cs.onSurfaceVariant),
-                          maxLines: maxLines,
-                          overflow: maxLines == null
+                          maxLines: subMaxLines,
+                          overflow: subMaxLines == null
                               ? TextOverflow.clip
                               : TextOverflow.ellipsis,
                         ),
@@ -317,7 +345,11 @@ class SettingsSection extends StatelessWidget {
     this.title,
     this.description,
     this.danger = false,
+    this.dense = false,
   });
+
+  /// Indent dividers for [SettingsRow.dense] children.
+  final bool dense;
 
   /// Optional section heading text.
   final String? title;
@@ -335,6 +367,11 @@ class SettingsSection extends StatelessWidget {
   // Leading padding (16) + icon container width (36) + gap (12).
   static const double _dividerIndent =
       AppSpacing.lg + kSettingsIconContainerSize + AppSpacing.md;
+
+  static const double _denseDividerIndent =
+      kSettingsDenseRowHorizontalPadding +
+      kSettingsDenseIconContainerSize +
+      kSettingsDenseIconGap;
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +441,7 @@ class SettingsSection extends StatelessWidget {
           Divider(
             height: 1,
             thickness: AppBorder.hairline,
-            indent: _dividerIndent,
+            indent: dense ? _denseDividerIndent : _dividerIndent,
             endIndent: 0,
             color: cs.outlineVariant,
           ),
