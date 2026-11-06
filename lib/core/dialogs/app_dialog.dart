@@ -43,12 +43,20 @@ Future<T?> showAppDialog<T>(
           sigmaX: _kDialogBlurSigma * t,
           sigmaY: _kDialogBlurSigma * t,
         ),
-        child: ColoredBox(
-          color: scrim.withValues(alpha: 0.35 * t),
-          child: Opacity(
-            opacity: t.clamp(0.0, 1.0),
-            child: Transform.scale(scale: scale, child: child),
-          ),
+        // The scrim ignores pointers: ColoredBox hit-tests opaquely, so
+        // wrapping the dialog in it swallowed taps outside the dialog and
+        // the route's dismissible barrier underneath never saw them.
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            IgnorePointer(
+              child: ColoredBox(color: scrim.withValues(alpha: 0.35 * t)),
+            ),
+            Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: Transform.scale(scale: scale, child: child),
+            ),
+          ],
         ),
       );
     },

@@ -142,6 +142,8 @@ void main() {
       // Sync pill and error snackbar are app-shell chrome with own shapes.
       'sync_progress_bar.dart',
       'error_boundary.dart',
+      // SnackTone.error mirrors ErrorSnackbarManager's error snackbar.
+      'core/utils/snack.dart',
       // Decorative error illustration, not an alert surface.
       'auth_scan_failed_card.dart',
       // Permission Allow button and lane container, not alerts.
