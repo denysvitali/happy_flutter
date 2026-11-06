@@ -118,6 +118,13 @@ Settings search/Zen filter labels are now localized, and `copyWithFeedback`
 reports truncated or failed clipboard writes (artifacts, files, code blocks,
 messages) instead of claiming success; regression tests added for CI.
 
+Consistency pass (2026-11-06): yes/no confirmations share `showConfirmDialog`
+(Cancel left, verb-labelled confirm right, error-styled when destructive);
+failure toasts share one error tone and repeatable toasts replace the visible
+one; full-panel error/loading states use `AppErrorState`/`AppLoadingIndicator`;
+icon-button tooltips are localized and guarded against literals. Regressions
+added for CI; device and screen-reader acceptance pending.
+
 Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
 background refresh (settings, machines, git status, unopened chats) and stayed
 through retry backoff, so resumes looked stalled after conversations were
