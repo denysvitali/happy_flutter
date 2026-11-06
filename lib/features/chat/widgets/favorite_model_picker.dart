@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'model_mode.dart';
 
@@ -73,6 +74,12 @@ class _FavoriteModelPickerState extends State<FavoriteModelPicker> {
                   },
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.l10n.commonCancel),
+                ),
+              ],
             ),
           );
           if (!mounted || result == null) return;

@@ -114,7 +114,7 @@ class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Shared Directory'),
+      title: const Text('Add shared directory'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

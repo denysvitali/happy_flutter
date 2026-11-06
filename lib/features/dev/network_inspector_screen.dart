@@ -15,7 +15,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 import '../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 
 /// Debug screen that shows all HTTP requests made by [ApiClient].
 class NetworkInspectorScreen extends StatefulWidget {
@@ -123,28 +123,15 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
   }
 
   Future<void> _confirmClear() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.networkInspectorClearTitle),
-          content: Text(l10n.networkInspectorClearConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              style: AppButtonStyle.destructive(Theme.of(context).colorScheme),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.developerClearCacheAction),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final ok = await showConfirmDialog(
+      context,
+      title: l10n.networkInspectorClearTitle,
+      content: l10n.networkInspectorClearConfirm,
+      confirmLabel: l10n.commonClear,
+      isDestructive: true,
     );
-    if (ok ?? false) {
+    if (ok) {
       httpRequestLogger.clear();
     }
   }

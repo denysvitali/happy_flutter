@@ -63,7 +63,7 @@ void _registerBatchActionTests() {
         await tester.tap(
           find.descendant(
             of: find.byType(AlertDialog),
-            matching: find.widgetWithText(TextButton, 'Delete'),
+            matching: find.widgetWithText(FilledButton, 'Delete'),
           ),
         );
         // Finish the dialog transition without settling the pending progress.
@@ -222,7 +222,7 @@ void _registerArchiveBatchTests() {
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),
-          matching: find.widgetWithText(TextButton, 'Archive'),
+          matching: find.widgetWithText(FilledButton, 'Archive'),
         ),
       );
       await tester.pump();

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/components/app_sheet.dart';
-import '../../../core/dialogs/app_dialog.dart';
 import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
@@ -14,7 +13,6 @@ import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// A shortcut promoted into the top of the session menu, used for app bar
 /// actions that do not fit inline on phone widths.
@@ -273,30 +271,21 @@ void showUnsentMessageDialog(
   required String sessionId,
   required TextEditingController controller,
 }) {
-  final cs = Theme.of(context).colorScheme;
   final l10n = context.l10n;
-  showAppDialog<void>(
-    context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(l10n.chatUnsentMessageTitle),
-      content: Text(l10n.chatUnsentMessageContent),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: Text(l10n.chatStay),
-        ),
-        TextButton(
-          style: AppButtonStyle.destructive(cs),
-          onPressed: () {
-            controller.clear();
-            unawaited(DraftStorage().removeDraft(sessionId));
-            Navigator.pop(dialogContext);
-            Navigator.of(context).pop();
-          },
-          child: Text(l10n.chatLeave),
-        ),
-      ],
-    ),
+  unawaited(
+    showConfirmDialog(
+      context,
+      title: l10n.chatUnsentMessageTitle,
+      content: l10n.chatUnsentMessageContent,
+      cancelLabel: l10n.chatStay,
+      confirmLabel: l10n.chatLeave,
+      isDestructive: true,
+    ).then((leave) {
+      if (!leave || !context.mounted) return;
+      controller.clear();
+      unawaited(DraftStorage().removeDraft(sessionId));
+      Navigator.of(context).pop();
+    }),
   );
 }
 

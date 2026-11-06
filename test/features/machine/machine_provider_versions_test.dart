@@ -71,7 +71,7 @@ Future<void> _confirmUpdate(WidgetTester tester) async {
   await tester.ensureVisible(_updateCodex);
   await tester.tap(_updateCodex);
   await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(TextButton, 'Update'));
+  await tester.tap(find.widgetWithText(FilledButton, 'Update'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
 }

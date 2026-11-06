@@ -305,6 +305,12 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         return AlertDialog(
           title: Text(l10n.sessionsNew),
           content: Text(l10n.sessionsNewDialogPlaceholder),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.commonClose),
+            ),
+          ],
         );
       },
     );

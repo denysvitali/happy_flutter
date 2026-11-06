@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
@@ -258,35 +259,20 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     );
   }
 
-  void _clearCache(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final l10nDialog = AppLocalizations.of(context);
-        return AlertDialog(
-          title: Text(l10nDialog.developerClearCache),
-          content: Text(l10nDialog.developerClearCacheConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10nDialog.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await Storage().clearAll();
-                if (context.mounted) {
-                  context.showSnack(
-                    AppLocalizations.of(context).developerCacheCleared,
-                  );
-                }
-              },
-              child: Text(l10nDialog.developerClearCacheAction),
-            ),
-          ],
-        );
-      },
+  Future<void> _clearCache(BuildContext context) async {
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.developerClearCacheTitle,
+      content: l10n.developerClearCacheConfirm,
+      confirmLabel: l10n.developerClearCacheAction,
+      isDestructive: true,
     );
+    if (!confirmed) return;
+    await Storage().clearAll();
+    if (context.mounted) {
+      context.showSnack(l10n.developerCacheCleared);
+    }
   }
 
   void _confirmUnhandledSentryTest(BuildContext context) {
@@ -317,86 +303,44 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     );
   }
 
-  void _resetSettings(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final l10nDialog = AppLocalizations.of(context);
-        return AlertDialog(
-          title: Text(l10nDialog.developerResetSettings),
-          content: Text(l10nDialog.developerResetSettingsConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10nDialog.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(
-                Theme.of(context).colorScheme,
-              ),
-              onPressed: () async {
-                Navigator.pop(context);
-                await SettingsStorage().clearSettings();
-                if (context.mounted) {
-                  await ref
-                      .read(settingsNotifierProvider.notifier)
-                      .loadSettings();
-                }
-                if (context.mounted) {
-                  context.showSnack(
-                    AppLocalizations.of(context).developerSettingsReset,
-                  );
-                }
-              },
-              child: Text(l10nDialog.developerResetAction),
-            ),
-          ],
-        );
-      },
+  Future<void> _resetSettings(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.developerResetSettingsTitle,
+      content: l10n.developerResetSettingsConfirm,
+      confirmLabel: l10n.developerResetAction,
+      isDestructive: true,
     );
+    if (!confirmed) return;
+    await SettingsStorage().clearSettings();
+    if (context.mounted) {
+      await ref.read(settingsNotifierProvider.notifier).loadSettings();
+    }
+    if (context.mounted) {
+      context.showSnack(l10n.developerSettingsReset);
+    }
   }
 
-  void _forceSyncSettings(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final l10nDialog = AppLocalizations.of(context);
-        return AlertDialog(
-          title: Text(l10nDialog.developerForceSyncSettings),
-          content: Text(l10nDialog.developerForceSyncSettingsConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10nDialog.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                try {
-                  await sync.settingsSync.invalidateAndAwait();
-                  if (context.mounted) {
-                    ref.read(settingsNotifierProvider.notifier).loadFromSync();
-                    context.showSnack(
-                      AppLocalizations.of(
-                        context,
-                      ).developerForceSyncSettingsSuccess,
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    context.showSnack(
-                      AppLocalizations.of(
-                        context,
-                      ).developerForceSyncSettingsError,
-                    );
-                  }
-                }
-              },
-              child: Text(l10nDialog.developerForceSyncSettingsAction),
-            ),
-          ],
-        );
-      },
+  Future<void> _forceSyncSettings(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.developerForceSyncSettingsTitle,
+      content: l10n.developerForceSyncSettingsConfirm,
+      confirmLabel: l10n.developerForceSyncSettingsAction,
     );
+    if (!confirmed) return;
+    try {
+      await sync.settingsSync.invalidateAndAwait();
+      if (context.mounted) {
+        ref.read(settingsNotifierProvider.notifier).loadFromSync();
+        context.showSnack(l10n.developerForceSyncSettingsSuccess);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        context.showSnack(l10n.developerForceSyncSettingsError);
+      }
+    }
   }
 }

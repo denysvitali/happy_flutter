@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/socket_io_client.dart';
 import '../../core/components/app_card.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
@@ -117,30 +118,14 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
   }
 
   void _handleReset() {
-    showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          AppLocalizations.of(dialogContext).settingsServerResetToDefault,
-        ),
-        content: Text(
-          AppLocalizations.of(dialogContext).settingsServerResetConfirm,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(AppLocalizations.of(dialogContext).commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              AppLocalizations.of(dialogContext).settingsServerResetToDefault,
-            ),
-          ),
-        ],
-      ),
+    final l10n = context.l10n;
+    showConfirmDialog(
+      context,
+      title: l10n.settingsServerResetToDefault,
+      content: l10n.settingsServerResetConfirm,
+      confirmLabel: l10n.commonReset,
     ).then((confirmed) async {
-      if (confirmed != true || !mounted) {
+      if (!confirmed || !mounted) {
         return;
       }
       setServerUrl(null);

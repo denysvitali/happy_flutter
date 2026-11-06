@@ -8,11 +8,11 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/provider_usage.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
-import '../../core/theme/app_button_style.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
@@ -130,34 +130,19 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
     final l10n = context.l10n;
     if (usages.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.commonDeleteConfirmTitle),
-        content: Text(
-          usages.length == 1
-              ? l10n.providersDeleteConfirmMessage(
-                  usages.single.accountName ?? usages.single.type.name,
-                )
-              : l10n.providersDeleteSelectedConfirmMessage(usages.length),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.commonCancel),
-          ),
-          FilledButton(
-            style: AppButtonStyle.destructiveFilled(
-              Theme.of(dialogContext).colorScheme,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.commonDelete),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.commonDeleteConfirmTitle,
+      content: usages.length == 1
+          ? l10n.providersDeleteConfirmMessage(
+              usages.single.accountName ?? usages.single.type.name,
+            )
+          : l10n.providersDeleteSelectedConfirmMessage(usages.length),
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     var success = true;
     final notifier = ref.read(providerUsageNotifierProvider.notifier);

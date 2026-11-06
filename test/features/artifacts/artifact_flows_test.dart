@@ -340,7 +340,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.delete_outline));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await tester.pumpAndSettle();
 
       expect(repo.deleted, [detailArtifactId]);
@@ -372,7 +372,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.delete_outline));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await tester.pumpAndSettle();
 
       final state = container.read(artifactsNotifierProvider);

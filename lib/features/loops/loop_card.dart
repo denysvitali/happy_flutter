@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
 import '../../core/theme/app_tokens.dart';
@@ -180,25 +181,14 @@ class LoopCard extends StatelessWidget {
 
   Future<void> _confirmDelete(BuildContext context) async {
     final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.loopsDeleteConfirmTitle),
-        content: Text(l10n.loopsDeleteConfirmMessage(loop.id)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.commonCancel),
-          ),
-          FilledButton(
-            style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.loopsDeleteButton),
-          ),
-        ],
-      ),
+    final ok = await showConfirmDialog(
+      context,
+      title: l10n.loopsDeleteConfirmTitle,
+      content: l10n.loopsDeleteConfirmMessage(loop.id),
+      confirmLabel: l10n.loopsDeleteButton,
+      isDestructive: true,
     );
-    if (ok ?? false) {
+    if (ok) {
       await onDelete();
     }
   }

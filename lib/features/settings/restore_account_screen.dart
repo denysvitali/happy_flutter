@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/app_loading_indicator.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/providers/app_providers.dart';
@@ -149,24 +150,13 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
 
     final key = _controller.text.trim();
     final fingerprint = BackupKeyUtils.fingerprint(key);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.accountSwitchTitle),
-        content: Text(context.l10n.accountSwitchWarning(fingerprint)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.l10n.accountSwitchAction),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: context.l10n.accountSwitchTitle,
+      content: context.l10n.accountSwitchWarning(fingerprint),
+      confirmLabel: context.l10n.accountSwitchAction,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() {
       _isLoading = true;

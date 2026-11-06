@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -20,7 +22,6 @@ import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
 import '../sessions/widgets/sessions_view_style.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 part 'settings_screen_search.dart';
 part 'settings_screen_specs.dart';
@@ -325,32 +326,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await notifier.updateSetting('sessionsViewStyle', selected);
   }
 
-  void _confirmSignOut(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        final l10nDialog = AppLocalizations.of(dialogContext);
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          title: Text(l10nDialog.settingsSignOut),
-          content: Text(l10nDialog.settingsSignOutConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10nDialog.commonCancel),
-            ),
-            FilledButton(
-              style: AppButtonStyle.destructiveFilled(colorScheme),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ref.read(authStateNotifierProvider.notifier).signOut();
-              },
-              child: Text(l10nDialog.settingsSignOut),
-            ),
-          ],
-        );
-      },
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.settingsSignOut,
+      content: l10n.settingsSignOutConfirm,
+      confirmLabel: l10n.settingsSignOut,
+      isDestructive: true,
     );
+    if (!confirmed || !mounted) return;
+    unawaited(ref.read(authStateNotifierProvider.notifier).signOut());
   }
 
   String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {

@@ -482,7 +482,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Remove Machine'));
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
 
         expect(find.text('Failed to delete machine (0)'), findsOneWidget);

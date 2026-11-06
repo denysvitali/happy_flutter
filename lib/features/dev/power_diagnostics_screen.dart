@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/dialogs/confirm_dialog.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
 import '../../core/services/power_diagnostics_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -39,28 +41,15 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
   }
 
   Future<void> _confirmReset() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Reset diagnostics?'),
-          content: const Text(
-            'This clears counters and recent diagnostic events.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Reset'),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final ok = await showConfirmDialog(
+      context,
+      title: l10n.powerDiagnosticsResetTitle,
+      content: l10n.powerDiagnosticsResetMessage,
+      confirmLabel: l10n.commonReset,
+      isDestructive: true,
     );
-    if (ok ?? false) {
+    if (ok) {
       _diagnostics.reset();
     }
   }
