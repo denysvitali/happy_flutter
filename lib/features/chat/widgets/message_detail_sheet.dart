@@ -274,13 +274,13 @@ class _PagedRawMarkdownState extends State<_PagedRawMarkdown> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: 'Previous page',
+                tooltip: context.l10n.commonPreviousPage,
                 onPressed: _page == 0 ? null : () => setState(() => _page--),
                 icon: const Icon(Icons.chevron_left),
               ),
               Text('${_page + 1} / $pageCount'),
               IconButton(
-                tooltip: 'Next page',
+                tooltip: context.l10n.commonNextPage,
                 onPressed: _page + 1 >= pageCount
                     ? null
                     : () => setState(() => _page++),

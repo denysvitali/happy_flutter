@@ -1225,13 +1225,13 @@ class _PayloadPager extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: 'Previous output page',
+          tooltip: context.l10n.messageDetailPreviousOutputPage,
           onPressed: page == 0 ? null : () => onChanged(page - 1),
           icon: const Icon(Icons.chevron_left),
         ),
         Text('${page + 1} / $pageCount'),
         IconButton(
-          tooltip: 'Next output page',
+          tooltip: context.l10n.messageDetailNextOutputPage,
           onPressed: page + 1 >= pageCount ? null : () => onChanged(page + 1),
           icon: const Icon(Icons.chevron_right),
         ),
@@ -1250,7 +1250,7 @@ class _CopyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.copy, size: 16),
+      icon: const Icon(Icons.copy, size: AppIconSize.md),
       constraints: const BoxConstraints.tightFor(
         width: AppTouchTarget.min,
         height: AppTouchTarget.min,

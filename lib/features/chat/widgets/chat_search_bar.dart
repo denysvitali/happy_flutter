@@ -136,7 +136,7 @@ class _SearchAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       key: ValueKey(semanticKey),
-      icon: Icon(icon, size: 20),
+      icon: Icon(icon, size: AppIconSize.xl),
       tooltip: tooltip,
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,

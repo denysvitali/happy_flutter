@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/neutralize_inner_scroll.dart';
 import 'json_syntax.dart';
@@ -631,12 +632,12 @@ class _JsonNodeState extends State<_JsonNode> {
       children: [
         Flexible(child: textWidget),
         IconButton(
-          tooltip: 'Next string page',
+          tooltip: context.l10n.jsonViewerNextStringPage,
           visualDensity: VisualDensity.compact,
           onPressed: () => setState(() {
             _stringPage = (_stringPage + 1) % pageCount;
           }),
-          icon: const Icon(Icons.chevron_right, size: 16),
+          icon: const Icon(Icons.chevron_right, size: AppIconSize.md),
         ),
       ],
     );

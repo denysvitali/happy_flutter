@@ -152,7 +152,7 @@ class _NotificationTestScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: context.l10n.commonRefresh,
             onPressed: _loadNotificationInfo,
           ),
         ],

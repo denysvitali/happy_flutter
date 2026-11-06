@@ -272,7 +272,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
                   ? IconButton(
                       icon: Icon(
                         Icons.clear,
-                        size: 18,
+                        size: AppIconSize.lg,
                         color: cs.onSurfaceVariant,
                       ),
                       tooltip: l10n.commonClear,

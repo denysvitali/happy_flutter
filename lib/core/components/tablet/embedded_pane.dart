@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../i18n/app_localizations.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_circular_progress_indicator.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -94,9 +95,8 @@ class EmbeddedPaneHeader extends StatelessWidget {
           ...actions,
           if (onClose != null)
             IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              // TODO(i18n): close tooltip not yet localized
-              tooltip: 'Close',
+              icon: const Icon(Icons.close_rounded, size: AppIconSize.xl),
+              tooltip: context.l10n.commonClose,
               onPressed: onClose,
               constraints: const BoxConstraints(
                 minWidth: AppControlSize.lg,

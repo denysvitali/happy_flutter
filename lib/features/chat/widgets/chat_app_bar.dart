@@ -336,7 +336,7 @@ class _VitalsButton extends StatelessWidget {
         : cs.onSurfaceVariant;
     return IconButton(
       onPressed: () => _showDetails(context),
-      tooltip: 'Machine health',
+      tooltip: context.l10n.chatMachineHealth,
       icon: Icon(Icons.monitor_heart_outlined, color: color),
     );
   }
@@ -585,7 +585,7 @@ class _AppBarAction extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return IconButton(
       icon: Icon(icon),
-      iconSize: 20,
+      iconSize: AppIconSize.xl,
       tooltip: tooltip,
       style: IconButton.styleFrom(
         foregroundColor: cs.onSurfaceVariant,
@@ -624,7 +624,7 @@ class _AgentsListButton extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.rocket_launch_outlined),
-          iconSize: 20,
+          iconSize: AppIconSize.xl,
           tooltip: l10n.agentsListTitle,
           style: IconButton.styleFrom(
             foregroundColor: cs.onSurfaceVariant,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
@@ -89,7 +90,7 @@ class _ModelPickerCatalogState extends State<ModelPickerCatalog> {
                   )
                 else
                   IconButton(
-                    tooltip: 'Refresh models',
+                    tooltip: context.l10n.modelPickerRefreshModels,
                     onPressed: _refresh,
                     icon: const Icon(Icons.refresh_rounded),
                   ),

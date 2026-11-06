@@ -13,6 +13,8 @@
 //   2. icon-only `InkWell(` / `GestureDetector(` tap targets — a tap
 //      target whose subtree renders an `Icon` and no `Text` has no
 //      accessible name of its own, so it must be wrapped too.
+//   3. `tooltip: '...'` string literals — tooltips double as the
+//      accessible name, so they must come from l10n.
 //
 // Containment is decided by balanced-paren ranges, not by "look at the
 // four lines above", so a wrapper any distance up the tree counts.
@@ -22,6 +24,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/tablet/embedded_pane.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -29,14 +32,26 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 /// Sources covered by the icon-only accessibility sweep.
 const _auditedSources = <String>[
   'lib/core/components/sidebar_view.dart',
+  'lib/core/components/tablet/embedded_pane.dart',
   'lib/core/components/tool_view_buttons.dart',
   'lib/features/auth/auth_screen.dart',
   'lib/features/auth/widgets/auth_animated_widgets.dart',
   'lib/features/auth/widgets/auth_landing_widgets.dart',
+  'lib/features/auth/widgets/server_url_dialog.dart',
+  'lib/features/chat/message_detail_screen.dart',
+  'lib/features/chat/session_file_viewer_screen.dart',
+  'lib/features/chat/session_info_screen.dart',
+  'lib/features/chat/tools/json_viewer.dart',
   'lib/features/chat/tools/views/web_fetch_view.dart',
+  'lib/features/chat/widgets/chat_app_bar.dart',
+  'lib/features/chat/widgets/message_detail_sheet.dart',
+  'lib/features/chat/widgets/model_picker_catalog.dart',
+  'lib/features/chat/widgets/picker_sheets.dart',
   'lib/features/chat/widgets/scroll_to_bottom_pill.dart',
   'lib/features/chat/widgets/session_tasks_banner.dart',
   'lib/features/chat/widgets/thinking_block.dart',
+  'lib/features/chat/widgets/tts_playback_bar.dart',
+  'lib/features/providers/widgets/provider_usage_card.dart',
   'lib/features/dev/notification_test_screen.dart',
   'lib/features/sandbox/sandbox_screen.dart',
   'lib/features/settings/account_screen.dart',
@@ -48,6 +63,7 @@ const _auditedSources = <String>[
   'lib/features/settings/restore_account_screen.dart',
   'lib/features/settings/server_settings_screen.dart',
   'lib/features/settings/voice_settings_screen.dart',
+  'lib/features/sftp/screens/sftp_connection_history_screen.dart',
   'lib/features/sftp/screens/sftp_directory_manager_screen.dart',
   'lib/features/sftp/screens/sftp_log_viewer_screen.dart',
 ];
@@ -116,6 +132,13 @@ List<String> _offendersIn(String path, String source) {
     offenders.add('$path:${_lineOf(source, match.start)} ($kind, icon-only)');
   }
 
+  final literalTooltip = RegExp(r'''\btooltip:\s*['"]''');
+  for (final match in literalTooltip.allMatches(source)) {
+    offenders.add(
+      '$path:${_lineOf(source, match.start)} (unlocalized tooltip)',
+    );
+  }
+
   return offenders;
 }
 
@@ -164,17 +187,45 @@ Widget build(BuildContext context) {
       child: InkWell(onTap: () {}, child: const Icon(Icons.done)),
     ),
     IconButton(
-      tooltip: 'named',
+      tooltip: l10n.named,
       icon: const Icon(Icons.edit),
+      onPressed: () {},
+    ),
+    IconButton(
+      tooltip: 'Literal',
+      icon: const Icon(Icons.delete),
       onPressed: () {},
     ),
   ]);
 }
 ''';
       final offenders = _offendersIn('sample.dart', sample);
-      expect(offenders, hasLength(2));
-      expect(offenders.first, contains('IconButton'));
-      expect(offenders.last, contains('icon-only'));
+      expect(offenders, hasLength(3));
+      expect(offenders[0], contains('IconButton'));
+      expect(offenders[1], contains('icon-only'));
+      expect(offenders[2], contains('unlocalized tooltip'));
+    });
+
+    testWidgets('EmbeddedPaneHeader names its close button', (tester) async {
+      var closed = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: EmbeddedPaneHeader(title: 'Pane', onClose: () => closed++),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final close = find.byTooltip('Close');
+      expect(close, findsOneWidget);
+      final size = tester.getSize(find.byType(IconButton));
+      expect(size.width, greaterThanOrEqualTo(AppControlSize.lg));
+      expect(size.height, greaterThanOrEqualTo(AppControlSize.lg));
+      await tester.tap(close);
+      expect(closed, 1);
     });
 
     testWidgets('ToolViewCopyButton names the copy action', (tester) async {

@@ -208,7 +208,7 @@ class _RestoreKeyDialogState extends State<RestoreKeyDialog> {
                       },
                 icon: Icon(
                   Icons.content_paste_rounded,
-                  size: 18,
+                  size: AppIconSize.lg,
                   color: scheme.onSurfaceVariant,
                 ),
                 tooltip: l10n.authPaste,

@@ -95,7 +95,7 @@ class ProviderUsageCard extends ConsumerWidget {
                     ] else if (devMode) ...[
                       const SizedBox(width: AppSpacing.xs),
                       IconButton(
-                        tooltip: 'View raw response',
+                        tooltip: context.l10n.providerUsageViewRaw,
                         icon: const Icon(Icons.bug_report_outlined),
                         onPressed: () =>
                             ProviderPayloadDebugSheet.show(context, usage),

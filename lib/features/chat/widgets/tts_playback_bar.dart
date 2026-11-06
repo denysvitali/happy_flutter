@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
@@ -135,13 +136,13 @@ class _Bar extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               _NavButton(
                 icon: Icons.skip_previous_rounded,
-                tooltip: 'Previous reply',
+                tooltip: context.l10n.ttsPreviousReply,
                 onPressed: canGoPrev ? onPrev : null,
               ),
               _StopButton(onPressed: onStop, color: cs.primary),
               _NavButton(
                 icon: Icons.skip_next_rounded,
-                tooltip: 'Next reply',
+                tooltip: context.l10n.ttsNextReply,
                 onPressed: canGoNext ? onNext : null,
               ),
             ],
@@ -336,7 +337,7 @@ class _NavButton extends StatelessWidget {
         icon: Icon(icon, color: color),
         tooltip: tooltip,
         onPressed: onPressed,
-        iconSize: AppSpacing.xl,
+        iconSize: AppIconSize.xl,
       ),
     );
   }
@@ -352,13 +353,14 @@ class _StopButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = context.l10n.ttsStopSpeaking;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
       child: Tooltip(
-        message: 'Stop speaking',
+        message: label,
         child: Semantics(
           button: true,
-          label: 'Stop speaking',
+          label: label,
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.pill),
             onTap: onPressed,
@@ -369,7 +371,7 @@ class _StopButton extends StatelessWidget {
               child: Icon(
                 Icons.stop_rounded,
                 color: Theme.of(context).colorScheme.onPrimary,
-                size: AppSpacing.lg,
+                size: AppIconSize.md,
               ),
             ),
           ),
