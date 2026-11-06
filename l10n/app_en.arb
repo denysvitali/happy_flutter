@@ -43,7 +43,7 @@
   "commonCopied": "Copied",
   "commonOptional": "optional",
   "commonLoading": "Loading...",
-  "commonDeleteConfirmTitle": "Confirm Deletion",
+  "commonDeleteConfirmTitle": "Confirm deletion",
   "@commonCancel": {
     "description": "Common cancel button"
   },
@@ -240,7 +240,7 @@
   "settingsAccountDangerZone": "Danger Zone",
   "settingsServerUrl": "Server URL",
   "settingsServerUrlLabel": "Please enter a server URL",
-  "settingsServerResetToDefault": "Reset to Default",
+  "settingsServerResetToDefault": "Reset to default",
   "sidebarSessionsTitle": "Terminals",
   "sidebarStatusConnected": "Connected",
   "sidebarStatusConnecting": "Connecting...",
@@ -455,7 +455,7 @@
   },
   "sessionsHideOlderArchived": "Hide older archived",
   "sessionsArchive": "Archive",
-  "sessionsArchiveSession": "Archive Session",
+  "sessionsArchiveSession": "Archive session",
   "sessionsSimple": "Simple",
   "sessionsWorktree": "Worktree",
   "sessionsClaude": "Claude",
@@ -700,8 +700,8 @@
   "accountBackupKeyLabel": "Backup Key",
   "accountBackupKeyHint": "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX",
   "accountEnterBackupKey": "Please enter your backup key",
-  "commonUnsavedChangesTitle": "Unsaved Changes",
-  "chatUnsentMessageTitle": "Unsent Message",
+  "commonUnsavedChangesTitle": "Unsaved changes",
+  "chatUnsentMessageTitle": "Unsent message",
   "chatStay": "Stay",
   "chatLeave": "Leave",
   "sessionsGroupByDate": "Group by date",
@@ -746,7 +746,7 @@
   "settingsVoice": "Voice",
   "settingsLogs": "Logs",
   "settingsVersion": "Version",
-  "profilesDeleteTitle": "Delete Profile",
+  "profilesDeleteTitle": "Delete profile",
   "profilesFailedToSave": "Failed to save profile",
   "profilesDuplicated": "Profile \"{name}\" duplicated",
   "@profilesDuplicated": {
@@ -957,7 +957,7 @@
   "accountShowQR": "Show QR",
   "accountEnterUrl": "Enter URL",
   "accountApproveLinking": "Approve Linking",
-  "accountUnlinkDevice": "Unlink Device",
+  "accountUnlinkDevice": "Unlink device",
   "accountUnlink": "Unlink",
   "accountFailedToUnlink": "Failed to unlink device",
   "accountScanHint": "New device: tap \"Link or Restore Account\"",
@@ -1034,7 +1034,7 @@
   "devLogsEmpty": "No logs yet",
   "devLogsClearFilter": "Clear Filter",
   "devLogsNoLogsToCopy": "No logs to copy",
-  "devLogsClearTitle": "Clear Logs",
+  "devLogsClearTitle": "Clear logs",
   "devLogsClearAction": "Clear",
   "devLogsSearchTitle": "Search Logs",
   "devLogsSearchHint": "Enter search term...",
@@ -1049,7 +1049,7 @@
   "devLogsCopyAllLogs": "Copy All Logs",
   "devLogsFilterByLevel": "Filter by Level",
   "devLogsSearchLogs": "Search Logs",
-  "networkInspectorClearTitle": "Clear Request Log",
+  "networkInspectorClearTitle": "Clear request log",
   "networkInspectorEntryCopied": "Entry copied",
   "developerTitle": "Developer",
   "developerClearCache": "Clear Cache",
@@ -2686,6 +2686,26 @@
   "@sftpParentFolder": {
     "description": "Tooltip for navigating up to the parent SFTP folder"
   },
+  "sftpDirectoryLoadFailed": "Couldn't open this folder",
+  "@sftpDirectoryLoadFailed": {
+    "description": "Title of the error state when an SFTP directory listing fails"
+  },
+  "sftpEmptyDirectoryTitle": "Empty directory",
+  "@sftpEmptyDirectoryTitle": {
+    "description": "Title of the empty state for an SFTP directory with no entries"
+  },
+  "sftpEmptyDirectorySubtitle": "No files or folders here yet",
+  "@sftpEmptyDirectorySubtitle": {
+    "description": "Subtitle of the empty state for an SFTP directory with no entries"
+  },
+  "sessionFileLoadFailed": "Could not load file",
+  "@sessionFileLoadFailed": {
+    "description": "Title of the error state when a session file cannot be read"
+  },
+  "linkedDevicesEmptyTitle": "No linked devices",
+  "@linkedDevicesEmptyTitle": {
+    "description": "Empty state title on the Linked Devices screen"
+  },
   "chatCopyThinking": "Copy thinking",
   "@chatCopyThinking": {
     "description": "Tooltip for copying the agent's thinking block text"
@@ -3197,5 +3217,56 @@
       "copied": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "commonRemove": "Remove",
+  "developerClearCacheTitle": "Clear cache",
+  "developerResetSettingsTitle": "Reset settings",
+  "developerForceSyncSettingsTitle": "Re-sync settings",
+  "powerDiagnosticsResetTitle": "Reset diagnostics",
+  "powerDiagnosticsResetMessage": "This clears counters and recent diagnostic events.",
+  "sftpClearLogsTitle": "Clear logs",
+  "sftpClearDeviceLogsMessage": "Clear all logs for this device?",
+  "sftpClearAllLogsMessage": "Clear all SFTP logs?",
+  "sftpRemoveShareTitle": "Remove share",
+  "sftpRemoveShareMessage": "Stop sharing \"{name}\"?\n\nThe directory will no longer be accessible via SFTP, but the files will not be deleted.",
+  "@sftpRemoveShareMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sftpClearHistoryMessage": "Clear all connection history?\n\nThis action cannot be undone.",
+  "offlineDeleteItemTitle": "Delete {name}?",
+  "@offlineDeleteItemTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "offlineVoiceDeleteMessage": "The voice files will be removed from this device. You can re-download them at any time.",
+  "offlineSttModelDeleteMessage": "The model files will be removed from this device. You can re-download them at any time.",
+  "commonExport": "Export",
+  "commonPreviousPage": "Previous page",
+  "commonNextPage": "Next page",
+  "messageDetailPreviousOutputPage": "Previous output page",
+  "messageDetailNextOutputPage": "Next output page",
+  "jsonViewerNextStringPage": "Next string page",
+  "ttsPreviousReply": "Previous reply",
+  "ttsNextReply": "Next reply",
+  "ttsStopSpeaking": "Stop speaking",
+  "modelPickerRefreshModels": "Refresh models",
+  "chatMachineHealth": "Machine health",
+  "providerUsageViewRaw": "View raw response",
+  "sftpExportLogs": "Export logs",
+  "sftpViewLogs": "View logs",
+  "sftpConnectionHistory": "Connection history",
+  "sftpCopyConnectionInfo": "Copy connection info",
+  "sftpSort": "Sort",
+  "sftpClearHistory": "Clear history",
+  "sessionFileCopy": "Copy file",
+  "sessionFileCopied": "Copied!",
+  "sessionFileViewSource": "View source",
+  "sessionFileViewPreview": "View preview"
 }

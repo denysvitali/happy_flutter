@@ -142,7 +142,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonLoading => 'Loading...';
 
   @override
-  String get commonDeleteConfirmTitle => 'Confirm Deletion';
+  String get commonDeleteConfirmTitle => 'Confirm deletion';
 
   @override
   String get tabsSettings => 'Settings';
@@ -730,7 +730,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsServerUrlLabel => 'Please enter a server URL';
 
   @override
-  String get settingsServerResetToDefault => 'Reset to Default';
+  String get settingsServerResetToDefault => 'Reset to default';
 
   @override
   String get sidebarSessionsTitle => 'Terminals';
@@ -1094,7 +1094,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsArchive => 'Archive';
 
   @override
-  String get sessionsArchiveSession => 'Archive Session';
+  String get sessionsArchiveSession => 'Archive session';
 
   @override
   String get sessionsSimple => 'Simple';
@@ -1581,10 +1581,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountEnterBackupKey => 'Please enter your backup key';
 
   @override
-  String get commonUnsavedChangesTitle => 'Unsaved Changes';
+  String get commonUnsavedChangesTitle => 'Unsaved changes';
 
   @override
-  String get chatUnsentMessageTitle => 'Unsent Message';
+  String get chatUnsentMessageTitle => 'Unsent message';
 
   @override
   String get chatStay => 'Stay';
@@ -1695,7 +1695,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsVersion => 'Version';
 
   @override
-  String get profilesDeleteTitle => 'Delete Profile';
+  String get profilesDeleteTitle => 'Delete profile';
 
   @override
   String get profilesFailedToSave => 'Failed to save profile';
@@ -2265,7 +2265,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountApproveLinking => 'Approve Linking';
 
   @override
-  String get accountUnlinkDevice => 'Unlink Device';
+  String get accountUnlinkDevice => 'Unlink device';
 
   @override
   String get accountUnlink => 'Unlink';
@@ -2427,7 +2427,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get devLogsNoLogsToCopy => 'No logs to copy';
 
   @override
-  String get devLogsClearTitle => 'Clear Logs';
+  String get devLogsClearTitle => 'Clear logs';
 
   @override
   String get devLogsClearAction => 'Clear';
@@ -2472,7 +2472,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get devLogsSearchLogs => 'Search Logs';
 
   @override
-  String get networkInspectorClearTitle => 'Clear Request Log';
+  String get networkInspectorClearTitle => 'Clear request log';
 
   @override
   String get networkInspectorEntryCopied => 'Entry copied';
@@ -4985,6 +4985,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sftpParentFolder => 'Parent folder';
 
   @override
+  String get sftpDirectoryLoadFailed => 'Couldn\'t open this folder';
+
+  @override
+  String get sftpEmptyDirectoryTitle => 'Empty directory';
+
+  @override
+  String get sftpEmptyDirectorySubtitle => 'No files or folders here yet';
+
+  @override
+  String get sessionFileLoadFailed => 'Could not load file';
+
+  @override
+  String get linkedDevicesEmptyTitle => 'No linked devices';
+
+  @override
   String get chatCopyThinking => 'Copy thinking';
 
   @override
@@ -5946,4 +5961,123 @@ class AppLocalizationsEn extends AppLocalizations {
   String clipboardCopiedTruncated(int copied, int total) {
     return 'Copied the first $copied of $total characters — too large for the clipboard';
   }
+
+  @override
+  String get commonRemove => 'Remove';
+
+  @override
+  String get developerClearCacheTitle => 'Clear cache';
+
+  @override
+  String get developerResetSettingsTitle => 'Reset settings';
+
+  @override
+  String get developerForceSyncSettingsTitle => 'Re-sync settings';
+
+  @override
+  String get powerDiagnosticsResetTitle => 'Reset diagnostics';
+
+  @override
+  String get powerDiagnosticsResetMessage =>
+      'This clears counters and recent diagnostic events.';
+
+  @override
+  String get sftpClearLogsTitle => 'Clear logs';
+
+  @override
+  String get sftpClearDeviceLogsMessage => 'Clear all logs for this device?';
+
+  @override
+  String get sftpClearAllLogsMessage => 'Clear all SFTP logs?';
+
+  @override
+  String get sftpRemoveShareTitle => 'Remove share';
+
+  @override
+  String sftpRemoveShareMessage(String name) {
+    return 'Stop sharing \"$name\"?\n\nThe directory will no longer be accessible via SFTP, but the files will not be deleted.';
+  }
+
+  @override
+  String get sftpClearHistoryMessage =>
+      'Clear all connection history?\n\nThis action cannot be undone.';
+
+  @override
+  String offlineDeleteItemTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get offlineVoiceDeleteMessage =>
+      'The voice files will be removed from this device. You can re-download them at any time.';
+
+  @override
+  String get offlineSttModelDeleteMessage =>
+      'The model files will be removed from this device. You can re-download them at any time.';
+
+  @override
+  String get commonExport => 'Export';
+
+  @override
+  String get commonPreviousPage => 'Previous page';
+
+  @override
+  String get commonNextPage => 'Next page';
+
+  @override
+  String get messageDetailPreviousOutputPage => 'Previous output page';
+
+  @override
+  String get messageDetailNextOutputPage => 'Next output page';
+
+  @override
+  String get jsonViewerNextStringPage => 'Next string page';
+
+  @override
+  String get ttsPreviousReply => 'Previous reply';
+
+  @override
+  String get ttsNextReply => 'Next reply';
+
+  @override
+  String get ttsStopSpeaking => 'Stop speaking';
+
+  @override
+  String get modelPickerRefreshModels => 'Refresh models';
+
+  @override
+  String get chatMachineHealth => 'Machine health';
+
+  @override
+  String get providerUsageViewRaw => 'View raw response';
+
+  @override
+  String get sftpExportLogs => 'Export logs';
+
+  @override
+  String get sftpViewLogs => 'View logs';
+
+  @override
+  String get sftpConnectionHistory => 'Connection history';
+
+  @override
+  String get sftpCopyConnectionInfo => 'Copy connection info';
+
+  @override
+  String get sftpSort => 'Sort';
+
+  @override
+  String get sftpClearHistory => 'Clear history';
+
+  @override
+  String get sessionFileCopy => 'Copy file';
+
+  @override
+  String get sessionFileCopied => 'Copied!';
+
+  @override
+  String get sessionFileViewSource => 'View source';
+
+  @override
+  String get sessionFileViewPreview => 'View preview';
 }

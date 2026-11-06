@@ -342,7 +342,7 @@ abstract class AppLocalizations {
   /// No description provided for @commonDeleteConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Confirm Deletion'**
+  /// **'Confirm deletion'**
   String get commonDeleteConfirmTitle;
 
   /// No description provided for @tabsSettings.
@@ -1405,7 +1405,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsServerResetToDefault.
   ///
   /// In en, this message translates to:
-  /// **'Reset to Default'**
+  /// **'Reset to default'**
   String get settingsServerResetToDefault;
 
   /// No description provided for @sidebarSessionsTitle.
@@ -2053,7 +2053,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsArchiveSession.
   ///
   /// In en, this message translates to:
-  /// **'Archive Session'**
+  /// **'Archive session'**
   String get sessionsArchiveSession;
 
   /// No description provided for @sessionsSimple.
@@ -2911,13 +2911,13 @@ abstract class AppLocalizations {
   /// No description provided for @commonUnsavedChangesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Unsaved Changes'**
+  /// **'Unsaved changes'**
   String get commonUnsavedChangesTitle;
 
   /// No description provided for @chatUnsentMessageTitle.
   ///
   /// In en, this message translates to:
-  /// **'Unsent Message'**
+  /// **'Unsent message'**
   String get chatUnsentMessageTitle;
 
   /// No description provided for @chatStay.
@@ -3121,7 +3121,7 @@ abstract class AppLocalizations {
   /// No description provided for @profilesDeleteTitle.
   ///
   /// In en, this message translates to:
-  /// **'Delete Profile'**
+  /// **'Delete profile'**
   String get profilesDeleteTitle;
 
   /// No description provided for @profilesFailedToSave.
@@ -4201,7 +4201,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountUnlinkDevice.
   ///
   /// In en, this message translates to:
-  /// **'Unlink Device'**
+  /// **'Unlink device'**
   String get accountUnlinkDevice;
 
   /// No description provided for @accountUnlink.
@@ -4501,7 +4501,7 @@ abstract class AppLocalizations {
   /// No description provided for @devLogsClearTitle.
   ///
   /// In en, this message translates to:
-  /// **'Clear Logs'**
+  /// **'Clear logs'**
   String get devLogsClearTitle;
 
   /// No description provided for @devLogsClearAction.
@@ -4591,7 +4591,7 @@ abstract class AppLocalizations {
   /// No description provided for @networkInspectorClearTitle.
   ///
   /// In en, this message translates to:
-  /// **'Clear Request Log'**
+  /// **'Clear request log'**
   String get networkInspectorClearTitle;
 
   /// No description provided for @networkInspectorEntryCopied.
@@ -8817,6 +8817,36 @@ abstract class AppLocalizations {
   /// **'Parent folder'**
   String get sftpParentFolder;
 
+  /// Title of the error state when an SFTP directory listing fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this folder'**
+  String get sftpDirectoryLoadFailed;
+
+  /// Title of the empty state for an SFTP directory with no entries
+  ///
+  /// In en, this message translates to:
+  /// **'Empty directory'**
+  String get sftpEmptyDirectoryTitle;
+
+  /// Subtitle of the empty state for an SFTP directory with no entries
+  ///
+  /// In en, this message translates to:
+  /// **'No files or folders here yet'**
+  String get sftpEmptyDirectorySubtitle;
+
+  /// Title of the error state when a session file cannot be read
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load file'**
+  String get sessionFileLoadFailed;
+
+  /// Empty state title on the Linked Devices screen
+  ///
+  /// In en, this message translates to:
+  /// **'No linked devices'**
+  String get linkedDevicesEmptyTitle;
+
   /// Tooltip for copying the agent's thinking block text
   ///
   /// In en, this message translates to:
@@ -10316,6 +10346,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied the first {copied} of {total} characters — too large for the clipboard'**
   String clipboardCopiedTruncated(int copied, int total);
+
+  /// No description provided for @commonRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get commonRemove;
+
+  /// No description provided for @developerClearCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear cache'**
+  String get developerClearCacheTitle;
+
+  /// No description provided for @developerResetSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset settings'**
+  String get developerResetSettingsTitle;
+
+  /// No description provided for @developerForceSyncSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-sync settings'**
+  String get developerForceSyncSettingsTitle;
+
+  /// No description provided for @powerDiagnosticsResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset diagnostics'**
+  String get powerDiagnosticsResetTitle;
+
+  /// No description provided for @powerDiagnosticsResetMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This clears counters and recent diagnostic events.'**
+  String get powerDiagnosticsResetMessage;
+
+  /// No description provided for @sftpClearLogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear logs'**
+  String get sftpClearLogsTitle;
+
+  /// No description provided for @sftpClearDeviceLogsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all logs for this device?'**
+  String get sftpClearDeviceLogsMessage;
+
+  /// No description provided for @sftpClearAllLogsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all SFTP logs?'**
+  String get sftpClearAllLogsMessage;
+
+  /// No description provided for @sftpRemoveShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove share'**
+  String get sftpRemoveShareTitle;
+
+  /// No description provided for @sftpRemoveShareMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing \"{name}\"?\n\nThe directory will no longer be accessible via SFTP, but the files will not be deleted.'**
+  String sftpRemoveShareMessage(String name);
+
+  /// No description provided for @sftpClearHistoryMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all connection history?\n\nThis action cannot be undone.'**
+  String get sftpClearHistoryMessage;
+
+  /// No description provided for @offlineDeleteItemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String offlineDeleteItemTitle(String name);
+
+  /// No description provided for @offlineVoiceDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The voice files will be removed from this device. You can re-download them at any time.'**
+  String get offlineVoiceDeleteMessage;
+
+  /// No description provided for @offlineSttModelDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The model files will be removed from this device. You can re-download them at any time.'**
+  String get offlineSttModelDeleteMessage;
+
+  /// No description provided for @commonExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get commonExport;
+
+  /// No description provided for @commonPreviousPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous page'**
+  String get commonPreviousPage;
+
+  /// No description provided for @commonNextPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next page'**
+  String get commonNextPage;
+
+  /// No description provided for @messageDetailPreviousOutputPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous output page'**
+  String get messageDetailPreviousOutputPage;
+
+  /// No description provided for @messageDetailNextOutputPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next output page'**
+  String get messageDetailNextOutputPage;
+
+  /// No description provided for @jsonViewerNextStringPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next string page'**
+  String get jsonViewerNextStringPage;
+
+  /// No description provided for @ttsPreviousReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous reply'**
+  String get ttsPreviousReply;
+
+  /// No description provided for @ttsNextReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Next reply'**
+  String get ttsNextReply;
+
+  /// No description provided for @ttsStopSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop speaking'**
+  String get ttsStopSpeaking;
+
+  /// No description provided for @modelPickerRefreshModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh models'**
+  String get modelPickerRefreshModels;
+
+  /// No description provided for @chatMachineHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine health'**
+  String get chatMachineHealth;
+
+  /// No description provided for @providerUsageViewRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'View raw response'**
+  String get providerUsageViewRaw;
+
+  /// No description provided for @sftpExportLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Export logs'**
+  String get sftpExportLogs;
+
+  /// No description provided for @sftpViewLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'View logs'**
+  String get sftpViewLogs;
+
+  /// No description provided for @sftpConnectionHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection history'**
+  String get sftpConnectionHistory;
+
+  /// No description provided for @sftpCopyConnectionInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy connection info'**
+  String get sftpCopyConnectionInfo;
+
+  /// No description provided for @sftpSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sftpSort;
+
+  /// No description provided for @sftpClearHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear history'**
+  String get sftpClearHistory;
+
+  /// No description provided for @sessionFileCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy file'**
+  String get sessionFileCopy;
+
+  /// No description provided for @sessionFileCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied!'**
+  String get sessionFileCopied;
+
+  /// No description provided for @sessionFileViewSource.
+  ///
+  /// In en, this message translates to:
+  /// **'View source'**
+  String get sessionFileViewSource;
+
+  /// No description provided for @sessionFileViewPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'View preview'**
+  String get sessionFileViewPreview;
 }
 
 class _AppLocalizationsDelegate
