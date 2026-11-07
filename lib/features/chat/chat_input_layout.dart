@@ -110,8 +110,9 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
   }
 
-  /// Dictation while the field is empty (or busy recording); expand, queue
-  /// and send once there is a draft.
+  /// Dictation while the field is empty (or busy recording); queue and
+  /// send once there is a draft. Expand lives on the settings line so it
+  /// never narrows the text field.
   Widget _buildInFieldActions(BuildContext context) {
     return ListenableBuilder(
       listenable: _sendableListenable,
@@ -120,14 +121,9 @@ extension _ChatInputPolishLayout on _ChatInputState {
         final dictationBusy =
             _isRecording || _isTranscribing || _isDownloadingModel;
         final showSend = hasContent || widget.isSending;
-        final longDraft =
-            widget.controller.text.length > _inlineExpandThreshold ||
-            widget.controller.text.contains('\n');
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (showSend && longDraft)
-              ExpandComposerButton(onTap: _openFullscreenComposer),
             if (!showSend || dictationBusy) _dictationButton(),
             if (showSend) ...[
               if (_showFollowUpActions)
@@ -179,17 +175,38 @@ extension _ChatInputPolishLayout on _ChatInputState {
 
   /// The settings row under the field: approvals and model chips (the
   /// full lane on desktop) and the options button. Attach, dictate and
-  /// send live in the field row above, so this row stays quiet.
+  /// send live in the field row above, so this row stays quiet. Long
+  /// drafts add the full-editor button at the trailing end, under send,
+  /// instead of taking width from the text field.
   Widget _settingsLine(BuildContext context) {
     return Padding(
       key: const ValueKey<String>('chat-composer-toolbar'),
       padding: const EdgeInsetsDirectional.only(
         start: AppSpacing.sm,
+        end: AppSpacing.xxs,
         top: AppSpacing.xxs,
       ),
-      child: _settingsLane(
-        context,
-        compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+      child: Row(
+        children: [
+          Expanded(
+            child: _settingsLane(
+              context,
+              compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+            ),
+          ),
+          ListenableBuilder(
+            listenable: _sendableListenable,
+            builder: (context, _) {
+              final text = widget.controller.text;
+              final longDraft =
+                  text.length > _inlineExpandThreshold || text.contains('\n');
+              if (!longDraft || !(_hasSendableContent || widget.isSending)) {
+                return const SizedBox.shrink();
+              }
+              return ExpandComposerButton(onTap: _openFullscreenComposer);
+            },
+          ),
+        ],
       ),
     );
   }

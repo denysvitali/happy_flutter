@@ -130,17 +130,10 @@ class MissionActionRow extends StatelessWidget {
       if (workspace != null && !workspaceEchoesName) workspace,
       if (host != null && host.toLowerCase() != name.trim().toLowerCase()) host,
     ].join(' · ');
-    final harnessName = switch (session.metadata?.flavor) {
-      null || 'claude' => context.l10n.sessionsClaude,
-      'codex' => context.l10n.sessionsCodex,
-      'agy' || 'gemini' => context.l10n.sessionsAgy,
-      'pi' => context.l10n.sessionsPi,
-      'opencode' => context.l10n.sessionsOpencode,
-      'grok' || 'grok-build' => context.l10n.sessionsGrok,
-      'prime-agent' => 'Prime Agent',
-      'har' => 'Har',
-      _ => context.l10n.sessionsAgent,
-    };
+    final harnessName = missionHarnessName(
+      context.l10n,
+      session.metadata?.flavor,
+    );
     final inboxHost = switch (hostName) {
       'localhost' || '127.0.0.1' || '::1' => null,
       _ => host,

@@ -85,10 +85,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               children: [
                 SettingsToggleRow(
                   icon: Icons.handyman,
-                  title: 'Tool Call Debug',
+                  title: l10n.developerToolCallDebug,
                   subtitle: isToolCallDebug
-                      ? 'Tool calls render as raw JSON'
-                      : 'Render every tool call as raw JSON',
+                      ? l10n.developerToolCallDebugOn
+                      : l10n.developerToolCallDebugOff,
                   value: isToolCallDebug,
                   onChanged: (value) {
                     ref
@@ -104,9 +104,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 ),
                 SettingsNavRow(
                   icon: Icons.battery_charging_full,
-                  title: 'Power Diagnostics',
-                  subtitle:
-                      'Track lifecycle, socket, HTTP, sync, and retry activity',
+                  title: l10n.developerPowerDiagnostics,
+                  subtitle: l10n.developerPowerDiagnosticsDesc,
                   onTap: () => context.push('/settings/developer/power'),
                 ),
                 SettingsNavRow(
@@ -181,13 +180,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                     }
                   },
                 ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            SettingsSection(
-              title: l10n.settingsAccountDangerZone,
-              danger: true,
-              children: [
+                // A deliberate crash is a test tool, not a destructive
+                // account action, so it lives with the other tests.
                 SettingsNavRow(
                   icon: Icons.error,
                   title: l10n.developerTestSentryUnhandled,
@@ -199,6 +193,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.lg),
             SettingsSection(
               title: l10n.developerSectionCacheStorage,
+              danger: true,
               children: [
                 SettingsNavRow(
                   icon: Icons.delete_sweep,

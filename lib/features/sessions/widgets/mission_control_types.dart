@@ -179,3 +179,26 @@ String missionShortHost(String machineName) {
   }
   return name;
 }
+
+/// Canonical harness key for grouping: aliases collapse so `gemini` and
+/// `agy` (or `grok` and `grok-build`) share one group.
+String missionHarnessKey(String? flavor) => switch (flavor) {
+  null || 'claude' => 'claude',
+  'agy' || 'gemini' => 'agy',
+  'grok' || 'grok-build' => 'grok',
+  final other => other,
+};
+
+/// User-facing harness name shared by session rows and the agent board.
+String missionHarnessName(AppLocalizations l10n, String? flavor) =>
+    switch (missionHarnessKey(flavor)) {
+      'claude' => l10n.sessionsClaude,
+      'codex' => l10n.sessionsCodex,
+      'agy' => l10n.sessionsAgy,
+      'pi' => l10n.sessionsPi,
+      'opencode' => l10n.sessionsOpencode,
+      'grok' => l10n.sessionsGrok,
+      'prime-agent' => 'Prime Agent',
+      'har' => 'Har',
+      _ => l10n.sessionsAgent,
+    };

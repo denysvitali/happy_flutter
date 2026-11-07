@@ -297,16 +297,15 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 600));
       expect(tester.widget<AppBar>(find.byType(AppBar)).bottom, isNull);
-      expect(find.byTooltip('View: Inbox'), findsOneWidget);
+      // The layout is chosen in Settings only; the header is a plain title.
+      expect(find.byTooltip('View: Inbox'), findsNothing);
       expect(
-        tester.getSemantics(find.byTooltip('View: Inbox')),
-        containsSemantics(isButton: true, hasTapAction: true),
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Sessions'),
+        ),
+        findsOneWidget,
       );
-      await tester.tap(find.byTooltip('View: Inbox'));
-      await tester.pumpAndSettle();
-      expect(find.text('Inbox'), findsOneWidget);
-      await tester.tap(find.text('Inbox'));
-      await tester.pumpAndSettle();
       await tester.longPress(find.text('app'));
       await tester.pump();
       expect(find.text('1 selected'), findsOneWidget);
@@ -415,7 +414,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(TextField), findsNothing);
-    expect(find.byTooltip('View: Inbox'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('Sessions')),
+      findsOneWidget,
+    );
     expect(find.text('app'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

@@ -11,73 +11,49 @@ extension _HubSearch on _SettingsScreenState {
   List<SettingsHubEntry> _buildHubEntries(
     BuildContext context, {
     required _HubSettings settings,
-    required _HubSessionStats sessionStats,
     required _HubMachineStats machineStats,
   }) {
     final l10n = AppLocalizations.of(context);
     return [
-      StaticBlockEntry(
-        widget: SettingsHealthSection(
-          sessionTotal: sessionStats.total,
-          onlineSessions: sessionStats.online,
-          machineTotal: machineStats.total,
-          onlineMachines: machineStats.online,
-        ),
+      const StaticBlockEntry(
+        widget: SettingsHealthSection(),
         searchTerms: [
           'status',
           'health',
           'sync',
-          'sessions',
-          'machines',
-          'account',
-          'profile',
-          'ready',
+          'connection',
+          'diagnostics',
           'online',
-        ],
-      ),
-      StaticBlockEntry(
-        widget: WorkflowPresetsSection(
-          viewInline: settings.viewInline,
-          hideToolCalls: settings.hideToolCalls,
-          expandTodos: settings.expandTodos,
-          showFlavorIcons: settings.showFlavorIcons,
-          ttsEnabled: settings.ttsEnabled,
-          developerModeEnabled: settings.developerModeEnabled,
-          toolCallDebugEnabled: settings.toolCallDebugEnabled,
-          sessionsViewStyle: settings.sessionsViewStyle,
-          compactSessionView: settings.compactSessionView,
-          hideInactiveSessions: settings.hideInactiveSessions,
-        ),
-        searchTerms: [
-          'workflow',
-          'preset',
-          'focus',
-          'voice',
-          'low noise',
-          'debug',
-          'apply',
+          'offline',
         ],
       ),
       SpecSectionEntry(_appearanceSectionSpec(l10n, settings)),
-      SpecSectionEntry(_behaviorSectionSpec(l10n, settings)),
+      SpecSectionEntry(_chatSectionSpec(l10n, settings)),
       SpecSectionEntry(_sessionsSectionSpec(l10n, settings)),
+      SpecSectionEntry(_agentsSectionSpec(l10n, settings)),
       SpecSectionEntry(_voiceSectionSpec(l10n, settings)),
-      SpecSectionEntry(_toolsSectionSpec(l10n)),
       SpecSectionEntry(
-        _infrastructureSectionSpec(
+        _machinesSectionSpec(
           l10n,
           machineTotal: machineStats.total,
-          firstMachineSubtitle: machineStats.firstSubtitle,
+          machinesOnline: machineStats.online,
           sandboxAvailable: machineStats.sandboxAvailable,
           sandboxReason: machineStats.sandboxReason,
         ),
       ),
+      StaticBlockEntry(
+        widget: AccountSettingsSection(
+          onSignOut: () => _confirmSignOut(context),
+        ),
+        searchTerms: accountSettingsSearchTerms,
+      ),
+      SpecSectionEntry(_aboutSectionSpec(l10n, appVersion: _appVersion)),
       SpecSectionEntry(
         _developerSectionSpec(
+          l10n,
           developerModeEnabled: settings.developerModeEnabled,
         ),
       ),
-      SpecSectionEntry(_aboutSectionSpec(l10n)),
     ];
   }
 

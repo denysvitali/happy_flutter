@@ -12,7 +12,6 @@ import '../../../core/utils/session_utils.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import 'connection_status_badge.dart';
 import 'session_headers.dart' show folderBreakdownLabel;
-import 'sessions_view_style.dart';
 
 double _searchInputHeight(BuildContext context) {
   final style = Theme.of(context).textTheme.bodyLarge;
@@ -88,7 +87,10 @@ class SessionCollectionAppBar extends StatelessWidget
       );
     }
     return AppBar(
-      title: const SessionsViewStyleButton(asTitle: true),
+      title: Text(
+        l10n.sessionHistoryTitle,
+        style: AppText.screenTitle(Theme.of(context)),
+      ),
       shape: scrolled
           ? Border(
               bottom: BorderSide(

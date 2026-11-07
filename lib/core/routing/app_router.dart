@@ -33,7 +33,6 @@ import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
 import '../../features/settings/codex_usage_screen.dart';
 import '../../features/settings/developer_screen.dart';
-import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/grok_usage_screen.dart';
 import '../../features/settings/link_device_screen.dart';
 import '../../features/settings/linked_devices_screen.dart';

@@ -80,12 +80,9 @@ List<RouteBase> get settingsRoutes => [
     pageBuilder: (context, state) =>
         _slidePage(const AuthGate(child: VoiceSettingsScreen()), state),
   ),
-  GoRoute(
-    path: '/settings/features',
-    name: 'features',
-    pageBuilder: (context, state) =>
-        _slidePage(const AuthGate(child: FeaturesSettingsScreen()), state),
-  ),
+  // The Features screen was folded into the hub's Chat, Sessions and
+  // Agents sections; old deep links land on the hub.
+  GoRoute(path: '/settings/features', redirect: (_, _) => '/settings'),
   GoRoute(
     path: '/settings/profiles',
     name: 'profiles',

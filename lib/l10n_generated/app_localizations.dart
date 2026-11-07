@@ -1216,89 +1216,95 @@ abstract class AppLocalizations {
   /// **'Choose how sessions are grouped in the sessions tab'**
   String get settingsSessionsViewStyleSubtitle;
 
-  /// No description provided for @settingsFeatures.
+  /// No description provided for @settingsChat.
   ///
   /// In en, this message translates to:
-  /// **'Features'**
-  String get settingsFeatures;
+  /// **'Chat'**
+  String get settingsChat;
 
-  /// No description provided for @settingsHubToolsTitle.
+  /// No description provided for @settingsAgents.
   ///
   /// In en, this message translates to:
-  /// **'Agents & Tools'**
-  String get settingsHubToolsTitle;
+  /// **'Agents'**
+  String get settingsAgents;
 
-  /// No description provided for @workflowPresetsTitle.
+  /// No description provided for @settingsMachinesAndServer.
   ///
   /// In en, this message translates to:
-  /// **'Workflow presets'**
-  String get workflowPresetsTitle;
+  /// **'Machines & server'**
+  String get settingsMachinesAndServer;
 
-  /// No description provided for @workflowPresetsDescription.
+  /// No description provided for @settingsAccountDevices.
   ///
   /// In en, this message translates to:
-  /// **'Presets update existing app settings and can be adjusted later.'**
-  String get workflowPresetsDescription;
+  /// **'Backup key and devices'**
+  String get settingsAccountDevices;
 
-  /// No description provided for @workflowPresetFocusTitle.
+  /// No description provided for @settingsAccountDevicesSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Focus'**
-  String get workflowPresetFocusTitle;
+  /// **'Back up or restore your account, link other devices'**
+  String get settingsAccountDevicesSubtitle;
 
-  /// No description provided for @workflowPresetFocusSubtitle.
+  /// No description provided for @settingsSignOutSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Quiet chat, compact sessions, unread-first navigation'**
-  String get workflowPresetFocusSubtitle;
+  /// **'Sign out of Happy on this device'**
+  String get settingsSignOutSubtitle;
 
-  /// No description provided for @workflowPresetVoiceTitle.
+  /// No description provided for @settingsVoiceSubtitleOn.
   ///
   /// In en, this message translates to:
-  /// **'Voice'**
-  String get workflowPresetVoiceTitle;
+  /// **'Read-aloud on · voices and dictation'**
+  String get settingsVoiceSubtitleOn;
 
-  /// No description provided for @workflowPresetVoiceSubtitle.
+  /// No description provided for @settingsVoiceSubtitleOff.
   ///
   /// In en, this message translates to:
-  /// **'Speech on, inline context, mission-control browsing'**
-  String get workflowPresetVoiceSubtitle;
+  /// **'Read-aloud off · voices and dictation'**
+  String get settingsVoiceSubtitleOff;
 
-  /// No description provided for @workflowPresetLowNoiseTitle.
+  /// No description provided for @settingsSessionFoldersSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Low noise'**
-  String get workflowPresetLowNoiseTitle;
+  /// **'Name and organize session folders'**
+  String get settingsSessionFoldersSubtitle;
 
-  /// No description provided for @workflowPresetLowNoiseSubtitle.
+  /// No description provided for @settingsAutoArchiveSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Hide tool chatter and inactive work by default'**
-  String get workflowPresetLowNoiseSubtitle;
+  /// **'Archive idle sessions automatically'**
+  String get settingsAutoArchiveSubtitle;
 
-  /// No description provided for @workflowPresetDebugTitle.
+  /// No description provided for @developerToolCallDebug.
   ///
   /// In en, this message translates to:
-  /// **'Debug'**
-  String get workflowPresetDebugTitle;
+  /// **'Tool call debug'**
+  String get developerToolCallDebug;
 
-  /// No description provided for @workflowPresetDebugSubtitle.
+  /// No description provided for @developerToolCallDebugOn.
   ///
   /// In en, this message translates to:
-  /// **'Show internals, tool calls, todos, and developer logging'**
-  String get workflowPresetDebugSubtitle;
+  /// **'Tool calls render as raw JSON'**
+  String get developerToolCallDebugOn;
 
-  /// No description provided for @workflowPresetActiveSuffix.
+  /// No description provided for @developerToolCallDebugOff.
   ///
   /// In en, this message translates to:
-  /// **'- Active'**
-  String get workflowPresetActiveSuffix;
+  /// **'Render every tool call as raw JSON'**
+  String get developerToolCallDebugOff;
 
-  /// No description provided for @workflowPresetAppliedSnack.
+  /// No description provided for @developerPowerDiagnostics.
   ///
   /// In en, this message translates to:
-  /// **'preset applied'**
-  String get workflowPresetAppliedSnack;
+  /// **'Power diagnostics'**
+  String get developerPowerDiagnostics;
+
+  /// No description provided for @developerPowerDiagnosticsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Track lifecycle, socket, HTTP, sync, and retry activity'**
+  String get developerPowerDiagnosticsDesc;
 
   /// No description provided for @settingsAccount.
   ///
@@ -1306,23 +1312,11 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get settingsAccount;
 
-  /// No description provided for @settingsAccountSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage your account details'**
-  String get settingsAccountSubtitle;
-
   /// No description provided for @settingsAppearance.
   ///
   /// In en, this message translates to:
   /// **'Appearance'**
   String get settingsAppearance;
-
-  /// No description provided for @settingsFeaturesSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable or disable app features'**
-  String get settingsFeaturesSubtitle;
 
   /// No description provided for @settingsDeveloper.
   ///
@@ -1357,13 +1351,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUsage.
   ///
   /// In en, this message translates to:
-  /// **'Usage'**
+  /// **'Token usage and cost'**
   String get settingsUsage;
 
   /// No description provided for @settingsUsageSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'View your API usage and costs'**
+  /// **'Tokens and spend over time, by model'**
   String get settingsUsageSubtitle;
 
   /// No description provided for @settingsProfiles.
@@ -1383,12 +1377,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to sign out? Make sure you have backed up your secret key!'**
   String get settingsSignOutConfirm;
-
-  /// No description provided for @settingsAccountDangerZone.
-  ///
-  /// In en, this message translates to:
-  /// **'Danger Zone'**
-  String get settingsAccountDangerZone;
 
   /// No description provided for @settingsServerUrl.
   ///
@@ -2242,6 +2230,18 @@ abstract class AppLocalizations {
   /// **'By repository'**
   String get sessionsViewStyleRepository;
 
+  /// No description provided for @sessionsViewStyleAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'By agent'**
+  String get sessionsViewStyleAgent;
+
+  /// No description provided for @sessionsViewStyleRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get sessionsViewStyleRecent;
+
   /// No description provided for @sessionsViewStyleMissionControlHint.
   ///
   /// In en, this message translates to:
@@ -2272,6 +2272,18 @@ abstract class AppLocalizations {
   /// **'Group sessions by git repository across machines and pods'**
   String get sessionsViewStyleRepositoryHint;
 
+  /// No description provided for @sessionsViewStyleAgentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions grouped by Claude, Codex and other agents'**
+  String get sessionsViewStyleAgentHint;
+
+  /// No description provided for @sessionsViewStyleRecentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A timeline: today, yesterday, this week and older'**
+  String get sessionsViewStyleRecentHint;
+
   /// No description provided for @sessionsRepositoryUnlinked.
   ///
   /// In en, this message translates to:
@@ -2283,12 +2295,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unread and blocked first, then the rest'**
   String get sessionsViewStyleUnreadFocusHint;
-
-  /// No description provided for @sessionsViewStyleTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
-  String get sessionsViewStyleTooltip;
 
   /// No description provided for @sessionsUnknownMachine.
   ///
@@ -4012,24 +4018,6 @@ abstract class AppLocalizations {
   /// **'Search languages'**
   String get searchLanguages;
 
-  /// No description provided for @settingsBehavior.
-  ///
-  /// In en, this message translates to:
-  /// **'Behavior'**
-  String get settingsBehavior;
-
-  /// No description provided for @settingsViewInline.
-  ///
-  /// In en, this message translates to:
-  /// **'View Inline'**
-  String get settingsViewInline;
-
-  /// No description provided for @settingsViewInlineSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show tool calls inline in chat'**
-  String get settingsViewInlineSubtitle;
-
   /// No description provided for @settingsHideToolCalls.
   ///
   /// In en, this message translates to:
@@ -4051,7 +4039,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShowFlavorIcons.
   ///
   /// In en, this message translates to:
-  /// **'Show Flavor Icons'**
+  /// **'Show agent icons'**
   String get settingsShowFlavorIcons;
 
   /// No description provided for @settingsAvatarStyle.
@@ -4438,12 +4426,6 @@ abstract class AppLocalizations {
   /// **'Claude Code'**
   String get settingsClaudeCode;
 
-  /// No description provided for @settingsTextToSpeech.
-  ///
-  /// In en, this message translates to:
-  /// **'Text-to-Speech'**
-  String get settingsTextToSpeech;
-
   /// No description provided for @settingsGitHub.
   ///
   /// In en, this message translates to:
@@ -4455,12 +4437,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enabled'**
   String get settingsDeveloperEnabled;
-
-  /// No description provided for @featuresTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Features'**
-  String get featuresTitle;
 
   /// No description provided for @devLogsTitle.
   ///
@@ -6382,35 +6358,11 @@ abstract class AppLocalizations {
   /// **'Switch to session'**
   String get commandSwitchToSession;
 
-  /// No description provided for @featuresSectionExperiments.
-  ///
-  /// In en, this message translates to:
-  /// **'Experiments'**
-  String get featuresSectionExperiments;
-
-  /// No description provided for @featuresSectionDisplay.
-  ///
-  /// In en, this message translates to:
-  /// **'Display'**
-  String get featuresSectionDisplay;
-
-  /// No description provided for @featuresCompactMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Compact Mode'**
-  String get featuresCompactMode;
-
   /// No description provided for @featuresShowLineNumbers.
   ///
   /// In en, this message translates to:
   /// **'Show Line Numbers'**
   String get featuresShowLineNumbers;
-
-  /// No description provided for @featuresWrapLinesInDiffs.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap Lines in Diffs'**
-  String get featuresWrapLinesInDiffs;
 
   /// No description provided for @serverCheckingConnection.
   ///
@@ -6886,24 +6838,6 @@ abstract class AppLocalizations {
   /// **'Logs are only available when Developer Mode is enabled.\n\nGo to Settings and enable Developer Mode to view logs.'**
   String get devLogsOnlyAvailableInDevMode;
 
-  /// No description provided for @featuresAlwaysShowContextSize.
-  ///
-  /// In en, this message translates to:
-  /// **'Always Show Context Size'**
-  String get featuresAlwaysShowContextSize;
-
-  /// No description provided for @featuresAlwaysShowContextSizeDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Show context window usage'**
-  String get featuresAlwaysShowContextSizeDesc;
-
-  /// No description provided for @featuresCompactModeDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Reduce spacing in chat messages'**
-  String get featuresCompactModeDesc;
-
   /// No description provided for @codexSpeedUnknown.
   ///
   /// In en, this message translates to:
@@ -6987,12 +6921,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Display line numbers in code blocks'**
   String get featuresShowLineNumbersDesc;
-
-  /// No description provided for @featuresWrapLinesInDiffsDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap long lines in diff views'**
-  String get featuresWrapLinesInDiffsDesc;
 
   /// No description provided for @machineLastKnownStatus.
   ///
@@ -7156,12 +7084,6 @@ abstract class AppLocalizations {
   /// **'No sessions match your search'**
   String get sessionsNoSearchResults;
 
-  /// No description provided for @settingsConfigureVoiceAssistant.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure voice assistant'**
-  String get settingsConfigureVoiceAssistant;
-
   /// No description provided for @settingsDeveloperOptions.
   ///
   /// In en, this message translates to:
@@ -7185,12 +7107,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show AI provider icons in avatars'**
   String get settingsShowFlavorIconsSubtitle;
-
-  /// No description provided for @settingsTextToSpeechSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Read assistant messages aloud'**
-  String get settingsTextToSpeechSubtitle;
 
   /// No description provided for @settingsVoiceSettings.
   ///
@@ -7263,18 +7179,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select the language for voice output.'**
   String get voiceSelectLanguageHint;
-
-  /// No description provided for @featuresMarkdownCopyV2.
-  ///
-  /// In en, this message translates to:
-  /// **'Markdown Copy V2'**
-  String get featuresMarkdownCopyV2;
-
-  /// No description provided for @featuresMarkdownCopyV2Desc.
-  ///
-  /// In en, this message translates to:
-  /// **'Use improved markdown copying'**
-  String get featuresMarkdownCopyV2Desc;
 
   /// No description provided for @artifactsCount.
   ///
@@ -7423,7 +7327,7 @@ abstract class AppLocalizations {
   /// No description provided for @providersBuiltInLimits.
   ///
   /// In en, this message translates to:
-  /// **'Built-in limits'**
+  /// **'Limits and usage history'**
   String get providersBuiltInLimits;
 
   /// No description provided for @providersAccountSummary.
@@ -9170,24 +9074,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{online} online of {total} linked'**
   String settingsHealthMachinesOnline(int online, int total);
-
-  /// No description provided for @settingsHealthSessionsOnline.
-  ///
-  /// In en, this message translates to:
-  /// **'{online} online of {total} total'**
-  String settingsHealthSessionsOnline(int online, int total);
-
-  /// No description provided for @settingsHealthAccountRecovery.
-  ///
-  /// In en, this message translates to:
-  /// **'Account and recovery'**
-  String get settingsHealthAccountRecovery;
-
-  /// No description provided for @settingsHealthAccountRecoverySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup key, linked devices, restore, and services'**
-  String get settingsHealthAccountRecoverySubtitle;
 
   /// No description provided for @settingsHealthSocketGeneration.
   ///

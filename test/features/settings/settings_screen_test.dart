@@ -140,25 +140,62 @@ void main() {
     expect(searchY, lessThan(statusY));
   });
 
-  testWidgets('account section is gone; danger zone keeps sign out', (
+  testWidgets('account lives in one section with devices and sign out', (
     tester,
   ) async {
     await tester.pumpWidget(_buildApp(Settings()));
     await tester.pumpAndSettle();
 
-    // The old one-row Account section is fully replaced by ProfileHeader
-    // and the status block's account-recovery row.
-    expect(find.text('Account Settings'), findsNothing);
+    // The header is display-only so the Account section is the single
+    // way into account management.
+    expect(
+      tester.widget<ProfileHeader>(find.byType(ProfileHeader)).onTap,
+      isNull,
+    );
     await tester.scrollUntilVisible(
       find.text('Sign out'),
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    // The only remaining "Account"-titled section is the danger zone.
-    // Assert after scrolling: the hub is a lazy ListView and the
-    // bottom DangerZone block is not built until it is scrolled in.
-    expect(findTextIgnoreCase('ACCOUNT'), findsOneWidget);
+    expect(find.text('Backup key and devices'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
+    expect(find.text('Account and recovery'), findsNothing);
+  });
+
+  testWidgets('hub has no duplicated or removed entries', (tester) async {
+    await tester.pumpWidget(_buildApp(Settings()));
+    await tester.pumpAndSettle();
+
+    final list = find.byType(Scrollable).first;
+    // Walk the whole hub: no title may be built twice at the same time,
+    // and every visited title is recorded for the removal checks below.
+    final seen = <String>{};
+    final duplicates = <String>{};
+    for (var i = 0; i < 40; i++) {
+      final titles = [
+        for (final row in tester.widgetList<SettingsRow>(
+          find.byType(SettingsRow),
+        ))
+          row.title,
+        for (final row in tester.widgetList<SettingsToggleRow>(
+          find.byType(SettingsToggleRow),
+        ))
+          row.title,
+      ];
+      final onScreen = <String>{};
+      for (final title in titles) {
+        if (!onScreen.add(title)) duplicates.add(title);
+      }
+      seen.addAll(titles);
+      await tester.drag(list, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    expect(duplicates, isEmpty);
+    // Workflow presets, the Features screen and the hub Usage row are gone.
+    expect(seen, isNot(contains('Focus')));
+    expect(seen, isNot(contains('Features')));
+    expect(seen, isNot(contains('Token usage and cost')));
+    expect(seen, isNot(contains('Text-to-Speech')));
   });
 
   testWidgets('search filters sections down to matching rows', (tester) async {
@@ -167,14 +204,14 @@ void main() {
 
     expect(find.text('Sync needs attention'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'server');
+    await tester.enterText(find.byType(TextField), 'server url');
     await tester.pumpAndSettle();
 
-    // Infrastructure keeps only the rows matching "server".
+    // Machines & server keeps only the row matching every token.
     expect(find.text('Server URL'), findsOneWidget);
-    expect(find.textContaining('MCP Servers'), findsWidgets);
     expect(find.text('Sandbox'), findsNothing);
     expect(find.text('Machines'), findsNothing);
+    expect(find.textContaining('MCP Servers'), findsNothing);
     // Non-matching blocks are dropped entirely.
     expect(find.text('Sync needs attention'), findsNothing);
   });
@@ -188,10 +225,9 @@ void main() {
     await tester.enterText(find.byType(TextField), 'archive');
     await tester.pumpAndSettle();
 
-    // Only the auto-archive row survives inside Sessions (title and
-    // subtitle both render the same string).
+    // Only the auto-archive row survives inside Sessions.
     expect(findTextIgnoreCase('SESSIONS'), findsOneWidget);
-    expect(find.text('Auto-Archive'), findsNWidgets(2));
+    expect(find.text('Auto-Archive'), findsOneWidget);
     expect(find.text('Session Folders'), findsNothing);
     expect(find.text('Session view style'), findsNothing);
     expect(findTextIgnoreCase('STATUS'), findsNothing);
@@ -212,32 +248,76 @@ void main() {
     expect(find.text('Server settings placeholder'), findsOneWidget);
   });
 
-  testWidgets('workflow preset applies existing settings', (tester) async {
+  testWidgets('former Features toggles live in their sections', (tester) async {
+    await tester.pumpWidget(_buildApp(Settings()));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(SettingsScreen)),
+    );
+    final list = find.byType(Scrollable).first;
+
+    await tester.scrollUntilVisible(
+      find.text('Hide Inactive Sessions'),
+      300,
+      scrollable: list,
+    );
+    await tester.ensureVisible(find.text('Hide Inactive Sessions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hide Inactive Sessions'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(settingsNotifierProvider).hideInactiveSessions,
+      isTrue,
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Codex Fast Mode'),
+      300,
+      scrollable: list,
+    );
+    expect(container.read(settingsNotifierProvider).codexFastMode, isFalse);
+    await tester.ensureVisible(find.text('Codex Fast Mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Codex Fast Mode'));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsNotifierProvider).codexFastMode, isTrue);
+  });
+
+  testWidgets('session view style offers the agent and recent layouts', (
+    tester,
+  ) async {
     await tester.pumpWidget(_buildApp(Settings()));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Focus'),
-      400,
+      find.text('Session view style'),
+      300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Focus'));
+    await tester.tap(find.text('Session view style'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('By agent'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Recent activity'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.text('Recent activity'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Recent activity'));
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(SettingsScreen)),
     );
-    final settings = container.read(settingsNotifierProvider);
-
-    expect(settings.hideToolCalls, isTrue);
-    expect(settings.expandTodos, isFalse);
-    expect(settings.ttsEnabled, isFalse);
-    expect(settings.compactSessionView, isTrue);
-    expect(settings.hideInactiveSessions, isTrue);
-    expect(settings.sessionsViewStyle, 'unread_focus');
+    expect(
+      container.read(settingsNotifierProvider).sessionsViewStyle,
+      'recent',
+    );
   });
 
-  testWidgets('status summary counts only online machines', (tester) async {
+  testWidgets('machines row counts only online machines', (tester) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final staleAt = now - machineOnlineThresholdMs;
 
@@ -251,6 +331,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('1 online of 2 linked'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
 
     expect(find.text('1 online of 2 linked'), findsOneWidget);
   });

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/api/socket_io_client.dart'
     show ConnectionStatus, socketIoClient;
@@ -15,19 +14,10 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/snack.dart';
 
+/// Connection and sync health. Machines and account have their own hub
+/// sections, so this block is only the live link and its diagnostics.
 class SettingsHealthSection extends ConsumerWidget {
-  const SettingsHealthSection({
-    required this.sessionTotal,
-    required this.onlineSessions,
-    required this.machineTotal,
-    required this.onlineMachines,
-    super.key,
-  });
-
-  final int sessionTotal;
-  final int onlineSessions;
-  final int machineTotal;
-  final int onlineMachines;
+  const SettingsHealthSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,9 +42,6 @@ class SettingsHealthSection extends ConsumerWidget {
         : connected && syncInitialized
         ? l10n.settingsHealthLoading
         : l10n.settingsHealthReconnecting;
-    final machineSubtitle = machineTotal == 0
-        ? l10n.settingsHealthNoMachines
-        : l10n.settingsHealthMachinesOnline(onlineMachines, machineTotal);
 
     return SettingsSection(
       title: l10n.settingsHealthStatus,
@@ -76,33 +63,6 @@ class SettingsHealthSection extends ConsumerWidget {
             status: connectionStatus,
             syncReady: syncReady,
           ),
-        ),
-        SettingsRow(
-          icon: Icons.chat_bubble_outline,
-          iconColor: AppColors.iosBlue,
-          title: l10n.settingsSessions,
-          subtitle: l10n.settingsHealthSessionsOnline(
-            onlineSessions,
-            sessionTotal,
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.goNamed('sessions'),
-        ),
-        SettingsRow(
-          icon: Icons.computer_outlined,
-          iconColor: machineTotal == 0 ? AppColors.warning : AppColors.success,
-          title: l10n.settingsMachines,
-          subtitle: machineSubtitle,
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.pushNamed('machines'),
-        ),
-        SettingsRow(
-          icon: Icons.person_outline,
-          iconColor: AppColors.iosBlue,
-          title: l10n.settingsHealthAccountRecovery,
-          subtitle: l10n.settingsHealthAccountRecoverySubtitle,
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.pushNamed('account'),
         ),
       ],
     );

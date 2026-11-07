@@ -10,11 +10,14 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_utils.dart' show DateGroup;
 import 'mission_control_types.dart';
 import 'mission_control_view.dart' show missionLastActivityAt;
 import 'mission_heartbeat.dart';
 import 'session_board_controls.dart';
 import 'unread_focus_cards.dart' show UnreadFocusListGroup;
+
+part 'session_board_groupings.dart';
 
 /// Quiet rows shown before a long Quiet lane folds behind "Show more".
 const int statusBoardQuietPreview = 10;
@@ -221,7 +224,8 @@ List<SessionBoardSection> buildMachineSections(
   ];
 }
 
-/// Sectioned session list shared by the Status board and Machines layouts.
+/// Sectioned session list shared by the board layouts (Status, Machines,
+/// Agents, Recent).
 class SessionBoardView extends StatefulWidget {
   const SessionBoardView({
     required this.sections,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../helpers/find_text_ci.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -142,7 +143,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Network Inspector'), findsOneWidget);
-      expect(find.text('Power Diagnostics'), findsOneWidget);
+      expect(find.text('Power diagnostics'), findsOneWidget);
       expect(find.text('Logs'), findsOneWidget);
       expect(find.text('Encryption Debug'), findsOneWidget);
       expect(find.text('Session Debug'), findsOneWidget);
@@ -214,6 +215,8 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text('Test Sentry (Unhandled)'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Test Sentry (Unhandled)'));
       await tester.pumpAndSettle();
 
@@ -222,7 +225,9 @@ void main() {
       expect(find.text('Throw an unhandled error'), findsWidgets);
     });
 
-    testWidgets('unhandled Sentry test is separated as danger', (tester) async {
+    testWidgets('unhandled Sentry test sits with the other tests', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -246,7 +251,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(findTextIgnoreCase('DANGER ZONE'), findsOneWidget);
+      // A deliberate crash is a test tool, not an account danger zone.
+      expect(findTextIgnoreCase('DANGER ZONE'), findsNothing);
+      expect(
+        find.ancestor(
+          of: find.text('Test Sentry (Unhandled)'),
+          matching: find.byWidgetPredicate(
+            (w) => w is SettingsSection && w.title == 'Testing',
+          ),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows cache and storage section when developer mode is on', (

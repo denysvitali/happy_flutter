@@ -12,15 +12,15 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/package_info_cache.dart';
 import 'settings_section_registry.dart';
-import 'widgets/danger_zone.dart';
+import 'widgets/account_settings_section.dart';
 import 'widgets/inline_theme_picker.dart';
 import 'widgets/legacy_outbox_recovery_tile.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
-import 'widgets/workflow_presets_section.dart';
 import '../sessions/widgets/sessions_view_style.dart';
 
 part 'settings_screen_search.dart';
@@ -33,25 +33,20 @@ typedef _HubSettings = ({
   String themeMode,
   bool showFlavorIcons,
   String avatarStyle,
-  bool viewInline,
   bool hideToolCalls,
   bool expandTodos,
+  bool showLineNumbers,
   bool ttsEnabled,
   bool developerModeEnabled,
-  bool toolCallDebugEnabled,
   String sessionsViewStyle,
-  bool compactSessionView,
   bool hideInactiveSessions,
+  bool codexFastMode,
 });
 
-/// Session totals feeding the status block.
-typedef _HubSessionStats = ({int total, int online});
-
-/// Machine summary feeding the status block and infrastructure section.
+/// Machine summary feeding the Machines & server section.
 typedef _HubMachineStats = ({
   int total,
   int online,
-  String? firstSubtitle,
   bool sandboxAvailable,
   String? sandboxReason,
 });
@@ -60,8 +55,8 @@ typedef _HubMachineStats = ({
 ///
 /// Content is one ordered list of `SettingsHubEntry`s (see
 /// settings_section_registry.dart): spec-built sections plus two static
-/// blocks (status, workflow presets). Search filters the entries on
-/// data before widgets are built.
+/// blocks (status, account). Search filters the entries on data before
+/// widgets are built. Each setting appears in exactly one section.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key, this.embedded = false});
 
@@ -74,11 +69,23 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _appVersion;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_handleSearchChanged);
+    unawaited(_loadAppVersion());
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfoCache.get();
+      if (!mounted) return;
+      setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+    } catch (_) {
+      // Version is informational; the About row renders without it.
+    }
   }
 
   @override
@@ -101,31 +108,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           themeMode: s.themeMode,
           showFlavorIcons: s.showFlavorIcons,
           avatarStyle: s.avatarStyle,
-          viewInline: s.viewInline,
           hideToolCalls: s.hideToolCalls,
           expandTodos: s.expandTodos,
+          showLineNumbers: s.showLineNumbers,
           ttsEnabled: s.ttsEnabled,
           developerModeEnabled: s.developerModeEnabled,
-          toolCallDebugEnabled: s.toolCallDebugEnabled,
           sessionsViewStyle: s.sessionsViewStyle,
-          compactSessionView: s.compactSessionView,
           hideInactiveSessions: s.hideInactiveSessions,
+          codexFastMode: s.codexFastMode,
         ),
       ),
     );
     final profile = ref.watch(profileNotifierProvider);
-    final sessionStats = ref.watch(
-      sessionsNotifierProvider.select(
-        (sessions) => (
-          total: sessions.length,
-          online: sessions.values
-              .where((session) => session.presence == 'online')
-              .length,
-        ),
-      ),
-    );
-    // Select only the machine count and first machine's display name/host to
-    // avoid rebuilding this screen when unrelated machine fields change.
+    // Select only machine counts and sandbox availability to avoid
+    // rebuilding this screen when unrelated machine fields change.
     final machineStats = ref.watch(
       machinesNotifierProvider.select((machines) {
         final values = machines.values.toList(growable: false);
@@ -142,10 +138,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return (
           total: values.length,
           online: online.length,
-          firstSubtitle: values.isEmpty
-              ? null
-              : values.first.metadata?.displayName ??
-                    values.first.metadata?.host,
           sandboxAvailable: sandboxAvailable,
           sandboxReason: sandboxReason,
         );
@@ -164,17 +156,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final entries = _buildHubEntries(
           context,
           settings: settings,
-          sessionStats: sessionStats,
           machineStats: machineStats,
         );
         final tokens = settingsSearchTokens(_searchQuery);
         final blocks = _visibleHubBlocks(context, entries, tokens);
 
         final children = <Widget>[
-          ProfileHeader(
-            profile: profile,
-            onTap: () => context.pushNamed('account'),
-          ),
+          // Display-only: the Account section is the one way into account
+          // and device management.
+          ProfileHeader(profile: profile),
           const SizedBox(height: AppSpacing.lg),
           SettingsSearchField(
             controller: _searchController,
@@ -190,11 +180,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (i < blocks.length - 1) {
             children.add(const SizedBox(height: AppSpacing.lg));
           }
-        }
-        if (tokens.isEmpty) {
-          children
-            ..add(const SizedBox(height: AppSpacing.xl))
-            ..add(DangerZone(onSignOut: () => _confirmSignOut(context)));
         }
         children.add(const LegacyOutboxRecoveryTile());
         children.add(const SizedBox(height: AppSpacing.xxxl));
@@ -289,32 +274,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      // Eight layouts with descriptions exceed a phone's half-height
+      // sheet; let the list scroll instead of overflowing.
+      isScrollControlled: true,
       builder: (dialogContext) {
         final l10n = AppLocalizations.of(dialogContext);
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(l10n.settingsSessionsViewStyle),
-                subtitle: Text(l10n.settingsSessionsViewStyleSubtitle),
-              ),
-              RadioGroup<String>(
-                groupValue: sessionsViewStyle,
-                onChanged: (value) => Navigator.of(dialogContext).pop(value),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final style in SessionsViewStyle.values)
-                      RadioListTile<String>(
-                        value: style.wire,
-                        title: Text(style.label(l10n)),
-                        subtitle: Text(style.description(l10n)),
-                      ),
-                  ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: Text(l10n.settingsSessionsViewStyle),
+                  subtitle: Text(l10n.settingsSessionsViewStyleSubtitle),
                 ),
-              ),
-            ],
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: RadioGroup<String>(
+                      groupValue: sessionsViewStyle,
+                      onChanged: (value) =>
+                          Navigator.of(dialogContext).pop(value),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final style in SessionsViewStyle.values)
+                            RadioListTile<String>(
+                              value: style.wire,
+                              secondary: Icon(style.icon),
+                              title: Text(style.label(l10n)),
+                              subtitle: Text(style.description(l10n)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

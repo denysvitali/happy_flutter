@@ -507,6 +507,14 @@ class _ProviderUsageDestinations extends StatelessWidget {
           subtitle: l10n.grokUsageSubtitle,
           onTap: () => context.pushNamed('grok-usage'),
         ),
+        // Token and cost history lives here, next to the provider limits,
+        // rather than as a second "Usage" entry in Settings.
+        SettingsNavRow(
+          icon: Icons.analytics_outlined,
+          title: l10n.settingsUsage,
+          subtitle: l10n.settingsUsageSubtitle,
+          onTap: () => context.pushNamed('usage'),
+        ),
       ],
     );
   }

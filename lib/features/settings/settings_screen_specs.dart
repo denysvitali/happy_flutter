@@ -4,12 +4,27 @@ part of 'settings_screen.dart';
 //
 // Each factory below expresses one hub section as data
 // (`SettingsSectionSpec`), which `buildSettingsSection` in
-// settings_section_registry.dart turns into the same widget tree the
-// old hand-written `_buildXSection` methods produced. Building specs
-// per build call is intentional: titles/subtitles come from `l10n`
-// and row values from the watched settings snapshot.
+// settings_section_registry.dart turns into widgets. Every setting has
+// exactly one home:
+//
+//   Appearance       — how the app looks everywhere
+//   Chat             — how a conversation renders
+//   Sessions         — how the session list is laid out and kept tidy
+//   Agents           — what new agent sessions start with
+//   Voice            — one row; read-aloud, voices and dictation inside
+//   Machines & server — where sessions run and which server syncs them
+//   About / Developer — app information and diagnostics
+//
+// Account (backup, devices, sign out) is a separate block in
+// widgets/account_settings_section.dart.
 
 extension _HubSectionSpecs on _SettingsScreenState {
+  SettingsNotifier get _settingsNotifier =>
+      ref.read(settingsNotifierProvider.notifier);
+
+  void _set(String key, Object value) =>
+      unawaited(_settingsNotifier.updateSetting(key, value));
+
   SettingsSectionSpec _appearanceSectionSpec(
     AppLocalizations l10n,
     _HubSettings settings,
@@ -21,19 +36,8 @@ extension _HubSectionSpecs on _SettingsScreenState {
           searchTerms: ['theme', 'light', 'dark', 'adaptive'],
           build: (_) => InlineThemePicker(
             currentMode: settings.themeMode,
-            onChanged: (mode) => ref
-                .read(settingsNotifierProvider.notifier)
-                .updateSetting('themeMode', mode),
+            onChanged: (mode) => _set('themeMode', mode),
           ),
-        ),
-        ToggleRowSpec(
-          icon: Icons.emoji_emotions_outlined,
-          title: l10n.settingsShowFlavorIcons,
-          subtitle: l10n.settingsShowFlavorIconsSubtitle,
-          value: settings.showFlavorIcons,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('showFlavorIcons', value),
         ),
         ActionNavRowSpec(
           icon: Icons.account_circle_outlined,
@@ -41,47 +45,50 @@ extension _HubSectionSpecs on _SettingsScreenState {
           subtitle: _avatarStyleLabel(settings.avatarStyle),
           onTap: () => _showAvatarStyleDialog(context, settings.avatarStyle),
         ),
+        ToggleRowSpec(
+          icon: Icons.emoji_emotions_outlined,
+          title: l10n.settingsShowFlavorIcons,
+          subtitle: l10n.settingsShowFlavorIconsSubtitle,
+          value: settings.showFlavorIcons,
+          onChanged: (value) => _set('showFlavorIcons', value),
+        ),
       ],
     );
   }
 
-  SettingsSectionSpec _behaviorSectionSpec(
+  /// Everything that changes how a single conversation renders.
+  SettingsSectionSpec _chatSectionSpec(
     AppLocalizations l10n,
     _HubSettings settings,
   ) {
     return SettingsSectionSpec(
-      title: l10n.settingsBehavior,
+      title: l10n.settingsChat,
       rows: [
-        ToggleRowSpec(
-          icon: Icons.open_in_new_outlined,
-          title: l10n.settingsViewInline,
-          subtitle: l10n.settingsViewInlineSubtitle,
-          value: settings.viewInline,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('viewInline', value),
-        ),
         ToggleRowSpec(
           icon: Icons.visibility_off_outlined,
           title: l10n.settingsHideToolCalls,
           subtitle: l10n.settingsHideToolCallsSubtitle,
           value: settings.hideToolCalls,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('hideToolCalls', value),
+          onChanged: (value) => _set('hideToolCalls', value),
         ),
         ToggleRowSpec(
           icon: Icons.check_box_outlined,
           title: l10n.settingsExpandTodos,
           value: settings.expandTodos,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('expandTodos', value),
+          onChanged: (value) => _set('expandTodos', value),
+        ),
+        ToggleRowSpec(
+          icon: Icons.numbers_rounded,
+          title: l10n.featuresShowLineNumbers,
+          subtitle: l10n.featuresShowLineNumbersDesc,
+          value: settings.showLineNumbers,
+          onChanged: (value) => _set('showLineNumbers', value),
         ),
       ],
     );
   }
 
+  /// The session list: its layout, density and housekeeping.
   SettingsSectionSpec _sessionsSectionSpec(
     AppLocalizations l10n,
     _HubSettings settings,
@@ -90,7 +97,7 @@ extension _HubSectionSpecs on _SettingsScreenState {
       title: l10n.settingsSessions,
       rows: [
         ActionNavRowSpec(
-          icon: Icons.view_agenda_outlined,
+          icon: SessionsViewStyle.fromWire(settings.sessionsViewStyle).icon,
           title: l10n.settingsSessionsViewStyle,
           subtitle: _sessionsViewStyleLabel(l10n, settings.sessionsViewStyle),
           onTap: () => _showSessionsViewStyleDialog(
@@ -98,51 +105,34 @@ extension _HubSectionSpecs on _SettingsScreenState {
             sessionsViewStyle: settings.sessionsViewStyle,
           ),
         ),
+        ToggleRowSpec(
+          icon: Icons.filter_alt_outlined,
+          title: l10n.featuresHideInactiveSessions,
+          subtitle: l10n.featuresHideInactiveSessionsDesc,
+          value: settings.hideInactiveSessions,
+          onChanged: (value) => _set('hideInactiveSessions', value),
+        ),
         NavRouteRowSpec(
           icon: Icons.folder_outlined,
           title: l10n.sessionsFolders,
-          subtitle: l10n.sessionsFolders,
+          subtitle: l10n.settingsSessionFoldersSubtitle,
           route: 'sessions-folders',
         ),
         NavRouteRowSpec(
-          icon: Icons.auto_awesome_outlined,
+          icon: Icons.inventory_2_outlined,
           title: l10n.autoArchiveTitle,
-          subtitle: l10n.autoArchiveSection,
+          subtitle: l10n.settingsAutoArchiveSubtitle,
           route: 'sessions-auto-archive',
         ),
       ],
     );
   }
 
-  SettingsSectionSpec _voiceSectionSpec(
+  /// What new agent sessions start with.
+  SettingsSectionSpec _agentsSectionSpec(
     AppLocalizations l10n,
     _HubSettings settings,
   ) {
-    return SettingsSectionSpec(
-      title: l10n.settingsVoice,
-      rows: [
-        ToggleRowSpec(
-          icon: Icons.volume_up_outlined,
-          title: l10n.settingsTextToSpeech,
-          subtitle: l10n.settingsTextToSpeechSubtitle,
-          value: settings.ttsEnabled,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('ttsEnabled', value),
-        ),
-        NavRouteRowSpec(
-          icon: Icons.record_voice_over,
-          title: l10n.settingsVoiceSettings,
-          subtitle: l10n.settingsConfigureVoiceAssistant,
-          route: 'voice',
-        ),
-      ],
-    );
-  }
-
-  /// Agents & tools — distinct section title so it no longer reads
-  /// identically to the Features row right under it.
-  SettingsSectionSpec _toolsSectionSpec(AppLocalizations l10n) {
     // Stored rows only: built-in presets are creation-time suggestions and
     // must never appear as pre-populated profile rows.
     final allProfiles = ref.watch(
@@ -152,10 +142,10 @@ extension _HubSectionSpecs on _SettingsScreenState {
       settingsNotifierProvider.select((s) => s.lastUsedProfile),
     );
     return SettingsSectionSpec(
-      title: l10n.settingsHubToolsTitle,
+      title: l10n.settingsAgents,
       rows: [
         CustomWidgetRowSpec(
-          searchTerms: [l10n.settingsProfiles, 'profiles', 'model'],
+          searchTerms: [l10n.settingsProfiles, 'profiles', 'model', 'agent'],
           build: (rowContext) => ProfileSwitcherTile(
             profiles: allProfiles,
             selectedProfileId: selectedProfileId,
@@ -163,31 +153,52 @@ extension _HubSectionSpecs on _SettingsScreenState {
             onTap: () => rowContext.pushNamed('profiles'),
           ),
         ),
-        NavRouteRowSpec(
-          icon: Icons.analytics,
-          title: l10n.settingsUsage,
-          subtitle: l10n.settingsUsageSubtitle,
-          route: 'usage',
+        ToggleRowSpec(
+          icon: Icons.speed_outlined,
+          title: l10n.featuresCodexFastMode,
+          subtitle: l10n.featuresCodexFastModeDesc,
+          value: settings.codexFastMode,
+          onChanged: (value) => _set('codexFastMode', value),
         ),
         NavRouteRowSpec(
-          icon: Icons.science,
-          title: l10n.settingsFeatures,
-          subtitle: l10n.settingsFeaturesSubtitle,
-          route: 'features',
+          icon: Icons.extension_outlined,
+          title: l10n.settingsMcpServers,
+          subtitle: l10n.settingsMcpServersSubtitle,
+          route: 'mcp-servers',
         ),
       ],
     );
   }
 
-  SettingsSectionSpec _developerSectionSpec({
+  /// One row: the Voice screen owns read-aloud, voices and dictation.
+  SettingsSectionSpec _voiceSectionSpec(
+    AppLocalizations l10n,
+    _HubSettings settings,
+  ) {
+    return SettingsSectionSpec(
+      title: l10n.settingsVoice,
+      rows: [
+        NavRouteRowSpec(
+          icon: Icons.record_voice_over_outlined,
+          title: l10n.settingsVoiceSettings,
+          subtitle: settings.ttsEnabled
+              ? l10n.settingsVoiceSubtitleOn
+              : l10n.settingsVoiceSubtitleOff,
+          route: 'voice',
+        ),
+      ],
+    );
+  }
+
+  SettingsSectionSpec _developerSectionSpec(
+    AppLocalizations l10n, {
     required bool developerModeEnabled,
   }) {
-    final l10n = AppLocalizations.of(context);
     return SettingsSectionSpec(
       title: l10n.settingsDeveloper,
       rows: [
         NavRouteRowSpec(
-          icon: Icons.build,
+          icon: Icons.build_outlined,
           title: l10n.settingsDeveloperOptions,
           subtitle: developerModeEnabled
               ? l10n.settingsDeveloperEnabled
@@ -199,35 +210,27 @@ extension _HubSectionSpecs on _SettingsScreenState {
   }
 }
 
-/// Infrastructure — machines, MCP servers and sandbox rows keep today's
-/// gate (hidden while no machines exist); the server row stays visible
-/// either way so a custom server stays configurable without machines.
-/// The title falls back to "Server" when only the server row remains.
-SettingsSectionSpec _infrastructureSectionSpec(
+/// Machines & server — where sessions run and which server syncs them.
+/// Machine and sandbox rows need at least one linked machine; the server
+/// row stays so a custom server is configurable before any machine exists.
+SettingsSectionSpec _machinesSectionSpec(
   AppLocalizations l10n, {
   required int machineTotal,
-  required String? firstMachineSubtitle,
+  required int machinesOnline,
   required bool sandboxAvailable,
   required String? sandboxReason,
 }) {
   final hasMachines = machineTotal > 0;
   return SettingsSectionSpec(
-    title: hasMachines ? l10n.settingsMachines : l10n.settingsServer,
+    title: l10n.settingsMachinesAndServer,
     rows: [
-      if (hasMachines)
-        NavRouteRowSpec(
-          icon: Icons.computer_outlined,
-          title: l10n.settingsMachines,
-          subtitle: firstMachineSubtitle,
-          route: 'machines',
-        ),
-      // MCP servers are account-level configuration, not machine-scoped,
-      // so this row stays visible even with no machines linked.
       NavRouteRowSpec(
-        icon: Icons.extension_outlined,
-        title: l10n.settingsMcpServers,
-        subtitle: l10n.settingsMcpServersSubtitle,
-        route: 'mcp-servers',
+        icon: Icons.computer_outlined,
+        title: l10n.settingsMachines,
+        subtitle: hasMachines
+            ? l10n.settingsHealthMachinesOnline(machinesOnline, machineTotal)
+            : l10n.settingsHealthNoMachines,
+        route: 'machines',
       ),
       if (hasMachines)
         NavRouteRowSpec(
@@ -251,11 +254,22 @@ SettingsSectionSpec _infrastructureSectionSpec(
   );
 }
 
-// About section — 4 URL-launching rows (GitHub, issues, privacy, terms).
-SettingsSectionSpec _aboutSectionSpec(AppLocalizations l10n) {
+/// About — app version, release notes and project links.
+SettingsSectionSpec _aboutSectionSpec(
+  AppLocalizations l10n, {
+  required String? appVersion,
+}) {
   return SettingsSectionSpec(
     title: l10n.settingsAbout,
     rows: [
+      NavRouteRowSpec(
+        icon: Icons.new_releases_outlined,
+        title: l10n.changelogTitle,
+        subtitle: appVersion == null
+            ? null
+            : '${l10n.settingsVersion} $appVersion',
+        route: 'changelog',
+      ),
       UrlLaunchRowSpec(
         icon: Icons.code,
         title: l10n.settingsGitHub,

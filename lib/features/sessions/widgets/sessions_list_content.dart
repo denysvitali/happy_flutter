@@ -283,6 +283,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       style != null &&
       SessionsViewStyle.fromWire(style).workspaceGrouping != null;
 
+  /// Sectioned board layouts (status, machine, agent, recent).
+  static bool _isBoardStyle(String style) =>
+      SessionsViewStyle.fromWire(style).isBoard;
+
   void _syncPerformanceContext() {
     PerformanceContextService().setCurrentSessionsView(
       _isVisible
@@ -319,8 +323,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final current = _sel.value;
     if (!current.isActive) {
       HapticFeedback.mediumImpact();
-      final board =
-          _sessionsViewStyle == 'status' || _sessionsViewStyle == 'machines';
+      final board = _isBoardStyle(_sessionsViewStyle);
       final sorted = _sortedCache;
       _sel.value = SelectionState(
         isActive: true,
@@ -372,7 +375,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           _sel.value.isBatchDeleting) {
         return;
       }
-      if (_sessionsViewStyle == 'status' || _sessionsViewStyle == 'machines') {
+      if (_isBoardStyle(_sessionsViewStyle)) {
         return;
       }
       final current = _sel.value;
@@ -435,8 +438,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         _isWorkspaceStyle(sessionsViewStyle) ||
         sessionsViewStyle == 'mission_control' ||
         sessionsViewStyle == 'unread_focus' ||
-        sessionsViewStyle == 'status' ||
-        sessionsViewStyle == 'machines';
+        _isBoardStyle(sessionsViewStyle);
     final usesMissionControlRoot =
         sessionsViewStyle == 'mission_control' && _selectedFolderKey == null;
     final sessions = usesMissionControlRoot
@@ -518,8 +520,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _lastSearchQuery = searchQuery;
 
     final activeSessions = sorted.active;
-    final isBoard =
-        sessionsViewStyle == 'status' || sessionsViewStyle == 'machines';
+    final isBoard = _isBoardStyle(sessionsViewStyle);
     final inactiveSessions = isBoard
         ? boardArchivedSessions(
             sessions: sessions,
@@ -705,7 +706,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       );
     }
 
-    if (sessionsViewStyle == 'status' || sessionsViewStyle == 'machines') {
+    if (_isBoardStyle(sessionsViewStyle)) {
       final onNewSession = widget.onCreateSessionOnMachine;
       final showArchived = _boardArchiveVisible;
       final Widget board;
@@ -738,7 +739,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
                   );
                 },
               );
-      } else if (activeSessions.isEmpty && sessionsViewStyle == 'status') {
+      } else if (activeSessions.isEmpty && sessionsViewStyle != 'machines') {
         board = SessionBoardEmpty(
           archived: false,
           onCreate: widget.onCreateSession == null
@@ -772,18 +773,29 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           onNewSession: sessionsViewStyle == 'machines' && onNewSession != null
               ? (machineId) => unawaited(onNewSession(machineId))
               : null,
-          sections: sessionsViewStyle == 'status'
-              ? buildStatusBoardSections(
-                  context,
-                  activeSessions,
-                  aggregateUiState!,
-                )
-              : buildMachineSections(
-                  context,
-                  activeSessions,
-                  machines,
-                  aggregateUiState!,
-                ),
+          sections: switch (sessionsViewStyle) {
+            'status' => buildStatusBoardSections(
+              context,
+              activeSessions,
+              aggregateUiState!,
+            ),
+            'agent' => buildAgentSections(
+              context,
+              activeSessions,
+              aggregateUiState!,
+            ),
+            'recent' => buildRecentSections(
+              context,
+              activeSessions,
+              aggregateUiState!,
+            ),
+            _ => buildMachineSections(
+              context,
+              activeSessions,
+              machines,
+              aggregateUiState!,
+            ),
+          },
           rowBuilder: (row) => _buildMissionActionRow(
             row.session,
             row.entry,

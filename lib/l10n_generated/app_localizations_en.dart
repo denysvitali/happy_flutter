@@ -631,63 +631,60 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose how sessions are grouped in the sessions tab';
 
   @override
-  String get settingsFeatures => 'Features';
+  String get settingsChat => 'Chat';
 
   @override
-  String get settingsHubToolsTitle => 'Agents & Tools';
+  String get settingsAgents => 'Agents';
 
   @override
-  String get workflowPresetsTitle => 'Workflow presets';
+  String get settingsMachinesAndServer => 'Machines & server';
 
   @override
-  String get workflowPresetsDescription =>
-      'Presets update existing app settings and can be adjusted later.';
+  String get settingsAccountDevices => 'Backup key and devices';
 
   @override
-  String get workflowPresetFocusTitle => 'Focus';
+  String get settingsAccountDevicesSubtitle =>
+      'Back up or restore your account, link other devices';
 
   @override
-  String get workflowPresetFocusSubtitle =>
-      'Quiet chat, compact sessions, unread-first navigation';
+  String get settingsSignOutSubtitle => 'Sign out of Happy on this device';
 
   @override
-  String get workflowPresetVoiceTitle => 'Voice';
+  String get settingsVoiceSubtitleOn => 'Read-aloud on · voices and dictation';
 
   @override
-  String get workflowPresetVoiceSubtitle =>
-      'Speech on, inline context, mission-control browsing';
+  String get settingsVoiceSubtitleOff =>
+      'Read-aloud off · voices and dictation';
 
   @override
-  String get workflowPresetLowNoiseTitle => 'Low noise';
+  String get settingsSessionFoldersSubtitle =>
+      'Name and organize session folders';
 
   @override
-  String get workflowPresetLowNoiseSubtitle =>
-      'Hide tool chatter and inactive work by default';
+  String get settingsAutoArchiveSubtitle =>
+      'Archive idle sessions automatically';
 
   @override
-  String get workflowPresetDebugTitle => 'Debug';
+  String get developerToolCallDebug => 'Tool call debug';
 
   @override
-  String get workflowPresetDebugSubtitle =>
-      'Show internals, tool calls, todos, and developer logging';
+  String get developerToolCallDebugOn => 'Tool calls render as raw JSON';
 
   @override
-  String get workflowPresetActiveSuffix => '- Active';
+  String get developerToolCallDebugOff => 'Render every tool call as raw JSON';
 
   @override
-  String get workflowPresetAppliedSnack => 'preset applied';
+  String get developerPowerDiagnostics => 'Power diagnostics';
+
+  @override
+  String get developerPowerDiagnosticsDesc =>
+      'Track lifecycle, socket, HTTP, sync, and retry activity';
 
   @override
   String get settingsAccount => 'Account';
 
   @override
-  String get settingsAccountSubtitle => 'Manage your account details';
-
-  @override
   String get settingsAppearance => 'Appearance';
-
-  @override
-  String get settingsFeaturesSubtitle => 'Enable or disable app features';
 
   @override
   String get settingsDeveloper => 'Developer';
@@ -705,10 +702,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTermsOfService => 'Terms of Service';
 
   @override
-  String get settingsUsage => 'Usage';
+  String get settingsUsage => 'Token usage and cost';
 
   @override
-  String get settingsUsageSubtitle => 'View your API usage and costs';
+  String get settingsUsageSubtitle => 'Tokens and spend over time, by model';
 
   @override
   String get settingsProfiles => 'Profiles';
@@ -719,9 +716,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSignOutConfirm =>
       'Are you sure you want to sign out? Make sure you have backed up your secret key!';
-
-  @override
-  String get settingsAccountDangerZone => 'Danger Zone';
 
   @override
   String get settingsServerUrl => 'Server URL';
@@ -1212,6 +1206,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleRepository => 'By repository';
 
   @override
+  String get sessionsViewStyleAgent => 'By agent';
+
+  @override
+  String get sessionsViewStyleRecent => 'Recent activity';
+
+  @override
   String get sessionsViewStyleMissionControlHint =>
       'What needs you, then workspace activity';
 
@@ -1232,14 +1232,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Group sessions by git repository across machines and pods';
 
   @override
+  String get sessionsViewStyleAgentHint =>
+      'Sessions grouped by Claude, Codex and other agents';
+
+  @override
+  String get sessionsViewStyleRecentHint =>
+      'A timeline: today, yesterday, this week and older';
+
+  @override
   String get sessionsRepositoryUnlinked => 'Not in a git repository';
 
   @override
   String get sessionsViewStyleUnreadFocusHint =>
       'Unread and blocked first, then the rest';
-
-  @override
-  String get sessionsViewStyleTooltip => 'View';
 
   @override
   String get sessionsUnknownMachine => 'Unknown machine';
@@ -2171,15 +2176,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchLanguages => 'Search languages';
 
   @override
-  String get settingsBehavior => 'Behavior';
-
-  @override
-  String get settingsViewInline => 'View Inline';
-
-  @override
-  String get settingsViewInlineSubtitle => 'Show tool calls inline in chat';
-
-  @override
   String get settingsHideToolCalls => 'Hide Tool Calls';
 
   @override
@@ -2190,7 +2186,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsExpandTodos => 'Expand Todos';
 
   @override
-  String get settingsShowFlavorIcons => 'Show Flavor Icons';
+  String get settingsShowFlavorIcons => 'Show agent icons';
 
   @override
   String get settingsAvatarStyle => 'Avatar Style';
@@ -2393,16 +2389,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsClaudeCode => 'Claude Code';
 
   @override
-  String get settingsTextToSpeech => 'Text-to-Speech';
-
-  @override
   String get settingsGitHub => 'GitHub';
 
   @override
   String get settingsDeveloperEnabled => 'Enabled';
-
-  @override
-  String get featuresTitle => 'Features';
 
   @override
   String get devLogsTitle => 'Logs';
@@ -3437,19 +3427,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandSwitchToSession => 'Switch to session';
 
   @override
-  String get featuresSectionExperiments => 'Experiments';
-
-  @override
-  String get featuresSectionDisplay => 'Display';
-
-  @override
-  String get featuresCompactMode => 'Compact Mode';
-
-  @override
   String get featuresShowLineNumbers => 'Show Line Numbers';
-
-  @override
-  String get featuresWrapLinesInDiffs => 'Wrap Lines in Diffs';
 
   @override
   String get serverCheckingConnection => 'Checking connection...';
@@ -3722,15 +3700,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Logs are only available when Developer Mode is enabled.\n\nGo to Settings and enable Developer Mode to view logs.';
 
   @override
-  String get featuresAlwaysShowContextSize => 'Always Show Context Size';
-
-  @override
-  String get featuresAlwaysShowContextSizeDesc => 'Show context window usage';
-
-  @override
-  String get featuresCompactModeDesc => 'Reduce spacing in chat messages';
-
-  @override
   String get codexSpeedUnknown => 'Speed';
 
   @override
@@ -3777,9 +3746,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get featuresShowLineNumbersDesc =>
       'Display line numbers in code blocks';
-
-  @override
-  String get featuresWrapLinesInDiffsDesc => 'Wrap long lines in diff views';
 
   @override
   String get machineLastKnownStatus => 'Last Known Status';
@@ -3882,9 +3848,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsNoSearchResults => 'No sessions match your search';
 
   @override
-  String get settingsConfigureVoiceAssistant => 'Configure voice assistant';
-
-  @override
   String get settingsDeveloperOptions => 'Developer Options';
 
   @override
@@ -3897,9 +3860,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsShowFlavorIconsSubtitle =>
       'Show AI provider icons in avatars';
-
-  @override
-  String get settingsTextToSpeechSubtitle => 'Read assistant messages aloud';
 
   @override
   String get settingsVoiceSettings => 'Voice Settings';
@@ -3942,12 +3902,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceSelectLanguageHint => 'Select the language for voice output.';
-
-  @override
-  String get featuresMarkdownCopyV2 => 'Markdown Copy V2';
-
-  @override
-  String get featuresMarkdownCopyV2Desc => 'Use improved markdown copying';
 
   @override
   String artifactsCount(int count) {
@@ -4091,7 +4045,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersConnectedAccounts => 'Connected accounts';
 
   @override
-  String get providersBuiltInLimits => 'Built-in limits';
+  String get providersBuiltInLimits => 'Limits and usage history';
 
   @override
   String providersAccountSummary(int count) {
@@ -5213,18 +5167,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsHealthMachinesOnline(int online, int total) {
     return '$online online of $total linked';
   }
-
-  @override
-  String settingsHealthSessionsOnline(int online, int total) {
-    return '$online online of $total total';
-  }
-
-  @override
-  String get settingsHealthAccountRecovery => 'Account and recovery';
-
-  @override
-  String get settingsHealthAccountRecoverySubtitle =>
-      'Backup key, linked devices, restore, and services';
 
   @override
   String get settingsHealthSocketGeneration => 'Socket generation';
