@@ -774,6 +774,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
+  /// Draft text style; also used to measure wrapping for inline expand.
+  TextStyle? _draftStyle(ThemeData theme) => theme.textTheme.bodyMedium
+      ?.copyWith(color: theme.colorScheme.onSurface, height: 1.45);
+
   Widget _buildTextField(
     BuildContext context, {
     OfflineSttDownloadProgress? downloadProgress,
@@ -786,10 +790,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final agentName = _composerAgentName(widget.sessionFlavor);
     // The draft is the clearest content in the composer.
     // Same 14sp as the transcript body and the picker sheets.
-    final draftStyle = theme.textTheme.bodyMedium?.copyWith(
-      color: cs.onSurface,
-      height: 1.45,
-    );
+    final draftStyle = _draftStyle(theme);
     // Centre a single line on the in-field actions (44dp button + 2dp
     // bottom inset) so the hint lines up with the mic and send buttons.
     final lineHeight = MediaQuery.textScalerOf(

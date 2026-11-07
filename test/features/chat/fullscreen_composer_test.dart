@@ -140,8 +140,19 @@ void main() {
     await tester.pump();
     expect(find.byType(ExpandComposerButton), findsNothing);
 
+    // Two lines still fit beside send without crowding it.
     controller.text = 'line one\nline two';
     await tester.pump();
+    expect(find.byType(ExpandComposerButton), findsNothing);
+
+    controller.text = 'line one\nline two\nline three';
+    await tester.pump();
+    // Expand sits in the top trailing corner, above send.
+    final expand = tester.getRect(find.byType(ExpandComposerButton));
+    final send = tester.getRect(
+      find.byKey(const ValueKey<String>('chat-composer-input-row')),
+    );
+    expect(expand.top, lessThan(send.center.dy));
     await tester.tap(find.byType(ExpandComposerButton));
     await tester.pumpAndSettle();
     expect(_fullscreenField(), findsOneWidget);

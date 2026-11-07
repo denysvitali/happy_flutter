@@ -13,8 +13,9 @@ String? _composerAgentName(String? flavor) => switch (flavor) {
   _ => null,
 };
 
-/// Drafts this long get an inline "open full editor" shortcut.
-const int _inlineExpandThreshold = 80;
+/// Drafts at least this many lines tall get the full-editor shortcut,
+/// pinned above send so both share one trailing column.
+const int _inlineExpandMinLines = 3;
 
 /// Hand-off composer layout: a rounded field that names the agent, with
 /// attach on its leading edge and dictation/send on its trailing edge.
@@ -50,43 +51,65 @@ extension _ChatInputPolishLayout on _ChatInputState {
         children: [
           if (widget.attachmentController != null)
             _buildAttachmentStrip(context),
-          Row(
-            key: const ValueKey<String>('chat-composer-input-row'),
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (widget.attachmentController != null)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(
-                    start: AppSpacing.xxs,
-                    bottom: AppSpacing.xxs,
-                  ),
-                  child: _ComposerAttachButton(
-                    enabled: !widget.isSending,
-                    onTap: () => _showAttachSheet(context),
-                  ),
-                ),
-              Expanded(
-                child: _isDownloadingModel
-                    ? ValueListenableBuilder<
-                        Map<String, OfflineSttDownloadProgress>
-                      >(
-                        valueListenable: _dictationService.progress,
-                        builder: (context, progressMap, _) => _buildTextField(
-                          context,
-                          downloadProgress:
-                              progressMap[_dictationService.selectedModelId],
-                        ),
-                      )
-                    : _buildTextField(context),
+          LayoutBuilder(
+            builder: (context, constraints) => ListenableBuilder(
+              listenable: _sendableListenable,
+              builder: (context, row) => Stack(
+                children: [
+                  row!,
+                  // Telegram-style: expand sits in the top trailing corner
+                  // above send, so long drafts keep the full text width.
+                  if (_showInlineExpand(context, constraints.maxWidth))
+                    PositionedDirectional(
+                      top: AppSpacing.xxs,
+                      end: AppSpacing.xxs,
+                      child: ExpandComposerButton(
+                        onTap: _openFullscreenComposer,
+                      ),
+                    ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsetsDirectional.only(
-                  end: AppSpacing.xxs,
-                  bottom: AppSpacing.xxs,
-                ),
-                child: _buildInFieldActions(context),
+              child: Row(
+                key: const ValueKey<String>('chat-composer-input-row'),
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (widget.attachmentController != null)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: AppSpacing.xxs,
+                        bottom: AppSpacing.xxs,
+                      ),
+                      child: _ComposerAttachButton(
+                        enabled: !widget.isSending,
+                        onTap: () => _showAttachSheet(context),
+                      ),
+                    ),
+                  Expanded(
+                    child: _isDownloadingModel
+                        ? ValueListenableBuilder<
+                            Map<String, OfflineSttDownloadProgress>
+                          >(
+                            valueListenable: _dictationService.progress,
+                            builder: (context, progressMap, _) =>
+                                _buildTextField(
+                                  context,
+                                  downloadProgress:
+                                      progressMap[_dictationService
+                                          .selectedModelId],
+                                ),
+                          )
+                        : _buildTextField(context),
+                  ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      end: AppSpacing.xxs,
+                      bottom: AppSpacing.xxs,
+                    ),
+                    child: _buildInFieldActions(context),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -111,8 +134,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
   }
 
   /// Dictation while the field is empty (or busy recording); queue and
-  /// send once there is a draft. Expand lives on the settings line so it
-  /// never narrows the text field.
+  /// send once there is a draft.
   Widget _buildInFieldActions(BuildContext context) {
     return ListenableBuilder(
       listenable: _sendableListenable,
@@ -152,6 +174,31 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
   }
 
+  /// Whether the draft wraps to [_inlineExpandMinLines]+ lines in the
+  /// inline field, i.e. tall enough for expand to sit above send.
+  bool _showInlineExpand(BuildContext context, double rowWidth) {
+    if (!_hasSendableContent && !widget.isSending) return false;
+    final text = widget.controller.text;
+    if (text.isEmpty) return false;
+    final hasAttach = widget.attachmentController != null;
+    final textWidth =
+        rowWidth -
+        (hasAttach ? AppTouchTarget.min + AppSpacing.xxs : 0) -
+        (hasAttach ? AppSpacing.xxs : AppSpacing.lg) -
+        AppSpacing.xs -
+        (AppTouchTarget.min + AppSpacing.xxs) -
+        AppBorder.thin;
+    if (textWidth <= 0) return false;
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: _draftStyle(Theme.of(context))),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: textWidth);
+    final lines = painter.computeLineMetrics().length;
+    painter.dispose();
+    return lines >= _inlineExpandMinLines;
+  }
+
   Widget _dictationButton() {
     if (!_isDownloadingModel) {
       return _DictationButton(
@@ -175,38 +222,17 @@ extension _ChatInputPolishLayout on _ChatInputState {
 
   /// The settings row under the field: approvals and model chips (the
   /// full lane on desktop) and the options button. Attach, dictate and
-  /// send live in the field row above, so this row stays quiet. Long
-  /// drafts add the full-editor button at the trailing end, under send,
-  /// instead of taking width from the text field.
+  /// send live in the field row above, so this row stays quiet.
   Widget _settingsLine(BuildContext context) {
     return Padding(
       key: const ValueKey<String>('chat-composer-toolbar'),
       padding: const EdgeInsetsDirectional.only(
         start: AppSpacing.sm,
-        end: AppSpacing.xxs,
         top: AppSpacing.xxs,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _settingsLane(
-              context,
-              compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
-            ),
-          ),
-          ListenableBuilder(
-            listenable: _sendableListenable,
-            builder: (context, _) {
-              final text = widget.controller.text;
-              final longDraft =
-                  text.length > _inlineExpandThreshold || text.contains('\n');
-              if (!longDraft || !(_hasSendableContent || widget.isSending)) {
-                return const SizedBox.shrink();
-              }
-              return ExpandComposerButton(onTap: _openFullscreenComposer);
-            },
-          ),
-        ],
+      child: _settingsLane(
+        context,
+        compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
       ),
     );
   }
