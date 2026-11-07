@@ -118,6 +118,15 @@ Settings search/Zen filter labels are now localized, and `copyWithFeedback`
 reports truncated or failed clipboard writes (artifacts, files, code blocks,
 messages) instead of claiming success; regression tests added for CI.
 
+Settings reorganization (2026-11-07): the hub drops duplicated entries
+(account ×3, machines ×2, TTS ×2, usage in two tabs) and the Features junk
+drawer. Five toggles that nothing read (view inline, compact mode, wrap diffs,
+always show context, markdown copy v2) are no longer shown; their synced keys
+remain for compatibility. Session view style lives only in Settings and adds
+**By agent** and **Recent activity** board layouts. The view-style sheet now
+scrolls instead of overflowing. Hub, board-grouping and developer regressions
+pass locally on single files; CI and device acceptance pending.
+
 Consistency pass (2026-11-06): yes/no confirmations share `showConfirmDialog`
 (Cancel left, verb-labelled confirm right, error-styled when destructive);
 failure toasts share one error tone and repeatable toasts replace the visible
@@ -147,8 +156,8 @@ workspaces, Advanced launch controls, and ordered attention reasons are
 implemented. Widget regressions are added; CI and device acceptance remain
 pending. Message delivery and canonical `localId` behavior are unchanged.
 
-Sessions tab: an app-bar view switcher exposes every layout in one tap. All
-five layouts now share one visual language: sentence-case group headers, the
+Sessions tab: the layout is chosen only in Settings → Sessions → Session view
+style (the app-bar switcher was removed 2026-11-07). All layouts share one visual language: sentence-case group headers, the
 compact Mission Control row (harness mark and age for quiet rows instead of a
 redundant "Quiet" pill, no workspace echo of the title) and inline Allow/Deny
 on blocked rows. **Status board** folds long Quiet lanes and says "All clear"
@@ -368,7 +377,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | API | Done | All endpoints with 250+ tests |
 | Sessions | Done | Date headers ("Today", "Yesterday"), session cards, status indicators |
 | Session Creation | Done | Optimistic placeholder, 60s `_sessionSpawnedAt` registry, 3-attempt recovery in `sendMessage` |
-| Settings | Done | Language, voice, agents & tools, features, profiles, usage, developer, machines, changelog, Claude Connect; declarative hub with search; theme picker inline; server settings reachable from the hub (20 screens) |
+| Settings | Done | Declarative hub with search; each setting has one home: Status, Appearance, Chat, Sessions, Agents, Voice, Machines & server, Account, About, Developer. Token usage moved to the Providers tab; Features screen and workflow presets removed (2026-11-07) |
 | Tool Rendering | Done | 29 tool-specific views (incl. Codex MCP prompt view), KnownTools registry (60+ variants), PermissionFooter, elapsed time, auto-collapse, tool error display |
 | Logging | Done | `LoggerService` (5000-entry circular buffer), `DevLogsScreen` (filter/search/copy/clear), Sentry forwarding, `RemoteLogger`, `ErrorBoundary`, `ErrorSnackbarManager` |
 | UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |

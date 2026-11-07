@@ -38,9 +38,9 @@ required for keyboard, large-text, screen-reader, and navigation behavior.
   an explicit user dismissal, and desktop chat retains its resizable inspector.
 - Stop requests have an explicit `Stopping` state, prevent repeated actions,
   and offer recovery after an acknowledgement failure.
-- Workflow presets apply atomically in one settings sync, and Settings health
-  reacts to network, socket, and sync activity instead of reading a stale
-  singleton snapshot.
+- Settings health reacts to network, socket, and sync activity instead of
+  reading a stale singleton snapshot. (Workflow presets were removed in the
+  2026-11-07 settings reorganization.)
 
 The original findings below are retained as historical audit evidence.
 
