@@ -75,6 +75,7 @@ import 'tools/known_tools.dart';
 import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_agent_scope.dart';
+import 'widgets/frosted_bottom_dock.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_messages_body.dart';
@@ -236,6 +237,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final ValueNotifier<int> _messagePaneRevision = ValueNotifier<int>(0);
   late final ValueNotifier<int> _chatChromeRevision = ValueNotifier<int>(0);
   late final ValueNotifier<int> _composerRevision = ValueNotifier<int>(0);
+
+  /// Height of the frosted bottom dock the transcript scrolls under.
+  final ValueNotifier<double> _dockInset = ValueNotifier<double>(0);
   bool get _autoScroll => _autoScrollNotifier.value;
   set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
@@ -343,6 +347,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   double? _lastScrollMaxExtent;
   double? _lastScrollPixels;
   static const double _historyLoadThreshold = 300;
+
+  /// True while a search reveal animates the list; see `_onScroll`.
+  bool _revealScrollInFlight = false;
 
   /// Whether the user currently has a finger (or pointer) on the list.
   ///
@@ -615,6 +622,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messagePaneRevision.dispose();
     _chatChromeRevision.dispose();
     _composerRevision.dispose();
+    _dockInset.dispose();
     TtsService().stop();
     // Allow the session activity notification to surface again now
     // that the user has left the chat screen.
@@ -1250,6 +1258,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _canTriggerHistoryLoad &&
         !_isAdjustingHistoryScroll &&
         !_restoringHistoryAnchor &&
+        !_revealScrollInFlight &&
         pos.isScrollingNotifier.value) {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastLoadMoreMs >= 200) {
@@ -1669,12 +1678,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
             return;
           }
-          await Scrollable.ensureVisible(
-            rowContext,
-            alignment: 0.35,
-            duration: AppDuration.fast,
-            curve: AppCurve.enter,
-          );
+          // A programmatic reveal is not a user scroll toward history:
+          // reaching the edge on the way must not page in older rows.
+          _revealScrollInFlight = true;
+          try {
+            await Scrollable.ensureVisible(
+              rowContext,
+              alignment: 0.35,
+              duration: AppDuration.fast,
+              curve: AppCurve.enter,
+            );
+          } finally {
+            _revealScrollInFlight = false;
+          }
           return;
         }
         if (ratio < 0) {
@@ -2280,183 +2296,200 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // chat list. Hides itself when no sub-agents are present.
         SubAgentStatusBanner(sessionId: widget.sessionId),
         Expanded(
-          child: ValueListenableBuilder<int>(
-            valueListenable: _messagePaneRevision,
-            builder: (context, revision, child) {
-              return Stack(
-                children: [
-                  AnimatedSwitcher(
-                    duration: AppDuration.normal,
-                    // Streaming replaces the same logical list pane; a new
-                    // key would force the old transcript subtree to remain
-                    // alive through an unnecessary cross-fade on every tick.
-                    key: const ValueKey('chat-messages-body'),
-                    child: ChatAgentScope(
-                      value: _agentContext(context),
-                      child: ChatMessagesBody(
-                        isLoading: _isLoadingMessages,
-                        messages: _messages,
-                        loadFailed: _loadFailed,
-                        onRetry: _retry,
-                        onSuggestionTap: _onSuggestionTap,
-                        emptyView: _messages.isEmpty
-                            ? _buildKubernetesStartupPanel(fillHeight: true)
-                            : null,
-                        messageList: _buildMessageList(
-                          hideToolCalls: hideToolCalls,
+          child: FrostedBottomDock(
+            inset: _dockInset,
+            body: ValueListenableBuilder<int>(
+              valueListenable: _messagePaneRevision,
+              builder: (context, revision, child) {
+                return Stack(
+                  children: [
+                    AnimatedSwitcher(
+                      duration: AppDuration.normal,
+                      // Streaming replaces the same logical list pane; a new
+                      // key would force the old transcript subtree to remain
+                      // alive through an unnecessary cross-fade on every tick.
+                      key: const ValueKey('chat-messages-body'),
+                      child: ChatAgentScope(
+                        value: _agentContext(context),
+                        child: ChatMessagesBody(
+                          isLoading: _isLoadingMessages,
+                          messages: _messages,
+                          loadFailed: _loadFailed,
+                          onRetry: _retry,
+                          onSuggestionTap: _onSuggestionTap,
+                          emptyView: _messages.isEmpty
+                              ? _buildKubernetesStartupPanel(fillHeight: true)
+                              : null,
+                          messageList: _buildMessageList(
+                            hideToolCalls: hideToolCalls,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // The scroll-to-bottom pill listens to
-                  // _autoScrollNotifier directly so scroll events do NOT
-                  // trigger a full _ChatScreenState rebuild. See
-                  // _chat_scroll_to_bottom_overlay.dart.
-                  _ChatScrollToBottomOverlay(
-                    autoScrollNotifier: _autoScrollNotifier,
-                    isLoading: _isLoadingMessages,
-                    unreadCount: sessionUiEntry.unreadCount,
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      _autoScroll = true;
-                      _scrollToBottom();
-                    },
-                  ),
-                  const Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      child: SyncProgressBar(scope: SyncStatusScope.chat),
+                    // The scroll-to-bottom pill listens to
+                    // _autoScrollNotifier directly so scroll events do NOT
+                    // trigger a full _ChatScreenState rebuild. See
+                    // _chat_scroll_to_bottom_overlay.dart.
+                    _ChatScrollToBottomOverlay(
+                      bottomInset: _dockInset,
+                      autoScrollNotifier: _autoScrollNotifier,
+                      isLoading: _isLoadingMessages,
+                      unreadCount: sessionUiEntry.unreadCount,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _autoScroll = true;
+                        _scrollToBottom();
+                      },
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        ValueListenableBuilder<int>(
-          valueListenable: _chatChromeRevision,
-          builder: (context, revision, child) => _buildActivityChrome(),
-        ),
-        if (_pendingHarModel case final model?)
-          AppInlineRow(
-            key: const ValueKey('har-pending-model'),
-            leading: Icon(
-              _harModelSwitchFailed ? Icons.error_outline : Icons.schedule,
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: IgnorePointer(
+                        child: SyncProgressBar(scope: SyncStatusScope.chat),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-            action: Row(
+            dock: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_harModelSwitchFailed)
-                  AppInlineAction(
-                    label: 'Retry',
-                    onPressed: () => _switchHarModel(model),
+                ValueListenableBuilder<int>(
+                  valueListenable: _chatChromeRevision,
+                  builder: (context, revision, child) => _buildActivityChrome(),
+                ),
+                if (_pendingHarModel case final model?)
+                  AppInlineRow(
+                    key: const ValueKey('har-pending-model'),
+                    leading: Icon(
+                      _harModelSwitchFailed
+                          ? Icons.error_outline
+                          : Icons.schedule,
+                    ),
+                    action: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_harModelSwitchFailed)
+                          AppInlineAction(
+                            label: 'Retry',
+                            onPressed: () => _switchHarModel(model),
+                          ),
+                        AppInlineAction(
+                          label: 'Cancel',
+                          onPressed: _isSwitchingHarModel
+                              ? null
+                              : () {
+                                  if (_harModelSwitchFailed &&
+                                      (_session
+                                              ?.metadata
+                                              ?.supportsHarModelSwitchBarrier ??
+                                          false)) {
+                                    // A lost RPC reply can leave the process changed.
+                                    // Confirm the previous model before unblocking.
+                                    unawaited(_switchHarModel(_modelMode));
+                                  } else {
+                                    setState(() {
+                                      _pendingHarModel = null;
+                                      _harModelSwitchFailed = false;
+                                    });
+                                  }
+                                },
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _harModelSwitchFailed
+                          ? !(_session
+                                        ?.metadata
+                                        ?.supportsHarModelSwitchBarrier ??
+                                    false)
+                                ? 'Update Happy CLI on this machine and start a new Har '
+                                      'session to change models safely.'
+                                : '${model.label} could not be applied. Retry or cancel '
+                                      'before sending.'
+                          : _isSwitchingHarModel
+                          ? 'Applying ${model.label}…'
+                          : '${model.label} will apply when this session is idle.',
+                    ),
                   ),
-                AppInlineAction(
-                  label: 'Cancel',
-                  onPressed: _isSwitchingHarModel
-                      ? null
-                      : () {
-                          if (_harModelSwitchFailed &&
-                              (_session
-                                      ?.metadata
-                                      ?.supportsHarModelSwitchBarrier ??
-                                  false)) {
-                            // A lost RPC reply can leave the process changed.
-                            // Confirm the previous model before unblocking.
-                            unawaited(_switchHarModel(_modelMode));
-                          } else {
-                            setState(() {
-                              _pendingHarModel = null;
-                              _harModelSwitchFailed = false;
-                            });
-                          }
-                        },
+                ValueListenableBuilder<int>(
+                  valueListenable: _composerRevision,
+                  builder: (context, revision, child) => ChatInput(
+                    sessionId: widget.sessionId,
+                    controller: _controller,
+                    attachmentController:
+                        const {
+                          'har',
+                          'opencode',
+                        }.contains(_session?.metadata?.flavor)
+                        ? null
+                        : _attachmentController,
+                    onSend: hasActiveCodexTurn
+                        ? () => _sendMessage(codexDeliveryMode: 'active-turn')
+                        : _sendMessage,
+                    onQueueNextTurn: hasActiveCodexTurn
+                        ? () => _sendMessage(codexDeliveryMode: 'next-turn')
+                        : null,
+                    isSending: _isSending,
+                    isSendDisabled:
+                        _harModelBlocksSend ||
+                        (_sessionSendIssue?.blocksSend ?? false),
+                    permissionMode: _permissionMode,
+                    onPermissionModeChanged: _onPermissionModeChanged,
+                    modelMode: _modelMode,
+                    resolvedModelLabel:
+                        (_session?.metadata?.flavor == 'har' ||
+                            _session?.metadata?.flavor == 'opencode' &&
+                                !_userOverrodeModelOrProfile)
+                        ? (_modelMode.isDefault
+                              ? _session?.metadata?.model
+                              : _modelMode.label)
+                        : _profileModelOverride,
+                    availableModels: availableModels,
+                    modelCatalogNotice:
+                        _session?.metadata?.flavor == 'codex' &&
+                            _codexModelCatalogContext(_session) ==
+                                _codexModelCatalogNoticeContext
+                        ? _codexModelCatalogNotice
+                        : null,
+                    onRefreshModels:
+                        _session?.metadata?.flavor == 'codex' &&
+                            (_selectedProfile?.models.isEmpty ?? true) &&
+                            !profileOwnsRawCodexModel(_selectedProfile)
+                        ? _refreshModelPickerCatalog
+                        : null,
+                    sessionFlavor: _session?.metadata?.flavor,
+                    codexFastMode:
+                        CodexSpeedSelection().read(widget.sessionId) ??
+                        _session?.metadata?.codexFastMode,
+                    onCodexFastModeChanged: _usageProfileResolved
+                        ? _onCodexFastModeChanged
+                        : null,
+                    availableSlashCommands:
+                        _session?.metadata?.slashCommands ?? const [],
+                    onFileSuggestionsRequested: _loadFileSuggestions,
+                    onModelModeChanged: _onModelModeChanged,
+                    selectedProfile: _selectedProfile,
+                    availableProfiles: _availableProfiles,
+                    onProfileChanged: _onProfileChanged,
+                    machineName: _session?.metadata?.host,
+                    currentPath: _session?.metadata?.path,
+                    contextSize: _contextUsageForComposer(
+                      sessionUiEntry.sessionUsage,
+                    ).contextSize,
+                    maxContext: _contextUsageForComposer(
+                      sessionUiEntry.sessionUsage,
+                    ).contextWindow,
+                    isSessionOnline: _session?.isPresenceOnline ?? false,
+                    enterToSend: enterToSend,
+                    lastDeliveryStatus:
+                        _latestUserStatusMessage?['sendStatus'] as String?,
+                  ),
                 ),
               ],
             ),
-            child: Text(
-              _harModelSwitchFailed
-                  ? !(_session?.metadata?.supportsHarModelSwitchBarrier ??
-                            false)
-                        ? 'Update Happy CLI on this machine and start a new Har '
-                              'session to change models safely.'
-                        : '${model.label} could not be applied. Retry or cancel '
-                              'before sending.'
-                  : _isSwitchingHarModel
-                  ? 'Applying ${model.label}…'
-                  : '${model.label} will apply when this session is idle.',
-            ),
-          ),
-        ValueListenableBuilder<int>(
-          valueListenable: _composerRevision,
-          builder: (context, revision, child) => ChatInput(
-            sessionId: widget.sessionId,
-            controller: _controller,
-            attachmentController:
-                const {'har', 'opencode'}.contains(_session?.metadata?.flavor)
-                ? null
-                : _attachmentController,
-            onSend: hasActiveCodexTurn
-                ? () => _sendMessage(codexDeliveryMode: 'active-turn')
-                : _sendMessage,
-            onQueueNextTurn: hasActiveCodexTurn
-                ? () => _sendMessage(codexDeliveryMode: 'next-turn')
-                : null,
-            isSending: _isSending,
-            isSendDisabled:
-                _harModelBlocksSend || (_sessionSendIssue?.blocksSend ?? false),
-            permissionMode: _permissionMode,
-            onPermissionModeChanged: _onPermissionModeChanged,
-            modelMode: _modelMode,
-            resolvedModelLabel:
-                (_session?.metadata?.flavor == 'har' ||
-                    _session?.metadata?.flavor == 'opencode' &&
-                        !_userOverrodeModelOrProfile)
-                ? (_modelMode.isDefault
-                      ? _session?.metadata?.model
-                      : _modelMode.label)
-                : _profileModelOverride,
-            availableModels: availableModels,
-            modelCatalogNotice:
-                _session?.metadata?.flavor == 'codex' &&
-                    _codexModelCatalogContext(_session) ==
-                        _codexModelCatalogNoticeContext
-                ? _codexModelCatalogNotice
-                : null,
-            onRefreshModels:
-                _session?.metadata?.flavor == 'codex' &&
-                    (_selectedProfile?.models.isEmpty ?? true) &&
-                    !profileOwnsRawCodexModel(_selectedProfile)
-                ? _refreshModelPickerCatalog
-                : null,
-            sessionFlavor: _session?.metadata?.flavor,
-            codexFastMode:
-                CodexSpeedSelection().read(widget.sessionId) ??
-                _session?.metadata?.codexFastMode,
-            onCodexFastModeChanged: _usageProfileResolved
-                ? _onCodexFastModeChanged
-                : null,
-            availableSlashCommands:
-                _session?.metadata?.slashCommands ?? const [],
-            onFileSuggestionsRequested: _loadFileSuggestions,
-            onModelModeChanged: _onModelModeChanged,
-            selectedProfile: _selectedProfile,
-            availableProfiles: _availableProfiles,
-            onProfileChanged: _onProfileChanged,
-            machineName: _session?.metadata?.host,
-            currentPath: _session?.metadata?.path,
-            contextSize: _contextUsageForComposer(
-              sessionUiEntry.sessionUsage,
-            ).contextSize,
-            maxContext: _contextUsageForComposer(
-              sessionUiEntry.sessionUsage,
-            ).contextWindow,
-            isSessionOnline: _session?.isPresenceOnline ?? false,
-            enterToSend: enterToSend,
-            lastDeliveryStatus:
-                _latestUserStatusMessage?['sendStatus'] as String?,
           ),
         ),
       ],

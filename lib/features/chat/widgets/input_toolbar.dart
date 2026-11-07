@@ -221,10 +221,20 @@ class InputToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On mobile approvals live in the options sheet; a mode that skips
+    // confirmation still shows its icon and colour on the options button
+    // so a risky state is never hidden.
+    final mode = permissionMode ?? perm.PermissionMode.defaultMode;
+    final flagRisk =
+        compact && onPermissionModeChanged != null && mode.skipsConfirmation;
     final options = ComposerIconChip(
       key: const ValueKey('composer-options-button'),
-      icon: Icons.tune_rounded,
-      tooltip: context.l10n.chatComposerOptions,
+      icon: flagRisk ? mode.icon : Icons.tune_rounded,
+      iconColor: flagRisk ? mode.color : null,
+      tooltip: flagRisk
+          ? '${context.l10n.chatComposerOptions} · '
+                '${mode.localizedDisplayName(context.l10n)}'
+          : context.l10n.chatComposerOptions,
       onTap: onShowOptions ?? () => _showOptions(context),
     );
     if (sessionFlavor == 'har') {
@@ -324,39 +334,11 @@ class InputToolbar extends StatelessWidget {
       child: lane,
     );
     if (!compact && onShowOptions == null) return scrollingLane;
-    if (!compact || onPermissionModeChanged == null) {
-      return Row(
-        children: [
-          Flexible(child: scrollingLane),
-          options,
-        ],
-      );
-    }
-    // Approvals keep their natural width, the model lane takes what is
-    // left and options follow the last chip instead of floating mid-row.
-    return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: math.max(
-                0,
-                constraints.maxWidth - AppTouchTarget.min - _chipGap,
-              ),
-            ),
-            child: perm.PermissionModeSelector(
-              selectedMode: permissionMode,
-              onModeChanged: onPermissionModeChanged,
-              availableModes: sessionFlavor == 'codex'
-                  ? perm.PermissionModeExtension.codexModes
-                  : perm.PermissionModeExtension.claudeAgyModes,
-            ),
-          ),
-          const SizedBox(width: _chipGap),
-          Flexible(child: scrollingLane),
-          options,
-        ],
-      ),
+    return Row(
+      children: [
+        Flexible(child: scrollingLane),
+        options,
+      ],
     );
   }
 

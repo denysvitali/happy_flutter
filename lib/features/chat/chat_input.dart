@@ -709,30 +709,23 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Widget _buildInputContainer(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      // No top rule: the composer card is the single boundary.
-      decoration: BoxDecoration(color: colorScheme.surface),
-      child: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            key: const ValueKey<String>('chat-composer-content'),
-            constraints: const BoxConstraints(
-              maxWidth: AppBreakpoint.contentMax,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.xs,
-                ),
-                child: _buildCardInputArea(context),
+    // Transparent: the chat's frosted bottom dock paints behind it.
+    return SafeArea(
+      top: false,
+      child: Center(
+        child: ConstrainedBox(
+          key: const ValueKey<String>('chat-composer-content'),
+          constraints: const BoxConstraints(maxWidth: AppBreakpoint.contentMax),
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.xs,
               ),
+              child: _buildCardInputArea(context),
             ),
           ),
         ),

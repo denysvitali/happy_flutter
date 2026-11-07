@@ -146,14 +146,15 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // in-list typing orb duplicated that signal: while thinking, an
     // unlabeled animated blob floated above the newest row saying the
     // same thing the labelled bar below the list already said.
-    final listView = ListView.builder(
+    // The newest row scrolls up from under the frosted bottom dock.
+    Widget buildListView(double dockInset) => ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.xs,
         AppSpacing.xsm,
         AppSpacing.xs,
-        AppSpacing.xs,
+        AppSpacing.xs + dockInset,
       ),
       // Each message item is wrapped in RepaintBoundary already;
       // skip the default automatic wrappers to reduce widget depth.
@@ -203,7 +204,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // never dispose the user's own scroll activity mid-gesture.
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScrollNotification,
-        child: listView,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _dockInset,
+          builder: (context, inset, _) => buildListView(inset),
+        ),
       ),
     );
     stopwatch.stop();

@@ -186,12 +186,16 @@ class ComposerIconChip extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.iconColor,
     super.key,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+
+  /// Overrides the default muted glyph colour (e.g. a risky mode's tint).
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +234,7 @@ class ComposerIconChip extends StatelessWidget {
                     child: Icon(
                       icon,
                       size: AppIconSize.sm,
-                      color: cs.onSurfaceVariant,
+                      color: iconColor ?? cs.onSurfaceVariant,
                     ),
                   ),
                 ),

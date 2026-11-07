@@ -23,7 +23,12 @@ class _ChatScrollToBottomOverlay extends StatelessWidget {
     required this.isLoading,
     required this.unreadCount,
     required this.onTap,
+    this.bottomInset,
   });
+
+  /// Height of the frosted dock covering the list's bottom edge; the pill
+  /// floats just above it.
+  final ValueListenable<double>? bottomInset;
 
   /// Whether the message list is at the bottom. The overlay hides
   /// itself when this is `true`.
@@ -63,8 +68,13 @@ class _ChatScrollToBottomOverlay extends StatelessWidget {
                   curve: AppCurve.standard,
                   child: Align(
                     alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: ValueListenableBuilder<double>(
+                      valueListenable:
+                          bottomInset ?? const AlwaysStoppedAnimation(0),
+                      builder: (context, inset, child) => Padding(
+                        padding: EdgeInsets.only(bottom: AppSpacing.md + inset),
+                        child: child,
+                      ),
                       child: ScrollToBottomPill(
                         onTap: onTap,
                         unreadCount: unreadCount,

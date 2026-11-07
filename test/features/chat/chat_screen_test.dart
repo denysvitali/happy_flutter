@@ -2966,7 +2966,8 @@ void main() {
         expect(sync.messagesForSession('session_1').length, 2 * cap);
         expect(sync.scrollbackGapBeforeMessageId('session_1'), isNotNull);
 
-        // Search expands local presentation to all resident rows, then close it.
+        // Search expands local presentation to all resident rows, then close
+        // it. The animated reveal must not itself trigger an older-page load.
         await tester.tap(find.byIcon(Icons.search_rounded));
         await tester.pumpAndSettle();
         await tester.enterText(
@@ -3283,6 +3284,12 @@ void main() {
 
         final barrier = Completer<void>();
         ChatScreen.testInitialSettingsApplyBarrier = () => barrier.future;
+
+        // Desktop width: the approvals chip sits inline only there (mobile
+        // reaches it through the options sheet).
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1440, 900);
+        addTearDown(tester.view.reset);
 
         await tester.pumpWidget(
           _buildApp(child: const ChatScreen(sessionId: 'session_1')),

@@ -134,6 +134,13 @@ one; full-panel error/loading states use `AppErrorState`/`AppLoadingIndicator`;
 icon-button tooltips are localized and guarded against literals. Regressions
 added for CI; device and screen-reader acceptance pending.
 
+Chat composer (2026-11-07): long drafts pin expand above send (Telegram-style)
+instead of narrowing the text; the bottom dock (activity bars and composer) is
+frosted glass the transcript scrolls under, padded by its measured height; on
+mobile the approvals chip moved into the options sheet, and a mode that skips
+confirmation tints the options button with its icon. Programmatic search
+reveals no longer page in older history. Device acceptance pending.
+
 Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
 background refresh (settings, machines, git status, unopened chats) and stayed
 through retry backoff, so resumes looked stalled after conversations were
