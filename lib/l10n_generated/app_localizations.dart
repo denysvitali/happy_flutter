@@ -9663,12 +9663,6 @@ abstract class AppLocalizations {
   /// **'tools'**
   String get chatWorkTools;
 
-  /// No description provided for @chatReviewTurn.
-  ///
-  /// In en, this message translates to:
-  /// **'Review results'**
-  String get chatReviewTurn;
-
   /// No description provided for @chatReviewAnswer.
   ///
   /// In en, this message translates to:
@@ -9710,6 +9704,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Profile and context'**
   String get chatComposerOptions;
+
+  /// No description provided for @chatComposerPlus.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach, model and options'**
+  String get chatComposerPlus;
 
   /// No description provided for @chatComposerContext.
   ///

@@ -20,6 +20,7 @@ class ModelChip extends StatelessWidget {
     required this.onTap,
     this.enabled = true,
     this.resolvedLabel,
+    this.plain = false,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class ModelChip extends StatelessWidget {
   final VoidCallback onTap;
   final bool enabled;
   final String? resolvedLabel;
+
+  /// Text-only rendering for the mobile status line under the composer.
+  final bool plain;
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +48,80 @@ class ModelChip extends StatelessWidget {
       excludeSemantics: true,
       child: Tooltip(
         message: enabled ? l10n.composerModelLabel : l10n.chatModelFixed,
-        child: ComposerSelectorChip(
-          onTap: enabled ? onTap : null,
-          label: value,
+        child: plain
+            ? _StatusSegment(
+                onTap: enabled ? onTap : null,
+                label: value,
+                trailingIcon: enabled ? Icons.expand_more_rounded : null,
+                strong: true,
+              )
+            : ComposerSelectorChip(onTap: enabled ? onTap : null, label: value),
+      ),
+    );
+  }
+}
+
+/// One tappable piece of the mobile status line: small text with an
+/// optional leading/trailing glyph, no pill chrome.
+class _StatusSegment extends StatelessWidget {
+  const _StatusSegment({
+    required this.label,
+    required this.onTap,
+    this.leadingIcon,
+    this.trailingIcon,
+    this.color,
+    this.strong = false,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final IconData? leadingIcon;
+  final IconData? trailingIcon;
+  final Color? color;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fg = color ?? theme.colorScheme.onSurfaceVariant;
+    final style = strong
+        ? AppText.label(theme, fg)
+        : AppText.secondary(theme, fg);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _statusLineHeight),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leadingIcon != null) ...[
+                Icon(leadingIcon, size: AppIconSize.xs, color: fg),
+                const SizedBox(width: AppSpacing.xxs),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  style: style,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (trailingIcon != null)
+                Icon(trailingIcon, size: AppIconSize.xs, color: fg),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+/// Tap height of the mobile status line under the composer.
+const double _statusLineHeight = 32;
 
 /// Inline chip for profile selection — shown next to
 /// model chip.
@@ -221,20 +291,11 @@ class InputToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On mobile approvals live in the options sheet; a mode that skips
-    // confirmation still shows its icon and colour on the options button
-    // so a risky state is never hidden.
-    final mode = permissionMode ?? perm.PermissionMode.defaultMode;
-    final flagRisk =
-        compact && onPermissionModeChanged != null && mode.skipsConfirmation;
+    if (compact) return _buildStatusLine(context);
     final options = ComposerIconChip(
       key: const ValueKey('composer-options-button'),
-      icon: flagRisk ? mode.icon : Icons.tune_rounded,
-      iconColor: flagRisk ? mode.color : null,
-      tooltip: flagRisk
-          ? '${context.l10n.chatComposerOptions} · '
-                '${mode.localizedDisplayName(context.l10n)}'
-          : context.l10n.chatComposerOptions,
+      icon: Icons.tune_rounded,
+      tooltip: context.l10n.chatComposerOptions,
       onTap: onShowOptions ?? () => _showOptions(context),
     );
     if (sessionFlavor == 'har') {
@@ -338,6 +399,99 @@ class InputToolbar extends StatelessWidget {
       children: [
         Flexible(child: scrollingLane),
         options,
+      ],
+    );
+  }
+
+  /// Mobile: a quiet status line instead of chips. The model switches in
+  /// place; everything else opens the composer's options sheet.
+  Widget _buildStatusLine(BuildContext context) {
+    final l10n = context.l10n;
+    final openOptions = onShowOptions ?? () => _showOptions(context);
+    final mode = permissionMode ?? perm.PermissionMode.defaultMode;
+    final dot = Text(
+      '·',
+      style: AppText.secondary(
+        Theme.of(context),
+        Theme.of(context).colorScheme.outline,
+      ),
+    );
+    final showContext =
+        contextSize != null &&
+        (contextSize! > 0 || sessionFlavor == 'prime-agent');
+    return Row(
+      key: const ValueKey('composer-status-line'),
+      children: [
+        // Model and approvals share the leading space; context stays
+        // pinned to the trailing edge under send.
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: ModelChip(
+                  model: modelMode ?? ChatModelMode.defaultModel,
+                  resolvedLabel: resolvedModelLabel,
+                  enabled: sessionFlavor == 'har'
+                      ? availableModels.isNotEmpty
+                      : availableModels.length > 1 || canRefreshModels,
+                  onTap: onShowModelPicker,
+                  plain: true,
+                ),
+              ),
+              if (sessionFlavor == 'har') ...[
+                dot,
+                const Flexible(
+                  child: _StatusSegment(
+                    leadingIcon: Icons.warning_amber_rounded,
+                    label: 'Host · approvals disabled',
+                    onTap: null,
+                  ),
+                ),
+              ] else if (onPermissionModeChanged != null) ...[
+                dot,
+                Flexible(
+                  child: _StatusSegment(
+                    key: const ValueKey('composer-status-approvals'),
+                    leadingIcon: mode.icon,
+                    label: mode.localizedDisplayName(l10n),
+                    color: mode.skipsConfirmation ? mode.color : null,
+                    onTap: openOptions,
+                  ),
+                ),
+              ],
+              if (sessionFlavor == 'codex' && (codexFastMode ?? false)) ...[
+                dot,
+                _StatusSegment(
+                  leadingIcon: Icons.bolt_rounded,
+                  label: l10n.codexSpeedFast,
+                  onTap: openOptions,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (showContext)
+          InkWell(
+            onTap: openOptions,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: _statusLineHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                child: Center(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: ContextSizeIndicator(
+                    contextSize: contextSize!,
+                    maxContext: sessionFlavor == 'prime-agent'
+                        ? maxContext
+                        : maxContext ?? ContextSizeIndicator.defaultMaxContext,
+                    showPercentage: sessionFlavor == 'prime-agent',
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

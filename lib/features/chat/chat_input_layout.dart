@@ -73,16 +73,27 @@ extension _ChatInputPolishLayout on _ChatInputState {
                 key: const ValueKey<String>('chat-composer-input-row'),
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (widget.attachmentController != null)
+                  if (_hasLeadingButton)
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
                         start: AppSpacing.xxs,
                         bottom: AppSpacing.xxs,
                       ),
-                      child: _ComposerAttachButton(
-                        enabled: !widget.isSending,
-                        onTap: () => _showAttachSheet(context),
-                      ),
+                      child: _compactComposer
+                          ? _ComposerAttachButton(
+                              buttonKey: 'composer-plus-button',
+                              icon: Icons.add_rounded,
+                              label: context.l10n.chatComposerPlus,
+                              enabled: true,
+                              onTap: () => _showComposerSheet(context),
+                            )
+                          : _ComposerAttachButton(
+                              buttonKey: 'composer-attach-button',
+                              icon: Icons.attach_file_rounded,
+                              label: context.l10n.chatAttachImage,
+                              enabled: !widget.isSending,
+                              onTap: () => _showAttachSheet(context),
+                            ),
                     ),
                   Expanded(
                     child: _isDownloadingModel
@@ -180,7 +191,7 @@ extension _ChatInputPolishLayout on _ChatInputState {
     if (!_hasSendableContent && !widget.isSending) return false;
     final text = widget.controller.text;
     if (text.isEmpty) return false;
-    final hasAttach = widget.attachmentController != null;
+    final hasAttach = _hasLeadingButton;
     final textWidth =
         rowWidth -
         (hasAttach ? AppTouchTarget.min + AppSpacing.xxs : 0) -
@@ -220,20 +231,17 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
   }
 
-  /// The settings row under the field: approvals and model chips (the
-  /// full lane on desktop) and the options button. Attach, dictate and
-  /// send live in the field row above, so this row stays quiet.
+  /// The line under the field: a tiny status line on mobile (model,
+  /// approvals, context), the full chip lane with an options button on
+  /// desktop. Attach, dictate and send live in the field row above.
   Widget _settingsLine(BuildContext context) {
     return Padding(
       key: const ValueKey<String>('chat-composer-toolbar'),
-      padding: const EdgeInsetsDirectional.only(
-        start: AppSpacing.sm,
-        top: AppSpacing.xxs,
+      padding: EdgeInsetsDirectional.only(
+        start: _compactComposer ? AppSpacing.md : AppSpacing.sm,
+        end: _compactComposer ? AppSpacing.sm : 0,
       ),
-      child: _settingsLane(
-        context,
-        compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
-      ),
+      child: _settingsLane(context, compact: _compactComposer),
     );
   }
 
@@ -293,9 +301,9 @@ extension _ChatInputPolishLayout on _ChatInputState {
     await _attachFrom(source);
   }
 
-  /// Options sheet behind the settings line's options button: everything
-  /// that shapes this conversation (approvals, model, speed, profile,
-  /// context, editor).
+  /// Options sheet behind the + button (mobile) or the settings line's
+  /// options button (desktop): attachments plus everything that shapes this
+  /// conversation (model, approvals, speed, profile, context, editor).
   Future<void> _showComposerSheet(BuildContext context) async {
     final l10n = context.l10n;
     final theme = Theme.of(context);
@@ -320,6 +328,17 @@ extension _ChatInputPolishLayout on _ChatInputState {
       ),
       builder: (sheetContext) {
         void pop(_ComposerSheetAction a) => Navigator.of(sheetContext).pop(a);
+        final modelTile = ListTile(
+          key: const ValueKey('composer-sheet-model'),
+          enabled: modelEnabled,
+          leading: const Icon(Icons.auto_awesome_outlined),
+          title: Text(l10n.polishComposerModel),
+          subtitle: Text(_modelLabel(context0)),
+          trailing: modelEnabled
+              ? const Icon(Icons.chevron_right_rounded)
+              : null,
+          onTap: () => pop(_ComposerSheetAction.model),
+        );
         Widget header(String text) => Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -339,7 +358,35 @@ extension _ChatInputPolishLayout on _ChatInputState {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_compactComposer &&
+                    widget.attachmentController != null &&
+                    !widget.isSending)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ComposerSheetTile(
+                            icon: Icons.photo_library_outlined,
+                            label: l10n.chatAttachFromGallery,
+                            onTap: () => pop(_ComposerSheetAction.gallery),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: _ComposerSheetTile(
+                            icon: Icons.photo_camera_outlined,
+                            label: l10n.chatAttachFromCamera,
+                            onTap: () => pop(_ComposerSheetAction.camera),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 header(l10n.polishComposerConversationSection),
+                modelTile,
                 if (showApprovals)
                   ListTile(
                     key: const ValueKey('composer-sheet-approvals'),
@@ -357,17 +404,6 @@ extension _ChatInputPolishLayout on _ChatInputState {
                     leading: const Icon(Icons.warning_amber_rounded),
                     title: const Text('Host · approvals disabled'),
                   ),
-                ListTile(
-                  key: const ValueKey('composer-sheet-model'),
-                  enabled: modelEnabled,
-                  leading: const Icon(Icons.auto_awesome_outlined),
-                  title: Text(l10n.polishComposerModel),
-                  subtitle: Text(_modelLabel(context0)),
-                  trailing: modelEnabled
-                      ? const Icon(Icons.chevron_right_rounded)
-                      : null,
-                  onTap: () => pop(_ComposerSheetAction.model),
-                ),
                 if (widget.sessionFlavor == 'codex')
                   ListTile(
                     leading: const Icon(Icons.bolt_outlined),
@@ -424,6 +460,10 @@ extension _ChatInputPolishLayout on _ChatInputState {
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case _ComposerSheetAction.gallery:
+        await _attachFrom(_AttachSource.gallery);
+      case _ComposerSheetAction.camera:
+        await _attachFrom(_AttachSource.camera);
       case _ComposerSheetAction.approvals:
         _showApprovalsSheet();
       case _ComposerSheetAction.model:
@@ -485,19 +525,35 @@ extension _ChatInputPolishLayout on _ChatInputState {
   }
 }
 
-enum _ComposerSheetAction { approvals, model, profile, fullEditor }
+enum _ComposerSheetAction {
+  gallery,
+  camera,
+  approvals,
+  model,
+  profile,
+  fullEditor,
+}
 
-/// Paperclip on the field's leading edge: attach photos to the message.
+/// Button on the field's leading edge: the + menu on mobile (attach,
+/// model, options), the paperclip on desktop.
 class _ComposerAttachButton extends StatelessWidget {
-  const _ComposerAttachButton({required this.enabled, required this.onTap});
+  const _ComposerAttachButton({
+    required this.buttonKey,
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+  });
 
+  final String buttonKey;
+  final IconData icon;
+  final String label;
   final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final label = context.l10n.chatAttachImage;
     // Same 44dp square as the dictation button so both edge icons share
     // one centre line and one inset from the pill's edge.
     return Semantics(
@@ -507,14 +563,14 @@ class _ComposerAttachButton extends StatelessWidget {
       child: Tooltip(
         message: label,
         child: InkResponse(
-          key: const ValueKey<String>('composer-attach-button'),
+          key: ValueKey<String>(buttonKey),
           onTap: enabled ? onTap : null,
           radius: AppTouchTarget.min / 2,
           child: SizedBox.square(
             dimension: AppTouchTarget.min,
             child: Center(
               child: Icon(
-                Icons.attach_file_rounded,
+                icon,
                 size: AppIconSize.xl,
                 color: enabled
                     ? cs.onSurfaceVariant

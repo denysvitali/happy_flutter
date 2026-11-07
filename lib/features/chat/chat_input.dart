@@ -767,6 +767,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
+  /// Mobile composers use one + menu (attach, model, options) and a quiet
+  /// status line instead of the desktop chip lane.
+  bool get _compactComposer =>
+      MediaQuery.sizeOf(context).width < AppBreakpoint.desktop;
+
+  /// Whether a button sits on the field's leading edge (+ or paperclip).
+  bool get _hasLeadingButton =>
+      _compactComposer || widget.attachmentController != null;
+
   /// Draft text style; also used to measure wrapping for inline expand.
   TextStyle? _draftStyle(ThemeData theme) => theme.textTheme.bodyMedium
       ?.copyWith(color: theme.colorScheme.onSurface, height: 1.45);
@@ -816,7 +825,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         disabledBorder: InputBorder.none,
         contentPadding: EdgeInsets.fromLTRB(
           // The paperclip already insets the text from the pill's edge.
-          widget.attachmentController != null ? AppSpacing.xxs : AppSpacing.lg,
+          _hasLeadingButton ? AppSpacing.xxs : AppSpacing.lg,
           verticalPadding,
           AppSpacing.xs,
           verticalPadding,

@@ -884,9 +884,7 @@ void main() {
     });
   }
 
-  testWidgets('result review waits for the turn to become idle', (
-    tester,
-  ) async {
+  testWidgets('no result review bar sits above the composer', (tester) async {
     sync.isInitialized = true;
     sync.messagesSync['session_1'] = InvalidateSync(() async {});
     sync.testSetSessionMessages('session_1', [
@@ -926,7 +924,8 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byKey(const ValueKey('turn-review-bar')), findsOneWidget);
+    expect(find.byKey(const ValueKey('turn-review-bar')), findsNothing);
+    expect(find.text('Review results'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

@@ -30,11 +30,9 @@ Widget _buildComposer({
   );
 }
 
-/// The full editor lives in the composer's options sheet.
+/// The full editor lives in the composer's + menu.
 Future<void> _openFullEditor(WidgetTester tester) async {
-  await tester.tap(
-    find.byKey(const ValueKey<String>('composer-options-button')),
-  );
+  await tester.tap(find.byKey(const ValueKey<String>('composer-plus-button')));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Open full editor'));
   await tester.pumpAndSettle();

@@ -137,9 +137,12 @@ added for CI; device and screen-reader acceptance pending.
 Chat composer (2026-11-07): long drafts pin expand above send (Telegram-style)
 instead of narrowing the text; the bottom dock (activity bars and composer) is
 frosted glass the transcript scrolls under, padded by its measured height; on
-mobile the approvals chip moved into the options sheet, and a mode that skips
-confirmation tints the options button with its icon. Programmatic search
-reveals no longer page in older history. Device acceptance pending.
+mobile the paperclip became a + menu (photo library, camera, model, approvals,
+profile, context, full editor) and the chip row became a slim status line
+(model switcher, approvals in its risk colour, context gauge); desktop keeps the
+paperclip and chip lane. The "Review results" bar above the composer is gone.
+Programmatic search reveals no longer page in older history. Device acceptance
+pending.
 
 Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
 background refresh (settings, machines, git status, unopened chats) and stayed

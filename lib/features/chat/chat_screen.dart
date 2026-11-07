@@ -99,7 +99,6 @@ import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
-import 'widgets/turn_review_bar.dart';
 import '../../core/utils/snack.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
@@ -2622,24 +2621,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onStop: _abortSession,
             workLabel: turn.summary.activityDetail(context.l10n),
             startedAt: turn.startedAt,
-          )
-        else if (!hasSendIssue &&
-            !hasPendingPermission &&
-            !(_session?.thinking ?? false) &&
-            turn.summary.running == 0 &&
-            turn.hasResult)
-          TurnReviewBar(
-            turn: turn,
-            sessionId: widget.sessionId,
-            onOpenTool: (tool) {
-              final id = tool['id'];
-              if (id is String) {
-                context.push(
-                  '/chat/${widget.sessionId}/message/$id',
-                  extra: tool,
-                );
-              }
-            },
           ),
       ],
     );

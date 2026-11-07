@@ -5555,9 +5555,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatWorkTools => 'tools';
 
   @override
-  String get chatReviewTurn => 'Review results';
-
-  @override
   String get chatReviewAnswer => 'Latest answer';
 
   @override
@@ -5578,6 +5575,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatComposerOptions => 'Profile and context';
+
+  @override
+  String get chatComposerPlus => 'Attach, model and options';
 
   @override
   String get chatComposerContext => 'Context usage';

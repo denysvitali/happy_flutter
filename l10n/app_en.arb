@@ -3019,7 +3019,6 @@
     }
   },
   "chatWorkTools": "tools",
-  "chatReviewTurn": "Review results",
   "chatReviewAnswer": "Latest answer",
   "chatReviewFiles": "Changed files",
   "chatReviewCommands": "Commands and checks",
@@ -3027,6 +3026,7 @@
   "chatReviewCommandsHint": "Review command output for check results.",
   "chatReviewNoAnswer": "No final answer recorded for this turn.",
   "chatComposerOptions": "Profile and context",
+  "chatComposerPlus": "Attach, model and options",
   "chatComposerContext": "Context usage",
   "chatSessionResultsReady": "Results ready",
   "chatSessionWorkingUnread": "Working · {count} unread",

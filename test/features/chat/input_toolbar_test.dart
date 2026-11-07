@@ -107,9 +107,7 @@ void main() {
     );
   });
 
-  testWidgets('compact options stay visible with a long model name', (
-    tester,
-  ) async {
+  testWidgets('compact status line fits a long model name', (tester) async {
     tester.view.physicalSize = const Size(320, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -125,9 +123,12 @@ void main() {
         ),
       ),
     );
-    final options = find.byKey(const ValueKey('composer-options-button'));
-    expect(tester.getBottomRight(options).dx, lessThanOrEqualTo(320));
-    await tester.tap(options);
+    expect(tester.takeException(), isNull);
+    // No chips or options button on mobile: the + menu holds options.
+    expect(find.byKey(const ValueKey('composer-options-button')), findsNothing);
+    final approvals = find.byKey(const ValueKey('composer-status-approvals'));
+    expect(tester.getBottomRight(approvals).dx, lessThanOrEqualTo(320));
+    await tester.tap(approvals);
     await tester.pumpAndSettle();
     expect(find.byType(ListTile), findsWidgets);
     expect(tester.takeException(), isNull);
@@ -285,7 +286,7 @@ void main() {
     expect(find.bySemanticsLabel(RegExp(r'^Model: GLM-5')), findsOneWidget);
   });
 
-  testWidgets('compact toolbar moves profile and context into options', (
+  testWidgets('compact status line shows model and context quietly', (
     tester,
   ) async {
     var profileOpened = 0;
@@ -300,13 +301,18 @@ void main() {
         ),
       ),
     );
-    expect(find.byType(ModelChip), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
+    expect(tester.widget<ModelChip>(find.byType(ModelChip)).plain, isTrue);
     expect(find.byType(ProfileChip), findsNothing);
-    expect(find.byType(ContextSizeIndicator), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('composer-options-button')));
+    expect(find.byType(ContextSizeIndicator), findsOneWidget);
+    // The line stays a single slim row.
+    expect(
+      tester.getSize(find.byKey(const ValueKey('composer-status-line'))).height,
+      lessThanOrEqualTo(32),
+    );
+    await tester.tap(find.byType(ContextSizeIndicator));
     await tester.pumpAndSettle();
     expect(find.text('Context usage'), findsOneWidget);
-    expect(find.byType(ContextSizeIndicator), findsOneWidget);
     await tester.tap(find.text('Default'));
     await tester.pumpAndSettle();
     expect(profileOpened, 1);

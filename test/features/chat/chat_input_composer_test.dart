@@ -727,11 +727,21 @@ void main() {
       find.descendant(of: composerCard, matching: find.byType(SendButton)),
       findsOneWidget,
     );
-    // There is no separate "+" beside the field; approvals, model and
-    // the single options button sit in one settings row underneath it.
-    expect(find.byIcon(Icons.add_rounded), findsNothing);
+    // Mobile: one + inside the field holds attach, model and options; a
+    // slim status line sits underneath with no separate options button.
+    expect(
+      find.descendant(
+        of: composerCard,
+        matching: find.byKey(const ValueKey<String>('composer-plus-button')),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey<String>('composer-options-button')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('composer-status-line')),
       findsOneWidget,
     );
     expect(
@@ -771,7 +781,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('paperclip attaches; options holds model and the full editor', (
+  testWidgets('+ menu holds attachments, model and the full editor', (
     tester,
   ) async {
     final controller = TextEditingController();
@@ -789,27 +799,66 @@ void main() {
     final composerCard = find.byKey(
       const ValueKey<String>('chat-composer-card'),
     );
-    final attach = find.byKey(const ValueKey<String>('composer-attach-button'));
-    expect(find.descendant(of: composerCard, matching: attach), findsOneWidget);
-    // Paperclip and mic share one centre line and one edge inset.
-    final card = tester.getRect(composerCard);
-    final clip = tester.getRect(find.byIcon(Icons.attach_file_rounded));
-    final mic = tester.getRect(find.byIcon(Icons.mic_none_rounded));
-    expect(clip.center.dy, moreOrLessEquals(mic.center.dy, epsilon: 0.5));
+    final plus = find.byKey(const ValueKey<String>('composer-plus-button'));
+    expect(find.descendant(of: composerCard, matching: plus), findsOneWidget);
     expect(
-      clip.left - card.left,
+      find.byKey(const ValueKey<String>('composer-attach-button')),
+      findsNothing,
+    );
+    // + and mic share one centre line and one edge inset.
+    final card = tester.getRect(composerCard);
+    final add = tester.getRect(find.byIcon(Icons.add_rounded));
+    final mic = tester.getRect(find.byIcon(Icons.mic_none_rounded));
+    expect(add.center.dy, moreOrLessEquals(mic.center.dy, epsilon: 0.5));
+    expect(
+      add.left - card.left,
       moreOrLessEquals(card.right - mic.right, epsilon: 0.5),
     );
-    await tester.tap(attach);
+    await tester.tap(plus);
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
     // Tiles hug their content instead of filling the sheet.
     final galleryTile = find.ancestor(
       of: find.byIcon(Icons.photo_library_outlined),
       matching: find.byType(InkWell),
     );
     expect(tester.getSize(galleryTile.first).height, lessThan(120));
-    expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-sheet-model')), findsOneWidget);
+    expect(find.text('Open full editor'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+    attachments.dispose();
+  });
+
+  testWidgets('desktop keeps the paperclip and the options button', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.reset);
+    final controller = TextEditingController();
+    final attachments = ChatAttachmentController();
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        attachmentController: attachments,
+        onSend: () {},
+      ),
+    );
+    await tester.pump();
+
+    final attach = find.byKey(const ValueKey<String>('composer-attach-button'));
+    expect(attach, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('composer-plus-button')),
+      findsNothing,
+    );
+    await tester.tap(attach);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.photo_library_outlined), findsOneWidget);
     expect(find.byKey(const ValueKey('composer-sheet-model')), findsNothing);
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
@@ -818,9 +867,9 @@ void main() {
       find.byKey(const ValueKey<String>('composer-options-button')),
     );
     await tester.pumpAndSettle();
+    // Desktop options skip the attach tiles: the paperclip owns them.
     expect(find.byIcon(Icons.photo_library_outlined), findsNothing);
     expect(find.byKey(const ValueKey('composer-sheet-model')), findsOneWidget);
-    expect(find.text('Open full editor'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
