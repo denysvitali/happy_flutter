@@ -1810,11 +1810,17 @@ what you have, you must use the options mode.
     int? timestamp;
     String? preview;
     String? role;
-    String? toolFallback;
-    String? toolFallbackRole;
-    int? toolFallbackTimestamp;
     var isError = false;
-    var sawToolCall = false;
+    // Fallback preview for when the newest row is a tool call or an
+    // agent event instead of text (first one found scanning backwards is
+    // the newest).
+    String? activityFallback;
+    String? activityFallbackRole;
+    int? activityFallbackTimestamp;
+    // Any work newer than a failure means the turn recovered: the agent
+    // retried, ran a tool, or emitted an event. The failure row then
+    // describes one step of a turn that is still going, not a dead end.
+    var recovered = false;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       if (msg['isSidechain'] == true) continue;
@@ -1822,17 +1828,38 @@ what you have, you must use the options mode.
       if (msgRole != MessageRole.agent && msgRole != MessageRole.user) {
         continue;
       }
+      final msgCreatedAt = WireParsers.parseInt(msg['createdAt']);
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
-        sawToolCall = true;
-        if (toolFallback == null) {
-          toolFallback = _toolPreview(msg);
-          toolFallbackRole = msgRole;
-          toolFallbackTimestamp = WireParsers.parseInt(msg['createdAt']);
+        recovered = true;
+        final label = _toolPreview(msg);
+        if (activityFallback == null && label != null) {
+          activityFallback = label;
+          activityFallbackRole = msgRole;
+          activityFallbackTimestamp = msgCreatedAt;
         }
         continue;
       }
-      if (kind == 'agent-event') continue;
+      if (kind == 'agent-event') {
+        final event = msg['event'];
+        final type = event is Map ? event['type'] : null;
+        final label = event is Map ? event['message'] as String? : null;
+        // Heartbeats and telemetry say the process is up, not that the
+        // turn moved past the failure — only rendered events count.
+        if (type == 'message' ||
+            type == 'unrendered' ||
+            type == 'limit-reached') {
+          recovered = true;
+          if (activityFallback == null &&
+              label != null &&
+              label.trim().isNotEmpty) {
+            activityFallback = _cleanPreviewText(label.trim());
+            activityFallbackRole = msgRole;
+            activityFallbackTimestamp = msgCreatedAt;
+          }
+        }
+        continue;
+      }
       if (msg['isThinking'] == true) continue;
       // Synthetic agent API errors render as error cards carrying the
       // human-readable failure in errorMessage — feed the error lane
@@ -1842,29 +1869,32 @@ what you have, you must use the options mode.
         if (msgRole == MessageRole.agent &&
             errorText != null &&
             errorText.trim().isNotEmpty) {
+          if (recovered) break;
           preview = _cleanPreviewText(errorText.trim());
           role = msgRole;
           isError = true;
-          timestamp = WireParsers.parseInt(msg['createdAt']);
+          timestamp = msgCreatedAt;
           break;
         }
         continue;
       }
       final text = (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) {
-        preview = _cleanPreviewText(text.trim());
-        role = msgRole;
         // Only text messages mark the error lane — a failed tool result
         // is routine agent self-correction, not a stalled session.
-        isError = msg['isError'] == true || text.trim().startsWith('API Error');
-        timestamp = WireParsers.parseInt(msg['createdAt']);
+        final failed =
+            msg['isError'] == true || text.trim().startsWith('API Error');
+        if (failed && recovered) break;
+        preview = _cleanPreviewText(text.trim());
+        role = msgRole;
+        isError = failed;
+        timestamp = msgCreatedAt;
         break;
       }
     }
-    preview ??= toolFallback;
-    role ??= toolFallbackRole ?? (sawToolCall ? MessageRole.agent : null);
-    timestamp ??= toolFallbackTimestamp;
-
+    preview ??= activityFallback;
+    role ??= activityFallbackRole;
+    timestamp ??= activityFallbackTimestamp;
     final result = (
       timestamp: timestamp,
       preview: preview,

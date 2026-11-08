@@ -39,7 +39,12 @@ MissionLane missionLaneFor(Session session, SessionUiEntry entry) {
   if (status.state == SessionState.permissionRequired) {
     return MissionLane.blocked;
   }
-  if (entry.lastMessageIsError) return MissionLane.error;
+  // A session that is working right now is never parked on an older
+  // failure: the agent recovered and kept going, and the error lane would
+  // freeze the row at "Failed" for the rest of the turn.
+  if (entry.lastMessageIsError && status.state != SessionState.thinking) {
+    return MissionLane.error;
+  }
   if (entry.unreadCount > 0) return MissionLane.unread;
   if (status.state == SessionState.thinking) return MissionLane.live;
   return MissionLane.quiet;

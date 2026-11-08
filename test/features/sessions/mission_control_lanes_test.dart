@@ -55,9 +55,11 @@ void main() {
     required int unread,
   }) {
     if (online && permission) return MissionLane.blocked;
-    if (error) return MissionLane.error;
+    // A working session is never parked on a stale error.
+    final working = online && thinking;
+    if (error && !working) return MissionLane.error;
     if (unread > 0) return MissionLane.unread;
-    if (online && thinking) return MissionLane.live;
+    if (working) return MissionLane.live;
     return MissionLane.quiet;
   }
 

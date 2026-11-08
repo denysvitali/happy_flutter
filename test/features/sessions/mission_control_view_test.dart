@@ -61,14 +61,23 @@ void main() {
       expect(missionLaneFor(session, entry), MissionLane.blocked);
     });
 
-    test('an error message outranks unread and thinking', () {
-      final session = _session(id: 's1b', thinking: true);
+    test('an error outranks unread when the agent has stopped', () {
+      final session = _session(id: 's1b');
       const entry = SessionUiEntry(
         unreadCount: 2,
         lastMessageIsError: true,
         lastMessagePreview: 'API Error: Request rejected',
       );
       expect(missionLaneFor(session, entry), MissionLane.error);
+    });
+
+    test('a working session is never parked on an older error', () {
+      final session = _session(id: 's1c', thinking: true);
+      const entry = SessionUiEntry(
+        lastMessageIsError: true,
+        lastMessagePreview: 'API Error: Server error mid-response.',
+      );
+      expect(missionLaneFor(session, entry), MissionLane.live);
     });
 
     test('unread outranks thinking', () {

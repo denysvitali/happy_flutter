@@ -1333,6 +1333,111 @@ void main() {
       expect(instance.getLastMessageIsError('s1'), isTrue);
     });
 
+    test('an error the agent worked past stops flagging the lane', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'user',
+          'kind': 'text',
+          'content': 'fix the sandbox clock',
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content':
+              'API Error: Server error mid-response. The response above may '
+              'be incomplete.',
+          'isError': true,
+          'createdAt': 2,
+        },
+        {
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': {
+            'type': 'message',
+            'message': 'Retrying API request (4/10)...',
+          },
+          'createdAt': 3,
+        },
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': {'command': 'mise run probe'},
+          'createdAt': 4,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isFalse);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'Used Bash · mise run probe',
+      );
+      expect(instance.getLastMessageRole('s1'), 'agent');
+    });
+
+    test('an error card the agent worked past stops flagging the lane', () {
+      instance.testSetSessionMessages('s1', [
+        {'role': 'user', 'kind': 'text', 'content': 'go', 'createdAt': 1},
+        {
+          'role': 'agent',
+          'kind': 'error',
+          'errorMessage': 'API Error: 529 overloaded',
+          'createdAt': 2,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'Recovered and finished the task.',
+          'createdAt': 3,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isFalse);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'Recovered and finished the task.',
+      );
+    });
+
+    test('the newest error still flags the lane when nothing followed it', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': {'command': 'mise run probe'},
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'API Error: 529 overloaded',
+          'isError': true,
+          'createdAt': 2,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isTrue);
+      expect(instance.getLastMessagePreview('s1'), 'API Error: 529 overloaded');
+    });
+
+    test('a non-rendered heartbeat does not retire an error', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'API Error: 529 overloaded',
+          'isError': true,
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': {'type': 'thinking'},
+          'createdAt': 2,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isTrue);
+    });
+
     test('a normal text message does not flag the error lane', () {
       instance.testSetSessionMessages('s1', [
         {

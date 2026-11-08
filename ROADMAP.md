@@ -144,6 +144,12 @@ paperclip and chip lane. The "Review results" bar above the composer is gone.
 Programmatic search reveals no longer page in older history. Device acceptance
 pending.
 
+Session list errors (2026-11-08): a failed message the turn worked past
+(retry notice, tool call, or newer assistant text after it) no longer pins the
+row to the error lane; a working session is live, not "Failed". The newest
+failure still wins when nothing followed it, and non-rendered heartbeats never
+retire an error. Regressions added; device acceptance pending.
+
 Foreground sync UI (2026-10-31): the full-width "Syncing" bar lit up for every
 background refresh (settings, machines, git status, unopened chats) and stayed
 through retry backoff, so resumes looked stalled after conversations were
