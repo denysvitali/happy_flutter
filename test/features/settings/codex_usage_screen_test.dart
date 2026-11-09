@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../helpers/find_text_ci.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -362,5 +363,60 @@ void main() {
         expect(find.text('Credits Available'), findsNothing);
       });
     }
+  });
+
+  testWidgets('formats plan, credit balance and yes/no states for reading', (
+    tester,
+  ) async {
+    addTearDown(() => sync.testMachineRPCOverride = null);
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      if (method == 'get-codex-usage') {
+        return <String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'email': 'codex@example.com',
+            'plan_type': 'plus',
+            'rate_limit': <String, dynamic>{'allowed': false},
+            'credits': <String, dynamic>{
+              'has_credits': true,
+              'unlimited': false,
+              'balance': '73740.1767735000',
+            },
+          },
+        };
+      }
+      if (method == 'bash') {
+        return <String, dynamic>{'success': false, 'error': 'n/a'};
+      }
+      throw StateError('Unexpected method: $method');
+    };
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          machinesNotifierProvider.overrideWith(
+            () => _StubMachinesNotifier({
+              'm-codex': _onlineMachine(id: 'm-codex'),
+            }),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const CodexUsageScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Plus'), findsOneWidget);
+    expect(find.text('73,740.18'), findsOneWidget);
+    expect(find.text('73740.1767735000'), findsNothing);
+    expect(find.text('Credits available'), findsOneWidget);
+    // Allowed = No (blocked), Credits available = Yes — both as pills.
+    expect(find.widgetWithText(AppBadge, 'No'), findsOneWidget);
+    expect(find.widgetWithText(AppBadge, 'Yes'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

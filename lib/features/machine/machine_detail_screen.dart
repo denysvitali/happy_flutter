@@ -8,10 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
 import '../../core/components/app_badge.dart';
 import '../../core/components/app_banner.dart';
-import '../../core/components/app_card.dart';
-import '../../core/components/app_section_header.dart';
+import '../../core/components/app_icon_tile.dart';
 import '../../core/components/app_status_dot.dart';
-import '../../core/components/app_tappable.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -23,16 +21,18 @@ import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart'
-    show AppFontSize, AppSpacing, AppTouchTarget;
+import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_feedback.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/session_utils.dart' show formatOSPlatform;
 import '../../core/utils/snack.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/version_utils.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
+import '../settings/widgets/machine_usage_scaffold.dart' show UsageWindowRow;
 import 'widgets/agent_update_banner.dart';
 import 'widgets/machine_provider_versions.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Detail screen for a single machine.
@@ -197,8 +197,13 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             AppSpacing.xxxl,
           ),
           children: [
-            // ── Status hero ──
-            _StatusBanner(
+            // ── Header: identity + live status ──
+            _MachineHeader(
+              subtitle: [
+                if (metadata?.platform != null)
+                  formatOSPlatform(metadata!.platform),
+                if (metadata?.arch != null) metadata!.arch!,
+              ].join(' · '),
               isOnline: isOnline,
               lastSeen: _formatTimestamp(machine.activeAt),
             ),
@@ -230,135 +235,50 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                 },
               ),
             ],
-            const SizedBox(height: AppSpacing.xxl),
-
-            if (stats != null) ...[
-              AppSectionHeader(title: 'Resources'),
-              const SizedBox(height: AppSpacing.xs),
-              _ResourceStatsList(stats: stats),
-              const SizedBox(height: AppSpacing.xxl),
-            ],
-
-            // ── Machine info ──
-            AppSectionHeader(title: context.l10n.machineInfo),
-            const SizedBox(height: AppSpacing.xs),
-            _GroupedList(
-              hasIcons: true,
-              children: [
-                if (metadata?.host != null)
-                  _GroupedRow(
-                    icon: Icons.dns_outlined,
-                    label: context.l10n.machineHost,
-                    value: metadata!.host!,
-                  ),
-                if (metadata?.username != null)
-                  _GroupedRow(
-                    icon: Icons.person_outline,
-                    label: context.l10n.machineUsername,
-                    value: metadata!.username!,
-                  ),
-                if (metadata?.platform != null)
-                  _GroupedRow(
-                    icon: Icons.computer_outlined,
-                    label: context.l10n.machinePlatform,
-                    value: metadata!.platform!,
-                  ),
-                if (metadata?.arch != null)
-                  _GroupedRow(
-                    icon: Icons.memory_outlined,
-                    label: context.l10n.machineArchitecture,
-                    value: metadata!.arch!,
-                  ),
-                if (metadata?.happyCliVersion != null)
-                  _GroupedRow(
-                    icon: Icons.code_outlined,
-                    label: context.l10n.machineCliVersion,
-                    value: metadata!.happyCliVersion!,
-                    mono: true,
-                  ),
-                if (metadata?.homeDir != null)
-                  _GroupedRow(
-                    icon: Icons.folder_outlined,
-                    label: context.l10n.machineHomeDir,
-                    value: metadata!.homeDir!,
-                    mono: true,
-                  ),
-                _GroupedRow(
-                  icon: Icons.fingerprint,
-                  label: context.l10n.machineMachineId,
-                  value: widget.machineId,
-                  mono: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-
-            // ── Daemon status ──
-            AppSectionHeader(title: context.l10n.machineDaemon),
-            const SizedBox(height: AppSpacing.xs),
-            _GroupedList(
-              hasIcons: true,
-              children: [
-                _GroupedRow(
-                  icon: Icons.circle_outlined,
-                  iconColor: isOnline ? AppColors.success : cs.onSurfaceVariant,
-                  label: context.l10n.machineStatus,
-                  value: isOnline
-                      ? context.l10n.machineRunning
-                      : context.l10n.machineStopped,
-                  trailing: AppStatusDot(
-                    color: isOnline ? AppColors.success : cs.onSurfaceVariant,
-                    size: 8,
-                  ),
-                ),
-                if (metadata?.daemonLastKnownStatus != null)
-                  _GroupedRow(
-                    icon: Icons.info_outline,
-                    label: context.l10n.machineLastKnownStatus,
-                    value: metadata!.daemonLastKnownStatus!,
-                  ),
-                if (metadata?.daemonLastKnownPid != null)
-                  _GroupedRow(
-                    icon: Icons.tag,
-                    label: context.l10n.machineLastKnownPid,
-                    value: metadata!.daemonLastKnownPid.toString(),
-                    mono: true,
-                  ),
-              ],
-            ),
-
-            if (metadata?.spawnBackends?.contains('kubernetes') == true) ...[
-              const SizedBox(height: AppSpacing.xxl),
-              AppSectionHeader(title: context.l10n.claudeAuthTitle),
-              const SizedBox(height: AppSpacing.xs),
-              AppCard(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.key_outlined),
-                  title: Text(context.l10n.claudeAuthSharedCredentials),
-                  subtitle: Text(context.l10n.claudeAuthSharedCredentialsHelp),
-                  trailing: const Icon(Icons.chevron_right),
-                  enabled: isOnline,
-                  onTap: isOnline
-                      ? () => showDialog<void>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (_) =>
-                              _ClaudeAuthDialog(machineId: widget.machineId),
-                        )
-                      : null,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.xxl),
             AgentUpdateBanner(
               key: ValueKey('agent-update-banner-${widget.machineId}'),
               machineId: widget.machineId,
               machineName: machineName,
               isOnline: isOnline,
+              topSpacing: AppSpacing.md,
             ),
-            const SizedBox(height: AppSpacing.md),
+
+            if (stats != null) ...[
+              const SizedBox(height: _kSectionGap),
+              SettingsSection(
+                title: 'Resources',
+                children: [
+                  UsageWindowRow(
+                    icon: Icons.speed_outlined,
+                    title: 'CPU',
+                    percent: _finitePercent(stats.cpuPercent),
+                  ),
+                  UsageWindowRow(
+                    icon: Icons.memory_outlined,
+                    title: 'Memory',
+                    percent: _finitePercent(stats.memoryPercent),
+                    footer: _resourceFooter(
+                      context,
+                      '${_bytes(stats.memoryUsedBytes)} / '
+                      '${_bytes(stats.memoryTotalBytes)}',
+                    ),
+                  ),
+                  UsageWindowRow(
+                    icon: Icons.storage_outlined,
+                    title: 'Disk',
+                    percent: _finitePercent(stats.diskPercent),
+                    footer: _resourceFooter(
+                      context,
+                      '${_bytes(stats.diskUsedBytes)} / '
+                      '${_bytes(stats.diskTotalBytes)} · ${stats.diskPath}',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // ── Coding agents ──
+            const SizedBox(height: _kSectionGap),
             MachineProviderVersions(
               key: ValueKey('provider-versions-${widget.machineId}'),
               machineId: widget.machineId,
@@ -366,14 +286,33 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               isOnline: isOnline,
             ),
 
+            if (metadata?.spawnBackends?.contains('kubernetes') == true) ...[
+              const SizedBox(height: _kSectionGap),
+              SettingsSection(
+                title: context.l10n.claudeAuthTitle,
+                children: [
+                  SettingsNavRow(
+                    icon: Icons.key_outlined,
+                    title: context.l10n.claudeAuthSharedCredentials,
+                    subtitle: context.l10n.claudeAuthSharedCredentialsHelp,
+                    onTap: isOnline
+                        ? () => showDialog<void>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) =>
+                                _ClaudeAuthDialog(machineId: widget.machineId),
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+            ],
+
             // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xxl),
-              AppSectionHeader(
+              const SizedBox(height: _kSectionGap),
+              SettingsSection(
                 title: context.l10n.machineSessions(machineSessions.length),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              _GroupedList(
                 children: [
                   for (int i = 0; i < machineSessions.length && i < 5; i++)
                     _SessionRow(
@@ -390,47 +329,181 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                       },
                     ),
                   if (machineSessions.length > 5)
-                    _GroupedRow(
-                      label: '',
-                      value: '+ ${machineSessions.length - 5} more',
-                      valueColor: cs.onSurfaceVariant,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Text(
+                        '+ ${machineSessions.length - 5} more',
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
+                      ),
                     ),
                 ],
               ),
             ],
 
-            // ── Delete button ──
-            const SizedBox(height: AppSpacing.xxxl),
-            if (_deleting)
-              Semantics(
-                label: context.l10n.machineRemoveMachine,
-                liveRegion: true,
-                child: const AppLinearProgressIndicator(),
-              ),
-            Center(
-              child: TextButton.icon(
-                onPressed: _deletePending
-                    ? null
-                    : () => _confirmDelete(
-                        context,
-                        widget.machineId,
-                        machineName,
-                      ),
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: Text(
-                  context.l10n.machineRemoveMachine,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+            // ── Machine info ──
+            const SizedBox(height: _kSectionGap),
+            SettingsSection(
+              title: context.l10n.machineInfo,
+              children: [
+                if (metadata?.host != null)
+                  SettingsInfoRow(
+                    icon: Icons.dns_outlined,
+                    label: context.l10n.machineHost,
+                    value: metadata!.host!,
+                    stacked: true,
+                  ),
+                if (metadata?.username != null)
+                  SettingsInfoRow(
+                    icon: Icons.person_outline,
+                    label: context.l10n.machineUsername,
+                    value: metadata!.username!,
+                  ),
+                if (metadata?.platform != null)
+                  SettingsInfoRow(
+                    icon: Icons.computer_outlined,
+                    label: context.l10n.machinePlatform,
+                    value: metadata!.platform!,
+                  ),
+                if (metadata?.arch != null)
+                  SettingsInfoRow(
+                    icon: Icons.developer_board_outlined,
+                    label: context.l10n.machineArchitecture,
+                    value: metadata!.arch!,
+                  ),
+                if (metadata?.happyCliVersion != null)
+                  SettingsInfoRow(
+                    icon: Icons.terminal_outlined,
+                    label: context.l10n.machineCliVersion,
+                    value: metadata!.happyCliVersion!,
+                    mono: true,
+                    iconColor: cliOutdated
+                        ? AppToneColors.of(
+                            context,
+                            AppBadgeTone.warning,
+                          ).iconColor
+                        : null,
+                  ),
+                if (metadata?.homeDir != null)
+                  SettingsInfoRow(
+                    icon: Icons.folder_outlined,
+                    label: context.l10n.machineHomeDir,
+                    value: metadata!.homeDir!,
+                    mono: true,
+                    stacked: true,
+                  ),
+                SettingsInfoRow(
+                  icon: Icons.fingerprint,
+                  label: context.l10n.machineMachineId,
+                  value: widget.machineId,
+                  mono: true,
+                  stacked: true,
+                  onCopy: () => _copy(context, widget.machineId),
+                ),
+              ],
+            ),
+
+            // ── Daemon status ──
+            const SizedBox(height: _kSectionGap),
+            SettingsSection(
+              title: context.l10n.machineDaemon,
+              children: [
+                SettingsInfoRow(
+                  icon: Icons.power_settings_new_rounded,
+                  iconColor: isOnline ? AppColors.success : cs.onSurfaceVariant,
+                  label: context.l10n.machineStatus,
+                  valueWidget: AppBadge(
+                    label: isOnline
+                        ? context.l10n.machineRunning
+                        : context.l10n.machineStopped,
+                    tone: isOnline
+                        ? AppBadgeTone.success
+                        : AppBadgeTone.neutral,
+                    showToneIcon: false,
+                    leading: AppStatusDot(
+                      color: isOnline ? AppColors.success : cs.onSurfaceVariant,
+                      size: AppSpacing.xsm,
+                    ),
                   ),
                 ),
-                style: AppButtonStyle.destructive(cs),
-              ),
+                if (metadata?.daemonLastKnownStatus != null)
+                  SettingsInfoRow(
+                    icon: Icons.info_outline,
+                    label: context.l10n.machineLastKnownStatus,
+                    value: metadata!.daemonLastKnownStatus!,
+                  ),
+                if (metadata?.daemonLastKnownPid != null)
+                  SettingsInfoRow(
+                    icon: Icons.tag,
+                    label: context.l10n.machineLastKnownPid,
+                    value: metadata!.daemonLastKnownPid.toString(),
+                    mono: true,
+                  ),
+              ],
+            ),
+
+            // ── Remove ──
+            const SizedBox(height: _kSectionGap),
+            SettingsSection(
+              danger: true,
+              children: [
+                SettingsRow(
+                  icon: Icons.delete_outline,
+                  iconColor: cs.error,
+                  title: context.l10n.machineRemoveMachine,
+                  onTap: _deletePending
+                      ? null
+                      : () => _confirmDelete(
+                          context,
+                          widget.machineId,
+                          machineName,
+                        ),
+                  semanticsButton: true,
+                  semanticsEnabled: !_deletePending,
+                  trailing: _deleting
+                      ? Semantics(
+                          label: context.l10n.machineRemoveMachine,
+                          liveRegion: true,
+                          child: const SizedBox.square(
+                            dimension: AppIconSize.md,
+                            child: AppCircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+
+  Future<void> _copy(BuildContext context, String value) => copyWithFeedback(
+    context,
+    value,
+    successMessage: context.l10n.sessionInfoCopied,
+  );
+}
+
+/// Gap between sections — the same rhythm the settings screens use.
+const double _kSectionGap = AppSpacing.xl;
+
+String _bytes(int value) => formatBytes(value, adaptivePrecision: true);
+
+double _finitePercent(double value) =>
+    value.isNaN || value.isInfinite ? 0 : value;
+
+Widget _resourceFooter(BuildContext context, String text) {
+  final theme = Theme.of(context);
+  return Text(
+    text,
+    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  );
 }
 
 class _ClaudeAuthDialog extends StatefulWidget {
@@ -614,12 +687,17 @@ class _ClaudeAuthDialogState extends State<_ClaudeAuthDialog> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Status banner — prominent online/offline hero
+// Header — identity and live status, on the settings card surface
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.isOnline, required this.lastSeen});
+class _MachineHeader extends StatelessWidget {
+  const _MachineHeader({
+    required this.subtitle,
+    required this.isOnline,
+    required this.lastSeen,
+  });
 
+  final String subtitle;
   final bool isOnline;
   final String lastSeen;
 
@@ -627,42 +705,62 @@ class _StatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final statusColor = isOnline ? AppColors.success : cs.onSurfaceVariant;
+    final tone = isOnline ? AppBadgeTone.success : AppBadgeTone.neutral;
+    final statusColor = AppToneColors.of(context, tone).iconColor;
 
-    return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          AppStatusDot(color: statusColor, size: 10),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isOnline
-                      ? context.l10n.machineOnline
-                      : context.l10n.machineOffline,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+    // The machine name is already the app-bar title; the header leads with
+    // what changes — whether the daemon is reachable right now.
+    return SettingsSection(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              AppIconTile(
+                icon: isOnline
+                    ? Icons.computer_outlined
+                    : Icons.desktop_access_disabled_outlined,
+                color: statusColor,
+                size: AppControlSize.lg,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        AppStatusDot(color: statusColor, size: AppSpacing.sm),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          isOnline
+                              ? context.l10n.machineOnline
+                              : context.l10n.machineOffline,
+                          style: AppText.title(theme, statusColor),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      isOnline
+                          ? context.l10n.machineConnectedNow
+                          : context.l10n.machineLastSeenAt(lastSeen),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  isOnline
-                      ? context.l10n.machineConnectedNow
-                      : context.l10n.machineLastSeenAt(lastSeen),
-                  style: AppText.secondary(theme, cs.onSurfaceVariant),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -723,269 +821,8 @@ class _MachineStats {
   }
 }
 
-class _ResourceStatsList extends StatelessWidget {
-  const _ResourceStatsList({required this.stats});
-
-  final _MachineStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          _ResourceRow(
-            icon: Icons.speed_outlined,
-            label: 'CPU',
-            value: _formatPercent(stats.cpuPercent),
-            percent: stats.cpuPercent,
-          ),
-          _ResourceDivider(),
-          _ResourceRow(
-            icon: Icons.memory_outlined,
-            label: 'Memory',
-            value:
-                '${_formatPercent(stats.memoryPercent)}  '
-                '${formatBytes(stats.memoryUsedBytes, adaptivePrecision: true)} / '
-                '${formatBytes(stats.memoryTotalBytes, adaptivePrecision: true)}',
-            percent: stats.memoryPercent,
-          ),
-          _ResourceDivider(),
-          _ResourceRow(
-            icon: Icons.storage_outlined,
-            label: 'Disk',
-            value:
-                '${_formatPercent(stats.diskPercent)}  '
-                '${formatBytes(stats.diskUsedBytes, adaptivePrecision: true)} / '
-                '${formatBytes(stats.diskTotalBytes, adaptivePrecision: true)}',
-            subtitle: stats.diskPath,
-            percent: stats.diskPercent,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResourceDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Divider(
-      height: 1,
-      indent: AppSpacing.lg + 36 + AppSpacing.md,
-      color: cs.outlineVariant.withValues(alpha: 0.5),
-    );
-  }
-}
-
-class _ResourceRow extends StatelessWidget {
-  const _ResourceRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.percent,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final double percent;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final normalized = (percent / 100).clamp(0.0, 1.0).toDouble();
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            SettingsIconContainer(icon: icon),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 72,
-                        child: Text(
-                          label,
-                          style: AppText.secondary(theme, cs.onSurfaceVariant),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          value,
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: AppLinearProgressIndicator(
-                      value: normalized,
-                      minHeight: 4,
-                      backgroundColor: cs.surfaceContainerHighest,
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      subtitle!,
-                      style: AppText.secondary(
-                        theme,
-                        cs.onSurfaceVariant,
-                      ).copyWith(fontFamily: 'monospace'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _formatPercent(double value) {
-  if (value.isNaN || value.isInfinite) return '0%';
-  return '${value.clamp(0, 100).toStringAsFixed(0)}%';
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Card container for grouped rows
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _GroupedList extends StatelessWidget {
-  const _GroupedList({required this.children, this.hasIcons = false});
-
-  final List<Widget> children;
-  final bool hasIcons;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final indent = hasIcons
-        ? AppSpacing.lg + 36 + AppSpacing.md
-        : AppSpacing.lg;
-
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(
-                height: 1,
-                indent: indent,
-                color: cs.outlineVariant.withValues(alpha: 0.5),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Key–value row inside a grouped list
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _GroupedRow extends StatelessWidget {
-  const _GroupedRow({
-    required this.label,
-    required this.value,
-    this.icon,
-    this.iconColor,
-    this.mono = false,
-    this.valueColor,
-    this.trailing,
-  });
-
-  final String label;
-  final String value;
-  final IconData? icon;
-  final Color? iconColor;
-  final bool mono;
-  final Color? valueColor;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              SettingsIconContainer(icon: icon!, color: iconColor),
-              const SizedBox(width: AppSpacing.md),
-            ],
-            if (label.isNotEmpty)
-              SizedBox(
-                width: 100,
-                child: Text(
-                  label,
-                  style: AppText.secondary(theme, cs.onSurfaceVariant),
-                ),
-              ),
-            if (label.isNotEmpty) const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: mono ? 'monospace' : null,
-                  fontSize: mono ? AppFontSize.md : null,
-                  color: valueColor,
-                  fontWeight: mono ? FontWeight.w500 : null,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (trailing != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              trailing!,
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Session row inside a grouped list
+// Session row
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SessionRow extends StatelessWidget {
@@ -1003,57 +840,27 @@ class _SessionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return AppTappable(
+    final cs = Theme.of(context).colorScheme;
+    return SettingsRow(
+      icon: Icons.terminal_rounded,
+      iconColor: isOnline ? AppColors.success : null,
+      title: name,
+      subtitle: subtitle.isEmpty ? null : subtitle,
       onTap: onTap,
-      borderRadius: BorderRadius.zero,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isOnline) ...[
+            // Steady online state: static green dot.
+            const AppStatusDot(color: AppColors.success, size: 7),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Icon(
+            Icons.chevron_right,
+            size: AppSpacing.xl,
+            color: cs.onSurface.withValues(alpha: AppOpacity.medium),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        subtitle,
-                        style: AppText.secondary(theme, cs.onSurfaceVariant),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              if (isOnline)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  // Steady online state: static green dot.
-                  child: AppStatusDot(color: AppColors.success, size: 7),
-                ),
-              Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

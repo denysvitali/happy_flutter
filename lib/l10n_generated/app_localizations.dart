@@ -720,7 +720,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionPodLogs.
   ///
   /// In en, this message translates to:
-  /// **'Logs'**
+  /// **'View logs'**
   String get sessionPodLogs;
 
   /// No description provided for @sessionPodLogsEmpty.
@@ -738,13 +738,13 @@ abstract class AppLocalizations {
   /// No description provided for @sessionPodPause.
   ///
   /// In en, this message translates to:
-  /// **'Pause'**
+  /// **'Pause pod'**
   String get sessionPodPause;
 
   /// No description provided for @sessionPodResume.
   ///
   /// In en, this message translates to:
-  /// **'Resume'**
+  /// **'Resume pod'**
   String get sessionPodResume;
 
   /// No description provided for @sessionPodKill.
@@ -752,6 +752,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Kill pod'**
   String get sessionPodKill;
+
+  /// No description provided for @sessionPodKillConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Kill this session\'s pod? The running agent stops immediately.'**
+  String get sessionPodKillConfirm;
+
+  /// No description provided for @sessionPodHideLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide logs'**
+  String get sessionPodHideLogs;
 
   /// No description provided for @sessionPodStartingTitle.
   ///
@@ -858,7 +870,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoTitle.
   ///
   /// In en, this message translates to:
-  /// **'Session Info'**
+  /// **'Session info'**
   String get sessionInfoTitle;
 
   /// No description provided for @sessionInfoThinking.
@@ -938,6 +950,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not installed'**
   String get machineAgentsNotInstalled;
+
+  /// No description provided for @machineAgentsNotChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked yet'**
+  String get machineAgentsNotChecked;
 
   /// No description provided for @machineAgentsUnknown.
   ///
@@ -1069,6 +1087,12 @@ abstract class AppLocalizations {
   /// **'Later'**
   String get machineAgentsBannerDismiss;
 
+  /// No description provided for @codexUsageAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get codexUsageAvailable;
+
   /// No description provided for @machineStatus.
   ///
   /// In en, this message translates to:
@@ -1078,13 +1102,13 @@ abstract class AppLocalizations {
   /// No description provided for @machineLastKnownPid.
   ///
   /// In en, this message translates to:
-  /// **'Last Known PID'**
+  /// **'Last known PID'**
   String get machineLastKnownPid;
 
   /// No description provided for @machineCliVersion.
   ///
   /// In en, this message translates to:
-  /// **'CLI Version'**
+  /// **'CLI version'**
   String get machineCliVersion;
 
   /// No description provided for @machineCompatibilityTitle.
@@ -3259,7 +3283,7 @@ abstract class AppLocalizations {
   /// No description provided for @codexUsageTitle.
   ///
   /// In en, this message translates to:
-  /// **'Codex Usage'**
+  /// **'Codex usage'**
   String get codexUsageTitle;
 
   /// No description provided for @codexUsageSubtitle.
@@ -3397,7 +3421,7 @@ abstract class AppLocalizations {
   /// No description provided for @codexUsageCodeReview.
   ///
   /// In en, this message translates to:
-  /// **'Code Review'**
+  /// **'Code review'**
   String get codexUsageCodeReview;
 
   /// No description provided for @codexUsageFiveHourWindow.
@@ -3469,13 +3493,13 @@ abstract class AppLocalizations {
   /// No description provided for @codexUsageCreditsBalance.
   ///
   /// In en, this message translates to:
-  /// **'Credits Balance'**
+  /// **'Balance'**
   String get codexUsageCreditsBalance;
 
   /// No description provided for @codexUsageCreditsAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Credits Available'**
+  /// **'Credits available'**
   String get codexUsageCreditsAvailable;
 
   /// No description provided for @codexUsageUnlimited.
@@ -5473,13 +5497,13 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoCliOutdated.
   ///
   /// In en, this message translates to:
-  /// **'CLI Version Outdated'**
+  /// **'CLI version outdated'**
   String get sessionInfoCliOutdated;
 
   /// No description provided for @sessionInfoSectionDetails.
   ///
   /// In en, this message translates to:
-  /// **'Session Details'**
+  /// **'Details'**
   String get sessionInfoSectionDetails;
 
   /// No description provided for @sessionInfoLabelSessionId.
@@ -5497,7 +5521,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoLabelLastUpdated.
   ///
   /// In en, this message translates to:
-  /// **'Last Updated'**
+  /// **'Last updated'**
   String get sessionInfoLabelLastUpdated;
 
   /// No description provided for @sessionInfoLabelSequence.
@@ -5509,13 +5533,13 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoSectionQuickActions.
   ///
   /// In en, this message translates to:
-  /// **'Quick Actions'**
+  /// **'Quick actions'**
   String get sessionInfoSectionQuickActions;
 
   /// No description provided for @sessionStartupResumeSection.
   ///
   /// In en, this message translates to:
-  /// **'Startup Resume'**
+  /// **'Startup resume'**
   String get sessionStartupResumeSection;
 
   /// No description provided for @sessionStartupResumeTitle.
@@ -5557,25 +5581,25 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoActionExportDebug.
   ///
   /// In en, this message translates to:
-  /// **'Export Debug Info'**
+  /// **'Copy debug info'**
   String get sessionInfoActionExportDebug;
 
   /// No description provided for @sessionInfoActionViewMachine.
   ///
   /// In en, this message translates to:
-  /// **'View Machine'**
+  /// **'View machine'**
   String get sessionInfoActionViewMachine;
 
   /// No description provided for @sessionInfoActionArchive.
   ///
   /// In en, this message translates to:
-  /// **'Archive Session'**
+  /// **'Archive session'**
   String get sessionInfoActionArchive;
 
   /// No description provided for @sessionInfoActionDelete.
   ///
   /// In en, this message translates to:
-  /// **'Delete Session'**
+  /// **'Delete session'**
   String get sessionInfoActionDelete;
 
   /// No description provided for @sessionInfoSectionMetadata.
@@ -5605,7 +5629,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoLabelCliVersion.
   ///
   /// In en, this message translates to:
-  /// **'CLI Version'**
+  /// **'CLI version'**
   String get sessionInfoLabelCliVersion;
 
   /// No description provided for @sessionInfoLabelAiProvider.
@@ -5617,7 +5641,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoLabelClaudeSessionId.
   ///
   /// In en, this message translates to:
-  /// **'Claude Code Session ID'**
+  /// **'Claude Code session ID'**
   String get sessionInfoLabelClaudeSessionId;
 
   /// No description provided for @sessionInfoLabelProcessId.
@@ -5629,7 +5653,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoLabelHappyHome.
   ///
   /// In en, this message translates to:
-  /// **'Happy Home'**
+  /// **'Happy home'**
   String get sessionInfoLabelHappyHome;
 
   /// No description provided for @sessionInfoLabelOs.
@@ -5641,7 +5665,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoActionCopyMetadata.
   ///
   /// In en, this message translates to:
-  /// **'Copy Metadata'**
+  /// **'Copy metadata'**
   String get sessionInfoActionCopyMetadata;
 
   /// No description provided for @sessionInfoDebugExportCopied.
@@ -5653,7 +5677,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionInfoSectionAgentState.
   ///
   /// In en, this message translates to:
-  /// **'Agent State'**
+  /// **'Agent state'**
   String get sessionInfoSectionAgentState;
 
   /// No description provided for @sessionInfoLabelControlledByUser.
@@ -5821,7 +5845,7 @@ abstract class AppLocalizations {
   /// No description provided for @machineHomeDir.
   ///
   /// In en, this message translates to:
-  /// **'Home Dir'**
+  /// **'Home directory'**
   String get machineHomeDir;
 
   /// No description provided for @machineInfo.
@@ -5845,7 +5869,7 @@ abstract class AppLocalizations {
   /// No description provided for @machineRemoveMachine.
   ///
   /// In en, this message translates to:
-  /// **'Remove Machine'**
+  /// **'Remove machine'**
   String get machineRemoveMachine;
 
   /// No description provided for @machineOnline.
@@ -6925,7 +6949,7 @@ abstract class AppLocalizations {
   /// No description provided for @machineLastKnownStatus.
   ///
   /// In en, this message translates to:
-  /// **'Last Known Status'**
+  /// **'Last known status'**
   String get machineLastKnownStatus;
 
   /// No description provided for @networkInspectorClearConfirm.

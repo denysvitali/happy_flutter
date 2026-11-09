@@ -19,8 +19,13 @@ class AgentUpdateBanner extends ConsumerStatefulWidget {
     required this.machineId,
     required this.machineName,
     required this.isOnline,
+    this.topSpacing = 0,
     super.key,
   });
+
+  /// Space above the banner, applied only while it is visible so a hidden
+  /// banner leaves no gap in the parent list.
+  final double topSpacing;
 
   final String machineId;
   final String machineName;
@@ -168,6 +173,7 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SizedBox(height: widget.topSpacing),
           if (_loading && updatable.isEmpty)
             AppBanner(
               tone: AppBadgeTone.info,

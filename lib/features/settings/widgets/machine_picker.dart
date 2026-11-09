@@ -43,103 +43,131 @@ class MachinePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machineList = machines.values.toList()
       ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
+    final selected = machines[selectedMachineId];
     return SettingsSection(
       title: sectionTitle,
       children: [
         Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: DropdownButtonFormField<String>(
-            initialValue: selectedMachineId,
-            selectedItemBuilder: (context) => machineList
-                .map(
-                  (machine) => Text(
-                    machine.displayLabel,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )
-                .toList(),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              SettingsIconContainer(
+                icon: Icons.dns_outlined,
+                color: selected?.isOnline ?? false
+                    ? AppColors.success
+                    : cs.onSurfaceVariant,
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              isDense: true,
-            ),
-            items: machineList.map((machine) {
-              final online = machine.isOnline;
-              final featureSelectable =
-                  isMachineSelectable?.call(machine) ?? true;
-              final selectable =
-                  (!onlyOnlineSelectable || online) && featureSelectable;
-              final reason = online
-                  ? unavailableReason?.call(machine)
-                  : l10n.machineOffline;
-              return DropdownMenuItem<String>(
-                value: machine.id,
-                enabled: selectable,
-                child: Row(
-                  children: [
-                    AppStatusDot(
-                      color: online ? AppColors.success : cs.onSurfaceVariant,
-                      size: AppSpacing.xs,
-                      semanticLabel: online
-                          ? l10n.machineOnline
-                          : l10n.machineOffline,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        machine.displayLabel,
-                        overflow: TextOverflow.ellipsis,
-                        style: selectable
-                            ? null
-                            : theme.textTheme.bodyMedium?.copyWith(
-                                color: cs.onSurfaceVariant,
-                              ),
-                      ),
-                    ),
-                    if (reason != null && reason.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Flexible(
-                        child: Text(
-                          reason,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.secondary(theme, cs.onSurfaceVariant),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (id) {
-              if (id == null) {
-                onChanged(null);
-                return;
-              }
-              if (onlyOnlineSelectable && !(machines[id]?.isOnline ?? false)) {
-                return;
-              }
-              final machine = machines[id];
-              if (machine == null ||
-                  !(isMachineSelectable?.call(machine) ?? true)) {
-                return;
-              }
-              onChanged(id);
-            },
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: _dropdown(context, machineList)),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _dropdown(BuildContext context, List<Machine> machineList) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return DropdownButtonFormField<String>(
+      initialValue: selectedMachineId,
+      // Without isExpanded the selected label sizes to its intrinsic
+      // width and long hostnames run under the dropdown arrow.
+      isExpanded: true,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      icon: Icon(Icons.unfold_more_rounded, color: cs.onSurfaceVariant),
+      selectedItemBuilder: (context) => machineList
+          .map(
+            (machine) => Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                machine.displayLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        filled: false,
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+      ),
+      items: machineList.map((machine) {
+        final online = machine.isOnline;
+        final featureSelectable = isMachineSelectable?.call(machine) ?? true;
+        final selectable =
+            (!onlyOnlineSelectable || online) && featureSelectable;
+        final reason = online
+            ? unavailableReason?.call(machine)
+            : l10n.machineOffline;
+        return DropdownMenuItem<String>(
+          value: machine.id,
+          enabled: selectable,
+          child: Row(
+            children: [
+              AppStatusDot(
+                color: online ? AppColors.success : cs.onSurfaceVariant,
+                size: AppSpacing.xs,
+                semanticLabel: online
+                    ? l10n.machineOnline
+                    : l10n.machineOffline,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  machine.displayLabel,
+                  overflow: TextOverflow.ellipsis,
+                  style: selectable
+                      ? null
+                      : theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                ),
+              ),
+              if (reason != null && reason.isNotEmpty) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    reason,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (id) {
+        if (id == null) {
+          onChanged(null);
+          return;
+        }
+        if (onlyOnlineSelectable && !(machines[id]?.isOnline ?? false)) {
+          return;
+        }
+        final machine = machines[id];
+        if (machine == null || !(isMachineSelectable?.call(machine) ?? true)) {
+          return;
+        }
+        onChanged(id);
+      },
     );
   }
 }

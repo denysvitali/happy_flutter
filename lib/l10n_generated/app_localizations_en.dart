@@ -344,7 +344,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not load the pod state. Check that the daemon is online and up to date.';
 
   @override
-  String get sessionPodLogs => 'Logs';
+  String get sessionPodLogs => 'View logs';
 
   @override
   String get sessionPodLogsEmpty => 'No pod logs are available yet.';
@@ -354,13 +354,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Showing the most recent pod log lines.';
 
   @override
-  String get sessionPodPause => 'Pause';
+  String get sessionPodPause => 'Pause pod';
 
   @override
-  String get sessionPodResume => 'Resume';
+  String get sessionPodResume => 'Resume pod';
 
   @override
   String get sessionPodKill => 'Kill pod';
+
+  @override
+  String get sessionPodKillConfirm =>
+      'Kill this session\'s pod? The running agent stops immediately.';
+
+  @override
+  String get sessionPodHideLogs => 'Hide logs';
 
   @override
   String get sessionPodStartingTitle => 'Starting Kubernetes pod';
@@ -420,7 +427,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionHistoryTitle => 'Sessions';
 
   @override
-  String get sessionInfoTitle => 'Session Info';
+  String get sessionInfoTitle => 'Session info';
 
   @override
   String get sessionInfoThinking => 'Thinking';
@@ -468,6 +475,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get machineAgentsNotInstalled => 'Not installed';
+
+  @override
+  String get machineAgentsNotChecked => 'Not checked yet';
 
   @override
   String get machineAgentsUnknown => 'Version unavailable';
@@ -552,13 +562,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineAgentsBannerDismiss => 'Later';
 
   @override
+  String get codexUsageAvailable => 'Available';
+
+  @override
   String get machineStatus => 'Status';
 
   @override
-  String get machineLastKnownPid => 'Last Known PID';
+  String get machineLastKnownPid => 'Last known PID';
 
   @override
-  String get machineCliVersion => 'CLI Version';
+  String get machineCliVersion => 'CLI version';
 
   @override
   String get machineCompatibilityTitle => 'Happy update recommended';
@@ -1768,7 +1781,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeLimitsUsage => 'Usage';
 
   @override
-  String get codexUsageTitle => 'Codex Usage';
+  String get codexUsageTitle => 'Codex usage';
 
   @override
   String get codexUsageSubtitle =>
@@ -1841,7 +1854,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codexUsageSessionLimits => 'Usage';
 
   @override
-  String get codexUsageCodeReview => 'Code Review';
+  String get codexUsageCodeReview => 'Code review';
 
   @override
   String get codexUsageFiveHourWindow => '5-hour window';
@@ -1888,10 +1901,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codexUsageCredits => 'Credits';
 
   @override
-  String get codexUsageCreditsBalance => 'Credits Balance';
+  String get codexUsageCreditsBalance => 'Balance';
 
   @override
-  String get codexUsageCreditsAvailable => 'Credits Available';
+  String get codexUsageCreditsAvailable => 'Credits available';
 
   @override
   String get codexUsageUnlimited => 'Unlimited';
@@ -2934,10 +2947,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoUpdateCommandCopied => 'Update command copied';
 
   @override
-  String get sessionInfoCliOutdated => 'CLI Version Outdated';
+  String get sessionInfoCliOutdated => 'CLI version outdated';
 
   @override
-  String get sessionInfoSectionDetails => 'Session Details';
+  String get sessionInfoSectionDetails => 'Details';
 
   @override
   String get sessionInfoLabelSessionId => 'Session ID';
@@ -2946,16 +2959,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoLabelCreated => 'Created';
 
   @override
-  String get sessionInfoLabelLastUpdated => 'Last Updated';
+  String get sessionInfoLabelLastUpdated => 'Last updated';
 
   @override
   String get sessionInfoLabelSequence => 'Sequence';
 
   @override
-  String get sessionInfoSectionQuickActions => 'Quick Actions';
+  String get sessionInfoSectionQuickActions => 'Quick actions';
 
   @override
-  String get sessionStartupResumeSection => 'Startup Resume';
+  String get sessionStartupResumeSection => 'Startup resume';
 
   @override
   String get sessionStartupResumeTitle => 'Resume when the daemon starts';
@@ -2979,16 +2992,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not save the startup resume setting.';
 
   @override
-  String get sessionInfoActionExportDebug => 'Export Debug Info';
+  String get sessionInfoActionExportDebug => 'Copy debug info';
 
   @override
-  String get sessionInfoActionViewMachine => 'View Machine';
+  String get sessionInfoActionViewMachine => 'View machine';
 
   @override
-  String get sessionInfoActionArchive => 'Archive Session';
+  String get sessionInfoActionArchive => 'Archive session';
 
   @override
-  String get sessionInfoActionDelete => 'Delete Session';
+  String get sessionInfoActionDelete => 'Delete session';
 
   @override
   String get sessionInfoSectionMetadata => 'Metadata';
@@ -3003,31 +3016,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoLabelMachineId => 'Machine ID';
 
   @override
-  String get sessionInfoLabelCliVersion => 'CLI Version';
+  String get sessionInfoLabelCliVersion => 'CLI version';
 
   @override
   String get sessionInfoLabelAiProvider => 'AI Provider';
 
   @override
-  String get sessionInfoLabelClaudeSessionId => 'Claude Code Session ID';
+  String get sessionInfoLabelClaudeSessionId => 'Claude Code session ID';
 
   @override
   String get sessionInfoLabelProcessId => 'Process ID';
 
   @override
-  String get sessionInfoLabelHappyHome => 'Happy Home';
+  String get sessionInfoLabelHappyHome => 'Happy home';
 
   @override
   String get sessionInfoLabelOs => 'OS';
 
   @override
-  String get sessionInfoActionCopyMetadata => 'Copy Metadata';
+  String get sessionInfoActionCopyMetadata => 'Copy metadata';
 
   @override
   String get sessionInfoDebugExportCopied => 'Debug info copied to clipboard';
 
   @override
-  String get sessionInfoSectionAgentState => 'Agent State';
+  String get sessionInfoSectionAgentState => 'Agent state';
 
   @override
   String get sessionInfoLabelControlledByUser => 'Controlled by user';
@@ -3115,7 +3128,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artifactsNoResults => 'No matching artifacts';
 
   @override
-  String get machineHomeDir => 'Home Dir';
+  String get machineHomeDir => 'Home directory';
 
   @override
   String get machineInfo => 'Info';
@@ -3127,7 +3140,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineStopped => 'Stopped';
 
   @override
-  String get machineRemoveMachine => 'Remove Machine';
+  String get machineRemoveMachine => 'Remove machine';
 
   @override
   String get machineOnline => 'Online';
@@ -3748,7 +3761,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Display line numbers in code blocks';
 
   @override
-  String get machineLastKnownStatus => 'Last Known Status';
+  String get machineLastKnownStatus => 'Last known status';
 
   @override
   String get networkInspectorClearConfirm =>

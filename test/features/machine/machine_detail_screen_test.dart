@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/models/machine.dart';
@@ -105,6 +106,17 @@ Widget _buildApp({
       home: MachineDetailScreen(machineId: machineId),
     ),
   );
+}
+
+/// Machine info and Daemon are diagnostics at the bottom of the list,
+/// below the actionable sections, so lazy lists need a scroll to build them.
+Future<void> _scrollToDaemon(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.text('Daemon'),
+    300,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pump();
 }
 
 // ── Tests ───────────────────────────────────────────────────────
@@ -252,7 +264,7 @@ void main() {
         expect(find.text('darwin'), findsOneWidget);
         expect(find.text('Architecture'), findsOneWidget);
         expect(find.text('arm64'), findsOneWidget);
-        expect(find.text('CLI Version'), findsOneWidget);
+        expect(find.text('CLI version'), findsOneWidget);
         expect(find.text('2.5.0'), findsOneWidget);
       });
 
@@ -315,6 +327,7 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await _scrollToDaemon(tester);
 
         expect(find.text('Daemon'), findsOneWidget);
         expect(find.text('Status'), findsOneWidget);
@@ -328,6 +341,7 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await _scrollToDaemon(tester);
 
         expect(find.text('Running'), findsOneWidget);
       });
@@ -340,6 +354,7 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await _scrollToDaemon(tester);
 
         expect(find.text('Stopped'), findsOneWidget);
       });
@@ -356,8 +371,9 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await _scrollToDaemon(tester);
 
-        expect(find.text('Last Known Status'), findsOneWidget);
+        expect(find.text('Last known status'), findsOneWidget);
         expect(find.text('sleeping'), findsOneWidget);
       });
 
@@ -368,8 +384,9 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await _scrollToDaemon(tester);
 
-        expect(find.text('Last Known PID'), findsOneWidget);
+        expect(find.text('Last known PID'), findsOneWidget);
         expect(find.text('4242'), findsOneWidget);
       });
 
@@ -421,13 +438,13 @@ void main() {
 
         // Scroll down to find the delete button at the bottom
         await tester.scrollUntilVisible(
-          find.text('Remove Machine'),
+          find.text('Remove machine'),
           100,
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pump();
 
-        expect(find.text('Remove Machine'), findsOneWidget);
+        expect(find.text('Remove machine'), findsOneWidget);
       });
 
       testWidgets('removal stays guarded until confirmation is dismissed', (
@@ -439,24 +456,24 @@ void main() {
         );
         await tester.pump();
         await tester.scrollUntilVisible(
-          find.text('Remove Machine'),
+          find.text('Remove machine'),
           100,
           scrollable: find.byType(Scrollable).first,
         );
         // scrollUntilVisible stops once the row is barely on screen; the
         // tap point can still fall below the 600px test surface.
-        await tester.ensureVisible(find.text('Remove Machine'));
+        await tester.ensureVisible(find.text('Remove machine'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Remove Machine'));
+        await tester.tap(find.text('Remove machine'));
         await tester.pumpAndSettle();
 
-        final button = find.widgetWithText(TextButton, 'Remove Machine');
-        expect(tester.widget<TextButton>(button).onPressed, isNull);
+        final button = find.widgetWithText(SettingsRow, 'Remove machine');
+        expect(tester.widget<SettingsRow>(button).onTap, isNull);
         expect(find.byType(AlertDialog), findsOneWidget);
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
 
-        expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+        expect(tester.widget<SettingsRow>(button).onTap, isNotNull);
         expect(find.byType(AlertDialog), findsNothing);
       });
 
@@ -472,15 +489,15 @@ void main() {
         );
         await tester.pump();
         await tester.scrollUntilVisible(
-          find.text('Remove Machine'),
+          find.text('Remove machine'),
           100,
           scrollable: find.byType(Scrollable).first,
         );
         // scrollUntilVisible stops once the row is barely on screen; the
         // tap point can still fall below the 600px test surface.
-        await tester.ensureVisible(find.text('Remove Machine'));
+        await tester.ensureVisible(find.text('Remove machine'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Remove Machine'));
+        await tester.tap(find.text('Remove machine'));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
@@ -488,8 +505,8 @@ void main() {
         expect(find.text('Failed to delete machine (0)'), findsOneWidget);
         expect(tester.takeException(), isNull);
         expect(find.text('m1-host'), findsWidgets);
-        final button = find.widgetWithText(TextButton, 'Remove Machine');
-        expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+        final button = find.widgetWithText(SettingsRow, 'Remove machine');
+        expect(tester.widget<SettingsRow>(button).onTap, isNotNull);
       });
 
       testWidgets('shows delete button with error color', (tester) async {
@@ -502,13 +519,13 @@ void main() {
 
         // Scroll down to find the delete button at the bottom
         await tester.scrollUntilVisible(
-          find.text('Remove Machine'),
+          find.text('Remove machine'),
           100,
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pump();
 
-        expect(find.text('Remove Machine'), findsOneWidget);
+        expect(find.text('Remove machine'), findsOneWidget);
       });
     });
 

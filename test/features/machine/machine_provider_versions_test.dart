@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
+import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/machine/widgets/machine_provider_versions.dart';
@@ -102,7 +103,7 @@ void main() {
       find.text('Connect this machine to check and update coding agents.'),
       findsOneWidget,
     );
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNull);
     expect(calls, 0);
   });
 
@@ -144,7 +145,7 @@ void main() {
     await _check(tester);
 
     expect(find.text('Checking versions…'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNull);
     expect(calls, 1);
     pending.complete(_versions(_provider()));
     await tester.pump();
@@ -204,7 +205,7 @@ void main() {
 
     expect(updates, 1);
     expect(find.text('Updating…'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNull);
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
 
@@ -247,7 +248,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNotNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNotNull);
   });
 
   testWidgets('uncertain update requires another check before retrying', (
@@ -268,7 +269,7 @@ void main() {
     expect(updates, 1);
     expect(find.textContaining('It may still be running'), findsOneWidget);
     expect(tester.widget<FilledButton>(_updateCodex).onPressed, isNull);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNotNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNotNull);
     await _check(tester);
     expect(tester.widget<FilledButton>(_updateCodex).onPressed, isNotNull);
     expect(updates, 1);
@@ -292,7 +293,7 @@ void main() {
 
     expect(find.text('Installation directory is not writable'), findsOneWidget);
     expect(find.text('Updating…'), findsNothing);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNotNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNotNull);
   });
 
   testWidgets('poll failure permits checking status without repeating update', (
@@ -313,7 +314,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('It may still be running'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNotNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNotNull);
     await tester.pump(const Duration(seconds: 5));
     expect(calls, 2);
     await tester.pumpWidget(const SizedBox());
@@ -388,7 +389,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Installed: 1.0.0'), findsNothing);
-    expect(tester.widget<OutlinedButton>(_checkButton).onPressed, isNotNull);
+    expect(tester.widget<SettingsRow>(_checkButton).onTap, isNotNull);
     expect(tester.takeException(), isNull);
   });
 

@@ -265,55 +265,41 @@ class _MachineUsageScaffoldState<T>
   }
 }
 
-/// Icon-led label/value stat row shared by the Codex and Grok usage
-/// sections.
+/// Icon-tile label/value stat row shared by the Codex and Grok usage
+/// sections — a [SettingsInfoRow] so usage screens share the settings
+/// row geometry.
 class UsageStatRow extends StatelessWidget {
   const UsageStatRow({
     required this.icon,
     required this.title,
-    required this.value,
-    required this.iconColor,
+    this.iconColor,
+    this.value,
+    this.valueWidget,
     this.flexValue = false,
     super.key,
-  });
+  }) : assert(value != null || valueWidget != null);
 
   final IconData icon;
   final String title;
-  final String value;
-  final Color iconColor;
+  final String? value;
 
-  /// Wrap the value in a [Flexible] with end alignment so long values
-  /// stay on one line instead of overflowing (Grok variant). Codex lets
-  /// the value size itself.
+  /// Replaces the value text (e.g. an [AppBadge] for yes/no states).
+  final Widget? valueWidget;
+  final Color? iconColor;
+
+  /// Long values (emails, model names, expiry lines) stack under the
+  /// label instead of being squeezed onto the trailing edge.
   final bool flexValue;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-
-    final valueText = Text(
-      value,
-      textAlign: flexValue ? TextAlign.end : null,
-      style: textTheme.bodyMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        color: cs.onSurface,
-      ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text(title, style: textTheme.bodyMedium)),
-          if (flexValue) Flexible(child: valueText) else valueText,
-        ],
-      ),
+    return SettingsInfoRow(
+      icon: icon,
+      label: title,
+      value: value,
+      valueWidget: valueWidget,
+      iconColor: iconColor,
+      stacked: flexValue,
     );
   }
 }
@@ -336,34 +322,11 @@ class ContainerUsageStatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          SettingsIconContainer(icon: icon, color: iconColor),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+    return SettingsInfoRow(
+      icon: icon,
+      label: title,
+      value: value,
+      iconColor: iconColor,
     );
   }
 }
@@ -426,53 +389,63 @@ class UsageWindowRow extends StatelessWidget {
       barColor = AppColors.success;
     }
 
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: emphasizedTitle ? FontWeight.w600 : null,
+                ),
+              ),
+            ),
+            Text(
+              '${safePercent.toStringAsFixed(0)}%',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: percentUsesBarColor ? barColor : cs.onSurface,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: dense ? AppSpacing.xs : AppSpacing.sm),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: AppLinearProgressIndicator(
+            value: fraction,
+            minHeight: 6,
+            // surfaceContainerHighest vanishes on the light settings card;
+            // a faint onSurface tint reads as a track in both themes.
+            backgroundColor: cs.onSurface.withValues(alpha: AppOpacity.faint),
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
+          ),
+        ),
+        if (footer != null) ...[
+          SizedBox(height: dense ? AppSpacing.xs : AppSpacing.sm),
+          footer!,
+        ],
+      ],
+    );
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: dense ? AppSpacing.smd : AppSpacing.md,
+        vertical: AppSpacing.md,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: iconColor),
+      child: icon == null
+          ? body
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SettingsIconContainer(icon: icon!, color: iconColor),
                 const SizedBox(width: AppSpacing.md),
+                Expanded(child: body),
               ],
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: emphasizedTitle ? FontWeight.w500 : null,
-                  ),
-                ),
-              ),
-              Text(
-                '${safePercent.toStringAsFixed(0)}%',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: percentUsesBarColor ? barColor : cs.onSurface,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: dense ? AppSpacing.xs : AppSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: AppLinearProgressIndicator(
-              value: fraction,
-              minHeight: 6,
-              backgroundColor: cs.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
-          ),
-          if (footer != null) ...[
-            SizedBox(height: dense ? AppSpacing.xxs : AppSpacing.xs),
-            footer!,
-          ],
-        ],
-      ),
     );
   }
 }

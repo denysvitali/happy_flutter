@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
+import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../sessions/harness_logo.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Status chip showing online/offline indicator.
@@ -86,7 +88,10 @@ class SessionSandboxBadge extends StatelessWidget {
   }
 }
 
-/// A row displaying an icon, label, and value.
+/// A label/value row on the settings row geometry ([SettingsInfoRow]).
+///
+/// Stacked by default (label above a full-width value) for IDs and paths;
+/// [inline] puts a short value on the trailing edge.
 class InfoRow extends StatelessWidget {
   /// Creates an [InfoRow].
   const InfoRow({
@@ -96,6 +101,8 @@ class InfoRow extends StatelessWidget {
     super.key,
     this.onTap,
     this.iconColor,
+    this.inline = false,
+    this.mono = false,
   });
 
   /// The leading icon.
@@ -107,62 +114,34 @@ class InfoRow extends StatelessWidget {
   /// The value text.
   final String value;
 
-  /// Optional tap callback (shows copy icon when set).
+  /// Optional tap callback (copies the value; shows a copy glyph).
   final VoidCallback? onTap;
 
   /// Optional override for the icon color.
   final Color? iconColor;
 
+  /// Short value on the trailing edge instead of under the label.
+  final bool inline;
+
+  /// Monospace value (IDs, versions, paths).
+  final bool mono;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: iconColor ?? theme.colorScheme.primary),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppText.secondary(
-                      theme,
-                      theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: theme.textTheme.bodyMedium,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            if (onTap != null)
-              Icon(
-                Icons.copy,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-          ],
-        ),
-      ),
+    return SettingsInfoRow(
+      icon: icon,
+      label: label,
+      value: value,
+      iconColor: iconColor,
+      stacked: !inline,
+      mono: mono,
+      onCopy: onTap,
     );
   }
 }
 
-/// A tappable action row used in Quick Actions and Copy Metadata.
+/// A tappable action row (Quick actions, pod controls, Copy metadata):
+/// a tinted icon tile and a coloured label, on the settings row geometry.
 class ActionRow extends StatelessWidget {
   /// Creates an [ActionRow].
   const ActionRow({
@@ -191,45 +170,138 @@ class ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final theme = Theme.of(context);
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      container: true,
+      label: label,
+      excludeSemantics: true,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+      child: InkWell(
+        onTap: onTap,
+        excludeFromSemantics: true,
+        child: Opacity(
+          opacity: enabled || isLoading ? 1 : AppMotion.disabledContentOpacity,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.comfortable,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  SettingsIconContainer(icon: icon, color: color),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (isLoading)
+                    SizedBox.square(
+                      dimension: AppIconSize.md,
+                      child: AppCircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: color,
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.chevron_right,
+                      size: AppSpacing.xl,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: AppOpacity.medium,
+                      ),
+                    ),
+                ],
               ),
             ),
-            if (isLoading)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: AppCircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: color,
-                ),
-              )
-            else
-              Icon(
-                Icons.chevron_right,
-                size: AppSpacing.xl,
-                color: color.withValues(alpha: AppOpacity.high),
-              ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Identity header: harness mark, name, path and status pills, on the
+/// same card surface as every section below it.
+class SessionInfoHeader extends StatelessWidget {
+  const SessionInfoHeader({
+    super.key,
+    required this.name,
+    required this.subtitle,
+    required this.flavor,
+    required this.badges,
+  });
+
+  final String name;
+  final String subtitle;
+  final String? flavor;
+  final List<Widget> badges;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return SettingsSection(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: AppControlSize.lg,
+                height: AppControlSize.lg,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: HarnessLogo(flavor: flavor ?? '', size: AppIconSize.xxl),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppText.title(theme),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        subtitle,
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: badges,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

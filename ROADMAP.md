@@ -144,6 +144,15 @@ paperclip and chip lane. The "Review results" bar above the composer is gone.
 Programmatic search reveals no longer page in older history. Device acceptance
 pending.
 
+Detail screens (2026-11-09): Codex usage, machine detail and Session info
+now use the settings section card and icon-tile rows (`SettingsInfoRow`)
+instead of three different card/header styles. The machine picker no longer
+runs long hostnames under its arrow; yes/no and model availability are toned
+pills; plan and credit balance are formatted (`Plus`, `73,740.18`); reset
+footers lead with the countdown. Coding agents are per-agent rows with a
+compact Update button; pod controls are rows, and Kill pod now confirms.
+Copy is sentence case. Regressions updated; device acceptance pending.
+
 Session list errors (2026-11-08): a failed message the turn worked past
 (retry notice, tool call, or newer assistant text after it) no longer pins the
 row to the error lane; a working session is live, not "Failed". The newest

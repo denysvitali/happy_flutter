@@ -451,3 +451,167 @@ class SettingsSection extends StatelessWidget {
     return result;
   }
 }
+
+/// Read-only label/value row on the [SettingsRow] geometry: icon tile,
+/// label, value.
+///
+/// Inline (default) puts a short value on the trailing edge — counts,
+/// yes/no, plan names. [stacked] puts the value under the label at full
+/// width — IDs, paths, emails and anything else that must not be squeezed
+/// into the trailing slot. A [valueWidget] (e.g. an [AppBadge]) replaces
+/// the plain value text. [onCopy] makes the row tappable and shows a copy
+/// glyph.
+class SettingsInfoRow extends StatelessWidget {
+  const SettingsInfoRow({
+    required this.icon,
+    required this.label,
+    super.key,
+    this.value,
+    this.valueWidget,
+    this.iconColor,
+    this.stacked = false,
+    this.mono = false,
+    this.onCopy,
+    this.trailing,
+  }) : assert(
+         value != null || valueWidget != null,
+         'Needs a value or a valueWidget.',
+       );
+
+  final IconData icon;
+  final String label;
+  final String? value;
+  final Widget? valueWidget;
+  final Color? iconColor;
+
+  /// Value below the label instead of on the trailing edge.
+  final bool stacked;
+
+  /// Render the value in the monospace family (IDs, versions, paths).
+  final bool mono;
+
+  /// Makes the row tappable and adds a trailing copy glyph.
+  final VoidCallback? onCopy;
+
+  /// Extra trailing widget (e.g. a status dot) after the value.
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final maxLines = _labelMaxLines(context);
+    final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: stacked ? cs.onSurface : cs.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+      fontFamily: mono ? 'monospace' : null,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final valueChild =
+        valueWidget ??
+        Text(
+          value!,
+          style: valueStyle,
+          textAlign: stacked ? TextAlign.start : TextAlign.end,
+          maxLines: stacked ? maxLines : 1,
+          overflow: TextOverflow.ellipsis,
+        );
+    final labelText = Text(
+      label,
+      style: stacked
+          ? AppText.secondary(theme, cs.onSurfaceVariant)
+          : theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+      maxLines: maxLines,
+      overflow: maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis,
+    );
+
+    final copy = onCopy;
+    final trailingIcons = <Widget>[
+      if (trailing != null) ...[
+        const SizedBox(width: AppSpacing.sm),
+        trailing!,
+      ],
+      if (copy != null) ...[
+        const SizedBox(width: AppSpacing.sm),
+        Icon(
+          Icons.copy_rounded,
+          size: AppIconSize.sm,
+          color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.high),
+        ),
+      ],
+    ];
+
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: stacked
+            ? kSettingsRowMinHeightWithSubtitle
+            : AppTouchTarget.comfortable,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            SettingsIconContainer(icon: icon, color: iconColor),
+            const SizedBox(width: AppSpacing.md),
+            if (stacked)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    labelText,
+                    const SizedBox(height: AppSpacing.xxs),
+                    valueChild,
+                  ],
+                ),
+              )
+            else
+              // The label takes what the value leaves, and the value may use
+              // up to 60% of the row — enough for a badge like "Credits
+              // required" without letting a long value crowd out the label.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    children: [
+                      Expanded(child: labelText),
+                      const SizedBox(width: AppSpacing.md),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * 0.6,
+                        ),
+                        child: valueChild,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ...trailingIcons,
+          ],
+        ),
+      ),
+    );
+
+    return Semantics(
+      container: true,
+      button: copy != null,
+      label: value == null
+          ? label
+          : context.l10n.a11ySettingsRow(label, value!),
+      excludeSemantics: value != null,
+      onTap: copy,
+      child: copy == null
+          ? content
+          : InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                copy();
+              },
+              excludeFromSemantics: true,
+              child: content,
+            ),
+    );
+  }
+}

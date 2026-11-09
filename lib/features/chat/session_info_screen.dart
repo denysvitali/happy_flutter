@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
-import '../../core/components/app_section_header.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -17,7 +17,6 @@ import '../../core/rpc/rpc_types.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/services/session_archive.dart';
-import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
@@ -25,18 +24,10 @@ import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
+import 'widgets/session_pod_section.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_banner.dart';
-import 'package:happy_flutter/core/components/app_card.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 import '../../core/utils/snack.dart';
-
-// Reusable thin divider used inside the metadata/info cards.
-const _kRowDivider = Divider(
-  height: 1,
-  thickness: AppBorder.hairline,
-  indent: 52,
-);
 
 /// Screen that shows detailed info about a specific session.
 class SessionInfoScreen extends ConsumerWidget {
@@ -376,77 +367,25 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final isCliOutdated =
         meta?.version != null && !isVersionSupported(meta!.version!);
 
+    final cs = theme.colorScheme;
+    const gap = SizedBox(height: AppSpacing.xl);
+
     return ListView(
       padding: AppScreenPadding.standard,
       children: [
-        AppCard(
-          padding: EdgeInsets.zero,
-          color: theme.colorScheme.surface,
-          borderColor:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.computer_outlined,
-                  size: 56,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  sessionName,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  sessionSubtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    StatusChip(isActive: session.isOnline),
-                    if (meta != null) SessionSandboxBadge(metadata: meta),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        SessionInfoHeader(
+          name: sessionName,
+          subtitle: sessionSubtitle,
+          flavor: meta?.flavor,
+          badges: [
+            StatusChip(isActive: session.isOnline),
+            if (meta != null) SessionSandboxBadge(metadata: meta),
+          ],
         ),
-        const SizedBox(height: AppSpacing.lg),
-
-        if (session.isKubernetesSession) ...[
-          AppSectionHeader(title: l10n.sessionPodSection),
-          const SizedBox(height: AppSpacing.sm),
-          _SessionPodCard(
-            session: session,
-            pod: _pod,
-            logs: _podLogs,
-            loading: _podLoading,
-            actionRunning: _podActionRunning,
-            error: _podError,
-            onRefresh: () => _refreshPod(loadLogs: _podLogs != null),
-            onLoadLogs: () => _refreshPod(loadLogs: true),
-            onPause: () => _runPodAction('pause'),
-            onResume: () => _runPodAction('resume'),
-            onKill: () => _runPodAction('kill'),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
 
         // CLI Version Outdated Warning
         if (isCliOutdated) ...[
+          const SizedBox(height: AppSpacing.md),
           AppBanner(
             tone: AppBadgeTone.warning,
             title: l10n.sessionInfoCliOutdated,
@@ -459,543 +398,328 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               message: l10n.sessionInfoUpdateCommandCopied,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
         ],
 
-        AppSectionHeader(title: l10n.sessionInfoSectionDetails),
-        const SizedBox(height: AppSpacing.sm),
-        AppCard(
-          padding: EdgeInsets.zero,
-          color: theme.colorScheme.surface,
-          borderColor:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
-          child: Column(
-            children: [
-              InfoRow(
-                icon: Icons.fingerprint,
-                label: l10n.sessionInfoLabelSessionId,
-                value: session.id.length > 16
-                    ? '${session.id.substring(0, 8)}...'
-                          '${session.id.substring(session.id.length - 8)}'
-                    : session.id,
-                onTap: () => _copyToClipboard(session.id),
-              ),
-              _kRowDivider,
-              InfoRow(
-                icon: Icons.access_time,
-                label: l10n.sessionInfoLabelCreated,
-                value: _formatDate(session.createdAt),
-              ),
-              _kRowDivider,
-              InfoRow(
-                icon: Icons.update,
-                label: l10n.sessionInfoLabelLastUpdated,
-                value: _formatDate(session.updatedAt),
-              ),
-              _kRowDivider,
-              InfoRow(
-                icon: Icons.tag,
-                label: l10n.sessionInfoLabelSequence,
-                value: session.seq.toString(),
-              ),
-            ],
+        if (session.isKubernetesSession) ...[
+          gap,
+          SessionPodSection(
+            session: session,
+            pod: _pod,
+            logs: _podLogs,
+            loading: _podLoading,
+            actionRunning: _podActionRunning,
+            error: _podError,
+            onRefresh: () => _refreshPod(loadLogs: _podLogs != null),
+            onLoadLogs: () => _refreshPod(loadLogs: true),
+            onHideLogs: () => setState(() => _podLogs = null),
+            onPause: () => _runPodAction('pause'),
+            onResume: () => _runPodAction('resume'),
+            onKill: () async {
+              final confirmed = await showConfirmDialog(
+                context,
+                title: l10n.sessionPodKill,
+                content: l10n.sessionPodKillConfirm,
+                confirmLabel: l10n.sessionPodKill,
+                isDestructive: true,
+              );
+              if (confirmed && mounted) await _runPodAction('kill');
+            },
           ),
+        ],
+
+        gap,
+        SettingsSection(
+          title: l10n.sessionInfoSectionDetails,
+          children: [
+            InfoRow(
+              icon: Icons.fingerprint,
+              label: l10n.sessionInfoLabelSessionId,
+              value: session.id,
+              mono: true,
+              onTap: () => _copyToClipboard(session.id),
+            ),
+            InfoRow(
+              icon: Icons.access_time,
+              label: l10n.sessionInfoLabelCreated,
+              value: _formatDate(session.createdAt),
+              inline: true,
+            ),
+            InfoRow(
+              icon: Icons.update,
+              label: l10n.sessionInfoLabelLastUpdated,
+              value: _formatDate(session.updatedAt),
+              inline: true,
+            ),
+            InfoRow(
+              icon: Icons.tag,
+              label: l10n.sessionInfoLabelSequence,
+              value: session.seq.toString(),
+              inline: true,
+              mono: true,
+            ),
+          ],
         ),
 
         if (meta?.flavor != 'har' &&
             (meta?.machineId?.isNotEmpty ?? false)) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(title: l10n.sessionStartupResumeSection),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            padding: EdgeInsets.zero,
-            color: theme.colorScheme.surface,
-            borderColor:
-                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                    .glassBorder,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.sessionStartupResumeTitle),
-                    subtitle: Text(l10n.sessionStartupResumeDescription),
-                    value: _startupResumeEnabled,
-                    onChanged: _startupResumeSaving
-                        ? null
-                        : (value) =>
-                              setState(() => _startupResumeEnabled = value),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: _startupResumeMessageController,
-                    enabled: _startupResumeEnabled && !_startupResumeSaving,
-                    decoration: InputDecoration(
-                      labelText: l10n.sessionStartupResumeMessageLabel,
-                      hintText: 'continue',
-                      border: const OutlineInputBorder(),
-                    ),
-                    minLines: 1,
-                    maxLines: 4,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton.icon(
-                    onPressed: _startupResumeSaving ? null : _saveStartupResume,
-                    icon: _startupResumeSaving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: AppCircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: Text(l10n.commonSave),
-                  ),
-                ],
+          gap,
+          SettingsSection(
+            title: l10n.sessionStartupResumeSection,
+            children: [
+              SettingsToggleRow(
+                icon: Icons.restart_alt_rounded,
+                title: l10n.sessionStartupResumeTitle,
+                subtitle: l10n.sessionStartupResumeDescription,
+                value: _startupResumeEnabled,
+                onChanged: (value) {
+                  if (_startupResumeSaving) return;
+                  setState(() => _startupResumeEnabled = value);
+                },
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _startupResumeMessageController,
+                      enabled: _startupResumeEnabled && !_startupResumeSaving,
+                      decoration: InputDecoration(
+                        labelText: l10n.sessionStartupResumeMessageLabel,
+                        hintText: 'continue',
+                      ),
+                      minLines: 1,
+                      maxLines: 4,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _startupResumeSaving
+                            ? null
+                            : _saveStartupResume,
+                        icon: _startupResumeSaving
+                            ? const SizedBox.square(
+                                dimension: AppIconSize.md,
+                                child: AppCircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(l10n.commonSave),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
 
-        const SizedBox(height: AppSpacing.lg),
-        AppSectionHeader(title: l10n.sessionInfoSectionQuickActions),
-        const SizedBox(height: AppSpacing.sm),
-        AppCard(
-          padding: EdgeInsets.zero,
-          color: theme.colorScheme.surface,
-          borderColor:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
-          child: Column(
-            children: [
+        gap,
+        SettingsSection(
+          title: l10n.sessionInfoSectionQuickActions,
+          children: [
+            ActionRow(
+              icon: Icons.bug_report_outlined,
+              label: l10n.sessionInfoActionExportDebug,
+              color: cs.primary,
+              onTap: _exportDebugInfo,
+            ),
+            if (hasMachineAction)
               ActionRow(
-                icon: Icons.bug_report_outlined,
-                label: l10n.sessionInfoActionExportDebug,
-                color: theme.colorScheme.primary,
-                onTap: _exportDebugInfo,
+                icon: Icons.dns_outlined,
+                label: l10n.sessionInfoActionViewMachine,
+                color: cs.primary,
+                onTap: () => context.push('/machine/${meta!.machineId}'),
               ),
-              if (hasMachineAction || hasArchiveAction || hasDeleteAction)
-                _kRowDivider,
-              if (hasMachineAction) ...[
-                ActionRow(
-                  icon: Icons.dns_outlined,
-                  label: l10n.sessionInfoActionViewMachine,
-                  color: theme.colorScheme.primary,
-                  onTap: () => context.push('/machine/${meta!.machineId}'),
-                ),
-              ],
-              if (hasMachineAction && (hasArchiveAction || hasDeleteAction))
-                _kRowDivider,
-              if (hasArchiveAction)
-                ActionRow(
-                  icon: Icons.archive_outlined,
-                  label: l10n.sessionInfoActionArchive,
-                  color: theme.colorScheme.error,
-                  isLoading: _isArchiving,
-                  onTap: _isArchiving ? null : _handleArchiveSession,
-                ),
-              if (hasArchiveAction && hasDeleteAction) _kRowDivider,
-              if (hasDeleteAction)
-                ActionRow(
-                  icon: Icons.delete_outline,
-                  label: l10n.sessionInfoActionDelete,
-                  color: theme.colorScheme.error,
-                  isLoading: _isDeleting,
-                  onTap: _isDeleting ? null : _handleDeleteSession,
-                ),
-            ],
-          ),
+            if (hasArchiveAction)
+              ActionRow(
+                icon: Icons.archive_outlined,
+                label: l10n.sessionInfoActionArchive,
+                color: cs.error,
+                isLoading: _isArchiving,
+                onTap: _isArchiving ? null : _handleArchiveSession,
+              ),
+            if (hasDeleteAction)
+              ActionRow(
+                icon: Icons.delete_outline,
+                label: l10n.sessionInfoActionDelete,
+                color: cs.error,
+                isLoading: _isDeleting,
+                onTap: _isDeleting ? null : _handleDeleteSession,
+              ),
+          ],
         ),
 
         if (meta != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(title: l10n.sessionInfoSectionMetadata),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            padding: EdgeInsets.zero,
-            color: theme.colorScheme.surface,
-            borderColor:
-                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                    .glassBorder,
-            child: Column(
-              children: [
+          gap,
+          SettingsSection(
+            title: l10n.sessionInfoSectionMetadata,
+            children: [
+              InfoRow(
+                icon: Icons.computer,
+                label: l10n.sessionInfoLabelHost,
+                value: meta.host,
+              ),
+              if (meta.path != null)
                 InfoRow(
-                  icon: Icons.computer,
-                  label: l10n.sessionInfoLabelHost,
-                  value: meta.host,
+                  icon: Icons.folder_outlined,
+                  label: l10n.sessionInfoLabelPath,
+                  value: formatPathRelativeToHome(
+                    meta.path!,
+                    homeDir: meta.homeDir,
+                  ),
+                  mono: true,
                 ),
-                if (meta.path != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.folder_outlined,
-                    label: l10n.sessionInfoLabelPath,
-                    value: formatPathRelativeToHome(
-                      meta.path!,
-                      homeDir: meta.homeDir,
-                    ),
-                  ),
-                ],
-                if (meta.machineId != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.dns_outlined,
-                    label: l10n.sessionInfoLabelMachineId,
-                    value: meta.machineId!,
-                    onTap: () => _copyToClipboard(meta.machineId!),
-                  ),
-                ],
-                if (meta.os != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.memory,
-                    label: l10n.sessionInfoLabelOs,
-                    value: formatOSPlatform(meta.os),
-                  ),
-                ],
-                if (meta.version != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: isCliOutdated
-                        ? Icons.warning_amber_outlined
-                        : Icons.verified_outlined,
-                    label: l10n.sessionInfoLabelCliVersion,
-                    value: meta.version!,
-                    iconColor: isCliOutdated
-                        ? AppToneColors.of(
-                            context,
-                            AppBadgeTone.warning,
-                          ).iconColor
-                        : null,
-                  ),
-                ],
-                if (meta.flavor != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.auto_awesome,
-                    label: l10n.sessionInfoLabelAiProvider,
-                    value: _formatFlavor(meta.flavor, l10n),
-                  ),
-                ],
-                if (meta.claudeSessionId != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.code_outlined,
-                    label: l10n.sessionInfoLabelClaudeSessionId,
-                    value: () {
-                      final id = meta.claudeSessionId!;
-                      return '${id.substring(0, 8)}...'
-                          '${id.substring(id.length - 8)}';
-                    }(),
-                    onTap: () => _copyToClipboard(meta.claudeSessionId!),
-                  ),
-                ],
-                if (meta.hostPid != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.terminal,
-                    label: l10n.sessionInfoLabelProcessId,
-                    value: meta.hostPid!.toString(),
-                  ),
-                ],
-                if (meta.happyHomeDir != null) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.home_outlined,
-                    label: l10n.sessionInfoLabelHappyHome,
-                    value: formatPathRelativeToHome(
-                      meta.happyHomeDir!,
-                      homeDir: meta.homeDir,
-                    ),
-                  ),
-                ],
-                _kRowDivider,
-                ActionRow(
-                  icon: Icons.copy_outlined,
-                  label: l10n.sessionInfoActionCopyMetadata,
-                  color: theme.colorScheme.primary,
-                  onTap: () {
-                    _copyToClipboard(
-                      jsonEncode(meta.toJson()),
-                      message: l10n.sessionInfoMetadataCopied,
-                    );
-                  },
+              if (meta.machineId != null)
+                InfoRow(
+                  icon: Icons.dns_outlined,
+                  label: l10n.sessionInfoLabelMachineId,
+                  value: meta.machineId!,
+                  mono: true,
+                  onTap: () => _copyToClipboard(meta.machineId!),
                 ),
-              ],
-            ),
+              if (meta.os != null)
+                InfoRow(
+                  icon: Icons.memory,
+                  label: l10n.sessionInfoLabelOs,
+                  value: formatOSPlatform(meta.os),
+                  inline: true,
+                ),
+              if (meta.version != null)
+                InfoRow(
+                  icon: isCliOutdated
+                      ? Icons.warning_amber_outlined
+                      : Icons.verified_outlined,
+                  label: l10n.sessionInfoLabelCliVersion,
+                  value: meta.version!,
+                  inline: true,
+                  mono: true,
+                  iconColor: isCliOutdated
+                      ? AppToneColors.of(
+                          context,
+                          AppBadgeTone.warning,
+                        ).iconColor
+                      : null,
+                ),
+              if (meta.flavor != null)
+                InfoRow(
+                  icon: Icons.auto_awesome,
+                  label: l10n.sessionInfoLabelAiProvider,
+                  value: _formatFlavor(meta.flavor, l10n),
+                  inline: true,
+                ),
+              if (meta.claudeSessionId != null)
+                InfoRow(
+                  icon: Icons.code_outlined,
+                  label: l10n.sessionInfoLabelClaudeSessionId,
+                  value: meta.claudeSessionId!,
+                  mono: true,
+                  onTap: () => _copyToClipboard(meta.claudeSessionId!),
+                ),
+              if (meta.hostPid != null)
+                InfoRow(
+                  icon: Icons.terminal,
+                  label: l10n.sessionInfoLabelProcessId,
+                  value: meta.hostPid!.toString(),
+                  inline: true,
+                  mono: true,
+                ),
+              if (meta.happyHomeDir != null)
+                InfoRow(
+                  icon: Icons.home_outlined,
+                  label: l10n.sessionInfoLabelHappyHome,
+                  value: formatPathRelativeToHome(
+                    meta.happyHomeDir!,
+                    homeDir: meta.homeDir,
+                  ),
+                  mono: true,
+                ),
+              ActionRow(
+                icon: Icons.copy_outlined,
+                label: l10n.sessionInfoActionCopyMetadata,
+                color: cs.primary,
+                onTap: () {
+                  _copyToClipboard(
+                    jsonEncode(meta.toJson()),
+                    message: l10n.sessionInfoMetadataCopied,
+                  );
+                },
+              ),
+            ],
           ),
         ],
 
         if (session.agentState != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(title: l10n.sessionInfoSectionAgentState),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            padding: EdgeInsets.zero,
-            color: theme.colorScheme.surface,
-            borderColor:
-                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                    .glassBorder,
-            child: Column(
-              children: [
+          gap,
+          SettingsSection(
+            title: l10n.sessionInfoSectionAgentState,
+            children: [
+              InfoRow(
+                icon: Icons.person_outline,
+                label: l10n.sessionInfoLabelControlledByUser,
+                value: (session.agentState!.controlledByUser ?? false)
+                    ? l10n.commonYes
+                    : l10n.commonNo,
+                inline: true,
+              ),
+              if (session.agentState!.requests != null &&
+                  session.agentState!.requests!.isNotEmpty)
                 InfoRow(
-                  icon: Icons.person_outline,
-                  label: l10n.sessionInfoLabelControlledByUser,
-                  value: (session.agentState!.controlledByUser ?? false)
-                      ? l10n.commonYes
-                      : l10n.commonNo,
+                  icon: Icons.hourglass_empty_outlined,
+                  label: l10n.sessionInfoLabelPendingRequests,
+                  value: session.agentState!.requests!.length.toString(),
+                  inline: true,
                 ),
-                if (session.agentState!.requests != null &&
-                    session.agentState!.requests!.isNotEmpty) ...[
-                  _kRowDivider,
-                  InfoRow(
-                    icon: Icons.hourglass_empty_outlined,
-                    label: l10n.sessionInfoLabelPendingRequests,
-                    value: session.agentState!.requests!.length.toString(),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
         ],
 
-        const SizedBox(height: AppSpacing.lg),
-        AppSectionHeader(title: l10n.sessionInfoSectionActivity),
-        const SizedBox(height: AppSpacing.sm),
-        AppCard(
-          padding: EdgeInsets.zero,
-          color: theme.colorScheme.surface,
-          borderColor:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
-          child: Column(
-            children: [
+        gap,
+        SettingsSection(
+          title: l10n.sessionInfoSectionActivity,
+          children: [
+            InfoRow(
+              icon: Icons.lightbulb_outline,
+              label: l10n.sessionInfoLabelThinking,
+              value: session.thinking ? l10n.commonYes : l10n.commonNo,
+              inline: true,
+              iconColor: session.thinking ? cs.tertiary : null,
+            ),
+            if (session.thinking && session.thinkingAt != null)
               InfoRow(
-                icon: Icons.lightbulb_outline,
-                label: l10n.sessionInfoLabelThinking,
-                value: session.thinking ? l10n.commonYes : l10n.commonNo,
-                iconColor: session.thinking
-                    ? theme.colorScheme.tertiary
-                    : theme.colorScheme.onSurfaceVariant,
+                icon: Icons.timer_outlined,
+                label: l10n.sessionInfoLabelThinkingSince,
+                value: _formatDate(session.thinkingAt!),
+                inline: true,
+                iconColor: cs.tertiary,
               ),
-              if (session.thinking && session.thinkingAt != null) ...[
-                _kRowDivider,
-                InfoRow(
-                  icon: Icons.timer_outlined,
-                  label: l10n.sessionInfoLabelThinkingSince,
-                  value: _formatDate(session.thinkingAt!),
-                  iconColor: theme.colorScheme.tertiary,
-                ),
-              ],
-            ],
-          ),
+          ],
         ),
 
         if (meta?.tools != null && meta!.tools!.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(title: l10n.sessionInfoSectionTools),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            padding: EdgeInsets.zero,
-            color: theme.colorScheme.surface,
-            borderColor:
-                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                    .glassBorder,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: meta.tools!.map((tool) {
-                  return AppBadge(label: tool);
-                }).toList(),
+          gap,
+          SettingsSection(
+            title: l10n.sessionInfoSectionTools,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final tool in meta.tools!)
+                      AppBadge(label: tool, outlined: true),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
 
         const SizedBox(height: AppSpacing.xxxl),
       ],
-    );
-  }
-}
-
-class _SessionPodCard extends StatelessWidget {
-  const _SessionPodCard({
-    required this.session,
-    required this.pod,
-    required this.logs,
-    required this.loading,
-    required this.actionRunning,
-    required this.error,
-    required this.onRefresh,
-    required this.onLoadLogs,
-    required this.onPause,
-    required this.onResume,
-    required this.onKill,
-  });
-
-  final Session session;
-  final SessionPod? pod;
-  final SessionPodLogsResponse? logs;
-  final bool loading;
-  final bool actionRunning;
-  final Object? error;
-  final VoidCallback onRefresh;
-  final VoidCallback onLoadLogs;
-  final VoidCallback onPause;
-  final VoidCallback onResume;
-  final VoidCallback onKill;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final currentPod = pod;
-    final state = currentPod == null
-        ? session.podDisplayState
-        : currentPod.archived
-        ? SessionPodDisplayState.archived
-        : currentPod.paused
-        ? SessionPodDisplayState.paused
-        : currentPod.ready
-        ? SessionPodDisplayState.ready
-        : currentPod.phase.toLowerCase() == 'failed'
-        ? SessionPodDisplayState.failed
-        : SessionPodDisplayState.scheduling;
-    final stateLabel = switch (state) {
-      SessionPodDisplayState.scheduling => l10n.sessionPodScheduling,
-      SessionPodDisplayState.ready => l10n.sessionPodReady,
-      SessionPodDisplayState.paused => l10n.sessionPodPaused,
-      SessionPodDisplayState.archived => l10n.sessionPodArchived,
-      SessionPodDisplayState.failed => l10n.sessionPodFailed,
-    };
-    final stateTone = switch (state) {
-      SessionPodDisplayState.scheduling => AppBadgeTone.info,
-      SessionPodDisplayState.ready => AppBadgeTone.success,
-      SessionPodDisplayState.paused => AppBadgeTone.warning,
-      SessionPodDisplayState.archived => AppBadgeTone.neutral,
-      SessionPodDisplayState.failed => AppBadgeTone.danger,
-    };
-
-    return AppCard(
-      padding: EdgeInsets.zero,
-      color: theme.colorScheme.surface,
-      borderColor: theme.colorScheme.outlineVariant,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.cloud_queue_outlined,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    currentPod?.podName ??
-                        session.metadata?.podName ??
-                        l10n.sessionPod,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ),
-                AppBadge(label: stateLabel, tone: stateTone),
-                IconButton(
-                  tooltip: l10n.commonRefresh,
-                  onPressed: loading ? null : onRefresh,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            if ((currentPod?.namespace ?? session.metadata?.namespace)
-                    ?.isNotEmpty ==
-                true)
-              Text(
-                currentPod?.namespace ?? session.metadata!.namespace!,
-                style: AppText.secondary(
-                  theme,
-                  theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            if (currentPod?.reason.isNotEmpty == true ||
-                currentPod?.message.isNotEmpty == true) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                [
-                  currentPod!.reason,
-                  currentPod.message,
-                ].where((value) => value.isNotEmpty).join(' · '),
-              ),
-            ],
-            if (error != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              AppBanner(
-                tone: AppBadgeTone.danger,
-                title: l10n.sessionPodLoadFailed,
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: loading ? null : onLoadLogs,
-                  icon: const Icon(Icons.article_outlined),
-                  label: Text(l10n.sessionPodLogs),
-                ),
-                if (state == SessionPodDisplayState.paused)
-                  FilledButton.tonalIcon(
-                    onPressed: actionRunning ? null : onResume,
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text(l10n.sessionPodResume),
-                  )
-                else if (state == SessionPodDisplayState.ready)
-                  FilledButton.tonalIcon(
-                    onPressed: actionRunning ? null : onPause,
-                    icon: const Icon(Icons.pause),
-                    label: Text(l10n.sessionPodPause),
-                  ),
-                FilledButton.tonalIcon(
-                  onPressed: actionRunning ? null : onKill,
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: Text(l10n.sessionPodKill),
-                ),
-              ],
-            ),
-            if (logs != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 320),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                color: theme.colorScheme.surfaceContainerHighest,
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    logs!.content.isEmpty
-                        ? l10n.sessionPodLogsEmpty
-                        : logs!.content,
-                    style: AppText.secondary(
-                      theme,
-                    ).copyWith(fontFamily: 'monospace'),
-                  ),
-                ),
-              ),
-              if (logs!.truncated)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: Text(
-                    l10n.sessionPodLogsTruncated,
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }

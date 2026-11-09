@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/components/app_badge.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/codex_usage_summary.dart';
 import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/machine_usage_scaffold.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
@@ -52,6 +52,10 @@ class CodexUsageScreen extends StatelessWidget {
       },
       contentBuilder: (context, report) {
         final l10n = AppLocalizations.of(context);
+        final windowTitles = _CodexUsageWindowTitles(
+          primary: l10n.codexUsagePrimaryWindow,
+          secondary: l10n.codexUsageSecondaryWindow,
+        );
 
         return [
           SettingsSection(
@@ -61,114 +65,43 @@ class CodexUsageScreen extends StatelessWidget {
                 icon: Icons.alternate_email,
                 title: l10n.codexUsageEmail,
                 value: report.email ?? '-',
-                iconColor: AppColors.info,
                 flexValue: true,
               ),
               UsageStatRow(
                 icon: Icons.workspace_premium_outlined,
                 title: l10n.codexUsagePlan,
-                value: report.planType ?? '-',
-                iconColor: AppColors.success,
+                value: _formatPlan(report.planType),
               ),
             ],
           ),
           if (report.rateLimit != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            SettingsSection(
+            _CodexUsageRateLimitSection(
               title: l10n.codexUsageSessionLimits,
-              children: [
-                _CodexUsageBooleanRow(
-                  icon: Icons.check_circle_outline,
-                  title: l10n.codexUsageAllowed,
-                  value: report.rateLimit!.allowed,
-                  iconColor: AppColors.info,
-                ),
-                if (report.rateLimit!.primaryWindow != null)
-                  UsageWindowRow(
-                    icon: Icons.schedule,
-                    title: _windowTitle(
-                      context,
-                      report.rateLimit!.primaryWindow!,
-                      l10n.codexUsagePrimaryWindow,
-                    ),
-                    percent: report.rateLimit!.primaryWindow!.usedPercent
-                        .toDouble(),
-                    iconColor: AppColors.warning,
-                    footer: _windowFooter(
-                      context,
-                      report.rateLimit!.primaryWindow!,
-                    ),
-                  ),
-                if (report.rateLimit!.secondaryWindow != null)
-                  UsageWindowRow(
-                    icon: Icons.date_range_outlined,
-                    title: _windowTitle(
-                      context,
-                      report.rateLimit!.secondaryWindow!,
-                      l10n.codexUsageSecondaryWindow,
-                    ),
-                    percent: report.rateLimit!.secondaryWindow!.usedPercent
-                        .toDouble(),
-                    iconColor: AppColors.success,
-                    footer: _windowFooter(
-                      context,
-                      report.rateLimit!.secondaryWindow!,
-                    ),
-                  ),
-              ],
+              rateLimit: report.rateLimit!,
+              windowTitles: windowTitles,
+              leadingIcon: Icons.verified_outlined,
             ),
           ],
           if (report.codeReviewRateLimit != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            SettingsSection(
+            _CodexUsageRateLimitSection(
               title: l10n.codexUsageCodeReview,
-              children: [
-                _CodexUsageBooleanRow(
-                  icon: Icons.rate_review_outlined,
-                  title: l10n.codexUsageAllowed,
-                  value: report.codeReviewRateLimit!.allowed,
-                  iconColor: AppColors.info,
-                ),
-                if (report.codeReviewRateLimit!.primaryWindow != null)
-                  UsageWindowRow(
-                    icon: Icons.schedule,
-                    title: _windowTitle(
-                      context,
-                      report.codeReviewRateLimit!.primaryWindow!,
-                      l10n.codexUsagePrimaryWindow,
-                    ),
-                    percent: report
-                        .codeReviewRateLimit!
-                        .primaryWindow!
-                        .usedPercent
-                        .toDouble(),
-                    iconColor: AppColors.warning,
-                    footer: _windowFooter(
-                      context,
-                      report.codeReviewRateLimit!.primaryWindow!,
-                    ),
-                  ),
-                if (report.codeReviewRateLimit!.secondaryWindow != null)
-                  UsageWindowRow(
-                    icon: Icons.date_range_outlined,
-                    title: _windowTitle(
-                      context,
-                      report.codeReviewRateLimit!.secondaryWindow!,
-                      l10n.codexUsageSecondaryWindow,
-                    ),
-                    percent: report
-                        .codeReviewRateLimit!
-                        .secondaryWindow!
-                        .usedPercent
-                        .toDouble(),
-                    iconColor: AppColors.success,
-                    footer: _windowFooter(
-                      context,
-                      report.codeReviewRateLimit!.secondaryWindow!,
-                    ),
-                  ),
-              ],
+              rateLimit: report.codeReviewRateLimit!,
+              windowTitles: windowTitles,
+              leadingIcon: Icons.rate_review_outlined,
             ),
+          ],
+          for (final additionalLimit in report.additionalRateLimits) ...[
+            if (additionalLimit.rateLimit != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _CodexUsageRateLimitSection(
+                title: additionalLimit.displayName,
+                rateLimit: additionalLimit.rateLimit!,
+                windowTitles: windowTitles,
+                leadingIcon: Icons.auto_awesome_outlined,
+              ),
+            ],
           ],
           if (report.modelUsage.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -177,21 +110,9 @@ class CodexUsageScreen extends StatelessWidget {
               children: [
                 for (final entry in report.modelUsage.entries)
                   UsageStatRow(
-                    icon: Icons.auto_awesome,
+                    icon: Icons.auto_awesome_outlined,
                     title: entry.key,
-                    value: entry.value.available
-                        ? l10n.commonYes
-                        : entry.value.availableAt != null
-                        ? l10n.codexUsageResetsAt(
-                            DateFormat.yMMMd().add_jm().format(
-                              entry.value.availableAt!.toLocal(),
-                            ),
-                          )
-                        : entry.value.creditsWouldEnable
-                        ? l10n.codexUsageCreditsRequired
-                        : l10n.commonNo,
-                    iconColor: AppColors.info,
-                    flexValue: true,
+                    valueWidget: _modelAvailabilityBadge(context, entry.value),
                   ),
               ],
             ),
@@ -199,20 +120,6 @@ class CodexUsageScreen extends StatelessWidget {
           if (report.resetCredits != null) ...[
             const SizedBox(height: AppSpacing.lg),
             _CodexResetCreditsSection(resetCredits: report.resetCredits!),
-          ],
-          for (final additionalLimit in report.additionalRateLimits) ...[
-            if (additionalLimit.rateLimit != null) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _CodexUsageRateLimitSection(
-                title: additionalLimit.displayName,
-                rateLimit: additionalLimit.rateLimit!,
-                windowTitles: _CodexUsageWindowTitles(
-                  primary: l10n.codexUsagePrimaryWindow,
-                  secondary: l10n.codexUsageSecondaryWindow,
-                ),
-                leadingIcon: Icons.auto_awesome,
-              ),
-            ],
           ],
           if (report.credits != null) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -223,15 +130,13 @@ class CodexUsageScreen extends StatelessWidget {
                   icon: Icons.account_balance_wallet_outlined,
                   title: l10n.codexUsageCreditsAvailable,
                   value: report.credits!.hasCredits,
-                  iconColor: AppColors.info,
                 ),
                 UsageStatRow(
                   icon: Icons.payments_outlined,
                   title: l10n.codexUsageCreditsBalance,
                   value: report.credits!.unlimited
                       ? l10n.codexUsageUnlimited
-                      : (report.credits!.balance ?? '-'),
-                  iconColor: AppColors.success,
+                      : _formatBalance(context, report.credits!.balance),
                 ),
               ],
             ),
@@ -240,6 +145,53 @@ class CodexUsageScreen extends StatelessWidget {
       },
     );
   }
+}
+
+/// Plan types arrive as lowercase wire values (`plus`, `pro`, `team`).
+String _formatPlan(String? plan) {
+  final trimmed = plan?.trim();
+  if (trimmed == null || trimmed.isEmpty) return '-';
+  return trimmed[0].toUpperCase() + trimmed.substring(1);
+}
+
+/// Credit balances arrive as raw decimal strings with ten fraction digits
+/// (`73740.1767735000`); show a grouped number with at most two decimals.
+String _formatBalance(BuildContext context, String? balance) {
+  if (balance == null || balance.trim().isEmpty) return '-';
+  final parsed = double.tryParse(balance.trim());
+  if (parsed == null) return balance;
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  return NumberFormat.decimalPatternDigits(
+    locale: locale,
+    decimalDigits: parsed == parsed.truncateToDouble() ? 0 : 2,
+  ).format(parsed);
+}
+
+Widget _modelAvailabilityBadge(BuildContext context, CodexModelUsage usage) {
+  final l10n = AppLocalizations.of(context);
+  if (usage.available) {
+    return AppBadge(
+      label: l10n.codexUsageAvailable,
+      tone: AppBadgeTone.success,
+    );
+  }
+  final availableAt = usage.availableAt;
+  if (availableAt != null) {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    return AppBadge(
+      label: l10n.codexUsageResetsAt(
+        DateFormat.MMMd(locale).add_jm().format(availableAt.toLocal()),
+      ),
+      tone: AppBadgeTone.warning,
+    );
+  }
+  if (usage.creditsWouldEnable) {
+    return AppBadge(
+      label: l10n.codexUsageCreditsRequired,
+      tone: AppBadgeTone.warning,
+    );
+  }
+  return AppBadge(label: l10n.commonNo, tone: AppBadgeTone.danger);
 }
 
 Future<CodexRateLimitResetCredits?> _fetchResetCredits(String machineId) async {
@@ -270,8 +222,8 @@ Future<CodexRateLimitResetCredits?> _fetchResetCredits(String machineId) async {
   }
 }
 
-/// Footer line under a [UsageWindowRow]: the localized absolute reset
-/// time when known, else a "Resets in …" duration.
+/// Footer line under a [UsageWindowRow]: "Resets in 4h 50m · 1:24 PM" —
+/// the countdown first (what the user acts on), then the wall-clock time.
 Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
   final description = _formatResetDescription(context, window);
   if (description == null) return null;
@@ -284,25 +236,38 @@ Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
 
 String? _formatResetDescription(BuildContext context, CodexUsageWindow window) {
   final expiresAt = window.expiresAt?.toLocal();
-  if (expiresAt != null) {
-    final locale = Localizations.localeOf(context).toLanguageTag();
-    final formatted = DateFormat.yMMMd(locale).add_jm().format(expiresAt);
-    return AppLocalizations.of(context).codexUsageResetsAt(formatted);
-  }
-
   final seconds = window.resetAfterSeconds;
-  if (seconds == null) return null;
-  if (seconds <= 0) return null;
-  final dur = Duration(seconds: seconds);
+  final remaining = expiresAt != null
+      ? expiresAt.difference(DateTime.now())
+      : seconds != null
+      ? Duration(seconds: seconds)
+      : null;
+  final relative = remaining == null || remaining <= Duration.zero
+      ? null
+      : _formatRemaining(remaining);
+  if (expiresAt == null) return relative;
+
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  final now = DateTime.now();
+  final sameDay =
+      expiresAt.year == now.year &&
+      expiresAt.month == now.month &&
+      expiresAt.day == now.day;
+  final formatted = sameDay
+      ? DateFormat.jm(locale).format(expiresAt)
+      : DateFormat.MMMEd(locale).add_jm().format(expiresAt);
+  final absolute = AppLocalizations.of(context).codexUsageResetsAt(formatted);
+  return relative == null ? absolute : '$relative · $formatted';
+}
+
+String _formatRemaining(Duration dur) {
   if (dur.inHours >= 24) {
-    final days = dur.inDays;
-    return 'Resets in ${days}d ${dur.inHours % 24}h';
+    return 'Resets in ${dur.inDays}d ${dur.inHours % 24}h';
   }
   if (dur.inHours >= 1) {
-    return 'Resets in ${dur.inHours}h '
-        '${dur.inMinutes % 60}m';
+    return 'Resets in ${dur.inHours}h ${dur.inMinutes % 60}m';
   }
-  return 'Resets in ${dur.inMinutes}m';
+  return 'Resets in ${dur.inMinutes < 1 ? 1 : dur.inMinutes}m';
 }
 
 class _CodexResetCreditsSection extends StatelessWidget {
@@ -323,7 +288,6 @@ class _CodexResetCreditsSection extends StatelessWidget {
           icon: Icons.restart_alt,
           title: l10n.codexUsageResetsAvailable,
           value: resetCredits.availableCount.toString(),
-          iconColor: AppColors.info,
         ),
         for (final credit in available)
           UsageStatRow(
@@ -332,7 +296,6 @@ class _CodexResetCreditsSection extends StatelessWidget {
                 ? credit.title!
                 : l10n.codexUsageLimitReset,
             value: _formatResetCreditExpiry(context, credit.expiresAt),
-            iconColor: AppColors.warning,
             flexValue: true,
           ),
       ],
@@ -388,30 +351,27 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
           icon: leadingIcon,
           title: l10n.codexUsageAllowed,
           value: rateLimit.allowed,
-          iconColor: AppColors.info,
         ),
         if (rateLimit.primaryWindow != null)
           UsageWindowRow(
-            icon: Icons.schedule,
+            icon: Icons.schedule_outlined,
             title: _windowTitle(
               context,
               rateLimit.primaryWindow!,
               windowTitles.primary,
             ),
             percent: rateLimit.primaryWindow!.usedPercent.toDouble(),
-            iconColor: AppColors.warning,
             footer: _windowFooter(context, rateLimit.primaryWindow!),
           ),
         if (rateLimit.secondaryWindow != null)
           UsageWindowRow(
-            icon: Icons.date_range_outlined,
+            icon: Icons.calendar_today_outlined,
             title: _windowTitle(
               context,
               rateLimit.secondaryWindow!,
               windowTitles.secondary,
             ),
             percent: rateLimit.secondaryWindow!.usedPercent.toDouble(),
-            iconColor: AppColors.success,
             footer: _windowFooter(context, rateLimit.secondaryWindow!),
           ),
       ],
@@ -419,18 +379,18 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
   }
 }
 
+/// Yes/no stat as a toned pill, so allowed/blocked states read at a glance
+/// instead of as bare "Yes"/"No" text.
 class _CodexUsageBooleanRow extends StatelessWidget {
   const _CodexUsageBooleanRow({
     required this.icon,
     required this.title,
     required this.value,
-    required this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final bool value;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -438,8 +398,10 @@ class _CodexUsageBooleanRow extends StatelessWidget {
     return UsageStatRow(
       icon: icon,
       title: title,
-      value: value ? l10n.commonYes : l10n.commonNo,
-      iconColor: iconColor,
+      valueWidget: AppBadge(
+        label: value ? l10n.commonYes : l10n.commonNo,
+        tone: value ? AppBadgeTone.success : AppBadgeTone.danger,
+      ),
     );
   }
 }
