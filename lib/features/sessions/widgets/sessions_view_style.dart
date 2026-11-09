@@ -11,6 +11,7 @@ enum SessionsViewStyle {
   machines('machines', Icons.dns_outlined),
   agent('agent', Icons.smart_toy_outlined),
   recent('recent', Icons.history),
+  kubernetes('kubernetes', Icons.cloud_outlined),
   folder('folder', Icons.folder_outlined),
   repository('repository', Icons.source_outlined),
   unreadFocus('unread_focus', Icons.mark_chat_unread_outlined);
@@ -30,7 +31,7 @@ enum SessionsViewStyle {
 
   /// Sectioned board layouts rendered by `SessionBoardView`.
   bool get isBoard => switch (this) {
-    statusBoard || machines || agent || recent => true,
+    statusBoard || machines || agent || recent || kubernetes => true,
     _ => false,
   };
 
@@ -48,6 +49,7 @@ enum SessionsViewStyle {
     machines => l10n.sessionsViewStyleMachines,
     agent => l10n.sessionsViewStyleAgent,
     recent => l10n.sessionsViewStyleRecent,
+    kubernetes => l10n.sessionsViewStyleKubernetes,
     folder => l10n.sessionsViewStyleFolderCentric,
     repository => l10n.sessionsViewStyleRepository,
     unreadFocus => l10n.sessionsViewStyleUnreadFocus,
@@ -59,6 +61,7 @@ enum SessionsViewStyle {
     machines => l10n.sessionsViewStyleMachinesHint,
     agent => l10n.sessionsViewStyleAgentHint,
     recent => l10n.sessionsViewStyleRecentHint,
+    kubernetes => l10n.sessionsViewStyleKubernetesHint,
     folder => l10n.sessionsViewStyleFolderCentricHint,
     repository => l10n.sessionsViewStyleRepositoryHint,
     unreadFocus => l10n.sessionsViewStyleUnreadFocusHint,

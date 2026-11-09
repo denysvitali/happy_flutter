@@ -21,6 +21,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../kubernetes/kubernetes_sessions_strip.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
@@ -560,26 +561,38 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       _animationTriggered = true;
     }
 
+    // The Kubernetes strip keeps a fixed slot so toggling search or a folder
+    // drill-down never remounts the list (and loses its scroll position).
+    final showKubernetes = searchQuery.isEmpty && _selectedFolderKey == null;
+    final list = RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      },
+      color: Theme.of(context).colorScheme.primary,
+      child: _buildSessionsList(
+        context,
+        activeSessions,
+        inactiveSessions,
+        machines,
+        orderingProjection,
+        aggregateUiState,
+        missionControlUi,
+        sessionsViewStyle: sessionsViewStyle,
+        triggerStagger: triggerStagger,
+        hideInactive: hideInactive,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+    );
     return _retainVisibleTree(
-      RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
-        },
-        color: Theme.of(context).colorScheme.primary,
-        child: _buildSessionsList(
-          context,
-          activeSessions,
-          inactiveSessions,
-          machines,
-          orderingProjection,
-          aggregateUiState,
-          missionControlUi,
-          sessionsViewStyle: sessionsViewStyle,
-          triggerStagger: triggerStagger,
-          hideInactive: hideInactive,
-          showFlavorIcons: showFlavorIcons,
-          avatarStyle: avatarStyle,
-        ),
+      Column(
+        children: [
+          if (showKubernetes)
+            const KubernetesSessionsStrip()
+          else
+            const SizedBox.shrink(),
+          Expanded(child: list),
+        ],
       ),
     );
   }
@@ -785,6 +798,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               aggregateUiState!,
             ),
             'recent' => buildRecentSections(
+              context,
+              activeSessions,
+              aggregateUiState!,
+            ),
+            'kubernetes' => buildKubernetesSections(
               context,
               activeSessions,
               aggregateUiState!,

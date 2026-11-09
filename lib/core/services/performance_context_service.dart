@@ -42,6 +42,7 @@ class PerformanceContextService {
       'folder' ||
       'status' ||
       'machines' ||
+      'kubernetes' ||
       'unread_focus' => sessionsView,
       _ => 'other',
     };

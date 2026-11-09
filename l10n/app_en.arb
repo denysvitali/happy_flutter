@@ -107,6 +107,105 @@
   "newSessionSpawnKubernetes": "Kubernetes",
   "newSessionRepositoryUrlHint": "https://github.com/org/repo.git",
   "newSessionReadyToCreate": "Ready to create session",
+  "kubernetesTitle": "Kubernetes",
+  "@kubernetesTitle": {
+    "description": "Title of the Kubernetes session pods screen and sessions-home strip"
+  },
+  "kubernetesCountRunning": "{count, plural, =1 {1 running} other {{count} running}}",
+  "@kubernetesCountRunning": {
+    "description": "Count of Kubernetes session pods that are running",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesCountStarting": "{count, plural, =1 {1 starting} other {{count} starting}}",
+  "@kubernetesCountStarting": {
+    "description": "Count of Kubernetes session pods that are being scheduled or started",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesCountPaused": "{count, plural, =1 {1 paused} other {{count} paused}}",
+  "@kubernetesCountPaused": {
+    "description": "Count of paused Kubernetes session pods",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesCountFailed": "{count, plural, =1 {1 failed} other {{count} failed}}",
+  "@kubernetesCountFailed": {
+    "description": "Count of failed Kubernetes session pods",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesCountArchived": "{count, plural, =1 {1 archived} other {{count} archived}}",
+  "@kubernetesCountArchived": {
+    "description": "Count of archived Kubernetes session pods",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesStripSemantics": "{count, plural, =1 {Kubernetes: 1 session pod. Open pod list} other {Kubernetes: {count} session pods. Open pod list}}",
+  "@kubernetesStripSemantics": {
+    "description": "Screen-reader label of the Kubernetes strip on the sessions home view",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesUnreachable": "{count, plural, =1 {1 daemon could not be reached; its pods show their last known state.} other {{count} daemons could not be reached; their pods show their last known state.}}",
+  "@kubernetesUnreachable": {
+    "description": "Warning on the Kubernetes screen when some daemons did not answer",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesEmptyTitle": "No session pods running",
+  "@kubernetesEmptyTitle": {
+    "description": "Empty state title of the Kubernetes screen"
+  },
+  "kubernetesEmptyHint": "Start a session with the Kubernetes backend to run it in its own pod.",
+  "@kubernetesEmptyHint": {
+    "description": "Empty state hint of the Kubernetes screen"
+  },
+  "kubernetesUntrackedPod": "No matching session",
+  "@kubernetesUntrackedPod": {
+    "description": "Shown under a pod that the daemon reports but that has no session in the app"
+  },
+  "kubernetesLastKnown": "Last known",
+  "@kubernetesLastKnown": {
+    "description": "Badge on a pod whose daemon could not be asked for its live state"
+  },
+  "kubernetesSessionInfo": "Session info and pod controls",
+  "@kubernetesSessionInfo": {
+    "description": "Tooltip of the info button on a Kubernetes pod row"
+  },
+  "kubernetesLocalSessions": "On machines",
+  "@kubernetesLocalSessions": {
+    "description": "Kubernetes board section for sessions that run directly on a machine instead of in a pod"
+  },
+  "sessionsViewStyleKubernetes": "Kubernetes",
+  "@sessionsViewStyleKubernetes": {
+    "description": "Session view style that groups sessions by Kubernetes pod state"
+  },
+  "sessionsViewStyleKubernetesHint": "Session pods by state, then sessions on machines",
+  "@sessionsViewStyleKubernetesHint": {
+    "description": "Description of the Kubernetes session view style"
+  },
   "sessionPodSection": "Kubernetes pod",
   "sessionPod": "Session pod",
   "sessionPodScheduling": "Scheduling",

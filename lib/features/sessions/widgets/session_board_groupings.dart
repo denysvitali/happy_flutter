@@ -94,3 +94,61 @@ List<SessionBoardSection> buildRecentSections(
         ),
   ];
 }
+
+/// Groups live sessions by where they run: Kubernetes session pods by pod
+/// state (failed, starting, running, paused), then sessions running
+/// directly on a machine. Rows inside a group are ordered by urgency.
+List<SessionBoardSection> buildKubernetesSections(
+  BuildContext context,
+  List<Session> sessions,
+  SessionUiState uiState,
+) {
+  final l10n = context.l10n;
+  const podOrder = [
+    SessionPodDisplayState.failed,
+    SessionPodDisplayState.scheduling,
+    SessionPodDisplayState.ready,
+    SessionPodDisplayState.paused,
+  ];
+  final pods = <SessionPodDisplayState, List<SessionBoardRow>>{};
+  final local = <SessionBoardRow>[];
+  for (final session in sessions) {
+    final entry = _entryFor(uiState, session.id);
+    final row = SessionBoardRow(session, entry, missionLaneFor(session, entry));
+    if (!session.isKubernetesSession) {
+      local.add(row);
+      continue;
+    }
+    final state = session.podDisplayState;
+    if (state == SessionPodDisplayState.archived) continue;
+    (pods[state] ??= []).add(row);
+  }
+  return [
+    for (final state in podOrder)
+      if (pods[state] case final rows?)
+        SessionBoardSection(
+          key: 'kubernetes-${state.name}',
+          title:
+              '${l10n.kubernetesTitle} · '
+              '${kubernetesPodStateLabel(l10n, state)}',
+          subtitle:
+              missionLaneSummary(context, _laneCounts(rows)) ??
+              l10n.missionControlSessionCount(rows.length),
+          icon: Icons.cloud_outlined,
+          rows: rows..sort(_byLaneThenActivity),
+        ),
+    if (local.isNotEmpty)
+      SessionBoardSection(
+        key: 'kubernetes-local',
+        title: l10n.kubernetesLocalSessions,
+        subtitle:
+            missionLaneSummary(context, _laneCounts(local)) ??
+            l10n.missionControlSessionCount(local.length),
+        icon: Icons.computer_outlined,
+        rows: local..sort(_byLaneThenActivity),
+        collapseAfter: local.length > statusBoardQuietFoldThreshold
+            ? statusBoardQuietPreview
+            : null,
+      ),
+  ];
+}

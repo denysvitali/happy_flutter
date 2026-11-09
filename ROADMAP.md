@@ -168,6 +168,18 @@ of the saved conversations, and connectivity restore skips the backoff of
 syncs that failed on a dead link. Widget/unit regressions added; device
 acceptance pending.
 
+Kubernetes on the sessions home (2026-11-09): every layout shows a one-line
+Kubernetes strip (running / starting / paused / failed session pods, counted
+from session metadata with stale disconnected rows excluded) that opens a live
+pod list. The list asks each online Kubernetes daemon (`list-session-pods`)
+every 10s while visible and in the foreground; a daemon that answers is
+authoritative, so pods without a session appear and vanished pods drop out,
+while unreachable daemons fall back to metadata marked "Last known". A new
+**Kubernetes** view style groups pods by state, then machine sessions; rows
+name Kubernetes instead of the generated pod hostname. Crash/pull back-off
+pods now read as Failed in Session info too. Regressions added for CI; device
+acceptance against a real cluster is pending.
+
 Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
 waits on its pod), the chat shows the live pod phase/reason, failure message and
 a tail of the pod logs above the composer, polling the daemon every 2s until the

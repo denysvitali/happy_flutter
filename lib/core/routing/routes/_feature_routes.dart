@@ -20,6 +20,12 @@ List<RouteBase> get featureRoutes => [
     },
   ),
   GoRoute(
+    path: '/kubernetes',
+    name: 'kubernetes',
+    pageBuilder: (context, state) =>
+        _slidePage(const AuthGate(child: KubernetesSessionsScreen()), state),
+  ),
+  GoRoute(
     path: '/goal-loops',
     name: 'goal-loops',
     pageBuilder: (context, state) =>

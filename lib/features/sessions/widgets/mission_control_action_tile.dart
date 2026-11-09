@@ -122,10 +122,13 @@ class MissionActionRow extends StatelessWidget {
         workspace.split('/').last.toLowerCase() == name.trim().toLowerCase();
     final rawHost = session.metadata?.host.trim();
     final hostName = rawHost?.split('@').last.toLowerCase();
-    final host = switch (hostName) {
-      null || '' || '(none)' || 'none' || 'null' || '(null)' => null,
-      _ => missionShortHost(rawHost!),
-    };
+    // A pod's hostname is its generated pod name; name the runtime instead.
+    final host = session.isKubernetesSession
+        ? context.l10n.kubernetesTitle
+        : switch (hostName) {
+            null || '' || '(none)' || 'none' || 'null' || '(null)' => null,
+            _ => missionShortHost(rawHost!),
+          };
     final fallback = [
       if (workspace != null && !workspaceEchoesName) workspace,
       if (host != null && host.toLowerCase() != name.trim().toLowerCase()) host,
@@ -168,7 +171,7 @@ class MissionActionRow extends StatelessWidget {
     final secondaryTooltip =
         secondary == (inbox ? inboxFallback : fallback) &&
             (inbox ? inboxHost : host) != null
-        ? rawHost!
+        ? rawHost ?? secondary
         : secondary;
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;

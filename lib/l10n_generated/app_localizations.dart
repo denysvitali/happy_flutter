@@ -669,6 +669,102 @@ abstract class AppLocalizations {
   /// **'Ready to create session'**
   String get newSessionReadyToCreate;
 
+  /// Title of the Kubernetes session pods screen and sessions-home strip
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes'**
+  String get kubernetesTitle;
+
+  /// Count of Kubernetes session pods that are running
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 running} other {{count} running}}'**
+  String kubernetesCountRunning(int count);
+
+  /// Count of Kubernetes session pods that are being scheduled or started
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 starting} other {{count} starting}}'**
+  String kubernetesCountStarting(int count);
+
+  /// Count of paused Kubernetes session pods
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 paused} other {{count} paused}}'**
+  String kubernetesCountPaused(int count);
+
+  /// Count of failed Kubernetes session pods
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 failed} other {{count} failed}}'**
+  String kubernetesCountFailed(int count);
+
+  /// Count of archived Kubernetes session pods
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 archived} other {{count} archived}}'**
+  String kubernetesCountArchived(int count);
+
+  /// Screen-reader label of the Kubernetes strip on the sessions home view
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {Kubernetes: 1 session pod. Open pod list} other {Kubernetes: {count} session pods. Open pod list}}'**
+  String kubernetesStripSemantics(int count);
+
+  /// Warning on the Kubernetes screen when some daemons did not answer
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 daemon could not be reached; its pods show their last known state.} other {{count} daemons could not be reached; their pods show their last known state.}}'**
+  String kubernetesUnreachable(int count);
+
+  /// Empty state title of the Kubernetes screen
+  ///
+  /// In en, this message translates to:
+  /// **'No session pods running'**
+  String get kubernetesEmptyTitle;
+
+  /// Empty state hint of the Kubernetes screen
+  ///
+  /// In en, this message translates to:
+  /// **'Start a session with the Kubernetes backend to run it in its own pod.'**
+  String get kubernetesEmptyHint;
+
+  /// Shown under a pod that the daemon reports but that has no session in the app
+  ///
+  /// In en, this message translates to:
+  /// **'No matching session'**
+  String get kubernetesUntrackedPod;
+
+  /// Badge on a pod whose daemon could not be asked for its live state
+  ///
+  /// In en, this message translates to:
+  /// **'Last known'**
+  String get kubernetesLastKnown;
+
+  /// Tooltip of the info button on a Kubernetes pod row
+  ///
+  /// In en, this message translates to:
+  /// **'Session info and pod controls'**
+  String get kubernetesSessionInfo;
+
+  /// Kubernetes board section for sessions that run directly on a machine instead of in a pod
+  ///
+  /// In en, this message translates to:
+  /// **'On machines'**
+  String get kubernetesLocalSessions;
+
+  /// Session view style that groups sessions by Kubernetes pod state
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes'**
+  String get sessionsViewStyleKubernetes;
+
+  /// Description of the Kubernetes session view style
+  ///
+  /// In en, this message translates to:
+  /// **'Session pods by state, then sessions on machines'**
+  String get sessionsViewStyleKubernetesHint;
+
   /// No description provided for @sessionPodSection.
   ///
   /// In en, this message translates to:

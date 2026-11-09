@@ -319,6 +319,114 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newSessionReadyToCreate => 'Ready to create session';
 
   @override
+  String get kubernetesTitle => 'Kubernetes';
+
+  @override
+  String kubernetesCountRunning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count running',
+      one: '1 running',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesCountStarting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count starting',
+      one: '1 starting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesCountPaused(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paused',
+      one: '1 paused',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesCountFailed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count failed',
+      one: '1 failed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesCountArchived(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count archived',
+      one: '1 archived',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesStripSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Kubernetes: $count session pods. Open pod list',
+      one: 'Kubernetes: 1 session pod. Open pod list',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kubernetesUnreachable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count daemons could not be reached; their pods show their last known state.',
+      one:
+          '1 daemon could not be reached; its pods show their last known state.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kubernetesEmptyTitle => 'No session pods running';
+
+  @override
+  String get kubernetesEmptyHint =>
+      'Start a session with the Kubernetes backend to run it in its own pod.';
+
+  @override
+  String get kubernetesUntrackedPod => 'No matching session';
+
+  @override
+  String get kubernetesLastKnown => 'Last known';
+
+  @override
+  String get kubernetesSessionInfo => 'Session info and pod controls';
+
+  @override
+  String get kubernetesLocalSessions => 'On machines';
+
+  @override
+  String get sessionsViewStyleKubernetes => 'Kubernetes';
+
+  @override
+  String get sessionsViewStyleKubernetesHint =>
+      'Session pods by state, then sessions on machines';
+
+  @override
   String get sessionPodSection => 'Kubernetes pod';
 
   @override

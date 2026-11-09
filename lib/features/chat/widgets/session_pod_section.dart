@@ -9,6 +9,7 @@ import '../../../core/rpc/rpc_types.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../kubernetes/kubernetes_pod_state.dart';
 import 'session_info_widgets.dart';
 
 /// Kubernetes pod state and controls: a status header, then the pod
@@ -49,31 +50,9 @@ class SessionPodSection extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final currentPod = pod;
-    final state = currentPod == null
-        ? session.podDisplayState
-        : currentPod.archived
-        ? SessionPodDisplayState.archived
-        : currentPod.paused
-        ? SessionPodDisplayState.paused
-        : currentPod.ready
-        ? SessionPodDisplayState.ready
-        : currentPod.phase.toLowerCase() == 'failed'
-        ? SessionPodDisplayState.failed
-        : SessionPodDisplayState.scheduling;
-    final stateLabel = switch (state) {
-      SessionPodDisplayState.scheduling => l10n.sessionPodScheduling,
-      SessionPodDisplayState.ready => l10n.sessionPodReady,
-      SessionPodDisplayState.paused => l10n.sessionPodPaused,
-      SessionPodDisplayState.archived => l10n.sessionPodArchived,
-      SessionPodDisplayState.failed => l10n.sessionPodFailed,
-    };
-    final stateTone = switch (state) {
-      SessionPodDisplayState.scheduling => AppBadgeTone.info,
-      SessionPodDisplayState.ready => AppBadgeTone.success,
-      SessionPodDisplayState.paused => AppBadgeTone.warning,
-      SessionPodDisplayState.archived => AppBadgeTone.neutral,
-      SessionPodDisplayState.failed => AppBadgeTone.danger,
-    };
+    final state = currentPod?.displayState ?? session.podDisplayState;
+    final stateLabel = kubernetesPodStateLabel(l10n, state);
+    final stateTone = kubernetesPodStateTone(state);
     final namespace = currentPod?.namespace ?? session.metadata?.namespace;
     final podName =
         currentPod?.podName ?? session.metadata?.podName ?? l10n.sessionPod;
