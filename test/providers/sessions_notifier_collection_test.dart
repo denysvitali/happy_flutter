@@ -290,6 +290,31 @@ void main() {
       expect(sync.getOptimisticallyArchivedIds(), {'a'});
     });
 
+    test(
+      'archiving a Kubernetes session pauses its Pod and keeps the workspace',
+      () async {
+        sync.testIsInitialized = true;
+        final methods = <String>[];
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          methods.add(method);
+          return <String, dynamic>{'success': true};
+        };
+        addTearDown(() => sync.testMachineRPCOverride = null);
+        final notifier = container.read(sessionsNotifierProvider.notifier);
+        final base = buildSession('k');
+        notifier.setSessions([
+          base.copyWith(
+            metadata: base.metadata!.copyWith(podName: 'happy-session-k'),
+          ),
+        ]);
+
+        await notifier.markSessionArchived('k', true);
+
+        expect(methods, ['pause-session-pod']);
+        expect(sync.getOptimisticallyArchivedIds(), {'k'});
+      },
+    );
+
     test('archive is ignored while sync is uninitialized', () async {
       final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([buildSession('a')]);

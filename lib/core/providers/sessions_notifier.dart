@@ -436,7 +436,11 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       return true;
     }
     try {
-      final response = await sync.machineKillSessionPod(
+      // Archive stops the Pod but keeps the workspace PVC: Claude's
+      // transcript lives there, and a later message resumes the
+      // conversation from it. Deleting the workspace is the explicit
+      // "kill" action in session info, never a side effect of archiving.
+      final response = await sync.machinePauseSessionPod(
         machineId: machineId,
         sessionId: session.id,
       );
