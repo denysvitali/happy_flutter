@@ -193,6 +193,15 @@ workspaces, Advanced launch controls, and ordered attention reasons are
 implemented. Widget regressions are added; CI and device acceptance remain
 pending. Message delivery and canonical `localId` behavior are unchanged.
 
+Projects layout (2026-11-09): replaces "By repository". One section per
+project with its open sessions inline, merged across machines and Kubernetes
+pods: by git repository, else the repository other sessions report for the
+same folder, else the folder name. Headers say what the project is doing and
+where it runs ("1 unread · 2 pods · workspace-denys"); pod rows carry a cloud
+mark and quiet rows name the agent and branch instead of repeating the path.
+The Archived tab previews three past conversations per project. Folder-centric
+is unchanged. Grouping regressions pass locally; device acceptance pending.
+
 Sessions tab: the layout is chosen only in Settings → Sessions → Session view
 style (the app-bar switcher was removed 2026-11-07). All layouts share one visual language: sentence-case group headers, the
 compact Mission Control row (harness mark and age for quiet rows instead of a

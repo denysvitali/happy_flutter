@@ -20,6 +20,7 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../kubernetes/kubernetes_sessions_strip.dart';
 import '../session_avatar.dart';
@@ -676,10 +677,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
-    final workspaceGrouping = SessionsViewStyle.fromWire(
-      sessionsViewStyle,
-    ).workspaceGrouping;
-    if (workspaceGrouping != null) {
+    if (_isWorkspaceStyle(sessionsViewStyle)) {
       return _buildFolderModeView(
         context,
         activeSessions,
@@ -689,7 +687,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         triggerStagger: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
-        grouping: workspaceGrouping,
       );
     }
 
@@ -722,8 +719,37 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     if (_isBoardStyle(sessionsViewStyle)) {
       final onNewSession = widget.onCreateSessionOnMachine;
       final showArchived = _boardArchiveVisible;
+      final projects = sessionsViewStyle == SessionsViewStyle.projects.wire;
       final Widget board;
-      if (showArchived) {
+      if (showArchived && projects && inactiveSessions.isNotEmpty) {
+        // Past conversations stay browsable per project, a few at a time.
+        board = SessionBoardView(
+          key: const ValueKey('board-projects-archive'),
+          scrollController: widget.scrollController,
+          sections: buildProjectSections(
+            context,
+            inactiveSessions,
+            machines,
+            aggregateUiState!,
+            index: SessionProjectIndex.cached(activeSessions, inactiveSessions),
+            archived: true,
+          ),
+          rowBuilder: (row) => _buildArchivedCard(
+            context,
+            ListItem.archivedSession(
+              row.session,
+              0,
+              isFirst: false,
+              isLast: true,
+              isSingle: false,
+            ),
+            session: row.session,
+            entry: row.entry,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+          ),
+        );
+      } else if (showArchived) {
         board = inactiveSessions.isEmpty
             ? const SessionBoardEmpty(archived: true)
             : ListView.builder(
@@ -807,6 +833,16 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               activeSessions,
               aggregateUiState!,
             ),
+            'repository' => buildProjectSections(
+              context,
+              activeSessions,
+              machines,
+              aggregateUiState!,
+              index: SessionProjectIndex.cached(
+                activeSessions,
+                inactiveSessions,
+              ),
+            ),
             _ => buildMachineSections(
               context,
               activeSessions,
@@ -824,6 +860,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             highlighted: false,
             showTriageMenu: false,
             inbox: sessionsViewStyle == 'status',
+            runtime: row.runtime,
           ),
         );
       }
@@ -963,6 +1000,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool highlighted,
     bool showTriageMenu = true,
     bool inbox = false,
+    SessionRuntimeMark? runtime,
   }) {
     return Consumer(
       builder: (context, ref, _) {
@@ -983,6 +1021,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           highlighted: highlighted,
           showTriageMenu: showTriageMenu && !sel.isActive,
           inbox: inbox,
+          runtime: runtime,
           showInlineApproval: !sel.isActive,
           onSelect: sel.isActive ? null : () => _onSessionLongPress(session.id),
           onArchive: sel.isActive
@@ -1166,7 +1205,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool triggerStagger,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
-    SessionGrouping grouping = SessionGrouping.folder,
   }) {
     final folders = groupAllSessionsByFolder(
       activeSessions,
@@ -1176,7 +1214,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ? uiState.ordering.timestamps[id]
           : uiState.bySessionId[id]?.lastMessageTimestamp,
       getUnreadCount: (id) => uiState.bySessionId[id]?.unreadCount ?? 0,
-      grouping: grouping,
     );
 
     SessionFolderGroup? selectedFolder;
@@ -1217,23 +1254,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
       }
 
-      // Repository view lists folders outside any git repository last, in
-      // their own section, so they don't read as repositories.
-      bool isUnlinked(SessionFolderGroup folder) =>
-          grouping == SessionGrouping.repository && !folder.header.isRepository;
       final live = [
         for (final folder in folders)
-          if (!isUnlinked(folder) && folder.header.activeSessionCount > 0)
-            folder,
+          if (folder.header.activeSessionCount > 0) folder,
       ];
       final archivedOnly = [
         for (final folder in folders)
-          if (!isUnlinked(folder) && folder.header.activeSessionCount == 0)
-            folder,
-      ];
-      final unlinked = [
-        for (final folder in folders)
-          if (isUnlinked(folder)) folder,
+          if (folder.header.activeSessionCount == 0) folder,
       ];
       final l10n = context.l10n;
       return ListView(
@@ -1262,17 +1289,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ),
             UnreadFocusListGroup(
               children: [for (final f in archivedOnly) folderRow(f)],
-            ),
-          ],
-          if (unlinked.isNotEmpty) ...[
-            SessionGroupHeader(
-              title: l10n.sessionsRepositoryUnlinked,
-              count: unlinked.length,
-              icon: Icons.folder_off_outlined,
-              accent: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            UnreadFocusListGroup(
-              children: [for (final f in unlinked) folderRow(f)],
             ),
           ],
         ],

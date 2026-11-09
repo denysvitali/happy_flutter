@@ -207,3 +207,23 @@ String missionHarnessName(AppLocalizations l10n, String? flavor) =>
       'har' => 'Har',
       _ => l10n.sessionsAgent,
     };
+
+/// Row context on the Projects board: where a session runs and what to
+/// say about it when it has no update to show.
+class SessionRuntimeMark {
+  const SessionRuntimeMark({
+    required this.label,
+    required this.detail,
+    this.icon,
+  });
+
+  /// Runtime glyph; null when the project header already names the place.
+  final IconData? icon;
+
+  /// Spoken and tooltip text, e.g. "Runs in a Kubernetes pod".
+  final String label;
+
+  /// Quiet-row line, e.g. "Codex · main". The project and its machines are
+  /// in the section header, so the row never repeats them.
+  final String detail;
+}

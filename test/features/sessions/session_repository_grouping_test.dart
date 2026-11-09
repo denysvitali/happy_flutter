@@ -178,12 +178,10 @@ void main() {
   });
 
   group('SessionsViewStyle', () {
-    test('repository round-trips and groups by repository', () {
-      final style = SessionsViewStyle.fromWire(
-        SessionsViewStyle.repository.wire,
-      );
-      expect(style, SessionsViewStyle.repository);
-      expect(style.workspaceGrouping, SessionGrouping.repository);
+    test('the repository wire now selects the Projects board', () {
+      final style = SessionsViewStyle.fromWire('repository');
+      expect(style, SessionsViewStyle.projects);
+      expect(style.workspaceGrouping, isNull);
       expect(
         SessionsViewStyle.folder.workspaceGrouping,
         SessionGrouping.folder,

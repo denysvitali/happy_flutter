@@ -1324,7 +1324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleMachines => 'By machine';
 
   @override
-  String get sessionsViewStyleRepository => 'By repository';
+  String get sessionsViewStyleProjects => 'Projects';
 
   @override
   String get sessionsViewStyleAgent => 'By agent';
@@ -1349,8 +1349,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Browse sessions by project folder';
 
   @override
-  String get sessionsViewStyleRepositoryHint =>
-      'Group sessions by git repository across machines and pods';
+  String get sessionsViewStyleProjectsHint =>
+      'One group per project, across machines and Kubernetes pods';
 
   @override
   String get sessionsViewStyleAgentHint =>
@@ -1361,7 +1361,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'A timeline: today, yesterday, this week and older';
 
   @override
-  String get sessionsRepositoryUnlinked => 'Not in a git repository';
+  String get sessionsProjectUnknown => 'No folder';
+
+  @override
+  String sessionsProjectPods(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pods',
+      one: '1 pod',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionsProjectMachines(int count) {
+    return '$count machines';
+  }
+
+  @override
+  String get sessionsProjectRuntimePod => 'Runs in a Kubernetes pod';
+
+  @override
+  String sessionsProjectRuntimeHost(String host) {
+    return 'Runs on $host';
+  }
 
   @override
   String get sessionsViewStyleUnreadFocusHint =>

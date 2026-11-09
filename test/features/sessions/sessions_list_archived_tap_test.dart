@@ -132,7 +132,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final style in ['status', 'machines']) {
+  for (final style in ['status', 'machines', 'repository']) {
     testWidgets('$style retains confirmed archives during catalog lag', (
       tester,
     ) async {

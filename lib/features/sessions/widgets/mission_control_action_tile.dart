@@ -45,6 +45,7 @@ class MissionActionRow extends StatelessWidget {
     this.showInlineApproval = false,
     this.inbox = false,
     this.avatarStyle,
+    this.runtime,
   });
 
   final Session session;
@@ -89,6 +90,9 @@ class MissionActionRow extends StatelessWidget {
   /// Gives inbox previews more room while retaining compact grouped rows.
   final bool inbox;
 
+  /// Where the session runs (pod or machine), for project-grouped boards.
+  final SessionRuntimeMark? runtime;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -129,10 +133,13 @@ class MissionActionRow extends StatelessWidget {
             null || '' || '(none)' || 'none' || 'null' || '(null)' => null,
             _ => missionShortHost(rawHost!),
           };
-    final fallback = [
-      if (workspace != null && !workspaceEchoesName) workspace,
-      if (host != null && host.toLowerCase() != name.trim().toLowerCase()) host,
-    ].join(' · ');
+    final fallback =
+        runtime?.detail ??
+        [
+          if (workspace != null && !workspaceEchoesName) workspace,
+          if (host != null && host.toLowerCase() != name.trim().toLowerCase())
+            host,
+        ].join(' · ');
     final harnessName = missionHarnessName(
       context.l10n,
       session.metadata?.flavor,
@@ -169,7 +176,8 @@ class MissionActionRow extends StatelessWidget {
         ? fallback
         : harnessName;
     final secondaryTooltip =
-        secondary == (inbox ? inboxFallback : fallback) &&
+        runtime == null &&
+            secondary == (inbox ? inboxFallback : fallback) &&
             (inbox ? inboxHost : host) != null
         ? rawHost ?? secondary
         : secondary;
@@ -404,6 +412,23 @@ class MissionActionRow extends StatelessWidget {
                                             style: AppText.title(theme),
                                           ),
                                         ),
+                                        if (runtime?.icon case final icon?) ...[
+                                          const SizedBox(width: AppSpacing.xs),
+                                          Baseline(
+                                            baseline: _pinBaseline,
+                                            baselineType:
+                                                TextBaseline.alphabetic,
+                                            child: Tooltip(
+                                              message: runtime!.label,
+                                              child: Icon(
+                                                icon,
+                                                size: AppIconSize.sm,
+                                                color: cs.onSurfaceVariant,
+                                                semanticLabel: runtime!.label,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                         if (isPinned) ...[
                                           const SizedBox(width: AppSpacing.xs),
                                           Baseline(

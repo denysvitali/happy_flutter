@@ -10,6 +10,7 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart' show DateGroup;
 import '../../kubernetes/kubernetes_pod_state.dart';
 import 'mission_control_types.dart';
@@ -17,8 +18,10 @@ import 'mission_control_view.dart' show missionLastActivityAt;
 import 'mission_heartbeat.dart';
 import 'session_board_controls.dart';
 import 'unread_focus_cards.dart' show UnreadFocusListGroup;
+import 'workspace_identity.dart';
 
 part 'session_board_groupings.dart';
+part 'session_project_sections.dart';
 
 /// Quiet rows shown before a long Quiet lane folds behind "Show more".
 const int statusBoardQuietPreview = 10;
@@ -36,6 +39,7 @@ class SessionBoardSection {
     this.icon,
     this.statusColor,
     this.accent,
+    this.iconColor,
     this.machineId,
     this.dimmed = false,
     this.collapseAfter,
@@ -49,6 +53,9 @@ class SessionBoardSection {
   final IconData? icon;
   final Color? statusColor;
   final Color? accent;
+
+  /// Tints only the icon, leaving the title in the default text color.
+  final Color? iconColor;
   final List<SessionBoardRow> rows;
 
   /// Machine the section represents; enables "new session here".
@@ -63,11 +70,14 @@ class SessionBoardSection {
 
 /// A session placed on a board, with the lane its row renders in.
 class SessionBoardRow {
-  const SessionBoardRow(this.session, this.entry, this.lane);
+  const SessionBoardRow(this.session, this.entry, this.lane, {this.runtime});
 
   final Session session;
   final SessionUiEntry entry;
   final MissionLane lane;
+
+  /// Where the session runs; set by the Projects board.
+  final SessionRuntimeMark? runtime;
 }
 
 SessionUiEntry _entryFor(SessionUiState uiState, String id) =>
@@ -420,6 +430,7 @@ class _SessionBoardViewState extends State<SessionBoardView> {
             icon: section.icon,
             statusColor: section.statusColor,
             accent: section.accent,
+            iconColor: section.iconColor,
             dimmed: section.dimmed,
             expanded: !collapsed,
             onToggle: widget.showStatusFilters
@@ -493,6 +504,7 @@ class SessionGroupHeader extends StatelessWidget {
     this.icon,
     this.statusColor,
     this.accent,
+    this.iconColor,
     this.dimmed = false,
     this.onNewSession,
     this.onToggle,
@@ -505,6 +517,7 @@ class SessionGroupHeader extends StatelessWidget {
   final IconData? icon;
   final Color? statusColor;
   final Color? accent;
+  final Color? iconColor;
   final bool dimmed;
   final VoidCallback? onNewSession;
   final VoidCallback? onToggle;
@@ -535,7 +548,7 @@ class SessionGroupHeader extends StatelessWidget {
               ),
             )
           else if (icon != null)
-            Icon(icon, size: AppIconSize.sm, color: accent),
+            Icon(icon, size: AppIconSize.sm, color: iconColor ?? accent),
           if (statusColor != null || icon != null)
             const SizedBox(width: AppSpacing.sm),
           Expanded(

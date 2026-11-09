@@ -615,17 +615,42 @@
   "sessionsViewStyleMissionControl": "Mission Control",
   "sessionsViewStyleStatusBoard": "Inbox",
   "sessionsViewStyleMachines": "By machine",
-  "sessionsViewStyleRepository": "By repository",
+  "sessionsViewStyleProjects": "Projects",
   "sessionsViewStyleAgent": "By agent",
   "sessionsViewStyleRecent": "Recent activity",
   "sessionsViewStyleMissionControlHint": "What needs you, then workspace activity",
   "sessionsViewStyleStatusBoardHint": "Recent conversations, with attention and activity first",
   "sessionsViewStyleMachinesHint": "Sessions grouped by the computer running them",
   "sessionsViewStyleFolderCentricHint": "Browse sessions by project folder",
-  "sessionsViewStyleRepositoryHint": "Group sessions by git repository across machines and pods",
+  "sessionsViewStyleProjectsHint": "One group per project, across machines and Kubernetes pods",
   "sessionsViewStyleAgentHint": "Sessions grouped by Claude, Codex and other agents",
   "sessionsViewStyleRecentHint": "A timeline: today, yesterday, this week and older",
-  "sessionsRepositoryUnlinked": "Not in a git repository",
+  "sessionsProjectUnknown": "No folder",
+  "sessionsProjectPods": "{count, plural, =1 {1 pod} other {{count} pods}}",
+  "@sessionsProjectPods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsProjectMachines": "{count} machines",
+  "@sessionsProjectMachines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsProjectRuntimePod": "Runs in a Kubernetes pod",
+  "sessionsProjectRuntimeHost": "Runs on {host}",
+  "@sessionsProjectRuntimeHost": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "sessionsViewStyleUnreadFocusHint": "Unread and blocked first, then the rest",
   "sessionsUnknownMachine": "Unknown machine",
   "missionControlFocusQueue": "Focus queue",

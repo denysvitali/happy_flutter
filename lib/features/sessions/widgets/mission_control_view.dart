@@ -26,6 +26,7 @@ export 'mission_control_action_tile.dart' show MissionActionRow;
 export 'mission_control_types.dart'
     show
         MissionLane,
+        SessionRuntimeMark,
         formatElapsedShort,
         missionLaneFor,
         missionShortHost,

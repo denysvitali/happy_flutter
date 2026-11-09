@@ -12,8 +12,9 @@ enum SessionsViewStyle {
   agent('agent', Icons.smart_toy_outlined),
   recent('recent', Icons.history),
   kubernetes('kubernetes', Icons.cloud_outlined),
+  // Keeps the wire value of the repository overview it replaced.
+  projects('repository', Icons.account_tree_outlined),
   folder('folder', Icons.folder_outlined),
-  repository('repository', Icons.source_outlined),
   unreadFocus('unread_focus', Icons.mark_chat_unread_outlined);
 
   const SessionsViewStyle(this.wire, this.icon);
@@ -25,13 +26,17 @@ enum SessionsViewStyle {
   /// Workspace grouping for folder-style layouts; null for other layouts.
   SessionGrouping? get workspaceGrouping => switch (this) {
     folder => SessionGrouping.folder,
-    repository => SessionGrouping.repository,
     _ => null,
   };
 
   /// Sectioned board layouts rendered by `SessionBoardView`.
   bool get isBoard => switch (this) {
-    statusBoard || machines || agent || recent || kubernetes => true,
+    statusBoard ||
+    machines ||
+    agent ||
+    recent ||
+    kubernetes ||
+    projects => true,
     _ => false,
   };
 
@@ -50,8 +55,8 @@ enum SessionsViewStyle {
     agent => l10n.sessionsViewStyleAgent,
     recent => l10n.sessionsViewStyleRecent,
     kubernetes => l10n.sessionsViewStyleKubernetes,
+    projects => l10n.sessionsViewStyleProjects,
     folder => l10n.sessionsViewStyleFolderCentric,
-    repository => l10n.sessionsViewStyleRepository,
     unreadFocus => l10n.sessionsViewStyleUnreadFocus,
   };
 
@@ -62,8 +67,8 @@ enum SessionsViewStyle {
     agent => l10n.sessionsViewStyleAgentHint,
     recent => l10n.sessionsViewStyleRecentHint,
     kubernetes => l10n.sessionsViewStyleKubernetesHint,
+    projects => l10n.sessionsViewStyleProjectsHint,
     folder => l10n.sessionsViewStyleFolderCentricHint,
-    repository => l10n.sessionsViewStyleRepositoryHint,
     unreadFocus => l10n.sessionsViewStyleUnreadFocusHint,
   };
 }

@@ -2344,11 +2344,11 @@ abstract class AppLocalizations {
   /// **'By machine'**
   String get sessionsViewStyleMachines;
 
-  /// No description provided for @sessionsViewStyleRepository.
+  /// No description provided for @sessionsViewStyleProjects.
   ///
   /// In en, this message translates to:
-  /// **'By repository'**
-  String get sessionsViewStyleRepository;
+  /// **'Projects'**
+  String get sessionsViewStyleProjects;
 
   /// No description provided for @sessionsViewStyleAgent.
   ///
@@ -2386,11 +2386,11 @@ abstract class AppLocalizations {
   /// **'Browse sessions by project folder'**
   String get sessionsViewStyleFolderCentricHint;
 
-  /// No description provided for @sessionsViewStyleRepositoryHint.
+  /// No description provided for @sessionsViewStyleProjectsHint.
   ///
   /// In en, this message translates to:
-  /// **'Group sessions by git repository across machines and pods'**
-  String get sessionsViewStyleRepositoryHint;
+  /// **'One group per project, across machines and Kubernetes pods'**
+  String get sessionsViewStyleProjectsHint;
 
   /// No description provided for @sessionsViewStyleAgentHint.
   ///
@@ -2404,11 +2404,35 @@ abstract class AppLocalizations {
   /// **'A timeline: today, yesterday, this week and older'**
   String get sessionsViewStyleRecentHint;
 
-  /// No description provided for @sessionsRepositoryUnlinked.
+  /// No description provided for @sessionsProjectUnknown.
   ///
   /// In en, this message translates to:
-  /// **'Not in a git repository'**
-  String get sessionsRepositoryUnlinked;
+  /// **'No folder'**
+  String get sessionsProjectUnknown;
+
+  /// No description provided for @sessionsProjectPods.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 pod} other {{count} pods}}'**
+  String sessionsProjectPods(int count);
+
+  /// No description provided for @sessionsProjectMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} machines'**
+  String sessionsProjectMachines(int count);
+
+  /// No description provided for @sessionsProjectRuntimePod.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs in a Kubernetes pod'**
+  String get sessionsProjectRuntimePod;
+
+  /// No description provided for @sessionsProjectRuntimeHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs on {host}'**
+  String sessionsProjectRuntimeHost(String host);
 
   /// No description provided for @sessionsViewStyleUnreadFocusHint.
   ///

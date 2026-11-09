@@ -79,19 +79,19 @@ Machine _machine(
   bool online = true,
   int activeAt = 1000000,
 }) => Machine(
-      id: id,
-      seq: 1,
-      createdAt: 1,
-      updatedAt: 1,
-      active: online,
-      activeAt: online ? activeAt : 0,
-      metadataVersion: 1,
-      daemonStateVersion: 1,
-      metadata: MachineMetadata(
-        host: id,
-        spawnBackends: kubernetes ? const ['local', 'kubernetes'] : null,
-      ),
-    );
+  id: id,
+  seq: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  active: online,
+  activeAt: online ? activeAt : 0,
+  metadataVersion: 1,
+  daemonStateVersion: 1,
+  metadata: MachineMetadata(
+    host: id,
+    spawnBackends: kubernetes ? const ['local', 'kubernetes'] : null,
+  ),
+);
 
 class _StubSessions extends SessionsNotifier {
   _StubSessions(this.initial);
@@ -241,11 +241,7 @@ void main() {
           ],
         },
       );
-      expect(entries.map((e) => e.key), [
-        'm1/orphan',
-        'm1/a',
-        'm2/remote',
-      ]);
+      expect(entries.map((e) => e.key), ['m1/orphan', 'm1/a', 'm2/remote']);
       final orphan = entries.first;
       expect(orphan.session, isNull);
       expect(orphan.sessionTitle, isNull);
@@ -305,10 +301,7 @@ void main() {
           Column(
             children: [
               KubernetesPodTile(
-                entry: KubernetesPodEntry(
-                  machineId: 'm1',
-                  pod: _pod('orphan'),
-                ),
+                entry: KubernetesPodEntry(machineId: 'm1', pod: _pod('orphan')),
               ),
               KubernetesPodTile(
                 entry: KubernetesPodEntry(
@@ -409,17 +402,13 @@ void main() {
           ),
         ),
       );
-      final sections = buildKubernetesSections(
-        context,
-        [
-          _session('ready'),
-          _session('local', kubernetes: false),
-          _session('failed', lifecycle: 'errored'),
-          _session('paused', podPaused: true),
-          _session('archived', archived: true),
-        ],
-        const SessionUiState(bySessionId: {}),
-      );
+      final sections = buildKubernetesSections(context, [
+        _session('ready'),
+        _session('local', kubernetes: false),
+        _session('failed', lifecycle: 'errored'),
+        _session('paused', podPaused: true),
+        _session('archived', archived: true),
+      ], const SessionUiState(bySessionId: {}));
       expect(sections.map((s) => s.key), [
         'kubernetes-failed',
         'kubernetes-ready',

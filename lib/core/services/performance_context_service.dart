@@ -40,6 +40,7 @@ class PerformanceContextService {
       'mission_control' ||
       'mission_control_folder' ||
       'folder' ||
+      'repository' ||
       'status' ||
       'machines' ||
       'kubernetes' ||
