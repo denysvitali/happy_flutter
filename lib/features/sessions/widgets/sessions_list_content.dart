@@ -817,6 +817,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               context,
               activeSessions,
               aggregateUiState!,
+              index: SessionProjectIndex.cached(
+                activeSessions,
+                inactiveSessions,
+              ),
             ),
             'agent' => buildAgentSections(
               context,
@@ -859,7 +863,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ),
             highlighted: false,
             showTriageMenu: false,
-            inbox: sessionsViewStyle == 'status',
+            // A project label already names the workspace for its rows.
+            inbox: sessionsViewStyle == 'status' && row.cluster == null,
             runtime: row.runtime,
           ),
         );

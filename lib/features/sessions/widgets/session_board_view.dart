@@ -20,6 +20,7 @@ import 'session_board_controls.dart';
 import 'unread_focus_cards.dart' show UnreadFocusListGroup;
 import 'workspace_identity.dart';
 
+part 'session_board_clusters.dart';
 part 'session_board_groupings.dart';
 part 'session_project_sections.dart';
 
@@ -70,14 +71,23 @@ class SessionBoardSection {
 
 /// A session placed on a board, with the lane its row renders in.
 class SessionBoardRow {
-  const SessionBoardRow(this.session, this.entry, this.lane, {this.runtime});
+  const SessionBoardRow(
+    this.session,
+    this.entry,
+    this.lane, {
+    this.runtime,
+    this.cluster,
+  });
 
   final Session session;
   final SessionUiEntry entry;
   final MissionLane lane;
 
-  /// Where the session runs; set by the Projects board.
+  /// Where the session runs; set by project-grouped rows.
   final SessionRuntimeMark? runtime;
+
+  /// Project run this row sits in; consecutive rows share one label.
+  final SessionBoardCluster? cluster;
 }
 
 SessionUiEntry _entryFor(SessionUiState uiState, String id) =>
@@ -108,16 +118,29 @@ Map<MissionLane, int> _laneCounts(Iterable<SessionBoardRow> rows) {
 /// Groups live sessions by what they are doing right now: blocked on the
 /// user, failed, unread results, working, then quiet. A long Quiet lane
 /// folds so the actionable lanes stay on screen.
+///
+/// Quiet sessions all look alike by status, so that lane is clustered by
+/// project instead: the project worked on most recently comes first and
+/// its conversations stay together under one colored label.
 List<SessionBoardSection> buildStatusBoardSections(
   BuildContext context,
   List<Session> sessions,
-  SessionUiState uiState,
-) {
+  SessionUiState uiState, {
+  SessionProjectIndex? index,
+}) {
   final byLane = <MissionLane, List<SessionBoardRow>>{};
   for (final session in sessions) {
     final entry = _entryFor(uiState, session.id);
     final lane = missionLaneFor(session, entry);
     (byLane[lane] ??= []).add(SessionBoardRow(session, entry, lane));
+  }
+  final quiet = byLane[MissionLane.quiet];
+  if (quiet != null) {
+    byLane[MissionLane.quiet] = _clusterByProject(
+      context,
+      quiet,
+      index ?? SessionProjectIndex.build(sessions),
+    );
   }
   return [
     for (final lane in MissionLane.values)
@@ -127,7 +150,7 @@ List<SessionBoardSection> buildStatusBoardSections(
           title: missionLaneTitle(context, lane),
           icon: missionLaneIcon(lane),
           accent: missionLaneColor(context, lane),
-          rows: rows..sort(_byActivity),
+          rows: lane == MissionLane.quiet ? rows : (rows..sort(_byActivity)),
           collapseAfter:
               lane == MissionLane.quiet &&
                   rows.length > statusBoardQuietFoldThreshold
@@ -400,6 +423,18 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     final visible = _visibleRows(section);
     final machineId = section.machineId;
     final onNewSession = widget.onNewSession;
+    // Index of each row that opens a new project run, mapped to its label.
+    final labels = <int, SessionBoardCluster>{};
+    if (!collapsed) {
+      String? previous;
+      var i = 0;
+      for (final row in visible) {
+        final cluster = row.cluster;
+        if (cluster != null && cluster.key != previous) labels[i] = cluster;
+        previous = cluster?.key;
+        i++;
+      }
+    }
     final rows = collapsed
         ? const <Widget>[]
         : <Widget>[
@@ -456,8 +491,15 @@ class _SessionBoardViewState extends State<SessionBoardView> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (var i = 0; i < rows.length; i++) ...[
+                        if (labels[i] case final cluster?)
+                          SessionBoardClusterLabel(
+                            key: ValueKey(
+                              'board-cluster-${section.key}-${cluster.key}',
+                            ),
+                            cluster: cluster,
+                          ),
                         rows[i],
-                        if (i < rows.length - 1)
+                        if (i < rows.length - 1 && !labels.containsKey(i + 1))
                           Divider(
                             height: 1,
                             thickness: AppBorder.hairline,

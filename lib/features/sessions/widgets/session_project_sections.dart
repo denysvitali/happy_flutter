@@ -57,22 +57,7 @@ List<SessionBoardSection> buildProjectSections(
     // A project in one place names it once, in the header. Pods are always
     // marked: they are the sessions that live outside the user's machines.
     final mixed = hostCount + (podCount > 0 ? 1 : 0) > 1;
-    final metadata = session.metadata;
-    final branch = metadata?.gitBranch ?? metadata?.repoRef;
-    final runtime = SessionRuntimeMark(
-      icon: session.isKubernetesSession
-          ? Icons.cloud_outlined
-          : mixed && host != null
-          ? Icons.computer_outlined
-          : null,
-      label: session.isKubernetesSession
-          ? l10n.sessionsProjectRuntimePod
-          : l10n.sessionsProjectRuntimeHost(host ?? ''),
-      detail: [
-        missionHarnessName(l10n, metadata?.flavor),
-        if (branch != null && branch.isNotEmpty) branch,
-      ].join(' · '),
-    );
+    final runtime = _runtimeMark(l10n, session, host: host, mixed: mixed);
     (groups[key] ??= []).add(
       SessionBoardRow(
         session,

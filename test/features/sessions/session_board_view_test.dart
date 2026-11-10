@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/utils/session_projects.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
@@ -281,6 +282,73 @@ void main() {
     ]);
     expect(sections[2].rows, isEmpty);
     expect(sections[2].subtitle, 'Online · No active sessions');
+  });
+
+  testWidgets('status quiet lane clusters repeated projects, newest first', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final quiet = [
+      // Newest first, interleaved across three projects.
+      s('q0', 'quiet 0', '/w/alpha', 'devbox', ageMin: 10),
+      s('q1', 'quiet 1', '/w/beta', 'devbox', ageMin: 11),
+      s('q2', 'quiet 2', '/w/alpha', 'devbox', ageMin: 12),
+      s('q3', 'quiet 3', '/w/gamma', 'devbox', ageMin: 13),
+      s('q4', 'quiet 4', '/w/beta', 'devbox', ageMin: 14),
+      s('q5', 'quiet 5', '/w/alpha', 'devbox', ageMin: 15),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      quiet,
+      const SessionUiState(),
+      index: SessionProjectIndex.build(quiet),
+    );
+    final rows = sections.single.rows;
+    // Projects keep their recency (alpha, beta, gamma) and rows inside a
+    // project stay newest first.
+    expect(rows.map((r) => r.session.id), ['q0', 'q2', 'q5', 'q1', 'q4', 'q3']);
+    expect(rows.map((r) => r.cluster?.title), [
+      'alpha',
+      'alpha',
+      'alpha',
+      'beta',
+      'beta',
+      'gamma',
+    ]);
+    expect(rows.first.cluster!.count, 3);
+    expect(rows.last.cluster!.count, 1);
+
+    await _pumpBoard(tester, sections);
+    // One label per project run, not per row.
+    expect(find.byType(SessionBoardClusterLabel), findsNWidgets(3));
+    expect(find.text('alpha'), findsOneWidget);
+    expect(find.text('gamma'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('session q0'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('quiet sessions in distinct projects keep the plain timeline', (
+    tester,
+  ) async {
+    final context = await _context(tester);
+    final quiet = [
+      for (var i = 0; i < 3; i++)
+        s('q$i', 'quiet $i', '/w/project$i', 'devbox', ageMin: 10 + i),
+    ];
+    final sections = buildStatusBoardSections(
+      context,
+      quiet,
+      const SessionUiState(),
+      index: SessionProjectIndex.build(quiet),
+    );
+    expect(sections.single.rows.map((r) => r.cluster), everyElement(isNull));
+    await _pumpBoard(tester, sections);
+    expect(find.byType(SessionBoardClusterLabel), findsNothing);
+    for (var i = 0; i < 3; i++) {
+      expect(find.text('session q$i'), findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('seven quiet sessions render flat without a redundant heading', (
