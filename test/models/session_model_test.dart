@@ -192,7 +192,7 @@ void main() {
       expect(session.effectiveLifecycleState, 'errored');
     });
 
-    group('isWorkingDespiteLifecycleError', () {
+    group('isAliveDespiteLifecycleError', () {
       Session errored({
         bool thinking = true,
         String presence = 'online',
@@ -218,10 +218,21 @@ void main() {
       test('a turn in progress after the error stamp contradicts it', () {
         final session = errored();
 
-        expect(session.isWorkingDespiteLifecycleError, isTrue);
+        expect(session.isAliveDespiteLifecycleError, isTrue);
         // Delivery and readiness gates still see the terminal error.
         expect(session.hasLifecycleError, isTrue);
         expect(session.podDisplayState, SessionPodDisplayState.ready);
+      });
+
+      test('online activity after the error stamp contradicts it', () {
+        // The turn ended, but the agent's keep-alives still bump activeAt.
+        final session = errored(thinking: false).copyWith(activeAt: 200000);
+
+        expect(session.isAliveDespiteLifecycleError, isTrue);
+        expect(
+          session.copyWith(presence: 'offline').isAliveDespiteLifecycleError,
+          isFalse,
+        );
       });
 
       test('an idle, offline or pre-error turn does not', () {
@@ -233,7 +244,7 @@ void main() {
           errored(thinkingAt: null),
           errored(erroredAt: null),
         ]) {
-          expect(session.isWorkingDespiteLifecycleError, isFalse);
+          expect(session.isAliveDespiteLifecycleError, isFalse);
           expect(session.podDisplayState, SessionPodDisplayState.failed);
         }
       });
@@ -243,7 +254,7 @@ void main() {
           metadataState: 'running',
         ).copyWith(thinking: true, presence: 'online', thinkingAt: 200000);
 
-        expect(session.isWorkingDespiteLifecycleError, isFalse);
+        expect(session.isAliveDespiteLifecycleError, isFalse);
       });
     });
 

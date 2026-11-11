@@ -1928,8 +1928,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
     if (session == null || !session.hasLifecycleError) return null;
-    // The agent is visibly mid-turn: a "stopped" banner would contradict it.
-    if (session.isWorkingDespiteLifecycleError) return null;
+    // The agent is visibly alive: a "stopped" banner would contradict it.
+    if (session.isAliveDespiteLifecycleError) return null;
     final canRestore = session.canAttemptLifecycleRestore;
     final rawError = session.metadata?.lifecycleStateError?.trim();
     if (rawError != null &&
@@ -2041,7 +2041,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         session: session,
         isReady:
             sessionUiEntry.isSessionReadyForMessages ||
-            session.isWorkingDespiteLifecycleError,
+            session.isAliveDespiteLifecycleError,
         hasRequests: session.agentState?.requests?.isNotEmpty ?? false,
         sendIssue: sendIssue == null
             ? null

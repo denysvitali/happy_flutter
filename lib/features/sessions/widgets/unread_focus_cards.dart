@@ -19,7 +19,7 @@ int sessionAttentionPriority(
   bool lastMessageIsError = false,
 }) {
   if (session.agentState?.requests?.isNotEmpty ?? false) return 0;
-  if (session.hasLifecycleError && !session.isWorkingDespiteLifecycleError) {
+  if (session.hasLifecycleError && !session.isAliveDespiteLifecycleError) {
     return 1;
   }
   // A failed message the agent kept working past is not a dead end.
