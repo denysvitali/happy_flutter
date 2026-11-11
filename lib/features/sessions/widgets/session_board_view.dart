@@ -423,18 +423,6 @@ class _SessionBoardViewState extends State<SessionBoardView> {
     final visible = _visibleRows(section);
     final machineId = section.machineId;
     final onNewSession = widget.onNewSession;
-    // Index of each row that opens a new project run, mapped to its label.
-    final labels = <int, SessionBoardCluster>{};
-    if (!collapsed) {
-      String? previous;
-      var i = 0;
-      for (final row in visible) {
-        final cluster = row.cluster;
-        if (cluster != null && cluster.key != previous) labels[i] = cluster;
-        previous = cluster?.key;
-        i++;
-      }
-    }
     final rows = collapsed
         ? const <Widget>[]
         : <Widget>[
@@ -490,30 +478,7 @@ class _SessionBoardViewState extends State<SessionBoardView> {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (var i = 0; i < rows.length; i++) ...[
-                        if (labels[i] case final cluster?)
-                          SessionBoardClusterLabel(
-                            key: ValueKey(
-                              'board-cluster-${section.key}-${cluster.key}',
-                            ),
-                            cluster: cluster,
-                          ),
-                        rows[i],
-                        if (i < rows.length - 1 && !labels.containsKey(i + 1))
-                          Divider(
-                            height: 1,
-                            thickness: AppBorder.hairline,
-                            // Under the text column, past the avatar.
-                            indent:
-                                AppSpacing.lg +
-                                missionAvatarSize +
-                                missionRowTextGap,
-                            endIndent: AppSpacing.lg,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.08),
-                          ),
-                      ],
+                      ..._statusRows(context, section, visible.toList(), rows),
                     ],
                   )
                 : UnreadFocusListGroup(children: rows),
@@ -532,6 +497,51 @@ class _SessionBoardViewState extends State<SessionBoardView> {
           ),
       ],
     );
+  }
+
+  /// Status-board rows: project runs sit in their own card under a project
+  /// header, everything else stays a divided list.
+  List<Widget> _statusRows(
+    BuildContext context,
+    SessionBoardSection section,
+    List<SessionBoardRow> visible,
+    List<Widget> rows,
+  ) {
+    final divider = Divider(
+      height: 1,
+      thickness: AppBorder.hairline,
+      // Under the text column, past the avatar.
+      indent: AppSpacing.lg + missionAvatarSize + missionRowTextGap,
+      endIndent: AppSpacing.lg,
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+    );
+    final children = <Widget>[];
+    var i = 0;
+    while (i < rows.length) {
+      // Trailing hint rows have no session behind them.
+      final cluster = i < visible.length ? visible[i].cluster : null;
+      if (cluster == null) {
+        children.add(rows[i]);
+        final next = i + 1 < visible.length ? visible[i + 1].cluster : null;
+        if (i < rows.length - 1 && next == null) children.add(divider);
+        i++;
+        continue;
+      }
+      var end = i + 1;
+      while (end < visible.length && visible[end].cluster?.key == cluster.key) {
+        end++;
+      }
+      children
+        ..add(
+          SessionBoardClusterLabel(
+            key: ValueKey('board-cluster-${section.key}-${cluster.key}'),
+            cluster: cluster,
+          ),
+        )
+        ..add(UnreadFocusListGroup(children: rows.sublist(i, end)));
+      i = end;
+    }
+    return children;
   }
 }
 

@@ -86,10 +86,11 @@ SessionRuntimeMark _runtimeMark(
   );
 }
 
-/// Label that opens a project run inside a board section.
+/// Header of a project run inside a board section.
 ///
-/// The folder glyph carries the project's identity hue, so the same
-/// project is recognizable by color before its name is read.
+/// The tile carries the project's identity hue, the same one Mission
+/// Control and the Projects board use, so a project is recognizable by
+/// color before its name is read.
 class SessionBoardClusterLabel extends StatelessWidget {
   const SessionBoardClusterLabel({required this.cluster, super.key});
 
@@ -106,29 +107,33 @@ class SessionBoardClusterLabel extends StatelessWidget {
       child: ExcludeSemantics(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.smd,
+            AppSpacing.lg,
             AppSpacing.md,
             AppSpacing.lg,
-            AppSpacing.xxs,
+            AppSpacing.xs,
           ),
           child: Row(
             children: [
-              // Centered on the avatar column of the rows underneath.
-              SizedBox(
-                width: missionAvatarSize,
+              Container(
+                width: AppIconSize.tab,
+                height: AppIconSize.tab,
+                decoration: BoxDecoration(
+                  color: workspaceIdentityContainer(context, cluster.color),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
                 child: Icon(
                   Icons.folder_rounded,
                   size: AppIconSize.sm,
                   color: cluster.color,
                 ),
               ),
-              const SizedBox(width: missionRowTextGap),
+              const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
                   cluster.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.label(theme, cs.onSurface),
+                  style: AppText.title(theme, cs.onSurface),
                 ),
               ),
               if (cluster.count > 1) ...[

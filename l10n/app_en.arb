@@ -3194,6 +3194,7 @@
     }
   },
   "sessionsBoardActive": "Open",
+  "sessionsPreviewInterrupted": "Interrupted · waiting for you",
   "sessionsBoardNoActive": "No open sessions",
   "sessionsBoardNoArchived": "No archived sessions",
   "sessionsBoardSearchHint": "Search sessions or projects",

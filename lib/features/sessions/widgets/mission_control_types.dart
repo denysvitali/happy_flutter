@@ -227,3 +227,15 @@ class SessionRuntimeMark {
   /// in the section header, so the row never repeats them.
   final String detail;
 }
+
+/// Prefix of the transcript line Claude Code writes when a turn is stopped.
+const String _interruptedMarker = '[Request interrupted by user';
+
+/// Row text for a session's latest update. A stopped turn is recorded as a
+/// bracketed marker; say what it means instead of echoing the transcript.
+String? missionPreviewText(BuildContext context, String? preview) {
+  final text = preview?.trim();
+  return text != null && text.startsWith(_interruptedMarker)
+      ? context.l10n.sessionsPreviewInterrupted
+      : text;
+}

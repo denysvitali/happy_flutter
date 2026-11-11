@@ -9921,6 +9921,12 @@ abstract class AppLocalizations {
   /// **'Open'**
   String get sessionsBoardActive;
 
+  /// No description provided for @sessionsPreviewInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted · waiting for you'**
+  String get sessionsPreviewInterrupted;
+
   /// No description provided for @sessionsBoardNoActive.
   ///
   /// In en, this message translates to:

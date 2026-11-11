@@ -67,6 +67,27 @@ Widget _app(Widget child, {bool dark = false, double scale = 1}) =>
     );
 
 void main() {
+  testWidgets('a stopped turn reads as waiting, not as a transcript marker', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        MissionActionRow(
+          session: _session(title: 'Deploy chain'),
+          entry: const SessionUiEntry(
+            lastMessagePreview: '[Request interrupted by user for tool use]',
+          ),
+          lane: MissionLane.quiet,
+          animateActivity: false,
+          onTap: () {},
+          onLongPress: () {},
+        ),
+      ),
+    );
+    expect(find.text('Interrupted · waiting for you'), findsOneWidget);
+    expect(find.textContaining('Request interrupted'), findsNothing);
+  });
+
   testWidgets('inbox fallback identifies providers sharing a workspace', (
     tester,
   ) async {

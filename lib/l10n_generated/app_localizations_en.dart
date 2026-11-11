@@ -5766,6 +5766,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsBoardActive => 'Open';
 
   @override
+  String get sessionsPreviewInterrupted => 'Interrupted · waiting for you';
+
+  @override
   String get sessionsBoardNoActive => 'No open sessions';
 
   @override

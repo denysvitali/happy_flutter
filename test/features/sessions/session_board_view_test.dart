@@ -321,9 +321,14 @@ void main() {
     await _pumpBoard(tester, sections);
     // One label per project run, not per row.
     expect(find.byType(SessionBoardClusterLabel), findsNWidgets(3));
+    // Each project run is its own card, so the boundary is structural.
+    expect(find.byType(UnreadFocusListGroup), findsNWidgets(3));
+    expect(find.byType(Divider), findsNWidgets(3));
     expect(find.text('alpha'), findsOneWidget);
     expect(find.text('gamma'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
+    // A lone conversation needs no count.
+    expect(find.text('1'), findsNothing);
     expect(find.text('session q0'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

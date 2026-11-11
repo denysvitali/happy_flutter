@@ -100,7 +100,7 @@ class MissionActionRow extends StatelessWidget {
     final status = getSessionStatus(session);
     final laneColor = missionLaneColor(context, lane);
     final activity = getSessionActivity(context, session)?.label;
-    final preview = entry.lastMessagePreview?.trim();
+    final preview = missionPreviewText(context, entry.lastMessagePreview);
     // The concrete update outranks the abstract activity label: most queue
     // entries are progress reports, and "Used Grep · rg foo" tells the user
     // more than another "thinking" badge.
