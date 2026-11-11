@@ -239,3 +239,32 @@ String? missionPreviewText(BuildContext context, String? preview) {
       ? context.l10n.sessionsPreviewInterrupted
       : text;
 }
+
+/// Selection check on a row avatar. It takes the provider badge's corner, so
+/// the avatar still says which conversation is selected.
+class MissionSelectedCheck extends StatelessWidget {
+  const MissionSelectedCheck({super.key});
+
+  static const double size = missionAvatarSize * 0.5;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      right: -missionAvatarSize * 0.1,
+      bottom: -missionAvatarSize * 0.1,
+      child: Container(
+        key: const ValueKey('mission-row-selected-check'),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: cs.primary,
+          shape: BoxShape.circle,
+          border: Border.all(color: cs.surface, width: 2),
+        ),
+        alignment: Alignment.center,
+        child: Icon(Icons.check_rounded, size: size * 0.6, color: cs.onPrimary),
+      ),
+    );
+  }
+}

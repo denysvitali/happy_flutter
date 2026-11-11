@@ -226,12 +226,13 @@ class MissionActionRow extends StatelessWidget {
               : AppTouchTarget.comfortable,
         ),
         decoration: BoxDecoration(
+          // A borderless wash: the row sits inside a rounded card, where a
+          // square outline read as a broken box around each selected row.
           color: selected
-              ? cs.primary.withValues(alpha: 0.1)
+              ? cs.primary.withValues(alpha: 0.08)
               : highlighted
               ? laneColor.withValues(alpha: 0.06)
               : Colors.transparent,
-          border: Border.all(color: selected ? cs.primary : Colors.transparent),
         ),
         child: Material(
           color: Colors.transparent,
@@ -655,7 +656,6 @@ class _LaneTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final identity = agentIdentityForSeed(
       sessionId,
       brightness: Theme.of(context).brightness,
@@ -673,6 +673,7 @@ class _LaneTile extends StatelessWidget {
             AgentAvatar(
               identity: identity,
               size: missionAvatarSize,
+              showProviderBadge: !selected,
               providerBadge: (f, s) => HarnessLogo(flavor: f, size: s),
             )
           else
@@ -680,23 +681,11 @@ class _LaneTile extends StatelessWidget {
               id: sessionId,
               flavor: flavor,
               size: missionAvatarSize,
-              showFlavorIcon: true,
+              showFlavorIcon: !selected,
               style: avatarStyle,
             ),
           if (selected)
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_rounded,
-                  size: AppIconSize.md,
-                  color: cs.onPrimary,
-                ),
-              ),
-            )
+            const MissionSelectedCheck()
           else if (showDot)
             // Outside the face rect (see agentFaceRect): the dot sits on
             // the avatar's top-right corner, never over the eyes.

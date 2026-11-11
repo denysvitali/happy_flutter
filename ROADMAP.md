@@ -211,6 +211,9 @@ on blocked rows. **Status board** folds long Quiet lanes, says "All clear"
 when nothing waits on the user, and (2026-11-11) groups quiet conversations
 into one card per project under a project header whenever a project repeats;
 a stopped turn previews as "Interrupted · waiting for you";
+selected rows (2026-11-11) get a borderless wash and a small corner check in
+place of the provider badge, instead of a square outline and a disc over the
+avatar;
 blob avatars take their colour from the session's project (shape stays per
 session) on every surface, matching the project header tile;
 open sessions beyond the five warmed at cold start get their last update

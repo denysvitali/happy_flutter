@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/ui/agent_identity.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show formatRelativeTime;
+import 'package:happy_flutter/features/sessions/harness_logo.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_action_tile.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_types.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_heartbeat.dart';
@@ -615,6 +616,40 @@ void main() {
     await tester.tap(find.text('pmos-pixel7'));
     expect(opened, 1);
     expect(acted, 0);
+  });
+
+  testWidgets('selected row keeps its avatar and adds a corner check', (
+    tester,
+  ) async {
+    Widget row({required bool selected}) => _app(
+      MissionActionRow(
+        session: _session(),
+        entry: const SessionUiEntry(),
+        lane: MissionLane.quiet,
+        selected: selected,
+        animateActivity: false,
+        onTap: () {},
+        onLongPress: () {},
+      ),
+    );
+    const check = ValueKey('mission-row-selected-check');
+    await tester.pumpWidget(row(selected: false));
+    expect(find.byKey(check), findsNothing);
+    expect(find.byType(HarnessLogo), findsOneWidget);
+
+    await tester.pumpWidget(row(selected: true));
+    await tester.pumpAndSettle();
+    // The check replaces the provider mark instead of covering the avatar.
+    expect(find.byType(AgentAvatar), findsOneWidget);
+    expect(find.byType(HarnessLogo), findsNothing);
+    expect(tester.getSize(find.byKey(check)).width, lessThan(24));
+    final wash = tester.widget<AnimatedContainer>(
+      find.descendant(
+        of: find.byType(MissionActionRow),
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
+    expect((wash.decoration! as BoxDecoration).border, isNull);
   });
 
   testWidgets('inline unread action marks read without opening the row', (
