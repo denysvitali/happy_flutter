@@ -40,6 +40,7 @@ class SessionBoardCollection extends StatefulWidget {
     required this.onChanged,
     required this.child,
     super.key,
+    this.trailingBuilder,
   });
 
   final int activeCount;
@@ -48,9 +49,18 @@ class SessionBoardCollection extends StatefulWidget {
   final ValueChanged<bool> onChanged;
   final Widget child;
 
+  /// Shares the tab row's trailing edge, e.g. the Kubernetes summary.
+  /// `tight` asks for the narrowest form: the row is too small (narrow
+  /// pane or large text) to fit both tabs beside a labelled control.
+  final Widget Function(BuildContext context, {required bool tight})?
+  trailingBuilder;
+
   @override
   State<SessionBoardCollection> createState() => _SessionBoardCollectionState();
 }
+
+/// Narrowest tab row that fits both tabs beside a labelled control.
+const double _labelledTrailingMinWidth = 380;
 
 class _SessionBoardCollectionState extends State<SessionBoardCollection>
     with SingleTickerProviderStateMixin {
@@ -86,26 +96,52 @@ class _SessionBoardCollectionState extends State<SessionBoardCollection>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TabBar(
-          controller: _controller,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: AppText.label(theme),
-          unselectedLabelStyle: AppText.secondary(theme),
-          labelPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          onTap: (index) => widget.onChanged(index == 1),
-          tabs: [
-            Tab(
-              key: const ValueKey('sessions-active-scope'),
-              text: '${l10n.sessionsBoardActive} ${widget.activeCount}',
-            ),
-            Tab(
-              key: const ValueKey('sessions-archived-scope'),
-              text: '${l10n.sessionsArchivedLabel} ${widget.archivedCount}',
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final tight =
+                constraints.maxWidth < _labelledTrailingMinWidth ||
+                MediaQuery.textScalerOf(context).scale(AppFontSize.base) >
+                    AppFontSize.base * 1.3;
+            return Row(
+              children: [
+                Expanded(
+                  child: TabBar(
+                    // The rule below spans the trailing control as well.
+                    dividerHeight: 0,
+                    controller: _controller,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelStyle: AppText.label(theme),
+                    unselectedLabelStyle: AppText.secondary(theme),
+                    labelPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    onTap: (index) => widget.onChanged(index == 1),
+                    tabs: [
+                      Tab(
+                        key: const ValueKey('sessions-active-scope'),
+                        text:
+                            '${l10n.sessionsBoardActive} ${widget.activeCount}',
+                      ),
+                      Tab(
+                        key: const ValueKey('sessions-archived-scope'),
+                        text:
+                            '${l10n.sessionsArchivedLabel} ${widget.archivedCount}',
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.trailingBuilder case final build?)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.sm),
+                    child: build(context, tight: tight),
+                  ),
+              ],
+            );
+          },
         ),
+        const Divider(height: 1, thickness: AppBorder.hairline),
         Expanded(child: widget.child),
       ],
     );

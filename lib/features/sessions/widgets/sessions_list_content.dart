@@ -20,7 +20,6 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/ui/agent_identity.dart';
 import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../kubernetes/kubernetes_sessions_strip.dart';
@@ -173,7 +172,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   void initState() {
     super.initState();
     _sel.addListener(_onSelectionChanged);
-    agentColorSeedResolver = SessionProjectIndex.catalogProjectKeyOf;
     widget.folderNotifier.addListener(_onFolderChanged);
     _sessionsRouteActive = isSessionsCollectionRoute(
       PerformanceContextService().currentRoute,
@@ -526,7 +524,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     // Indexed from the whole catalog, not the searched subset, so a
     // project (and its avatar colour) does not change while filtering.
-    _projectIndex = SessionProjectIndex.forCatalog(sessions);
+    _projectIndex =
+        SessionProjectIndex.catalog ??
+        SessionProjectIndex.build(sessions.values);
 
     final activeSessions = sorted.active;
     final isBoard = _isBoardStyle(sessionsViewStyle);
@@ -595,7 +595,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     return _retainVisibleTree(
       Column(
         children: [
-          if (showKubernetes)
+          // Board layouts carry the summary in their tab row instead.
+          if (showKubernetes && !isBoard)
             const KubernetesSessionsStrip()
           else
             const SizedBox.shrink(),
@@ -871,6 +872,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
       }
       return SessionBoardCollection(
+        trailingBuilder: widget.searchQuery.isEmpty
+            ? (_, {required tight}) =>
+                  KubernetesSessionsStrip(compact: true, tight: tight)
+            : null,
         activeCount: activeSessions.length,
         archivedCount: inactiveSessions.length,
         showArchived: showArchived,

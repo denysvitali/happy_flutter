@@ -38,7 +38,9 @@ import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
 import 'core/theme/app_scroll_behavior.dart';
 import 'core/theme/app_tokens.dart';
+import 'core/ui/agent_identity.dart';
 import 'core/utils/package_info_cache.dart';
+import 'core/utils/session_projects.dart';
 import 'core/utils/theme_helper.dart';
 import 'core/widgets/app_focus_ticker_mode.dart';
 import 'core/widgets/app_focus_traversal.dart';
@@ -291,6 +293,8 @@ Future<void> _runApp() async {
   // either here previously added 10–300ms+ to time-to-first-frame
   // on every cold start.
 
+  // A session's avatar takes its colour from its project on every surface.
+  agentColorSeedResolver = SessionProjectIndex.catalogProjectKeyOf;
   runApp(
     ProviderScope(
       child: ErrorBoundary(

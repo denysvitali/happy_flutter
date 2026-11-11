@@ -5,6 +5,11 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testAdvanceRuntimeGeneration() => _runtimeGeneration++;
 
+  /// Runs the cold-start preview pass for the current runtime.
+  @visibleForTesting
+  Future<void> testWarmColdPreviews() =>
+      _warmColdPreviewsAsync(_runtimeGeneration);
+
   /// Clears the read-only Codex catalog cache between singleton-backed tests.
   @visibleForTesting
   void testClearCodexModelsCache() {
@@ -1016,6 +1021,7 @@ extension SyncTestHelpers on Sync {
     _sessionMessagesRevision.clear();
     _previewCache.clear();
     _previewCacheVersion.clear();
+    _coldPreviews.clear();
     _sessionMessagesViewCache.clear();
     _sessionMessagesCache = null;
     _orphanFetchOlderAttemptedMs.clear();

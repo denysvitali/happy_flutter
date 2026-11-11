@@ -124,21 +124,26 @@ class SessionProjectIndex {
     return _cached = SessionProjectIndex.build(active.followedBy(inactive));
   }
 
-  /// Returns the index for the whole session catalog, rebuilding only when
-  /// the catalog map instance changes. It also becomes [current].
-  factory SessionProjectIndex.forCatalog(Map<String, Session> sessions) {
-    final current = _catalog;
-    if (current != null && identical(_catalogSessions, sessions)) {
-      return current;
-    }
+  /// Points the catalog index at the published session catalog. The index
+  /// itself is built lazily, on the first lookup after the map changes, so
+  /// publishing stays free for surfaces that never ask for a project.
+  static void trackCatalog(Map<String, Session> sessions) {
+    if (identical(_catalogSessions, sessions)) return;
     _catalogSessions = sessions;
-    return _catalog = SessionProjectIndex.build(sessions.values);
+    _catalog = null;
   }
 
-  /// Project key of [sessionId] in the latest catalog index, or null when
-  /// no catalog has been indexed or it does not hold the session.
+  /// Index of the tracked catalog, or null before any catalog is tracked.
+  static SessionProjectIndex? get catalog {
+    final sessions = _catalogSessions;
+    if (sessions == null) return null;
+    return _catalog ??= SessionProjectIndex.build(sessions.values);
+  }
+
+  /// Project key of [sessionId] in the tracked catalog, or null when no
+  /// catalog is tracked or it does not hold the session.
   static String? catalogProjectKeyOf(String sessionId) =>
-      _catalog?._projectBySessionId[sessionId]?.key;
+      catalog?._projectBySessionId[sessionId]?.key;
 
   static SessionProjectIndex? _catalog;
   static Map<String, Session>? _catalogSessions;

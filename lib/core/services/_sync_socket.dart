@@ -1389,11 +1389,69 @@ extension SyncSocket on Sync {
       firstLoadedChanged: batchFirstLoadedChanged,
     );
 
+    unawaited(_warmColdPreviewsAsync(runtimeGeneration));
+
     logger.debug(
       '[MessageCache] Warmed $totalRestored/${entriesToWarm.length} recent '
       'session caches in ${stopwatch.elapsedMilliseconds}ms '
       '(skipped ${entries.length - entriesToWarm.length})',
     );
+  }
+
+  /// Open conversations whose preview is read from the message cache at
+  /// cold start without keeping their transcript resident.
+  static const int _maxColdPreviewSessions = 40;
+  static const Duration _coldPreviewReadGap = Duration(milliseconds: 40);
+
+  /// Gives open conversations beyond the warmed few their last update.
+  ///
+  /// Only [_maxColdStartMessageCacheWarmSessions] transcripts are restored
+  /// at startup, so every other row used to show no update until its chat
+  /// was opened. Each remaining open session's encrypted cache is decoded
+  /// in the worker, reduced to one preview line and released again: no
+  /// transcript stays resident, no cursor moves, nothing is persisted.
+  Future<void> _warmColdPreviewsAsync(int runtimeGeneration) async {
+    bool current() => runtimeGeneration == _runtimeGeneration && isInitialized;
+    if (!current()) return;
+    final candidates =
+        _sessions.values
+            .where(
+              (session) =>
+                  !session.archived &&
+                  session.active &&
+                  !_sessionMessages.containsKey(session.id),
+            )
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    var warmed = 0;
+    for (final session in candidates.take(_maxColdPreviewSessions)) {
+      final sessionId = session.id;
+      try {
+        final cached = await MessageCacheService().getMessagesAsync(
+          sessionId,
+          isCurrent: current,
+        );
+        if (!current()) return;
+        // A transcript that became resident meanwhile is the better source.
+        if (cached.isEmpty || _sessionMessages.containsKey(sessionId)) {
+          continue;
+        }
+        final preview = _scanPreview(cached);
+        if (preview.preview == null) continue;
+        _coldPreviews[sessionId] = preview;
+        warmed++;
+      } catch (error, stack) {
+        logger.warning(
+          'Failed to read the cached preview for session $sessionId',
+          error,
+          stack,
+        );
+      }
+      // Spread the decodes out so startup frames keep flowing.
+      await Future<void>.delayed(_coldPreviewReadGap);
+      if (!current()) return;
+    }
+    if (warmed > 0) _notifyDataChanged({SyncDomain.sessions});
   }
 
   void _flushBatchAfterCacheRestore({

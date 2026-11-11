@@ -293,6 +293,61 @@ void main() {
       expect(taps, 1);
     });
 
+    testWidgets('pill leads with the state that needs attention', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _app(
+          KubernetesSessionsPill(
+            counts: const KubernetesSessionCounts(
+              ready: 3,
+              scheduling: 2,
+              failed: 1,
+            ),
+            onTap: () => taps++,
+          ),
+        ),
+      );
+      expect(find.text('1 failed'), findsOneWidget);
+      expect(find.textContaining('running'), findsNothing);
+      expect(find.textContaining('starting'), findsNothing);
+      await tester.tap(find.byKey(const Key('kubernetes-sessions-pill')));
+      expect(taps, 1);
+
+      await tester.pumpWidget(
+        _app(
+          KubernetesSessionsPill(
+            counts: const KubernetesSessionCounts(ready: 3, scheduling: 2),
+            onTap: () {},
+          ),
+        ),
+      );
+      expect(find.text('2 starting'), findsOneWidget);
+    });
+
+    testWidgets('tight pill keeps the count and the spoken summary', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          KubernetesSessionsPill(
+            counts: const KubernetesSessionCounts(ready: 3),
+            tight: true,
+            onTap: () {},
+          ),
+        ),
+      );
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text('3 running'), findsNothing);
+      expect(
+        tester
+            .getSemantics(find.byKey(const Key('kubernetes-sessions-pill')))
+            .label,
+        contains('3 session pods'),
+      );
+    });
+
     testWidgets('pod tile names untracked pods and stale state', (
       tester,
     ) async {

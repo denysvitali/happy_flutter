@@ -76,7 +76,18 @@ class KubernetesSessionCounts {
 /// how many session pods are running, starting, paused or failed. Tapping
 /// opens the live pod list. Hidden when no Kubernetes session is live.
 class KubernetesSessionsStrip extends ConsumerWidget {
-  const KubernetesSessionsStrip({super.key});
+  const KubernetesSessionsStrip({
+    super.key,
+    this.compact = false,
+    this.tight = false,
+  });
+
+  /// Renders the pill that shares a row with other controls instead of
+  /// the full-width strip.
+  final bool compact;
+
+  /// With [compact], shows the bare count instead of "1 starting".
+  final bool tight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,10 +95,11 @@ class KubernetesSessionsStrip extends ConsumerWidget {
       sessionsNotifierProvider.select(KubernetesSessionCounts.fromSessions),
     );
     if (counts.total == 0) return const SizedBox.shrink();
-    return KubernetesSessionsStripView(
-      counts: counts,
-      onTap: () => unawaited(context.pushNamed('kubernetes')),
-    );
+    void open() => unawaited(context.pushNamed('kubernetes'));
+    if (compact) {
+      return KubernetesSessionsPill(counts: counts, onTap: open, tight: tight);
+    }
+    return KubernetesSessionsStripView(counts: counts, onTap: open);
   }
 }
 
@@ -183,4 +195,72 @@ class KubernetesSessionsStripView extends StatelessWidget {
     label: kubernetesPodCountLabel(l10n, state, count),
     tone: kubernetesPodStateTone(state),
   );
+}
+
+/// Compact Kubernetes summary for a row shared with other controls: the
+/// cloud mark and the one pod state that most needs attention. Tapping
+/// opens the live pod list, like the full strip.
+class KubernetesSessionsPill extends StatelessWidget {
+  const KubernetesSessionsPill({
+    required this.counts,
+    required this.onTap,
+    super.key,
+    this.tight = false,
+  });
+
+  final KubernetesSessionCounts counts;
+  final VoidCallback onTap;
+
+  /// Shows the bare count; the state stays in the badge tone and the
+  /// spoken label.
+  final bool tight;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    // Trouble first, then what is still coming up, then steady state.
+    final (state, count) = counts.failed > 0
+        ? (SessionPodDisplayState.failed, counts.failed)
+        : counts.scheduling > 0
+        ? (SessionPodDisplayState.scheduling, counts.scheduling)
+        : counts.ready > 0
+        ? (SessionPodDisplayState.ready, counts.ready)
+        : (SessionPodDisplayState.paused, counts.paused);
+    return Semantics(
+      button: true,
+      label: l10n.kubernetesStripSemantics(counts.total),
+      excludeSemantics: true,
+      child: InkWell(
+        key: const Key('kubernetes-sessions-pill'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_outlined,
+                  size: AppIconSize.md,
+                  color: cs.primary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: AppBadge(
+                    label: tight
+                        ? '$count'
+                        : kubernetesPodCountLabel(l10n, state, count),
+                    tone: kubernetesPodStateTone(state),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

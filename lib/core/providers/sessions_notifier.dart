@@ -11,6 +11,7 @@ import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
 import '../utils/network_errors.dart';
 import '../utils/session_map_patch.dart';
+import '../utils/session_projects.dart';
 import '_shared.dart';
 
 /// Immutable sessions map with its collection/grouping fingerprint prepared
@@ -154,7 +155,12 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   final _foldersStorage = SessionFoldersStorage.instance;
 
   @override
-  Map<String, Session> build() => SessionCollectionSnapshot(const {});
+  Map<String, Session> build() {
+    // Every publish re-points the project index at the new catalog; the
+    // index is rebuilt lazily by whoever asks for a project next.
+    listenSelf((_, next) => SessionProjectIndex.trackCatalog(next));
+    return SessionCollectionSnapshot(const {});
+  }
 
   void _publish(Map<String, Session> sessions) {
     state = SessionCollectionSnapshot(sessions);

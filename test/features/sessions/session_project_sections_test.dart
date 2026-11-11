@@ -100,9 +100,12 @@ void main() {
       final b = _session('b', path: '/home/workspace/git/har');
       final c = _session('c', path: '/home/workspace/git/pmos');
       final catalog = {'a': a, 'b': b, 'c': c};
-      final index = SessionProjectIndex.forCatalog(catalog);
+      SessionProjectIndex.trackCatalog(catalog);
+      final index = SessionProjectIndex.catalog;
 
-      expect(SessionProjectIndex.forCatalog(catalog), same(index));
+      expect(index, isNotNull);
+      SessionProjectIndex.trackCatalog(catalog);
+      expect(SessionProjectIndex.catalog, same(index));
       expect(
         SessionProjectIndex.catalogProjectKeyOf('a'),
         SessionProjectIndex.catalogProjectKeyOf('b'),
@@ -113,7 +116,8 @@ void main() {
       );
       expect(SessionProjectIndex.catalogProjectKeyOf('missing'), isNull);
 
-      expect(SessionProjectIndex.forCatalog({...catalog}), isNot(same(index)));
+      SessionProjectIndex.trackCatalog({...catalog});
+      expect(SessionProjectIndex.catalog, isNot(same(index)));
     });
 
     test('a pod and a local checkout of one repository share a project', () {

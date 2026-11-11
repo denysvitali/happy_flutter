@@ -833,6 +833,14 @@ what you have, you must use the options mode.
 
   /// Identity of the message list when the preview was computed.
   final Map<String, int> _previewCacheVersion = {};
+
+  /// Previews read from the encrypted message cache for sessions whose
+  /// transcript is not resident. Memory only; cleared with the runtime.
+  final Map<
+    String,
+    ({int? timestamp, String? preview, String? role, bool isError})
+  >
+  _coldPreviews = {};
   final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
 
   /// Monotonic per-session message revision, bumped on every real
@@ -1789,6 +1797,7 @@ what you have, you must use the options mode.
   /// to [getLastMessagePreview] etc. will rescan.
   void _invalidatePreviewCache(String sessionId) {
     _previewCache.remove(sessionId);
+    _coldPreviews.remove(sessionId);
     _previewCacheVersion.remove(sessionId);
   }
 
@@ -1796,14 +1805,52 @@ what you have, you must use the options mode.
   _ensurePreviewCache(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) {
-      return (timestamp: null, preview: null, role: null, isError: false);
+      return _coldPreviewFor(sessionId);
     }
     // Use list identity + length as a cheap version check.
     final version = identityHashCode(messages) ^ messages.length;
     if (_previewCacheVersion[sessionId] == version) {
       return _previewCache[sessionId]!;
     }
+    final result = _scanPreview(messages);
+    _previewCache[sessionId] = result;
+    _previewCacheVersion[sessionId] = version;
+    return result;
+  }
 
+  /// Preview of a session whose transcript is not resident, taken from its
+  /// encrypted message cache at cold start (see `_warmColdPreviewsAsync`).
+  ///
+  /// It supplies only the text and its author. Ordering, row age and the
+  /// error lane keep following the server catalog, and a session the
+  /// server has newer messages for shows no preview rather than a stale one.
+  ({int? timestamp, String? preview, String? role, bool isError})
+  _coldPreviewFor(String sessionId) {
+    const none = (timestamp: null, preview: null, role: null, isError: false);
+    final cold = _coldPreviews[sessionId];
+    if (cold == null) return none;
+    final cachedAt = cold.timestamp;
+    final serverAt = _sessions[sessionId]?.lastMessageAt;
+    if (cachedAt != null &&
+        serverAt != null &&
+        serverAt > cachedAt + _coldPreviewClockSlackMs) {
+      return none;
+    }
+    return (
+      timestamp: null,
+      preview: cold.preview,
+      role: cold.role,
+      isError: false,
+    );
+  }
+
+  /// Server and message timestamps of one message can differ slightly.
+  static const int _coldPreviewClockSlackMs = 2000;
+
+  /// Scans [messages] backwards for the newest previewable row.
+  ({int? timestamp, String? preview, String? role, bool isError}) _scanPreview(
+    List<Map<String, dynamic>> messages,
+  ) {
     // Compute all fields in a single backward scan. Timestamp follows
     // the same row as the preview — not messages.last — so a trailing
     // thinking/agent-event heartbeat cannot masquerade as "Just now".
@@ -1901,8 +1948,6 @@ what you have, you must use the options mode.
       role: role,
       isError: isError,
     );
-    _previewCache[sessionId] = result;
-    _previewCacheVersion[sessionId] = version;
     return result;
   }
 

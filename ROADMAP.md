@@ -169,7 +169,8 @@ syncs that failed on a dead link. Widget/unit regressions added; device
 acceptance pending.
 
 Kubernetes on the sessions home (2026-11-09): every layout shows a one-line
-Kubernetes strip (running / starting / paused / failed session pods, counted
+Kubernetes summary (a pill in the Open/Archived row on board layouts since
+2026-11-11, the full-width strip elsewhere) (running / starting / paused / failed session pods, counted
 from session metadata with stale disconnected rows excluded) that opens a live
 pod list. The list asks each online Kubernetes daemon (`list-session-pods`)
 every 10s while visible and in the foreground; a daemon that answers is
@@ -211,7 +212,9 @@ when nothing waits on the user, and (2026-11-11) groups quiet conversations
 into one card per project under a project header whenever a project repeats;
 a stopped turn previews as "Interrupted · waiting for you";
 blob avatars take their colour from the session's project (shape stays per
-session) on every surface, matching the project header tile; **By machine** shows clean host names with a
+session) on every surface, matching the project header tile;
+open sessions beyond the five warmed at cold start get their last update
+from the encrypted message cache without keeping a transcript resident; **By machine** shows clean host names with a
 lane summary, lists idle online machines, and starts a session on a machine
 in one tap; **Folders** split active from archived-only workspaces with lane
 summaries; **Unread focus** keeps rich attention cards over compact rows.
