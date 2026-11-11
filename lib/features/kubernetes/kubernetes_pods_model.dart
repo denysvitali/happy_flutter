@@ -63,6 +63,28 @@ class KubernetesPodEntry {
     ].where((value) => value.isNotEmpty).join(' · ');
   }
 
+  /// Session the pod belongs to, from the daemon report or the catalog;
+  /// empty for a pod with no session label.
+  String get sessionId {
+    final reported = pod?.sessionId ?? '';
+    return reported.isNotEmpty ? reported : session?.id ?? '';
+  }
+
+  /// Whether pod actions (pause, resume, kill) can be sent: they are keyed
+  /// by session on the owning daemon.
+  bool get canControl =>
+      live && sessionId.isNotEmpty && (machineId?.isNotEmpty ?? false);
+
+  /// The live pod report when the pod is actually running; null for paused,
+  /// archived, or last-known entries, whose usage would be meaningless.
+  SessionPod? get runningPod {
+    final current = pod;
+    if (current == null || !live || current.paused || current.archived) {
+      return null;
+    }
+    return current;
+  }
+
   /// Title of the owning session, or null for an untracked pod.
   String? get sessionTitle {
     final owner = session;

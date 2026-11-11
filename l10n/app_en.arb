@@ -225,9 +225,88 @@
   "@kubernetesLastKnown": {
     "description": "Badge on a pod whose daemon could not be asked for its live state"
   },
-  "kubernetesSessionInfo": "Session info and pod controls",
-  "@kubernetesSessionInfo": {
-    "description": "Tooltip of the info button on a Kubernetes pod row"
+  "kubernetesSummaryPods": "Pods",
+  "@kubernetesSummaryPods": {
+    "description": "Label of the pod count tile in the Kubernetes screen summary"
+  },
+  "kubernetesSummaryReady": "{ready} of {total} ready",
+  "@kubernetesSummaryReady": {
+    "description": "Caption under the pod count: how many of the listed pods are ready",
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesSummaryInUse": "in use",
+  "@kubernetesSummaryInUse": {
+    "description": "Caption under the total CPU/memory usage in the Kubernetes screen summary"
+  },
+  "kubernetesCpu": "CPU",
+  "@kubernetesCpu": {
+    "description": "Label of a pod's CPU usage meter (values are in cores)"
+  },
+  "kubernetesMemory": "Memory",
+  "@kubernetesMemory": {
+    "description": "Label of a pod's memory usage meter"
+  },
+  "kubernetesMetricsUnavailable": "Usage unavailable",
+  "@kubernetesMetricsUnavailable": {
+    "description": "Shown on a running pod when the cluster reported no CPU/memory metrics"
+  },
+  "kubernetesUptime": "Up {duration}",
+  "@kubernetesUptime": {
+    "description": "Badge with how long a pod has been running, e.g. 'Up 2h 14m'",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "kubernetesRestarts": "{count, plural, =1 {1 restart} other {{count} restarts}}",
+  "@kubernetesRestarts": {
+    "description": "Badge with how many times a pod's containers restarted",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kubernetesPodActions": "Pod actions",
+  "@kubernetesPodActions": {
+    "description": "Tooltip of the overflow menu on a Kubernetes pod card"
+  },
+  "kubernetesOpenChat": "Open chat",
+  "@kubernetesOpenChat": {
+    "description": "Pod menu item that opens the session's chat"
+  },
+  "kubernetesInfoAndLogs": "Session info & logs",
+  "@kubernetesInfoAndLogs": {
+    "description": "Pod menu item that opens Session info, where pod logs live"
+  },
+  "kubernetesKillConfirm": "Kill the pod for “{name}”? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.",
+  "@kubernetesKillConfirm": {
+    "description": "Confirmation before killing a pod from the Kubernetes screen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kubernetesActionFailed": "{action} failed: {error}",
+  "@kubernetesActionFailed": {
+    "description": "Snack bar when a pod action (pause, resume, kill) fails",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "kubernetesLocalSessions": "On machines",
   "@kubernetesLocalSessions": {
@@ -255,7 +334,7 @@
   "sessionPodPause": "Pause pod",
   "sessionPodResume": "Resume pod",
   "sessionPodKill": "Kill pod",
-  "sessionPodKillConfirm": "Kill this session's pod? The running agent stops immediately.",
+  "sessionPodKillConfirm": "Kill this session's pod? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.",
   "sessionPodHideLogs": "Hide logs",
   "sessionPodStartingTitle": "Starting Kubernetes pod",
   "sessionPodStartFailedTitle": "Kubernetes pod failed to start",

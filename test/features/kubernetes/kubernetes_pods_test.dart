@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
+import 'package:happy_flutter/features/kubernetes/kubernetes_pod_format.dart';
 import 'package:happy_flutter/features/kubernetes/kubernetes_pod_state.dart';
 import 'package:happy_flutter/features/kubernetes/kubernetes_pods_model.dart';
 import 'package:happy_flutter/features/kubernetes/kubernetes_sessions_screen.dart';
@@ -58,6 +59,9 @@ SessionPod _pod(
   bool ready = true,
   bool paused = false,
   bool archived = false,
+  bool metrics = false,
+  int startedAtMs = 0,
+  int restarts = 0,
 }) => SessionPod(
   sessionId: sessionId,
   podName: 'happy-$sessionId',
@@ -71,6 +75,14 @@ SessionPod _pod(
   archived: archived,
   repoUrl: 'https://github.com/acme/app',
   repoRef: 'main',
+  startedAtMs: startedAtMs,
+  nodeName: 'worker-1',
+  restartCount: restarts,
+  cpuLimitMillicores: 2000,
+  memoryLimitBytes: 4 << 30,
+  metricsAvailable: metrics,
+  cpuUsageMillicores: metrics ? 250 : 0,
+  memoryUsageBytes: metrics ? 512 << 20 : 0,
 );
 
 Machine _machine(
@@ -376,7 +388,57 @@ void main() {
       expect(find.text('Session s'), findsOneWidget);
       expect(find.text('happy-s · happy'), findsOneWidget);
       expect(find.text('Last known'), findsOneWidget);
-      expect(find.byIcon(Icons.info_outline_rounded), findsOneWidget);
+      // Only the tracked pod has somewhere to go, so only it has a menu.
+      expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
+    });
+
+    testWidgets('pod tile shows uptime, restarts and usage against limits', (
+      tester,
+    ) async {
+      final now = DateTime.utc(2026, 11, 11, 10);
+      await tester.pumpWidget(
+        _app(
+          KubernetesPodTile(
+            entry: KubernetesPodEntry(
+              machineId: 'm1',
+              session: _session('a'),
+              pod: _pod(
+                'a',
+                metrics: true,
+                restarts: 2,
+                startedAtMs: now
+                    .subtract(const Duration(hours: 2, minutes: 14))
+                    .millisecondsSinceEpoch,
+              ),
+            ),
+            now: now,
+          ),
+        ),
+      );
+      expect(find.text('acme/app @ main'), findsOneWidget);
+      expect(find.text('Up 2h 14m'), findsOneWidget);
+      expect(find.text('2 restarts'), findsOneWidget);
+      expect(find.text('0.25 / 2'), findsOneWidget);
+      expect(find.text('512 MiB / 4 GiB'), findsOneWidget);
+      expect(find.text('happy-a · worker-1'), findsOneWidget);
+    });
+
+    testWidgets('a ready pod without metrics says so instead of a meter', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          KubernetesPodTile(
+            entry: KubernetesPodEntry(
+              machineId: 'm1',
+              session: _session('a'),
+              pod: _pod('a'),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Usage unavailable'), findsOneWidget);
+      expect(find.byKey(const Key('kubernetes-usage-cpu')), findsNothing);
     });
 
     testWidgets('pods screen merges live pods and flags unreachable daemons', (
@@ -431,6 +493,116 @@ void main() {
 
       // Dispose the screen so its poll timer is cancelled.
       await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('summary totals usage and kill confirms before sending', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sent = <String>[];
+      var killed = false;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionsNotifierProvider.overrideWith(
+              () => _StubSessions({'a': _session('a', machineId: 'k8s')}),
+            ),
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachines({'k8s': _machine('k8s', activeAt: now)}),
+            ),
+          ],
+          child: _routerApp(
+            KubernetesSessionsScreen(
+              loadPods: (_) async => [
+                if (!killed) _pod('a', metrics: true),
+                _pod('b', metrics: true),
+              ],
+              runPodAction: (machineId, sessionId, action) async {
+                sent.add('$machineId/$sessionId/${action.name}');
+                killed = true;
+                return const SessionPodActionResponse(
+                  success: true,
+                  message: '',
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final summary = find.byKey(const Key('kubernetes-summary'));
+      expect(
+        find.descendant(of: summary, matching: find.text('2 of 2 ready')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: summary, matching: find.text('0.5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: summary, matching: find.text('1 GiB')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('kubernetes-pod-menu-k8s/a')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('kubernetes-pod-kill')));
+      await tester.pumpAndSettle();
+      // The confirmation names the session and what is lost.
+      expect(find.textContaining('workspace volume is deleted'), findsOne);
+      expect(sent, isEmpty);
+      await tester.tap(find.widgetWithText(FilledButton, 'Kill pod'));
+      await tester.pumpAndSettle();
+      expect(sent, ['k8s/a/kill']);
+      expect(find.text('Session a'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
+  group('pod formatting', () {
+    test('formats cores, bytes, uptime and repositories', () {
+      expect(formatCpuCores(250), '0.25');
+      expect(formatCpuCores(1500), '1.5');
+      expect(formatCpuCores(2000), '2');
+      expect(formatCpuCores(12345), '12');
+      expect(formatCpuCores(0), '0');
+      expect(formatBinaryBytes(512 << 20), '512 MiB');
+      expect(formatBinaryBytes(1536 << 20), '1.5 GiB');
+      expect(formatBinaryBytes(4 << 30), '4 GiB');
+      expect(formatBinaryBytes(0), '0 B');
+      expect(formatPodUptime(const Duration(seconds: 45)), '45s');
+      expect(formatPodUptime(const Duration(minutes: 12)), '12m');
+      expect(formatPodUptime(const Duration(hours: 2, minutes: 14)), '2h 14m');
+      expect(formatPodUptime(const Duration(hours: 3)), '3h');
+      expect(formatPodUptime(const Duration(days: 3, hours: 4)), '3d 4h');
+      expect(
+        formatPodRepo('https://github.com/acme/app.git', 'main'),
+        'acme/app @ main',
+      );
+      expect(formatPodRepo('git@github.com:acme/app.git', ''), 'acme/app');
+      expect(formatPodRepo('', 'main'), '');
+      expect(podUsageFraction(usage: 500, limit: 2000, request: 100), 0.25);
+      expect(podUsageFraction(usage: 50, limit: 0, request: 100), 0.5);
+      expect(podUsageFraction(usage: 50, limit: 0, request: 0), isNull);
+      expect(podUsageFraction(usage: 900, limit: 100, request: 0), 1.0);
+    });
+
+    test('SessionPod parses protojson int64 strings', () {
+      final pod = SessionPod.fromJson({
+        'sessionId': 'a',
+        'startedAtMs': '1762844400000',
+        'restartCount': 3,
+        'cpuUsageMillicores': '250',
+        'memoryLimitBytes': '4294967296',
+        'metricsAvailable': true,
+      });
+      expect(pod.startedAtMs, 1762844400000);
+      expect(pod.restartCount, 3);
+      expect(pod.cpuUsageMillicores, 250);
+      expect(pod.memoryLimitBytes, 4 << 30);
+      expect(pod.metricsAvailable, isTrue);
+      expect(SessionPod.fromJson({}).cpuUsageMillicores, 0);
     });
   });
 

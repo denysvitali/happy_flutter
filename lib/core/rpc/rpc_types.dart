@@ -393,6 +393,16 @@ class SessionPod {
     required this.archived,
     required this.repoUrl,
     required this.repoRef,
+    this.startedAtMs = 0,
+    this.nodeName = '',
+    this.restartCount = 0,
+    this.cpuRequestMillicores = 0,
+    this.cpuLimitMillicores = 0,
+    this.memoryRequestBytes = 0,
+    this.memoryLimitBytes = 0,
+    this.metricsAvailable = false,
+    this.cpuUsageMillicores = 0,
+    this.memoryUsageBytes = 0,
   });
 
   factory SessionPod.fromJson(Map<dynamic, dynamic> json) => SessionPod(
@@ -408,7 +418,25 @@ class SessionPod {
     archived: json['archived'] == true,
     repoUrl: json['repoUrl']?.toString() ?? '',
     repoRef: json['repoRef']?.toString() ?? '',
+    startedAtMs: _protoInt(json['startedAtMs']),
+    nodeName: json['nodeName']?.toString() ?? '',
+    restartCount: _protoInt(json['restartCount']),
+    cpuRequestMillicores: _protoInt(json['cpuRequestMillicores']),
+    cpuLimitMillicores: _protoInt(json['cpuLimitMillicores']),
+    memoryRequestBytes: _protoInt(json['memoryRequestBytes']),
+    memoryLimitBytes: _protoInt(json['memoryLimitBytes']),
+    metricsAvailable: json['metricsAvailable'] == true,
+    cpuUsageMillicores: _protoInt(json['cpuUsageMillicores']),
+    memoryUsageBytes: _protoInt(json['memoryUsageBytes']),
   );
+
+  /// protojson encodes int64 as a decimal string and int32 as a number.
+  static int _protoInt(Object? value) => switch (value) {
+    final int v => v,
+    final num v => v.toInt(),
+    final String v => int.tryParse(v) ?? 0,
+    _ => 0,
+  };
 
   final String sessionId;
   final String podName;
@@ -422,6 +450,25 @@ class SessionPod {
   final bool archived;
   final String repoUrl;
   final String repoRef;
+
+  /// Pod `status.startTime` in Unix milliseconds; 0 when unknown.
+  final int startedAtMs;
+  final String nodeName;
+
+  /// Restarts summed over the app containers.
+  final int restartCount;
+
+  /// Requests and limits summed over the app containers; 0 means unset.
+  final int cpuRequestMillicores;
+  final int cpuLimitMillicores;
+  final int memoryRequestBytes;
+  final int memoryLimitBytes;
+
+  /// False when the daemon has no metrics.k8s.io sample for this pod
+  /// (no metrics-server, missing RBAC, older daemon, or a fresh pod).
+  final bool metricsAvailable;
+  final int cpuUsageMillicores;
+  final int memoryUsageBytes;
 }
 
 class SessionPodsResponse {

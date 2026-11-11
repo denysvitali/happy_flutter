@@ -467,7 +467,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kubernetesLastKnown => 'Last known';
 
   @override
-  String get kubernetesSessionInfo => 'Session info and pod controls';
+  String get kubernetesSummaryPods => 'Pods';
+
+  @override
+  String kubernetesSummaryReady(int ready, int total) {
+    return '$ready of $total ready';
+  }
+
+  @override
+  String get kubernetesSummaryInUse => 'in use';
+
+  @override
+  String get kubernetesCpu => 'CPU';
+
+  @override
+  String get kubernetesMemory => 'Memory';
+
+  @override
+  String get kubernetesMetricsUnavailable => 'Usage unavailable';
+
+  @override
+  String kubernetesUptime(String duration) {
+    return 'Up $duration';
+  }
+
+  @override
+  String kubernetesRestarts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count restarts',
+      one: '1 restart',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kubernetesPodActions => 'Pod actions';
+
+  @override
+  String get kubernetesOpenChat => 'Open chat';
+
+  @override
+  String get kubernetesInfoAndLogs => 'Session info & logs';
+
+  @override
+  String kubernetesKillConfirm(String name) {
+    return 'Kill the pod for “$name”? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.';
+  }
+
+  @override
+  String kubernetesActionFailed(String action, String error) {
+    return '$action failed: $error';
+  }
 
   @override
   String get kubernetesLocalSessions => 'On machines';
@@ -525,7 +577,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionPodKillConfirm =>
-      'Kill this session\'s pod? The running agent stops immediately.';
+      'Kill this session\'s pod? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.';
 
   @override
   String get sessionPodHideLogs => 'Hide logs';

@@ -825,11 +825,83 @@ abstract class AppLocalizations {
   /// **'Last known'**
   String get kubernetesLastKnown;
 
-  /// Tooltip of the info button on a Kubernetes pod row
+  /// Label of the pod count tile in the Kubernetes screen summary
   ///
   /// In en, this message translates to:
-  /// **'Session info and pod controls'**
-  String get kubernetesSessionInfo;
+  /// **'Pods'**
+  String get kubernetesSummaryPods;
+
+  /// Caption under the pod count: how many of the listed pods are ready
+  ///
+  /// In en, this message translates to:
+  /// **'{ready} of {total} ready'**
+  String kubernetesSummaryReady(int ready, int total);
+
+  /// Caption under the total CPU/memory usage in the Kubernetes screen summary
+  ///
+  /// In en, this message translates to:
+  /// **'in use'**
+  String get kubernetesSummaryInUse;
+
+  /// Label of a pod's CPU usage meter (values are in cores)
+  ///
+  /// In en, this message translates to:
+  /// **'CPU'**
+  String get kubernetesCpu;
+
+  /// Label of a pod's memory usage meter
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get kubernetesMemory;
+
+  /// Shown on a running pod when the cluster reported no CPU/memory metrics
+  ///
+  /// In en, this message translates to:
+  /// **'Usage unavailable'**
+  String get kubernetesMetricsUnavailable;
+
+  /// Badge with how long a pod has been running, e.g. 'Up 2h 14m'
+  ///
+  /// In en, this message translates to:
+  /// **'Up {duration}'**
+  String kubernetesUptime(String duration);
+
+  /// Badge with how many times a pod's containers restarted
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 restart} other {{count} restarts}}'**
+  String kubernetesRestarts(int count);
+
+  /// Tooltip of the overflow menu on a Kubernetes pod card
+  ///
+  /// In en, this message translates to:
+  /// **'Pod actions'**
+  String get kubernetesPodActions;
+
+  /// Pod menu item that opens the session's chat
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get kubernetesOpenChat;
+
+  /// Pod menu item that opens Session info, where pod logs live
+  ///
+  /// In en, this message translates to:
+  /// **'Session info & logs'**
+  String get kubernetesInfoAndLogs;
+
+  /// Confirmation before killing a pod from the Kubernetes screen
+  ///
+  /// In en, this message translates to:
+  /// **'Kill the pod for “{name}”? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.'**
+  String kubernetesKillConfirm(String name);
+
+  /// Snack bar when a pod action (pause, resume, kill) fails
+  ///
+  /// In en, this message translates to:
+  /// **'{action} failed: {error}'**
+  String kubernetesActionFailed(String action, String error);
 
   /// Kubernetes board section for sessions that run directly on a machine instead of in a pod
   ///
@@ -936,7 +1008,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionPodKillConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Kill this session\'s pod? The running agent stops immediately.'**
+  /// **'Kill this session\'s pod? The agent stops immediately, its workspace volume is deleted, and the session is archived. Uncommitted work is lost.'**
   String get sessionPodKillConfirm;
 
   /// No description provided for @sessionPodHideLogs.
