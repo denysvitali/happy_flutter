@@ -444,6 +444,10 @@ void main() {
     testWidgets('pods screen merges live pods and flags unreachable daemons', (
       tester,
     ) async {
+      // Every card must be built: ListView is lazy below the viewport.
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final now = DateTime.now().millisecondsSinceEpoch;
       final asked = <String>[];
       await tester.pumpWidget(
