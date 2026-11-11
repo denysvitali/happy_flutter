@@ -138,59 +138,6 @@ class _SpawnBackendPicker extends StatelessWidget {
   );
 }
 
-class _RepositoryUrlField extends ConsumerWidget {
-  const _RepositoryUrlField({
-    required this.machineId,
-    required this.selectedRepoUrl,
-    required this.onChanged,
-    required this.onSelected,
-  });
-
-  final String? machineId;
-  final String? selectedRepoUrl;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final repoUrls = _repositoryUrlsForMachine(sessions, machineId);
-
-    return Autocomplete<String>(
-      key: ValueKey('repo-url-$machineId'),
-      optionsBuilder: (textEditingValue) {
-        if (repoUrls.isEmpty) return const <String>[];
-        final query = textEditingValue.text.toLowerCase();
-        if (query.isEmpty) return repoUrls;
-        return repoUrls.where((url) => url.toLowerCase().contains(query));
-      },
-      onSelected: onSelected,
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        final value = selectedRepoUrl;
-        if (value != null && value.isNotEmpty && controller.text.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (controller.text.isEmpty) {
-              controller.text = value;
-            }
-          });
-        }
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: context.l10n.newSessionRepositoryUrl,
-            hintText: context.l10n.newSessionRepositoryUrlHint,
-            prefixIcon: const Icon(Icons.source_outlined),
-          ),
-          keyboardType: TextInputType.url,
-          textInputAction: TextInputAction.next,
-          onChanged: onChanged,
-        );
-      },
-    );
-  }
-}
-
 List<String> _repositoryUrlsForMachine(
   Map<String, Session> sessions,
   String? machineId,
@@ -427,6 +374,8 @@ String _dialogRequirementText(
       return l10n.newSessionRepositoryRequired;
     case NewSessionCreateBlocker.missingRepositoryRef:
       return l10n.newSessionGitRefRequired;
+    case NewSessionCreateBlocker.repositoryRefNotFound:
+      return l10n.newSessionBranchNotFoundRequirement;
     case NewSessionCreateBlocker.harLocalBackend:
       return 'Select Machine to start Har.';
     case NewSessionCreateBlocker.creating:

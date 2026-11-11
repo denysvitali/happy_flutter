@@ -12,6 +12,7 @@ import '../../../core/models/settings.dart' show AIBackendProfile;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
+import '../../../core/services/repo_history_storage.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
@@ -22,6 +23,7 @@ import '../../chat/model_selection_resolver.dart'
     show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
 import '../harness_logo.dart';
+import 'kubernetes_repository_section.dart';
 
 part 'new_session_fields.dart';
 part 'new_session_resolution.dart';
@@ -36,6 +38,7 @@ enum NewSessionCreateBlocker {
   harLocalBackend,
   missingRepository,
   missingRepositoryRef,
+  repositoryRefNotFound,
   creating,
   disconnected,
   syncNotReady,
@@ -64,6 +67,7 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   bool repositoryRequired = false,
   bool enforceKubernetes = false,
   bool harLocalBackendRequired = false,
+  bool repositoryRefNotFound = false,
 }) {
   if (machine == null) return NewSessionCreateBlocker.missingMachine;
   if (!machineOnline) return NewSessionCreateBlocker.offlineMachine;
@@ -80,6 +84,9 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   if (enforceKubernetes && repositoryRef.trim().isEmpty) {
     return NewSessionCreateBlocker.missingRepositoryRef;
   }
+  if (enforceKubernetes && repositoryRefNotFound) {
+    return NewSessionCreateBlocker.repositoryRefNotFound;
+  }
   if (harLocalBackendRequired) return NewSessionCreateBlocker.harLocalBackend;
   if (isCreating) return NewSessionCreateBlocker.creating;
   if (connectionStatus != ConnectionStatus.connected) {
@@ -93,6 +100,13 @@ String newSessionCreateErrorMessage({
   required Object error,
 }) {
   final errorText = error is StateError ? error.message : error.toString();
+  final rejected = parseRejectedRepoRef(errorText);
+  if (rejected != null) {
+    final repo = RegExp(
+      r'does not exist in (\S+?)(?:;|$|\s)',
+    ).firstMatch(errorText);
+    return l10n.newSessionBranchNotFound(rejected.ref, repo?.group(1) ?? '');
+  }
   if (errorText.contains('Machine is unreachable') ||
       errorText.contains('Machine is offline')) {
     return l10n.newSessionMachineUnreachable;
@@ -165,6 +179,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedPath;
   String? _selectedRepoUrl;
   String _selectedRepoRef = 'main';
+  List<String> _additionalRepos = const [];
+
+  /// GitHub (asked through the machine) says the branch does not exist.
+  bool _repoRefMissing = false;
+
+  /// The machine refused the last spawn for this ref.
+  RejectedRepoRef? _rejectedRepoRef;
   String? _selectedMachine;
   bool _isCreating = false;
   String? _creationPhase;
@@ -256,6 +277,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       repositoryRef: _selectedRepoRef,
       path: isKubernetes ? null : (_selectedPath ?? ''),
       enforceKubernetes: isKubernetes,
+      repositoryRefNotFound: _repoRefMissing,
     );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -490,38 +512,35 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       }),
                     ),
                 ],
-                if (isKubernetes) ...[
-                  _RepositoryUrlField(
-                    machineId: selectedMachineId,
-                    selectedRepoUrl: _selectedRepoUrl,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRepoUrl = value;
-                        _createError = null;
-                      });
-                    },
-                    onSelected: (value) {
-                      setState(() {
-                        _selectedRepoUrl = value;
-                        _createError = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  TextFormField(
-                    initialValue: _selectedRepoRef,
-                    decoration: InputDecoration(
-                      labelText: l10n.newSessionGitRef,
-                      hintText: l10n.newSessionGitRefHint,
-                      prefixIcon: const Icon(Icons.account_tree_outlined),
+                if (isKubernetes)
+                  KubernetesRepositorySection(
+                    key: ValueKey('k8s-repos-$selectedMachineId'),
+                    initialRepoUrl: widget.initialRepositoryUrl,
+                    initialRepoRef: widget.initialRepositoryRef,
+                    suggestedRepoUrls: _repositoryUrlsForMachine(
+                      ref.watch(sessionsNotifierProvider),
+                      selectedMachineId,
                     ),
-                    textInputAction: TextInputAction.next,
-                    onChanged: (value) => setState(() {
-                      _selectedRepoRef = value;
-                      _createError = null;
-                    }),
+                    enabled: !_isCreating,
+                    rejectedRef: _rejectedRepoRef,
+                    lookupBranches: selectedMachineId == null
+                        ? null
+                        : (repoUrl, ref) => sync.machineRepoBranches(
+                            machineId: selectedMachineId,
+                            repoUrl: repoUrl,
+                            ref: ref,
+                          ),
+                    onChanged: (selection) {
+                      if (!mounted) return;
+                      setState(() {
+                        _selectedRepoUrl = selection.repoUrl;
+                        _selectedRepoRef = selection.repoRef;
+                        _additionalRepos = selection.additionalRepos;
+                        _repoRefMissing = selection.refMissing;
+                        _createError = null;
+                      });
+                    },
                   ),
-                ],
                 if (!isKubernetes) ...[
                   const SizedBox(height: AppSpacing.sm),
                   _NewSessionAdvancedOptions(
@@ -808,8 +827,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         spawnBackend: spawnBackend,
         repoUrl: repoUrl,
         repoRef: repoRef,
+        additionalRepos: isKubernetes ? _additionalRepos : const [],
       );
       if (!_canUseRef) return;
+      if (isKubernetes) {
+        ref
+            .read(repoHistoryProvider.notifier)
+            .recordUse(
+              repoUrl: repoUrl!,
+              repoRef: repoRef!,
+              additionalRepos: _additionalRepos,
+            );
+      }
       setState(() {
         _creationPhase = l10n.newSessionPhaseFinalizing;
       });
@@ -843,6 +872,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _isCreating = false;
         _creationPhase = null;
         _createError = userMessage;
+        // The machine refused the branch before creating a pod: hand the
+        // repository fields its suggestion so the fix is one tap.
+        _rejectedRepoRef =
+            parseRejectedRepoRef(e is StateError ? e.message : e.toString()) ??
+            _rejectedRepoRef;
       });
     }
   }

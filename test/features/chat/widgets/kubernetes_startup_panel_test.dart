@@ -11,6 +11,7 @@ Session _session({
   String? podPhase,
   bool? podPaused,
   bool archived = false,
+  String? lifecycleError,
 }) => Session(
   id: 's1',
   seq: 0,
@@ -29,6 +30,7 @@ Session _session({
     runtimeKind: runtimeKind,
     podName: runtimeKind == null ? null : 'happy-s1',
     lifecycleState: lifecycle,
+    lifecycleStateError: lifecycleError,
     podPhase: podPhase,
     podPaused: podPaused,
   ),
@@ -239,5 +241,67 @@ void main() {
     // Body mode has no collapse affordance.
     expect(find.byIcon(Icons.expand_less_rounded), findsNothing);
     await tester.pumpWidget(_wrap(const SizedBox()));
+  });
+
+  // The reported screenshot: the daemon started two pods for one session,
+  // failed and deleted the second, and errored the session. The panel then
+  // polled the first pod, so under "failed to start" it said "Pod running ·
+  // waiting for the agent to connect" above three bare init headers.
+  testWidgets('a failed session shows why, not the surviving pod', (
+    tester,
+  ) async {
+    const daemonError =
+        'kubernetes pod happy-session-s1-07b03fca failed to start: Error '
+        'happy-session: exit code 1 failed to recover pending messages for '
+        'sid=s1: message outbox is already in use: resource temporarily '
+        'unavailable';
+    await tester.pumpWidget(
+      _wrap(
+        KubernetesStartupPanel(
+          session: _session(lifecycle: 'errored', lifecycleError: daemonError),
+          loadPod: () async => _pod(phase: 'Running', ready: true),
+          loadLogs: () async => const SessionPodLogsResponse(
+            podName: 'happy-s1',
+            content:
+                '==> init: agent-cli-preflight <==\n\n'
+                '==> init: claude-auth <==\n\n'
+                '==> init: happy-runtime <==\n',
+            truncated: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Kubernetes pod failed to start'), findsOneWidget);
+    expect(
+      find.textContaining('Two pods started for this conversation at once'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('waiting for the agent'), findsNothing);
+    final detail = tester.widget<SelectableText>(
+      find.byKey(const Key('kubernetes-startup-message')),
+    );
+    expect(detail.data, startsWith('Error happy-session: exit code 1'));
+    expect(detail.data, contains('message outbox is already in use'));
+    expect(find.textContaining('==> init'), findsNothing);
+    expect(
+      find.text('The pod printed nothing before it stopped.'),
+      findsOneWidget,
+    );
+  });
+
+  test('log sections without output are dropped', () {
+    expect(
+      kubernetesLogsWithoutEmptySections(
+        '==> init: preflight <==\n\n'
+        '==> init: checkout <==\nfatal: bad ref\n\n'
+        '==> init: mise <==\n',
+      ),
+      '==> init: checkout <==\nfatal: bad ref',
+    );
+    expect(kubernetesLogTail('plain line\nsecond\n'), 'plain line\nsecond');
+    expect(kubernetesLogTail('==> init: a <==\n\n==> b <==\n'), isEmpty);
   });
 }

@@ -135,6 +135,7 @@ extension SyncSessionOperations on Sync {
     String? repoUrl,
     String? repoRef,
     String? repoCommit,
+    List<String> additionalRepos = const [],
   }) async {
     if (agent == 'har' && spawnBackend == 'kubernetes') {
       throw StateError(
@@ -290,6 +291,7 @@ extension SyncSessionOperations on Sync {
       repoUrl: repoUrl,
       repoRef: repoRef,
       repoCommit: repoCommit,
+      additionalRepos: additionalRepos,
       environmentVariables: envVars,
     );
 
@@ -457,6 +459,7 @@ extension SyncSessionOperations on Sync {
         repoUrl: repoUrl,
         repoRef: repoRef,
         repoCommit: repoCommit,
+        additionalRepos: additionalRepos,
       );
     }
 

@@ -627,6 +627,90 @@ abstract class AppLocalizations {
   /// **'A branch or git ref is required'**
   String get newSessionGitRefRequired;
 
+  /// No description provided for @newSessionBranchNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch “{branch}” doesn\'t exist in {repo}.'**
+  String newSessionBranchNotFound(String branch, String repo);
+
+  /// No description provided for @newSessionUseBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {branch}'**
+  String newSessionUseBranch(String branch);
+
+  /// No description provided for @newSessionBranchNotFoundRequirement.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a branch that exists in the repository'**
+  String get newSessionBranchNotFoundRequirement;
+
+  /// No description provided for @newSessionRepositoryNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This repository wasn\'t found, or the machine\'s GitHub token can\'t read it.'**
+  String get newSessionRepositoryNotFound;
+
+  /// No description provided for @newSessionAdditionalRepos.
+  ///
+  /// In en, this message translates to:
+  /// **'More repositories'**
+  String get newSessionAdditionalRepos;
+
+  /// No description provided for @newSessionAdditionalReposHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloned next to the main one. The agent can fetch and push to them.'**
+  String get newSessionAdditionalReposHelp;
+
+  /// No description provided for @newSessionAdditionalRepoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'owner/repo'**
+  String get newSessionAdditionalRepoHint;
+
+  /// No description provided for @newSessionAdditionalRepoAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add repository'**
+  String get newSessionAdditionalRepoAdd;
+
+  /// No description provided for @newSessionRepoSets.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository sets'**
+  String get newSessionRepoSets;
+
+  /// No description provided for @newSessionRepoSetSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as repository set'**
+  String get newSessionRepoSetSave;
+
+  /// No description provided for @newSessionRepoSetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Set name'**
+  String get newSessionRepoSetName;
+
+  /// No description provided for @newSessionRepoSetSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved “{name}”'**
+  String newSessionRepoSetSaved(String name);
+
+  /// No description provided for @newSessionRepoSetDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete repository set?'**
+  String get newSessionRepoSetDeleteTitle;
+
+  /// No description provided for @newSessionRepoSetDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is removed from this device. Sessions started from it are not affected.'**
+  String newSessionRepoSetDeleteMessage(String name);
+
   /// No description provided for @newSessionKubernetesUnavailable.
   ///
   /// In en, this message translates to:
@@ -890,6 +974,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Logs appear once the container starts.'**
   String get sessionPodWaitingForContainer;
+
+  /// No description provided for @sessionPodStageStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent stopped'**
+  String get sessionPodStageStopped;
+
+  /// No description provided for @sessionPodNoOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'The pod printed nothing before it stopped.'**
+  String get sessionPodNoOutput;
+
+  /// No description provided for @sessionFailureDuplicatePod.
+  ///
+  /// In en, this message translates to:
+  /// **'Two pods started for this conversation at once, and the second one could not take over.'**
+  String get sessionFailureDuplicatePod;
+
+  /// No description provided for @sessionFailureBranchNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The branch does not exist in the repository.'**
+  String get sessionFailureBranchNotFound;
+
+  /// No description provided for @sessionFailureRepositoryAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'This machine\'s GitHub credentials cannot read the repository.'**
+  String get sessionFailureRepositoryAccess;
+
+  /// No description provided for @sessionFailureCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloning the repository failed.'**
+  String get sessionFailureCheckout;
+
+  /// No description provided for @sessionFailureImagePull.
+  ///
+  /// In en, this message translates to:
+  /// **'The session image could not be pulled.'**
+  String get sessionFailureImagePull;
+
+  /// No description provided for @sessionFailureImageMissingAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'The session image does not contain this agent.'**
+  String get sessionFailureImageMissingAgent;
+
+  /// No description provided for @sessionFailureOutOfMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'The pod ran out of memory.'**
+  String get sessionFailureOutOfMemory;
+
+  /// No description provided for @sessionFailureUnschedulable.
+  ///
+  /// In en, this message translates to:
+  /// **'The cluster has no room to run this pod.'**
+  String get sessionFailureUnschedulable;
+
+  /// No description provided for @sessionFailureStartTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The pod did not start in time.'**
+  String get sessionFailureStartTimeout;
+
+  /// No description provided for @sessionFailurePodGone.
+  ///
+  /// In en, this message translates to:
+  /// **'The pod was removed before the agent started.'**
+  String get sessionFailurePodGone;
+
+  /// No description provided for @sessionFailureAgentExited.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent exited while starting.'**
+  String get sessionFailureAgentExited;
 
   /// No description provided for @claudeAuthTitle.
   ///

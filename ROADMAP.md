@@ -189,6 +189,21 @@ configuration is labelled and can be overridden; old daemons ask for a CLI
 update. Regressions pass locally on single files; CI and acceptance against a
 real pod (commit + push from a new session) are pending.
 
+Kubernetes repositories and failures (2026-11-11): a stopped session now
+says why (duplicate pod, missing branch, repository access, image pull, out of
+memory, no room, start timeout) in the banner and the pod panel, which shows
+the daemon's own sentence instead of the surviving pod's status; silent init
+containers no longer appear as bare log headers. The new-session dialog takes
+more repositories (cloned beside the main one), saves named repository sets,
+offers repositories and branches used before (device-local), and checks the
+branch against GitHub through the machine (`repo-branches`): an untouched
+branch follows the repository default and a wrong one gets a one-tap fix
+before any pod exists. The daemon also refuses a missing ref before creating
+a pod, and a replacement pod waits for the outbox lock instead of dying on it
+(the Nov-11 "message outbox is already in use" failure after a model switch
+during startup). Regressions pass locally on single files; CI, daemon rollout
+and acceptance against a real cluster are pending.
+
 Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
 waits on its pod), the chat shows the live pod phase/reason, failure message and
 a tail of the pod logs above the composer, polling the daemon every 2s until the

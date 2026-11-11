@@ -10,6 +10,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../session_failure_reason.dart';
 
 /// Container/pod reasons that mean the pod will not become ready on its own.
 const _failureReasons = {
@@ -67,9 +68,36 @@ String kubernetesPodStageLabel(AppLocalizations l10n, SessionPod? pod) {
   return [pod.phase, pod.reason].where((part) => part.isNotEmpty).join(' · ');
 }
 
-/// Keeps the last [maxLines] non-empty log lines.
+final _logSectionHeader = RegExp(r'^==> .+ <==$');
+
+/// Drops `==> container <==` sections that hold no output. Daemons before
+/// the silent-container fix listed every started init container, so a pod
+/// whose steps printed nothing showed three bare headers as its "logs".
+String kubernetesLogsWithoutEmptySections(String content) {
+  final out = <String>[];
+  String? pendingHeader;
+  for (final line in content.split('\n')) {
+    if (_logSectionHeader.hasMatch(line.trim())) {
+      pendingHeader = line;
+      continue;
+    }
+    if (line.trim().isEmpty) {
+      if (pendingHeader == null && out.isNotEmpty) out.add(line);
+      continue;
+    }
+    if (pendingHeader != null) {
+      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      out.add(pendingHeader);
+      pendingHeader = null;
+    }
+    out.add(line);
+  }
+  return out.join('\n').trimRight();
+}
+
+/// Keeps the last [maxLines] log lines of the sections that printed anything.
 String kubernetesLogTail(String content, {int maxLines = 200}) {
-  final lines = content.trimRight().split('\n');
+  final lines = kubernetesLogsWithoutEmptySections(content).split('\n');
   final start = lines.length > maxLines ? lines.length - maxLines : 0;
   return lines.sublist(start).join('\n');
 }
@@ -199,13 +227,32 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
     final title = failed
         ? l10n.sessionPodStartFailedTitle
         : l10n.sessionPodStartingTitle;
-    final stage = _podFailures >= 3 && pod == null
+    // The session's own failure sentence outranks the polled pod: after a
+    // failed start the daemon deletes that pod, and the poll then describes
+    // a different (or no) pod, e.g. "running, waiting for the agent".
+    final lifecycleError = failed
+        ? widget.session.metadata?.lifecycleStateError
+        : null;
+    final podFailed = kubernetesPodStartFailed(pod);
+    final failureKind = !failed
+        ? null
+        : classifySessionFailure(lifecycleError) ??
+              (podFailed
+                  ? classifySessionFailure('${pod!.reason} ${pod.message}')
+                  : null);
+    final stage = failureKind != null
+        ? sessionFailureReasonText(l10n, failureKind)
+        : failed && !podFailed
+        ? l10n.sessionPodStageStopped
+        : _podFailures >= 3 && pod == null
         ? l10n.sessionPodLoadFailed
         : kubernetesPodStageLabel(l10n, pod);
     final podName = pod?.podName.isNotEmpty == true
         ? pod!.podName
         : widget.session.metadata?.podName;
-    final message = pod?.message ?? '';
+    final message =
+        sessionFailureDetail(lifecycleError) ??
+        (failed && !podFailed ? '' : pod?.message ?? '');
     final logs = _logs;
     final fill = widget.fillHeight;
     final expanded = fill || _expanded;
@@ -220,7 +267,9 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
       ),
       child: logs == null
           ? Text(
-              l10n.sessionPodWaitingForContainer,
+              failed
+                  ? l10n.sessionPodNoOutput
+                  : l10n.sessionPodWaitingForContainer,
               style: AppInlineText.chrome(context),
             )
           : SingleChildScrollView(
@@ -276,7 +325,12 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                 Text(
                   [
                     stage,
-                    if (podName != null && podName.isNotEmpty) podName,
+                    // A reason is a sentence; the pod name would only
+                    // truncate it, and the detail below names the pod.
+                    if (failureKind == null &&
+                        podName != null &&
+                        podName.isNotEmpty)
+                      podName,
                   ].join(' · '),
                   key: const Key('kubernetes-startup-stage'),
                   maxLines: 2,
@@ -297,11 +351,11 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                   AppSpacing.sm,
                   AppSpacing.xs,
                 ),
-                child: Text(
+                child: SelectableText(
                   message,
                   key: const Key('kubernetes-startup-message'),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+                  minLines: 1,
+                  maxLines: 6,
                   style: AppInlineText.chrome(
                     context,
                   ).copyWith(color: failed ? AppColors.error : null),

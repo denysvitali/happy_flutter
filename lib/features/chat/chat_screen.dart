@@ -66,6 +66,7 @@ import 'model_selection_resolver.dart';
 import 'send/chat_attachment_controller.dart';
 import 'send/chat_send_coordinator.dart';
 import 'send/image_attachment_service.dart';
+import 'session_failure_reason.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
@@ -131,7 +132,11 @@ class _SessionSendIssue {
     required this.snackBarText,
     required this.blocksSend,
     this.startNewSession = false,
+    this.detail,
   });
+
+  /// The daemon's own failure sentence; copied, never rendered in the banner.
+  final String? detail;
 
   final String title;
   final String message;
@@ -1946,11 +1951,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
     final copy = safeLifecycleIssueCopy(context.l10n);
+    // Say why it stopped, from the bounded vocabulary; the daemon's own
+    // sentence stays out of the banner and travels only with Copy.
+    final kind = classifySessionFailure(rawError);
+    final recovery = canRestore ? copy.message : copy.blockedMessage;
     return _SessionSendIssue(
       title: copy.title,
-      message: canRestore ? copy.message : copy.blockedMessage,
+      message: kind == null
+          ? recovery
+          : '${sessionFailureReasonText(context.l10n, kind)} $recovery',
       snackBarText: copy.blockedMessage,
       blocksSend: !canRestore,
+      detail: sessionFailureDetail(rawError),
     );
   }
 
@@ -1960,7 +1972,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _copySessionIssue(_SessionSendIssue issue) async {
-    await copyWithFeedback(context, '${issue.title}\n${issue.message}');
+    await copyWithFeedback(
+      context,
+      [issue.title, issue.message, ?issue.detail].join('\n'),
+    );
   }
 
   /// Recomputes the memoized backward scans over [_messages]:

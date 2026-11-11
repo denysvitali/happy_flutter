@@ -296,6 +296,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newSessionGitRefRequired => 'A branch or git ref is required';
 
   @override
+  String newSessionBranchNotFound(String branch, String repo) {
+    return 'Branch “$branch” doesn\'t exist in $repo.';
+  }
+
+  @override
+  String newSessionUseBranch(String branch) {
+    return 'Use $branch';
+  }
+
+  @override
+  String get newSessionBranchNotFoundRequirement =>
+      'Pick a branch that exists in the repository';
+
+  @override
+  String get newSessionRepositoryNotFound =>
+      'This repository wasn\'t found, or the machine\'s GitHub token can\'t read it.';
+
+  @override
+  String get newSessionAdditionalRepos => 'More repositories';
+
+  @override
+  String get newSessionAdditionalReposHelp =>
+      'Cloned next to the main one. The agent can fetch and push to them.';
+
+  @override
+  String get newSessionAdditionalRepoHint => 'owner/repo';
+
+  @override
+  String get newSessionAdditionalRepoAdd => 'Add repository';
+
+  @override
+  String get newSessionRepoSets => 'Repository sets';
+
+  @override
+  String get newSessionRepoSetSave => 'Save as repository set';
+
+  @override
+  String get newSessionRepoSetName => 'Set name';
+
+  @override
+  String newSessionRepoSetSaved(String name) {
+    return 'Saved “$name”';
+  }
+
+  @override
+  String get newSessionRepoSetDeleteTitle => 'Delete repository set?';
+
+  @override
+  String newSessionRepoSetDeleteMessage(String name) {
+    return '“$name” is removed from this device. Sessions started from it are not affected.';
+  }
+
+  @override
   String get newSessionKubernetesUnavailable =>
       'This daemon cannot create Kubernetes pods';
 
@@ -493,6 +546,52 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sessionPodWaitingForContainer =>
       'Logs appear once the container starts.';
+
+  @override
+  String get sessionPodStageStopped => 'The agent stopped';
+
+  @override
+  String get sessionPodNoOutput => 'The pod printed nothing before it stopped.';
+
+  @override
+  String get sessionFailureDuplicatePod =>
+      'Two pods started for this conversation at once, and the second one could not take over.';
+
+  @override
+  String get sessionFailureBranchNotFound =>
+      'The branch does not exist in the repository.';
+
+  @override
+  String get sessionFailureRepositoryAccess =>
+      'This machine\'s GitHub credentials cannot read the repository.';
+
+  @override
+  String get sessionFailureCheckout => 'Cloning the repository failed.';
+
+  @override
+  String get sessionFailureImagePull =>
+      'The session image could not be pulled.';
+
+  @override
+  String get sessionFailureImageMissingAgent =>
+      'The session image does not contain this agent.';
+
+  @override
+  String get sessionFailureOutOfMemory => 'The pod ran out of memory.';
+
+  @override
+  String get sessionFailureUnschedulable =>
+      'The cluster has no room to run this pod.';
+
+  @override
+  String get sessionFailureStartTimeout => 'The pod did not start in time.';
+
+  @override
+  String get sessionFailurePodGone =>
+      'The pod was removed before the agent started.';
+
+  @override
+  String get sessionFailureAgentExited => 'The agent exited while starting.';
 
   @override
   String get claudeAuthTitle => 'Claude Code authentication';

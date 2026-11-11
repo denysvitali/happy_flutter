@@ -100,6 +100,41 @@
   "newSessionGitRef": "Branch or ref",
   "newSessionGitRefHint": "main",
   "newSessionGitRefRequired": "A branch or git ref is required",
+  "newSessionBranchNotFound": "Branch “{branch}” doesn't exist in {repo}.",
+  "@newSessionBranchNotFound": {
+    "placeholders": {
+      "branch": {"type": "String"},
+      "repo": {"type": "String"}
+    }
+  },
+  "newSessionUseBranch": "Use {branch}",
+  "@newSessionUseBranch": {
+    "placeholders": {
+      "branch": {"type": "String"}
+    }
+  },
+  "newSessionBranchNotFoundRequirement": "Pick a branch that exists in the repository",
+  "newSessionRepositoryNotFound": "This repository wasn't found, or the machine's GitHub token can't read it.",
+  "newSessionAdditionalRepos": "More repositories",
+  "newSessionAdditionalReposHelp": "Cloned next to the main one. The agent can fetch and push to them.",
+  "newSessionAdditionalRepoHint": "owner/repo",
+  "newSessionAdditionalRepoAdd": "Add repository",
+  "newSessionRepoSets": "Repository sets",
+  "newSessionRepoSetSave": "Save as repository set",
+  "newSessionRepoSetName": "Set name",
+  "newSessionRepoSetSaved": "Saved “{name}”",
+  "@newSessionRepoSetSaved": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "newSessionRepoSetDeleteTitle": "Delete repository set?",
+  "newSessionRepoSetDeleteMessage": "“{name}” is removed from this device. Sessions started from it are not affected.",
+  "@newSessionRepoSetDeleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "newSessionKubernetesUnavailable": "This daemon cannot create Kubernetes pods",
   "newSessionSpawnLocal": "Machine",
   "newSessionKubernetesDaemon": "Kubernetes daemon",
@@ -227,6 +262,19 @@
   "sessionPodStageScheduling": "Waiting for the pod to be scheduled",
   "sessionPodStageAgent": "Pod running · waiting for the agent to connect",
   "sessionPodWaitingForContainer": "Logs appear once the container starts.",
+  "sessionPodStageStopped": "The agent stopped",
+  "sessionPodNoOutput": "The pod printed nothing before it stopped.",
+  "sessionFailureDuplicatePod": "Two pods started for this conversation at once, and the second one could not take over.",
+  "sessionFailureBranchNotFound": "The branch does not exist in the repository.",
+  "sessionFailureRepositoryAccess": "This machine's GitHub credentials cannot read the repository.",
+  "sessionFailureCheckout": "Cloning the repository failed.",
+  "sessionFailureImagePull": "The session image could not be pulled.",
+  "sessionFailureImageMissingAgent": "The session image does not contain this agent.",
+  "sessionFailureOutOfMemory": "The pod ran out of memory.",
+  "sessionFailureUnschedulable": "The cluster has no room to run this pod.",
+  "sessionFailureStartTimeout": "The pod did not start in time.",
+  "sessionFailurePodGone": "The pod was removed before the agent started.",
+  "sessionFailureAgentExited": "The agent exited while starting.",
   "claudeAuthTitle": "Claude Code authentication",
   "claudeAuthSharedCredentials": "Shared Claude Code credentials",
   "claudeAuthSharedCredentialsHelp": "Authenticate once with your Claude subscription and share it with all session pods.",

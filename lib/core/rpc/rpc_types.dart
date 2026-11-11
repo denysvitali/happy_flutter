@@ -24,6 +24,7 @@ class SpawnSessionRequest {
     this.repoUrl,
     this.repoRef,
     this.repoCommit,
+    this.additionalRepos = const [],
     this.isRestore = false,
   });
   final String type;
@@ -39,6 +40,10 @@ class SpawnSessionRequest {
   final String? repoUrl;
   final String? repoRef;
   final String? repoCommit;
+
+  /// Further GitHub repositories (`owner/repo` or a URL) a Kubernetes session
+  /// may fetch and push, cloned beside the primary checkout.
+  final List<String> additionalRepos;
   final bool isRestore;
 
   Map<String, dynamic> toJson() => {
@@ -61,6 +66,7 @@ class SpawnSessionRequest {
     if (repoUrl != null && repoUrl!.isNotEmpty) 'repoUrl': repoUrl,
     if (repoRef != null && repoRef!.isNotEmpty) 'repoRef': repoRef,
     if (repoCommit != null && repoCommit!.isNotEmpty) 'repoCommit': repoCommit,
+    if (additionalRepos.isNotEmpty) 'additionalRepos': additionalRepos,
     if (isRestore) 'isRestore': true,
   };
 }
@@ -559,6 +565,60 @@ enum GitIdentitySource {
 }
 
 /// The author/committer identity a machine's sessions commit with.
+/// Reply of the machine `repo-branches` RPC: what GitHub says about a
+/// repository before a Kubernetes session is started from it.
+class RepoBranchesResponse {
+  const RepoBranchesResponse({
+    required this.success,
+    this.repo = '',
+    this.defaultBranch = '',
+    this.branches = const [],
+    this.truncated = false,
+    this.refExists,
+    this.unavailable = false,
+    this.notFound = false,
+    this.error,
+  });
+
+  factory RepoBranchesResponse.fromJson(Map<String, dynamic> json) =>
+      RepoBranchesResponse(
+        success: json['success'] == true,
+        repo: json['repo']?.toString() ?? '',
+        defaultBranch: json['defaultBranch']?.toString() ?? '',
+        branches: [
+          if (json['branches'] case final List<dynamic> names)
+            for (final name in names.whereType<String>())
+              if (name.isNotEmpty) name,
+        ],
+        truncated: json['truncated'] == true,
+        refExists: json['refExists'] is bool ? json['refExists'] as bool : null,
+        unavailable: json['unavailable'] == true,
+        notFound: json['notFound'] == true,
+        error: json['error']?.toString(),
+      );
+
+  final bool success;
+
+  /// Canonical `owner/repo`.
+  final String repo;
+  final String defaultBranch;
+
+  /// Default branch first; at most one page when [truncated].
+  final List<String> branches;
+  final bool truncated;
+
+  /// Whether the requested ref resolves; null when none was asked about or
+  /// GitHub could not be asked.
+  final bool? refExists;
+
+  /// The machine has no way to read GitHub; nothing is known.
+  final bool unavailable;
+
+  /// GitHub does not show the repository to the machine's token.
+  final bool notFound;
+  final String? error;
+}
+
 class GitIdentityResponse {
   const GitIdentityResponse({
     required this.success,
