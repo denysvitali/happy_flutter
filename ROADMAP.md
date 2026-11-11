@@ -209,7 +209,9 @@ redundant "Quiet" pill, no workspace echo of the title) and inline Allow/Deny
 on blocked rows. **Status board** folds long Quiet lanes, says "All clear"
 when nothing waits on the user, and (2026-11-11) groups quiet conversations
 into one card per project under a project header whenever a project repeats;
-a stopped turn previews as "Interrupted · waiting for you"; **By machine** shows clean host names with a
+a stopped turn previews as "Interrupted · waiting for you";
+blob avatars take their colour from the session's project (shape stays per
+session) on every surface, matching the project header tile; **By machine** shows clean host names with a
 lane summary, lists idle online machines, and starts a session on a machine
 in one tap; **Folders** split active from archived-only workspaces with lane
 summaries; **Unread focus** keeps rich attention cards over compact rows.

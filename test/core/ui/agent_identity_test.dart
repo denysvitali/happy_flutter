@@ -19,6 +19,46 @@ Session _session(String id, {String? flavor}) => Session(
 );
 
 void main() {
+  group('project colour seed', () {
+    tearDown(() => agentColorSeedResolver = null);
+
+    test('sessions sharing a colour seed share a colour, not a shape', () {
+      // Pick two ids whose own identities differ in both colour and shape.
+      final plain = [
+        for (var i = 0; i < 40; i++)
+          agentIdentityForSeed('session-$i', brightness: Brightness.light),
+      ];
+      final a = plain.first;
+      final b = plain.firstWhere(
+        (x) => x.color != a.color && x.shape != a.shape,
+      );
+
+      agentColorSeedResolver = (seed) => 'repo:example/project';
+      final groupedA = agentIdentityForSeed(a.seed, brightness: a.brightness);
+      final groupedB = agentIdentityForSeed(b.seed, brightness: b.brightness);
+
+      expect(groupedA.color, groupedB.color);
+      expect(groupedA.ink, groupedB.ink);
+      expect(
+        groupedA.color,
+        agentAccentForSeed('repo:example/project', Brightness.light),
+      );
+      // The silhouette still tells conversations of one project apart.
+      expect(groupedA.shape, a.shape);
+      expect(groupedB.shape, b.shape);
+      expect(groupedA.seed, a.seed);
+    });
+
+    test('an unresolved session keeps its own colour', () {
+      final own = agentIdentityForSeed('lonely', brightness: Brightness.dark);
+      agentColorSeedResolver = (seed) => null;
+      expect(
+        agentIdentityForSeed('lonely', brightness: Brightness.dark).color,
+        own.color,
+      );
+    });
+  });
+
   group('agentIdentityFor', () {
     test('is deterministic per session and theme', () {
       for (final b in Brightness.values) {

@@ -124,6 +124,24 @@ class SessionProjectIndex {
     return _cached = SessionProjectIndex.build(active.followedBy(inactive));
   }
 
+  /// Returns the index for the whole session catalog, rebuilding only when
+  /// the catalog map instance changes. It also becomes [current].
+  factory SessionProjectIndex.forCatalog(Map<String, Session> sessions) {
+    final current = _catalog;
+    if (current != null && identical(_catalogSessions, sessions)) {
+      return current;
+    }
+    _catalogSessions = sessions;
+    return _catalog = SessionProjectIndex.build(sessions.values);
+  }
+
+  /// Project key of [sessionId] in the latest catalog index, or null when
+  /// no catalog has been indexed or it does not hold the session.
+  static String? catalogProjectKeyOf(String sessionId) =>
+      _catalog?._projectBySessionId[sessionId]?.key;
+
+  static SessionProjectIndex? _catalog;
+  static Map<String, Session>? _catalogSessions;
   static SessionProjectIndex? _cached;
   static List<Session>? _cachedActive;
   static List<Session>? _cachedInactive;

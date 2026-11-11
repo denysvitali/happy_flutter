@@ -20,6 +20,7 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/agent_identity.dart';
 import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../kubernetes/kubernetes_sessions_strip.dart';
@@ -128,6 +129,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   final Set<String> _collapsedDateKeys = {};
   ArchivedGrouping _archivedGrouping = ArchivedGrouping.date;
   SortedSessions? _sortedCache;
+  late SessionProjectIndex _projectIndex;
   Map<String, Session>? _lastSessionsMap;
   SessionOrderingProjection? _lastOrderingProjection;
   Set<String>? _lastOptimisticallyArchivedIds;
@@ -171,6 +173,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   void initState() {
     super.initState();
     _sel.addListener(_onSelectionChanged);
+    agentColorSeedResolver = SessionProjectIndex.catalogProjectKeyOf;
     widget.folderNotifier.addListener(_onFolderChanged);
     _sessionsRouteActive = isSessionsCollectionRoute(
       PerformanceContextService().currentRoute,
@@ -521,6 +524,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         orderingProjection.optimisticallyArchivedIds;
     _lastSearchQuery = searchQuery;
 
+    // Indexed from the whole catalog, not the searched subset, so a
+    // project (and its avatar colour) does not change while filtering.
+    _projectIndex = SessionProjectIndex.forCatalog(sessions);
+
     final activeSessions = sorted.active;
     final isBoard = _isBoardStyle(sessionsViewStyle);
     final inactiveSessions = isBoard
@@ -731,7 +738,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             inactiveSessions,
             machines,
             aggregateUiState!,
-            index: SessionProjectIndex.cached(activeSessions, inactiveSessions),
+            index: _projectIndex,
             archived: true,
           ),
           rowBuilder: (row) => _buildArchivedCard(
@@ -817,10 +824,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               context,
               activeSessions,
               aggregateUiState!,
-              index: SessionProjectIndex.cached(
-                activeSessions,
-                inactiveSessions,
-              ),
+              index: _projectIndex,
             ),
             'agent' => buildAgentSections(
               context,
@@ -842,10 +846,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               activeSessions,
               machines,
               aggregateUiState!,
-              index: SessionProjectIndex.cached(
-                activeSessions,
-                inactiveSessions,
-              ),
+              index: _projectIndex,
             ),
             _ => buildMachineSections(
               context,

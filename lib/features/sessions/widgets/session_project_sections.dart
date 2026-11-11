@@ -120,7 +120,7 @@ List<SessionBoardSection> buildProjectSections(
           icon: project.repository != null
               ? Icons.source_rounded
               : Icons.folder_rounded,
-          iconColor: workspaceIdentityColor(context, key),
+          iconColor: agentAccentForSeed(key, Theme.of(context).brightness),
           rows: rows..sort(archived ? _byActivity : _byLaneThenActivity),
           collapseAfter: archived
               ? (rows.length > projectBoardArchivedPreview

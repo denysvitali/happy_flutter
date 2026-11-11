@@ -95,6 +95,27 @@ void main() {
   };
 
   group('SessionProjectIndex', () {
+    test('catalog index resolves project keys until the catalog changes', () {
+      final a = _session('a', path: '/home/workspace/git/har');
+      final b = _session('b', path: '/home/workspace/git/har');
+      final c = _session('c', path: '/home/workspace/git/pmos');
+      final catalog = {'a': a, 'b': b, 'c': c};
+      final index = SessionProjectIndex.forCatalog(catalog);
+
+      expect(SessionProjectIndex.forCatalog(catalog), same(index));
+      expect(
+        SessionProjectIndex.catalogProjectKeyOf('a'),
+        SessionProjectIndex.catalogProjectKeyOf('b'),
+      );
+      expect(
+        SessionProjectIndex.catalogProjectKeyOf('a'),
+        isNot(SessionProjectIndex.catalogProjectKeyOf('c')),
+      );
+      expect(SessionProjectIndex.catalogProjectKeyOf('missing'), isNull);
+
+      expect(SessionProjectIndex.forCatalog({...catalog}), isNot(same(index)));
+    });
+
     test('a pod and a local checkout of one repository share a project', () {
       final pod = _session(
         'pod',

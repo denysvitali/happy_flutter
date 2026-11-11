@@ -84,13 +84,26 @@ AgentIdentity agentIdentityFor(Session session, Brightness brightness) =>
       flavor: session.metadata?.flavor,
     );
 
+/// Maps a session id to the seed its colour comes from.
+///
+/// The sessions list points this at the project index, so every
+/// conversation of one project shares a colour on every surface (list
+/// rows, chat header, peek sheet) and only the blob shape is per session.
+/// Null, or a null result, keeps the seed's own colour.
+String? Function(String seed)? agentColorSeedResolver;
+
+/// Accent shared by every conversation whose colour seed is [seed], e.g.
+/// a project key; headers use it to match their rows' avatars.
+Color agentAccentForSeed(String seed, Brightness brightness) =>
+    agentAccentForHue(avatarHue(seed), brightness);
+
 /// Identity for an arbitrary [seed] (use the session id for sessions).
 AgentIdentity agentIdentityForSeed(
   String seed, {
   required Brightness brightness,
   String? flavor,
 }) {
-  final hue = avatarHue(seed);
+  final hue = avatarHue(agentColorSeedResolver?.call(seed) ?? seed);
   final color = agentAccentForHue(hue, brightness);
   final shapeIndex = avatarHashVariant(seed, 7) % AgentShape.values.length;
   return AgentIdentity(

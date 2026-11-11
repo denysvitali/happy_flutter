@@ -54,7 +54,7 @@ List<SessionBoardRow> _clusterByProject(
                 ? l10n.sessionsProjectUnknown
                 : projects[group.key]!.name,
             count: group.value.length,
-            color: workspaceIdentityColor(context, group.key),
+            color: agentAccentForSeed(group.key, Theme.of(context).brightness),
           ),
         ),
   ];

@@ -10,6 +10,7 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/agent_identity.dart';
 import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart' show DateGroup;
 import '../../kubernetes/kubernetes_pod_state.dart';
