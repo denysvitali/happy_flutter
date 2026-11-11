@@ -38,6 +38,8 @@ bool shouldShowKubernetesStartup({
   required bool hasPendingRequest,
 }) {
   if (!session.isKubernetesSession || isReady) return false;
+  // A pod whose agent is mid-turn has started, whatever the lifecycle says.
+  if (session.isWorkingDespiteLifecycleError) return false;
   final state = session.podDisplayState;
   if (state == SessionPodDisplayState.archived ||
       state == SessionPodDisplayState.paused) {

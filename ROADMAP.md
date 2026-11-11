@@ -204,6 +204,16 @@ a pod, and a replacement pod waits for the outbox lock instead of dying on it
 during startup). Regressions pass locally on single files; CI, daemon rollout
 and acceptance against a real cluster are pending.
 
+Stale "stopped" chrome on a working session (2026-11-11): a model switch
+during pod startup made a replacement pod die on the outbox lock, and the
+daemon errored a session its original pod kept serving (17:22 UTC, session
+`cde7dea6…`; daemon side fixed in happy-cli-go `97eed9b`/`d2c637e`). The chat
+then showed "Will restart", "Session agent stopped" and "Kubernetes pod failed
+to start" over a live turn. An agent that is online and reports a turn after
+the error stamp now hides that chrome and reads as ready; send and readiness
+gates still treat the error as terminal. Regressions pass locally on single
+files; CI and device acceptance pending.
+
 Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
 waits on its pod), the chat shows the live pod phase/reason, failure message and
 a tail of the pod logs above the composer, polling the daemon every 2s until the

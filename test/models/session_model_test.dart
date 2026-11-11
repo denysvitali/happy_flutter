@@ -192,6 +192,61 @@ void main() {
       expect(session.effectiveLifecycleState, 'errored');
     });
 
+    group('isWorkingDespiteLifecycleError', () {
+      Session errored({
+        bool thinking = true,
+        String presence = 'online',
+        int? thinkingAt = 200000,
+        int? erroredAt = 100000,
+      }) =>
+          sessionWith(
+            metadataState: 'errored',
+            extraMetadata: {'runtimeKind': 'kubernetes', 'podPhase': 'Running'},
+          ).copyWith(
+            thinking: thinking,
+            presence: presence,
+            thinkingAt: thinkingAt,
+            metadata: Metadata(
+              path: '/workspace',
+              host: 'pod',
+              runtimeKind: 'kubernetes',
+              lifecycleState: 'errored',
+              lifecycleStateSince: erroredAt,
+            ),
+          );
+
+      test('a turn in progress after the error stamp contradicts it', () {
+        final session = errored();
+
+        expect(session.isWorkingDespiteLifecycleError, isTrue);
+        // Delivery and readiness gates still see the terminal error.
+        expect(session.hasLifecycleError, isTrue);
+        expect(session.podDisplayState, SessionPodDisplayState.ready);
+      });
+
+      test('an idle, offline or pre-error turn does not', () {
+        for (final session in [
+          errored(thinking: false),
+          errored(presence: 'offline'),
+          errored(thinkingAt: 100500),
+          errored(thinkingAt: 90000),
+          errored(thinkingAt: null),
+          errored(erroredAt: null),
+        ]) {
+          expect(session.isWorkingDespiteLifecycleError, isFalse);
+          expect(session.podDisplayState, SessionPodDisplayState.failed);
+        }
+      });
+
+      test('a healthy working session is not an error at all', () {
+        final session = sessionWith(
+          metadataState: 'running',
+        ).copyWith(thinking: true, presence: 'online', thinkingAt: 200000);
+
+        expect(session.isWorkingDespiteLifecycleError, isFalse);
+      });
+    });
+
     test('absent cleartext and clean metadata reports no error', () {
       final session = sessionWith(metadataState: 'running');
 

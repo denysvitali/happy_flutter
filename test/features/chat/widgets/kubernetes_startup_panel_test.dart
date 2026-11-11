@@ -86,6 +86,34 @@ void main() {
       );
     });
 
+    test('hides when the agent works past a stale errored lifecycle', () {
+      // A failed replacement pod errored the session while the original
+      // pod kept serving it; the send that is "waiting" is being answered.
+      final working = _session(
+        lifecycle: 'errored',
+      ).copyWith(thinking: true, presence: 'online', thinkingAt: 200000);
+      final session = working.copyWith(
+        metadata: working.metadata!.copyWith(lifecycleStateSince: 100000),
+      );
+
+      expect(
+        shouldShowKubernetesStartup(
+          session: session,
+          isReady: false,
+          hasPendingRequest: true,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldShowKubernetesStartup(
+          session: session.copyWith(thinking: false),
+          isReady: false,
+          hasPendingRequest: true,
+        ),
+        isTrue,
+      );
+    });
+
     test('hides once the session is reachable', () {
       expect(
         shouldShowKubernetesStartup(

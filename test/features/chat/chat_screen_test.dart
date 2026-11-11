@@ -1974,6 +1974,41 @@ void main() {
       );
     });
 
+    testWidgets('a working agent hides the stale stopped banner', (
+      tester,
+    ) async {
+      // A failed replacement pod errored the session while the original
+      // process kept answering: the chrome must not claim it stopped.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession().copyWith(
+        thinking: true,
+        thinkingAt: now,
+        presence: 'online',
+        metadata: Metadata(
+          host: 'workspace',
+          machineId: 'machine-1',
+          path: '/project',
+          lifecycleState: 'errored',
+          lifecycleStateSince: now - 1800000,
+          lifecycleStateError: 'kubernetes pod happy-1 failed to start',
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Will restart'), findsNothing);
+      expect(find.text('Session agent stopped'), findsNothing);
+      expect(find.text('Offline'), findsNothing);
+      expect(find.text('Online'), findsOneWidget);
+    });
+
     testWidgets(
       'does not duplicate delivered state in the header for sent messages',
       (tester) async {

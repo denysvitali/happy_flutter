@@ -370,10 +370,12 @@ extension SessionPodMetadata on Session {
     }
     final phase = metadata?.podPhase?.toLowerCase() ?? '';
     final lifecycle = effectiveLifecycleState?.toLowerCase() ?? '';
-    if (phase == 'failed' || lifecycle == 'errored') {
+    if (phase == 'failed' ||
+        (lifecycle == 'errored' && !isWorkingDespiteLifecycleError)) {
       return SessionPodDisplayState.failed;
     }
     if (metadata?.podReady == true ||
+        isWorkingDespiteLifecycleError ||
         phase == 'running' ||
         lifecycle == 'running') {
       return SessionPodDisplayState.ready;
@@ -682,6 +684,25 @@ abstract class Session with _$Session {
     if (c == 'errored') return true;
     if (c == 'running' || c == 'starting') return false;
     return metadata?.lifecycleState == 'errored';
+  }
+
+  /// Margin for clock skew between the daemon's error stamp and keep-alives.
+  static const int _liveAfterErrorMarginMs = 10000;
+
+  /// Whether an `errored` lifecycle is contradicted by the agent itself: it
+  /// is online and reported a turn in progress after the error was stamped.
+  ///
+  /// A failed replacement pod can mark the session errored while the
+  /// original process keeps serving it. Presentation only: delivery and
+  /// readiness gates keep treating [hasLifecycleError] as terminal.
+  bool get isWorkingDespiteLifecycleError {
+    if (!hasLifecycleError || !thinking || !isPresenceOnline) return false;
+    final meta = metadata;
+    if (meta?.lifecycleState != 'errored') return false;
+    final erroredAt = meta?.lifecycleStateSince;
+    final workingAt = thinkingAt;
+    if (erroredAt == null || workingAt == null) return false;
+    return workingAt - erroredAt > _liveAfterErrorMarginMs;
   }
 
   /// This is only a candidate: the daemon must validate private evidence and
