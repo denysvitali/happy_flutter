@@ -158,6 +158,24 @@ void main() {
         expect(find.text('Check for updates'), findsOneWidget);
       });
 
+      testWidgets('offers the git identity sessions commit with', (
+        tester,
+      ) async {
+        final machine = _makeMachine(id: 'm1', active: false);
+
+        await tester.pumpWidget(
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
+        );
+        await tester.pump();
+        await tester.scrollUntilVisible(find.text('Commit author'), 150);
+
+        expect(find.text('Git identity'), findsOneWidget);
+        expect(
+          find.text('Connect this machine to view or change it.'),
+          findsOneWidget,
+        );
+      });
+
       testWidgets('shows machine display name as title', (tester) async {
         final machine = _makeMachine(id: 'm1', displayName: 'My Dev Machine');
 
@@ -254,6 +272,7 @@ void main() {
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
+        await tester.scrollUntilVisible(find.text('Architecture'), 150);
 
         expect(find.text('Info'), findsOneWidget);
         expect(find.text('Host'), findsOneWidget);
@@ -281,6 +300,7 @@ void main() {
           ),
         );
         await tester.pump();
+        await tester.scrollUntilVisible(find.text('Machine ID'), 150);
 
         expect(find.text('Machine ID'), findsOneWidget);
         // Machine ID appears in the info section row

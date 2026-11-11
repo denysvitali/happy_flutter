@@ -32,6 +32,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import '../settings/widgets/machine_usage_scaffold.dart' show UsageWindowRow;
 import 'widgets/agent_update_banner.dart';
+import 'widgets/machine_git_identity.dart';
 import 'widgets/machine_provider_versions.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -283,6 +284,14 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               key: ValueKey('provider-versions-${widget.machineId}'),
               machineId: widget.machineId,
               machineName: machineName,
+              isOnline: isOnline,
+            ),
+
+            // ── Git identity ──
+            const SizedBox(height: _kSectionGap),
+            MachineGitIdentity(
+              key: ValueKey('git-identity-${widget.machineId}'),
+              machineId: widget.machineId,
               isOnline: isOnline,
             ),
 

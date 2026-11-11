@@ -999,6 +999,138 @@ abstract class AppLocalizations {
   /// **'Daemon'**
   String get machineDaemon;
 
+  /// No description provided for @gitIdentityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Git identity'**
+  String get gitIdentityTitle;
+
+  /// No description provided for @gitIdentityDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The author name and email that sessions on this machine commit with. Kubernetes and sandboxed sessions have no git config of their own.'**
+  String get gitIdentityDescription;
+
+  /// No description provided for @gitIdentityRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit author'**
+  String get gitIdentityRowTitle;
+
+  /// No description provided for @gitIdentityLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get gitIdentityLoading;
+
+  /// No description provided for @gitIdentityNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set. New sessions cannot commit until you add one.'**
+  String get gitIdentityNotSet;
+
+  /// No description provided for @gitIdentityFromConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'{identity} · from the daemon configuration'**
+  String gitIdentityFromConfig(String identity);
+
+  /// No description provided for @gitIdentityOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect this machine to view or change it.'**
+  String get gitIdentityOffline;
+
+  /// No description provided for @gitIdentityUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Happy CLI on this machine to set a git identity.'**
+  String get gitIdentityUnsupported;
+
+  /// No description provided for @gitIdentityLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the git identity. Tap to retry.'**
+  String get gitIdentityLoadFailed;
+
+  /// No description provided for @gitIdentityName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get gitIdentityName;
+
+  /// No description provided for @gitIdentityNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ada Lovelace'**
+  String get gitIdentityNameHint;
+
+  /// No description provided for @gitIdentityEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get gitIdentityEmail;
+
+  /// No description provided for @gitIdentityEmailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ada@example.com'**
+  String get gitIdentityEmailHint;
+
+  /// No description provided for @gitIdentityNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get gitIdentityNameRequired;
+
+  /// No description provided for @gitIdentityNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'A name cannot contain < or >'**
+  String get gitIdentityNameInvalid;
+
+  /// No description provided for @gitIdentityEmailRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an email'**
+  String get gitIdentityEmailRequired;
+
+  /// No description provided for @gitIdentityEmailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address'**
+  String get gitIdentityEmailInvalid;
+
+  /// No description provided for @gitIdentityAppliesToNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to sessions started from now on. Running sessions keep the identity they started with.'**
+  String get gitIdentityAppliesToNew;
+
+  /// No description provided for @gitIdentityRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get gitIdentityRemove;
+
+  /// No description provided for @gitIdentitySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Git identity saved'**
+  String get gitIdentitySaved;
+
+  /// No description provided for @gitIdentityRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Git identity removed'**
+  String get gitIdentityRemoved;
+
+  /// No description provided for @gitIdentitySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the git identity. Try again.'**
+  String get gitIdentitySaveFailed;
+
   /// No description provided for @machineAgentsTitle.
   ///
   /// In en, this message translates to:

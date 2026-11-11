@@ -537,6 +537,66 @@ class ClaudeAuthStatusResponse {
 }
 
 // ---------------------------------------------------------------------------
+// git-identity-get / git-identity-set
+// ---------------------------------------------------------------------------
+
+/// Where the daemon took a machine's git identity from.
+enum GitIdentitySource {
+  /// Set from the app and stored in the daemon's settings.
+  settings,
+
+  /// Daemon configuration fallback (`HAPPY_GIT_USER_NAME` / `_EMAIL`).
+  config,
+
+  /// Nothing configured: sessions without a git config cannot commit.
+  none;
+
+  static GitIdentitySource fromWire(Object? value) => switch (value) {
+    'settings' => settings,
+    'config' => config,
+    _ => none,
+  };
+}
+
+/// The author/committer identity a machine's sessions commit with.
+class GitIdentityResponse {
+  const GitIdentityResponse({
+    required this.success,
+    required this.name,
+    required this.email,
+    required this.source,
+    this.updatedAt,
+    this.error,
+  });
+
+  factory GitIdentityResponse.fromJson(Map<String, dynamic> json) {
+    final name = json['name']?.toString().trim() ?? '';
+    final email = json['email']?.toString().trim() ?? '';
+    final source = GitIdentitySource.fromWire(json['source']);
+    return GitIdentityResponse(
+      success: json['success'] == true,
+      name: name,
+      email: email,
+      // Half an identity cannot commit, so it is never reported as set.
+      source: name.isEmpty || email.isEmpty ? GitIdentitySource.none : source,
+      updatedAt: _parseInt64(json['updatedAt']),
+      error: json['error']?.toString(),
+    );
+  }
+
+  final bool success;
+  final String name;
+  final String email;
+  final GitIdentitySource source;
+
+  /// Millisecond epoch of the last app-side edit, when known.
+  final int? updatedAt;
+  final String? error;
+
+  bool get isConfigured => source != GitIdentitySource.none;
+}
+
+// ---------------------------------------------------------------------------
 // abort
 // ---------------------------------------------------------------------------
 

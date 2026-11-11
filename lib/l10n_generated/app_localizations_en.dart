@@ -555,6 +555,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineDaemon => 'Daemon';
 
   @override
+  String get gitIdentityTitle => 'Git identity';
+
+  @override
+  String get gitIdentityDescription =>
+      'The author name and email that sessions on this machine commit with. Kubernetes and sandboxed sessions have no git config of their own.';
+
+  @override
+  String get gitIdentityRowTitle => 'Commit author';
+
+  @override
+  String get gitIdentityLoading => 'Checking…';
+
+  @override
+  String get gitIdentityNotSet =>
+      'Not set. New sessions cannot commit until you add one.';
+
+  @override
+  String gitIdentityFromConfig(String identity) {
+    return '$identity · from the daemon configuration';
+  }
+
+  @override
+  String get gitIdentityOffline => 'Connect this machine to view or change it.';
+
+  @override
+  String get gitIdentityUnsupported =>
+      'Update Happy CLI on this machine to set a git identity.';
+
+  @override
+  String get gitIdentityLoadFailed =>
+      'Could not load the git identity. Tap to retry.';
+
+  @override
+  String get gitIdentityName => 'Name';
+
+  @override
+  String get gitIdentityNameHint => 'Ada Lovelace';
+
+  @override
+  String get gitIdentityEmail => 'Email';
+
+  @override
+  String get gitIdentityEmailHint => 'ada@example.com';
+
+  @override
+  String get gitIdentityNameRequired => 'Enter a name';
+
+  @override
+  String get gitIdentityNameInvalid => 'A name cannot contain < or >';
+
+  @override
+  String get gitIdentityEmailRequired => 'Enter an email';
+
+  @override
+  String get gitIdentityEmailInvalid => 'Enter a valid email address';
+
+  @override
+  String get gitIdentityAppliesToNew =>
+      'Applies to sessions started from now on. Running sessions keep the identity they started with.';
+
+  @override
+  String get gitIdentityRemove => 'Remove';
+
+  @override
+  String get gitIdentitySaved => 'Git identity saved';
+
+  @override
+  String get gitIdentityRemoved => 'Git identity removed';
+
+  @override
+  String get gitIdentitySaveFailed =>
+      'Could not save the git identity. Try again.';
+
+  @override
   String get machineAgentsTitle => 'Coding agents';
 
   @override

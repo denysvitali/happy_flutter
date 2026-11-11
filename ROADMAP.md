@@ -181,6 +181,14 @@ name Kubernetes instead of the generated pod hostname. Crash/pull back-off
 pods now read as Failed in Session info too. Regressions added for CI; device
 acceptance against a real cluster is pending.
 
+Git identity (2026-11-11): machine detail has a **Git identity** section that
+reads and edits the daemon's commit author (`git-identity-get` / `-set`). The
+daemon injects it into every session it spawns afterwards, so fresh Kubernetes
+pods can commit; running sessions keep theirs. An identity from daemon
+configuration is labelled and can be overridden; old daemons ask for a CLI
+update. Regressions pass locally on single files; CI and acceptance against a
+real pod (commit + push from a new session) are pending.
+
 Kubernetes spawn visibility: while a Kubernetes session is starting (or a send
 waits on its pod), the chat shows the live pod phase/reason, failure message and
 a tail of the pod logs above the composer, polling the daemon every 2s until the
