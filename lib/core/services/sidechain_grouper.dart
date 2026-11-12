@@ -1,6 +1,7 @@
-import '../wire/wire_parsers.dart';
 import '../native/generated/api/sidechain_api.dart' as native_api;
 import '../native/native_core.dart';
+import '../wire/happy_sub_session.dart';
+import '../wire/wire_parsers.dart';
 
 /// Returns true for messages that should count as visible orphans
 /// (i.e. would render as their own subagent tile if not grouped).
@@ -16,7 +17,10 @@ bool isVisibleSidechainOrphan(Map<String, dynamic> m) {
 bool _isAgentContainerTool(Map<String, dynamic> m) {
   final name = m['name'];
   return m['kind'] == 'tool-call' &&
-      (name == 'Task' || name == 'Agent' || name == 'Workflow');
+      (name == 'Task' || name == 'Agent' || name == 'Workflow') &&
+      // A child Happy session keeps its own transcript; the parent never
+      // receives sidechain rows for it, so it is not a container.
+      !isHappySubSessionSpawn(m);
 }
 
 /// Sidechain message grouping logic.
@@ -66,7 +70,12 @@ class SidechainGrouper {
       for (final value in values) {
         if (value is! Map<String, dynamic> || !visited.add(value)) continue;
         final kind = stringValue(value['kind']);
-        final name = stringValue(value['name']);
+        // The native planner keys containers by tool name; a sub-session
+        // spawn is renamed so it never becomes one (see
+        // [_isAgentContainerTool]).
+        final name = isHappySubSessionSpawn(value)
+            ? happySubSessionAgentType
+            : stringValue(value['name']);
         final id = stringValue(value['id']);
         final isTask =
             kind == 'tool-call' &&

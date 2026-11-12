@@ -6760,6 +6760,126 @@ abstract class AppLocalizations {
   /// **'Tap to view'**
   String get subAgentBannerTapToOpen;
 
+  /// Label on an Agent card that drives a separate child Happy session
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-session'**
+  String get subSessionLabel;
+
+  /// Label on a later turn sent to the same child session
+  ///
+  /// In en, this message translates to:
+  /// **'Follow-up #{number}'**
+  String subSessionFollowUp(int number);
+
+  /// Number of turns sent to one child session
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 turn} other{{count} turns}}'**
+  String subSessionTurnCount(int count);
+
+  /// No description provided for @subSessionStateNotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not loaded'**
+  String get subSessionStateNotLoaded;
+
+  /// No description provided for @subSessionStateLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get subSessionStateLoading;
+
+  /// No description provided for @subSessionStateUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get subSessionStateUnavailable;
+
+  /// No description provided for @subSessionStateStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting'**
+  String get subSessionStateStarting;
+
+  /// No description provided for @subSessionStateWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get subSessionStateWorking;
+
+  /// No description provided for @subSessionStateIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get subSessionStateIdle;
+
+  /// No description provided for @subSessionStateOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get subSessionStateOffline;
+
+  /// No description provided for @subSessionStateStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get subSessionStateStopped;
+
+  /// No description provided for @subSessionStateArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get subSessionStateArchived;
+
+  /// No description provided for @subSessionPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get subSessionPrompt;
+
+  /// No description provided for @subSessionReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get subSessionReply;
+
+  /// No description provided for @subSessionWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the sub-session to reply…'**
+  String get subSessionWaiting;
+
+  /// No description provided for @subSessionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The sub-session turn failed'**
+  String get subSessionFailed;
+
+  /// No description provided for @subSessionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Outcome unknown. Open the sub-session to check what happened.'**
+  String get subSessionUnknown;
+
+  /// No description provided for @subSessionNoReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished without a reply'**
+  String get subSessionNoReply;
+
+  /// No description provided for @subSessionOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open session'**
+  String get subSessionOpen;
+
+  /// No description provided for @subSessionUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This sub-session is not available on this device'**
+  String get subSessionUnavailableHint;
+
   /// No description provided for @artifactsJustNow.
   ///
   /// In en, this message translates to:

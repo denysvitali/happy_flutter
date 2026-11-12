@@ -105,6 +105,14 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ## Current UI/UX acceptance
 
+Sub-session spawns (2026-11-12): happy-cli-go `happy-session` Agent calls
+render as Sub-session cards with the child's live state, prompt, Markdown
+reply, explicit failed/unknown outcomes, follow-up numbering and an Open
+session action; the agents sheet/banner list one live row per child and no
+longer count a result-less turn as running forever. Grouping ignores these
+calls as sidechain containers. Projection/card tests pass locally on the new
+files only; CI and device acceptance pending.
+
 2026-10-29 UX batch: settings search combines section context with row matches
 and keeps keyboard focus after clearing; command palette actions apply the latest
 query before navigating or executing. Artifact Copy reports actual clipboard

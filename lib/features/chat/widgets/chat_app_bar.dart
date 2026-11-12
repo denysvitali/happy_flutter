@@ -646,7 +646,11 @@ class _AgentsListButton extends StatelessWidget {
                 onAgentTap: (agent, navigationId) {
                   Navigator.of(sheetContext).pop();
                   context.push(
-                    '/chat/$sessionId/agent/$navigationId',
+                    AgentsListSheet.routeForAgent(
+                      sessionId,
+                      agent,
+                      navigationId,
+                    ),
                     extra: agent,
                   );
                 },

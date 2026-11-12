@@ -217,6 +217,9 @@ void _addToolResultEnvelope({
     'toolUseId': callId,
     'result': data['result'] ?? data['output'] ?? data['content'],
     'isError': data['isError'] == true || data['is_error'] == true,
+    // happy-session spawns report `unknown` when the child's outcome could
+    // not be observed; isError alone cannot express that.
+    'resultStatus': ?WireParsers.parseString(data['status']),
     'createdAt': createdAt,
     'permissions': ?data['permissions'],
     if (meta.isSidechain) 'isSidechain': true,

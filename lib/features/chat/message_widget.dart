@@ -6,6 +6,8 @@ import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'message_render_signature.dart';
 import 'send/chat_send_coordinator.dart';
+import 'sub_session/sub_session_projection.dart' show isHappySubSessionSpawn;
+import 'sub_session/sub_session_spawn_card.dart';
 import 'tools/tools.dart';
 import 'widgets/agent_event_widget.dart';
 import 'widgets/bot_message.dart';
@@ -208,6 +210,25 @@ class _MessageWidgetState extends State<MessageWidget>
       return _cacheBody(
         signature,
         ErrorMessageWidget(messageData: widget.messageData),
+      );
+    }
+
+    // Agent calls that drive a separate child Happy session get their own
+    // card: the child has its own transcript, so there are no sidechain
+    // rows to show and tapping opens the child chat.
+    if (kind == 'tool-call' && isHappySubSessionSpawn(widget.messageData)) {
+      return _cacheBody(
+        signature,
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xxs,
+          ),
+          child: SubSessionSpawnCard(
+            call: widget.messageData,
+            messages: widget.messages,
+          ),
+        ),
       );
     }
 
