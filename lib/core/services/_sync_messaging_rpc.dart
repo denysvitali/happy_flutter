@@ -742,6 +742,9 @@ extension SyncMessagingRpc on Sync {
           modelMode: effectiveModelMode,
         ),
         environmentVariables: effectiveEnvVars,
+        // Only a resolved saved profile is a known choice here; an unknown
+        // one keeps the daemon's recorded routing for this session.
+        profileId: spawnProfileResolution.profile?.id,
       );
       final result = await _spawnHappySessionRPC(
         machineId,

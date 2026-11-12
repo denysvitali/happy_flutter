@@ -26,6 +26,7 @@ class SpawnSessionRequest {
     this.repoCommit,
     this.additionalRepos = const [],
     this.isRestore = false,
+    this.profileId,
   });
   final String type;
   final String directory;
@@ -45,6 +46,32 @@ class SpawnSessionRequest {
   /// may fetch and push, cloned beside the primary checkout.
   final List<String> additionalRepos;
   final bool isRestore;
+
+  /// The provider profile this spawn uses (`default` for no profile). When
+  /// set, [environmentVariables] are that profile's complete provider
+  /// routing, so the daemon never restores the session's previous provider
+  /// (or its own active profile) for keys the profile leaves unset. Leave it
+  /// null only when the profile is genuinely unknown.
+  final String? profileId;
+
+  /// This request without [profileId], for daemons that reject the field.
+  SpawnSessionRequest withoutProfileId() => SpawnSessionRequest(
+    type: type,
+    directory: directory,
+    sessionId: sessionId,
+    agent: agent,
+    approvedNewDirectoryCreation: approvedNewDirectoryCreation,
+    environmentVariables: environmentVariables,
+    startupBashScript: startupBashScript,
+    permissionMode: permissionMode,
+    model: model,
+    spawnBackend: spawnBackend,
+    repoUrl: repoUrl,
+    repoRef: repoRef,
+    repoCommit: repoCommit,
+    additionalRepos: additionalRepos,
+    isRestore: isRestore,
+  );
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -68,6 +95,7 @@ class SpawnSessionRequest {
     if (repoCommit != null && repoCommit!.isNotEmpty) 'repoCommit': repoCommit,
     if (additionalRepos.isNotEmpty) 'additionalRepos': additionalRepos,
     if (isRestore) 'isRestore': true,
+    if (profileId != null && profileId!.isNotEmpty) 'profileId': profileId,
   };
 }
 

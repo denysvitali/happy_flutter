@@ -503,6 +503,15 @@ extension SyncSendTargetResolution on Sync {
           modelMode: effectiveModelMode,
         ),
         environmentVariables: effectiveEnvVars,
+        // A known choice (composer pick or saved session profile) replaces
+        // the session's provider routing. Without it, switching a gateway
+        // session to Default/Anthropic sent no routing keys and the daemon
+        // restored the previous gateway into the replacement process.
+        profileId:
+            spawnProfileResolution.profile?.id ??
+            (hasExplicitProfileSelection || storedProfileId != null
+                ? 'default'
+                : null),
       );
       final result = await _spawnHappySessionRPC(
         machineId,

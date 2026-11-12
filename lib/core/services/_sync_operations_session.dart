@@ -293,6 +293,9 @@ extension SyncSessionOperations on Sync {
       repoCommit: repoCommit,
       additionalRepos: additionalRepos,
       environmentVariables: envVars,
+      // The new-session choice is always known: no resolved profile is the
+      // explicit Default, which must not inherit the daemon's own profile.
+      profileId: effectiveProfileId ?? 'default',
     );
 
     logger.info(
@@ -306,11 +309,9 @@ extension SyncSessionOperations on Sync {
     late final SpawnSessionResponse result;
     final rpcStopwatch = Stopwatch()..start();
     try {
-      result = await _typedMachineRPC(
+      result = await _spawnHappySessionRPC(
         machineId,
-        'spawn-happy-session',
-        req.toJson(),
-        SpawnSessionResponse.fromJson,
+        req,
         timeout: const Duration(seconds: 60),
       );
       logger.info(

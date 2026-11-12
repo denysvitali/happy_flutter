@@ -412,6 +412,13 @@ void main() {
         expect(envVars.containsKey('OPENAI_API_KEY'), isFalse);
       }
       // If envVars is null, that's correct — no env vars to send
+      expect(
+        capturedParams!['profileId'],
+        'default',
+        reason:
+            'No profile is an explicit Default: the daemon must not fill '
+            'provider routing from its own active profile',
+      );
     });
 
     test('Anthropic default profile sends no env vars', () async {
@@ -453,6 +460,7 @@ void main() {
         );
         expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
       }
+      expect(capturedParams!['profileId'], 'anthropic');
     });
 
     test('explicit profileId param overrides lastUsedProfile', () async {
@@ -1789,6 +1797,14 @@ void main() {
         );
         expect(envVars.containsKey('ANTHROPIC_AUTH_TOKEN'), isFalse);
       }
+      expect(
+        capturedSpawnParams!['profileId'],
+        'default',
+        reason:
+            'Without the marker the daemon cannot tell Default from an '
+            'unknown profile and restores the previous DeepSeek routing '
+            'into the replacement process',
+      );
     });
 
     test(
@@ -2518,6 +2534,54 @@ void main() {
       );
       expect(spawnParams.first.containsKey('isRestore'), isTrue);
       expect(spawnParams.last.containsKey('isRestore'), isFalse);
+    });
+
+    test('spawn rejected with unknown-field profileId is retried without '
+        'the field (pre-field daemon compat)', () async {
+      const sessionId = 'legacy-daemon-profileid';
+      final spawnParams = <Map<String, dynamic>>[];
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'deepseek',
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnParams.add(params);
+          if (params.containsKey('profileId')) {
+            throw const RpcException(
+              code: RpcErrorCode.unknown,
+              message:
+                  'unmarshal JSON to protobuf request: proto: '
+                  '(line 1:140): unknown field "profileId"',
+              retryable: false,
+            );
+          }
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'success'};
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(spawnParams, hasLength(2));
+      expect(spawnParams.first['profileId'], 'default');
+      expect(spawnParams.last.containsKey('profileId'), isFalse);
+      expect(spawnParams.last['isRestore'], isTrue);
     });
 
     test('failed respawn keeps the pending profile change so the next send '

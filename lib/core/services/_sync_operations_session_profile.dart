@@ -717,9 +717,24 @@ extension SyncSpawnProfileResolution on Sync {
         timeout: timeout,
       );
     } on RpcException catch (error) {
+      final unknownField = error.message.contains('unknown field');
+      if (unknownField &&
+          req.profileId != null &&
+          error.message.contains('profileId')) {
+        // A strict daemon that predates the profileId field keeps its
+        // legacy provider-routing behaviour; retry without the field.
+        logger.info(
+          '[spawn] daemon on machine=$machineId rejected the profileId '
+          'field (pre-field daemon); retrying spawn without it',
+        );
+        return _spawnHappySessionRPC(
+          machineId,
+          req.withoutProfileId(),
+          timeout: timeout,
+        );
+      }
       final rejectedIsRestore =
-          error.message.contains('unknown field') &&
-          error.message.contains('isRestore');
+          unknownField && error.message.contains('isRestore');
       if (!req.isRestore || req.agent == 'prime-agent' || !rejectedIsRestore) {
         rethrow;
       }
