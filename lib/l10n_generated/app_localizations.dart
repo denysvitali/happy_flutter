@@ -11157,12 +11157,6 @@ abstract class AppLocalizations {
   /// **'Sub-sessions'**
   String get sessionInfoSectionSubSessions;
 
-  /// No description provided for @subSessionStateWorking.
-  ///
-  /// In en, this message translates to:
-  /// **'Working'**
-  String get subSessionStateWorking;
-
   /// No description provided for @subSessionStateNeedsApproval.
   ///
   /// In en, this message translates to:
@@ -11174,18 +11168,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ready'**
   String get subSessionStateReady;
-
-  /// No description provided for @subSessionStateOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline'**
-  String get subSessionStateOffline;
-
-  /// No description provided for @subSessionStateArchived.
-  ///
-  /// In en, this message translates to:
-  /// **'Archived'**
-  String get subSessionStateArchived;
 }
 
 class _AppLocalizationsDelegate

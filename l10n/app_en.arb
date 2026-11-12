@@ -3600,9 +3600,6 @@
   "subSessionOpenParent": "Open parent session",
   "sessionInfoSectionParent": "Spawned by",
   "sessionInfoSectionSubSessions": "Sub-sessions",
-  "subSessionStateWorking": "Working",
   "subSessionStateNeedsApproval": "Needs approval",
-  "subSessionStateReady": "Ready",
-  "subSessionStateOffline": "Offline",
-  "subSessionStateArchived": "Archived"
+  "subSessionStateReady": "Ready"
 }

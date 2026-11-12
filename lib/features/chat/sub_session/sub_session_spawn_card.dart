@@ -283,11 +283,7 @@ class _PromptSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final style = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-      height: 1.4,
-    );
+    final style = AppText.secondary(theme).copyWith(height: 1.4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

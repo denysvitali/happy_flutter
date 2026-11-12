@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/components/app_badge.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../sub_session/sub_session_agents.dart';
@@ -114,9 +115,7 @@ class SubSessionAgentTile extends StatelessWidget {
                       if (title != null && title != description)
                         Text(
                           title,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                          style: AppText.secondary(theme),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

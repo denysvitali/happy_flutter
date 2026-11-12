@@ -6523,17 +6523,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoSectionSubSessions => 'Sub-sessions';
 
   @override
-  String get subSessionStateWorking => 'Working';
-
-  @override
   String get subSessionStateNeedsApproval => 'Needs approval';
 
   @override
   String get subSessionStateReady => 'Ready';
-
-  @override
-  String get subSessionStateOffline => 'Offline';
-
-  @override
-  String get subSessionStateArchived => 'Archived';
 }
