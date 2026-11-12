@@ -46,6 +46,17 @@ is preserved when its result arrives.
 Tool completion flashes cancel their timer when the row is disposed.
 Auth button labels fit the available width with a single-line ellipsis.
 
+Agent-spawned Happy sessions (metadata `parentSessionId`, display-only) nest
+under their parent in every sessions layout. Nesting is computed over the list
+a layout shows (`SessionNesting`): a child attaches to its nearest visible
+ancestor in the same section, appears exactly once, and a child whose parent
+is archived, filtered or searched away stays a top-level row with a
+`Sub-session` badge. Parents show a collapsed "N sub-sessions · needs you ·
+working" disclosure; search expands it. Collapsed children are not selectable,
+so batch actions only touch visible rows. A child chat shows a slim
+"Sub-session of <parent>" strip that opens the parent; Session Info lists the
+parent ("Spawned by") and sub-sessions with their state.
+
 Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and
 moves profile/context settings into Composer options. Session triage labels

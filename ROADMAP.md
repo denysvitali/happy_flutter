@@ -168,6 +168,13 @@ of the saved conversations, and connectivity restore skips the backoff of
 syncs that failed on a dead link. Widget/unit regressions added; device
 acceptance pending.
 
+Nested sub-sessions (2026-11-12): sessions an agent spawned via
+`session_spawn` (metadata `parentSessionId`/`rootSessionId`/`nestingDepth`)
+nest under their parent in all session layouts with a live/needs-you
+disclosure; orphans keep a Sub-session badge. Child chats link to the parent
+and Session Info lists sub-sessions. Grouping/widget regressions added for CI;
+device acceptance pending. Folder overview counts still count top-level rows.
+
 Kubernetes on the sessions home (2026-11-09): every layout shows a one-line
 Kubernetes summary (a pill in the Open/Archived row on board layouts since
 2026-11-11, the full-width strip elsewhere) (running / starting / paused / failed session pods, counted
