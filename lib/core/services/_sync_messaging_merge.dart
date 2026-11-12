@@ -394,7 +394,8 @@ extension SyncMessagingMerge on Sync {
   bool _isAgentContainerTool(Map<String, dynamic> message) {
     final name = message['name'];
     return message['kind'] == 'tool-call' &&
-        (name == 'Task' || name == 'Agent' || name == 'Workflow');
+        (name == 'Task' || name == 'Agent' || name == 'Workflow') &&
+        !isHappySubSessionSpawn(message);
   }
 
   Set<String> _messageIdentityKeys(Map<String, dynamic> message) => {

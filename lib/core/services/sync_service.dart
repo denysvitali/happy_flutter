@@ -101,6 +101,7 @@ export '../sync/sync_domain.dart' show SyncDomain;
 export '../rpc/rpc_exception.dart';
 export '../rpc/rpc_capabilities.dart';
 export '../types/message_retry_result.dart';
+import '../wire/happy_sub_session.dart';
 import '../wire/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
 // is false, so the part files can call CanaryAssert.* freely without

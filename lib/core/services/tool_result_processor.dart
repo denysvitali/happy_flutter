@@ -139,6 +139,7 @@ class ToolResultProcessor {
             'state': isError ? 'error' : 'completed',
             'result': result['result'],
             'completedAt': result['createdAt'],
+            'resultStatus': ?WireParsers.parseString(result['resultStatus']),
             'permission': ?permissionUpdate,
             'backgroundShell': ?WireParsers.asMap(result['backgroundShell']),
             'agentMetadata': ?WireParsers.asMap(result['agentMetadata']),
