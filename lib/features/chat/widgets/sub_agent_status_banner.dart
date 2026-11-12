@@ -62,6 +62,7 @@ class _SubAgentStatusBannerStateful extends StatefulWidget {
 class _SubAgentStatusBannerStatefulState
     extends State<_SubAgentStatusBannerStateful> {
   StreamSubscription<String>? _messageSubscription;
+  StreamSubscription<SyncDomain>? _sessionsSubscription;
   late AgentSessionProjection _projection;
   TaskProgress? _lastSeenProgress;
   int _lastSeenTotal = 0;
@@ -81,12 +82,20 @@ class _SubAgentStatusBannerStatefulState
       if (!mounted || sessionId != widget.sessionId) return;
       _refreshProjection();
     });
+    // Child Happy sessions report their live state through the session
+    // store, not this transcript; re-check only when this chat has any.
+    _sessionsSubscription = sync.onDomainChanged.listen((domain) {
+      if (!mounted || domain != SyncDomain.sessions) return;
+      if (!_projection.hasSubSessions) return;
+      _refreshProjection();
+    });
     _reconcileSubAgentSpans(_projection.agents);
   }
 
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _sessionsSubscription?.cancel();
     // Close any in-flight sub-agent spans so a session switch doesn't
     // leave dangling traces. We mark them ok because we observed the
     // session is going away — closing them with error would create
@@ -399,7 +408,10 @@ class _BannerBody extends StatelessWidget {
         initialProjection: projection,
         onAgentTap: (agent, navigationId) {
           Navigator.of(sheetContext).pop();
-          context.push('/chat/$sessionId/agent/$navigationId', extra: agent);
+          context.push(
+            AgentsListSheet.routeForAgent(sessionId, agent, navigationId),
+            extra: agent,
+          );
         },
       ),
     );

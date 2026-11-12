@@ -3719,6 +3719,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subAgentBannerTapToOpen => 'Tap to view';
 
   @override
+  String get subSessionLabel => 'Sub-session';
+
+  @override
+  String subSessionFollowUp(int number) {
+    return 'Follow-up #$number';
+  }
+
+  @override
+  String subSessionTurnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turns',
+      one: '1 turn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get subSessionStateNotLoaded => 'Not loaded';
+
+  @override
+  String get subSessionStateLoading => 'Loading…';
+
+  @override
+  String get subSessionStateUnavailable => 'Unavailable';
+
+  @override
+  String get subSessionStateStarting => 'Starting';
+
+  @override
+  String get subSessionStateWorking => 'Working';
+
+  @override
+  String get subSessionStateIdle => 'Idle';
+
+  @override
+  String get subSessionStateOffline => 'Offline';
+
+  @override
+  String get subSessionStateStopped => 'Stopped';
+
+  @override
+  String get subSessionStateArchived => 'Archived';
+
+  @override
+  String get subSessionPrompt => 'Prompt';
+
+  @override
+  String get subSessionReply => 'Reply';
+
+  @override
+  String get subSessionWaiting => 'Waiting for the sub-session to reply…';
+
+  @override
+  String get subSessionFailed => 'The sub-session turn failed';
+
+  @override
+  String get subSessionUnknown =>
+      'Outcome unknown. Open the sub-session to check what happened.';
+
+  @override
+  String get subSessionNoReply => 'Finished without a reply';
+
+  @override
+  String get subSessionOpen => 'Open session';
+
+  @override
+  String get subSessionUnavailableHint =>
+      'This sub-session is not available on this device';
+
+  @override
   String get artifactsJustNow => 'Just now';
 
   @override

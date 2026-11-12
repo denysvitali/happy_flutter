@@ -8,6 +8,16 @@ Generic chat Agent/Task rows show the reported child nickname and role using
 the same metadata resolution as agent details. Missing names retain the tool
 label; missing roles retain the supplied subagent type. Step counts and run
 status remain visible as metadata arrives.
+Agent calls with `subagent_type: happy-session` drive a separate child Happy
+session and render as a Sub-session card, not a sidechain container: the
+description, the child's live store state (working/idle/offline/stopped/
+archived, title, repository), a collapsible prompt and the reply as Markdown
+(long replies collapse). Failed and `unknown` results (`resultStatus`) are
+explicit. Turns to the same child are numbered (Follow-up #N). Tapping opens
+the child chat; a child missing from the store is fetched once, then the open
+action is disabled. The agents sheet and banner show one row per child; a turn
+without a result stops counting as running once the child is archived,
+stopped, superseded, or idle past a 90s grace.
 Prime Agent child details show the child text, thinking, Python cells, and
 results forwarded by happy-cli-go from Prime's native daemon. Incoming steps
 refresh an already open child view and stay attached to that child's anchor.

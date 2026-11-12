@@ -10,12 +10,16 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_utils.dart' show getSessionName;
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../agent_presentation.dart';
 import '../agent_task_projection.dart';
+import '../sub_session/sub_session_agents.dart';
+import '../sub_session/sub_session_projection.dart' show isHappySubSessionSpawn;
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
+import 'sub_session_agent_tile.dart';
 
 /// Immutable snapshot of Task/Agent progress for a session.
 class TaskProgress {
@@ -38,10 +42,52 @@ class TaskProgress {
 
 /// Agent rows and progress counters derived from one transcript traversal.
 class AgentSessionProjection {
-  const AgentSessionProjection({required this.agents, required this.progress});
+  const AgentSessionProjection({
+    required this.agents,
+    required this.progress,
+    this.subSessionCalls = const <Map<String, dynamic>>[],
+  });
 
   final List<Map<String, dynamic>> agents;
   final TaskProgress progress;
+
+  /// Resident happy-session spawn calls, in transcript order. They are
+  /// separate child sessions, so their rows and counters depend on live
+  /// session state and are merged in by [AgentsListSheet.computeProjection].
+  final List<Map<String, dynamic>> subSessionCalls;
+
+  bool get hasSubSessions => subSessionCalls.isNotEmpty;
+}
+
+/// Transcript projection plus live child-session rows, memoized per base
+/// projection while the child-derived signature is unchanged.
+final Expando<(int, AgentSessionProjection)> _subSessionOverlays =
+    Expando<(int, AgentSessionProjection)>('subSessionOverlay');
+
+AgentSessionProjection _withSubSessions(AgentSessionProjection base) {
+  if (!base.hasSubSessions) return base;
+  final built = buildSubSessionAgentRows(
+    base.subSessionCalls,
+    lookup: sync.sessionById,
+    titleOf: getSessionName,
+    nowMs: DateTime.now().millisecondsSinceEpoch,
+  );
+  final memo = _subSessionOverlays[base];
+  if (memo != null && memo.$1 == built.signature) return memo.$2;
+  final counts = built.counts;
+  final progress = base.progress;
+  final projection = AgentSessionProjection(
+    agents: List.unmodifiable([...base.agents, ...built.rows]),
+    progress: TaskProgress(
+      total: progress.total + counts.total,
+      running: progress.running + counts.running,
+      completed: progress.completed + counts.completed,
+      error: progress.error + counts.error,
+    ),
+    subSessionCalls: base.subSessionCalls,
+  );
+  _subSessionOverlays[base] = (built.signature, projection);
+  return projection;
 }
 
 class _AgentSessionProjectionCacheEntry {
@@ -161,15 +207,21 @@ class AgentsListSheet extends StatelessWidget {
   /// sticky banner.
   static AgentSessionProjection computeProjection(String sessionId) {
     final messages = sync.messagesForSession(sessionId);
-    return _projectionCache.resolve(
-      sessionId: sessionId,
-      revision: sync.messagesRevision(sessionId),
-      source: messages,
-      load: () => _computeProjection(messages),
+    return _withSubSessions(
+      _projectionCache.resolve(
+        sessionId: sessionId,
+        revision: sync.messagesRevision(sessionId),
+        source: messages,
+        load: () => computeTranscriptProjection(messages),
+      ),
     );
   }
 
-  static AgentSessionProjection _computeProjection(
+  /// Transcript-only projection: in-process agents and counters, with
+  /// happy-session spawns collected into
+  /// [AgentSessionProjection.subSessionCalls] instead of the rows.
+  @visibleForTesting
+  static AgentSessionProjection computeTranscriptProjection(
     List<Map<String, dynamic>> messages,
   ) {
     final taskStates = <String, AgentTaskEventProjection>{};
@@ -178,6 +230,8 @@ class AgentsListSheet extends StatelessWidget {
     final catalog = <String>[];
     final agentIds = <String>{};
     final agents = <Map<String, dynamic>>[];
+    final subSessionIds = <String>{};
+    final subSessionCalls = <Map<String, dynamic>>[];
     var total = 0;
     var running = 0;
     var completed = 0;
@@ -227,7 +281,18 @@ class AgentsListSheet extends StatelessWidget {
           }
         }
 
-        if (collectAgentTree && !isOrphan && msg['kind'] == 'tool-call') {
+        // Child Happy sessions are rows of their own (see
+        // [_withSubSessions]); they never count as in-process agents.
+        final isSubSession = isHappySubSessionSpawn(msg);
+        if (isSubSession && !isOrphan) {
+          final id = msg['id'] as String?;
+          if (id != null && subSessionIds.add(id)) subSessionCalls.add(msg);
+        }
+
+        if (collectAgentTree &&
+            !isOrphan &&
+            !isSubSession &&
+            msg['kind'] == 'tool-call') {
           final name = msg['name'] as String?;
           final id = msg['id'] as String?;
           if (_isAgentToolName(name) && id != null && agentIds.add(id)) {
@@ -237,6 +302,7 @@ class AgentsListSheet extends StatelessWidget {
 
         if (countProgressTree &&
             !isOrphan &&
+            !isSubSession &&
             !isTopLevelSidechain &&
             msg['kind'] == 'tool-call' &&
             _isAgentToolName(msg['name'] as String?)) {
@@ -299,17 +365,21 @@ class AgentsListSheet extends StatelessWidget {
           completed: eventCompleted,
           error: eventError,
         ),
+        subSessionCalls: subSessionCalls,
       );
     }
 
     return AgentSessionProjection(
-      agents: agents.isNotEmpty ? agents : _catalogToAgentMaps(catalog),
+      agents: agents.isNotEmpty || subSessionCalls.isNotEmpty
+          ? agents
+          : _catalogToAgentMaps(catalog),
       progress: TaskProgress(
         total: total,
         running: running,
         completed: completed,
         error: error,
       ),
+      subSessionCalls: subSessionCalls,
     );
   }
 
@@ -343,7 +413,8 @@ class AgentsListSheet extends StatelessWidget {
   /// no projection exists yet (banner not mounted).
   static bool hasVisibleTasks(String sessionId) {
     final cached = _projectionCache.peek(sessionId);
-    return (cached ?? computeProjection(sessionId)).progress.hasTasks;
+    if (cached == null) return computeProjection(sessionId).progress.hasTasks;
+    return _withSubSessions(cached).progress.hasTasks;
   }
 
   /// Extracts all Task/Agent tools from the session messages.
@@ -354,6 +425,18 @@ class AgentsListSheet extends StatelessWidget {
   /// when the sidechain grouper has already attached a child.
   static List<Map<String, dynamic>> _extractAgents(String sessionId) {
     return computeProjection(sessionId).agents;
+  }
+
+  /// Route that opens [agent] from the agents sheet or banner: the child
+  /// chat for a happy-session row, else the in-process agent conversation.
+  static String routeForAgent(
+    String sessionId,
+    Map<String, dynamic> agent,
+    String navigationId,
+  ) {
+    final childId = subSessionAgentChildId(agent);
+    if (childId != null) return '/chat/$childId';
+    return '/chat/$sessionId/agent/$navigationId';
   }
 
   /// Public alias retained for callers that only need agent rows. Callers that
@@ -473,6 +556,14 @@ class AgentsListSheet extends StatelessWidget {
                     itemCount: agents.length,
                     itemBuilder: (context, index) {
                       final agent = agents[index];
+                      if (subSessionAgentChildId(agent) != null) {
+                        return RepaintBoundary(
+                          child: SubSessionAgentTile(
+                            agent: agent,
+                            onTap: onAgentTap,
+                          ),
+                        );
+                      }
                       return RepaintBoundary(
                         child: _AgentTile(
                           agent: agent,
