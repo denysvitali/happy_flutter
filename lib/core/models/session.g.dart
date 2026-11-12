@@ -72,6 +72,10 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   resumeOnDaemonStartMessage: _asApiStringNullable(
     json['resumeOnDaemonStartMessage'],
   ),
+  parentSessionId: _nonEmptyStringNullable(json['parentSessionId']),
+  rootSessionId: _nonEmptyStringNullable(json['rootSessionId']),
+  nestingDepth: _asApiIntNullable(json['nestingDepth']),
+  spawnedBy: _asApiStringNullable(json['spawnedBy']),
 );
 
 Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
@@ -128,6 +132,10 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'sandboxReason': instance.sandboxReason,
   'resumeOnDaemonStart': instance.resumeOnDaemonStart,
   'resumeOnDaemonStartMessage': instance.resumeOnDaemonStartMessage,
+  'parentSessionId': instance.parentSessionId,
+  'rootSessionId': instance.rootSessionId,
+  'nestingDepth': instance.nestingDepth,
+  'spawnedBy': instance.spawnedBy,
 };
 
 _Summary _$SummaryFromJson(Map<String, dynamic> json) => _Summary(

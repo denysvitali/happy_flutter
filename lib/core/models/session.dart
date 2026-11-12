@@ -28,6 +28,12 @@ String? _asApiStringNullable(dynamic value) {
   return null;
 }
 
+String? _nonEmptyStringNullable(dynamic value) {
+  if (value is! String) return null;
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
 String _asApiStringOrEmpty(dynamic value) {
   if (value is String) return value;
   return '';
@@ -316,6 +322,12 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? sandboxReason,
     @Default(false) bool resumeOnDaemonStart,
     @JsonKey(fromJson: _asApiStringNullable) String? resumeOnDaemonStartMessage,
+    // Nested Happy sessions (display-only, written by happy-cli-go when an
+    // agent spawns a child via `session_spawn`). Never routes delivery.
+    @JsonKey(fromJson: _nonEmptyStringNullable) String? parentSessionId,
+    @JsonKey(fromJson: _nonEmptyStringNullable) String? rootSessionId,
+    @JsonKey(fromJson: _asApiIntNullable) int? nestingDepth,
+    @JsonKey(fromJson: _asApiStringNullable) String? spawnedBy,
   }) = _Metadata;
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>
@@ -332,6 +344,11 @@ extension HarModelSwitchMetadata on Metadata {
         barrier?['version'] == 1 &&
         barrier?['runtimeId'] == runtimeId;
   }
+}
+
+extension NestedSessionMetadata on Metadata {
+  /// Whether an agent spawned this session as a child of another session.
+  bool get isSubSession => parentSessionId != null;
 }
 
 extension AcpPlanMetadata on Metadata {
