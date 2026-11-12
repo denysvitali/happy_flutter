@@ -3527,5 +3527,53 @@
   "sessionFileCopy": "Copy file",
   "sessionFileCopied": "Copied!",
   "sessionFileViewSource": "View source",
-  "sessionFileViewPreview": "View preview"
+  "sessionFileViewPreview": "View preview",
+  "subSessionCount": "{count, plural, =1 {1 sub-session} other {{count} sub-sessions}}",
+  "@subSessionCount": {
+    "description": "Disclosure on a session row whose agent spawned child sessions.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "subSessionWorking": "{count} working",
+  "@subSessionWorking": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "subSessionNeedsYou": "{count, plural, =1 {1 needs you} other {{count} need you}}",
+  "@subSessionNeedsYou": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "subSessionShow": "Show sub-sessions",
+  "subSessionHide": "Hide sub-sessions",
+  "subSessionBadge": "Sub-session",
+  "@subSessionBadge": {
+    "description": "Badge on a child session whose parent is not shown in the list."
+  },
+  "subSessionOf": "Sub-session of {title}",
+  "@subSessionOf": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "subSessionOfUnknown": "Sub-session of a session that is not loaded",
+  "subSessionOpenParent": "Open parent session",
+  "sessionInfoSectionParent": "Spawned by",
+  "sessionInfoSectionSubSessions": "Sub-sessions",
+  "subSessionStateWorking": "Working",
+  "subSessionStateNeedsApproval": "Needs approval",
+  "subSessionStateReady": "Ready",
+  "subSessionStateOffline": "Offline",
+  "subSessionStateArchived": "Archived"
 }

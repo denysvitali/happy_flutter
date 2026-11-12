@@ -20,6 +20,7 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_nesting.dart';
 import '../../../core/utils/session_projects.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../kubernetes/kubernetes_sessions_strip.dart';
@@ -38,6 +39,7 @@ import 'session_list_helpers.dart';
 import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
 import 'sessions_view_style.dart';
+import 'sub_session_group.dart';
 import 'unread_focus_cards.dart';
 import '../../../core/utils/snack.dart';
 
@@ -113,6 +115,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   bool _hasLoaded = false;
   bool? _showBoardArchive;
   Set<String>? _boardSelectableIds;
+  Set<String>? _boardRootIds;
+  Set<String> _boardArchivedRootIds = {};
+
+  /// Sub-session grouping of the lists rendered in the current build.
+  SessionNesting _nesting = SessionNesting.empty;
+  final Set<String> _expandedSubSessionParents = {};
+  final _activeNestingMemo = _NestingMemo();
+  final _inactiveNestingMemo = _NestingMemo();
   Set<String> _boardArchivedIds = {};
   Set<String> _pendingLegacySelectableIds = {};
   bool _legacyScopeUpdateScheduled = false;
@@ -348,7 +358,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final activeOnly =
         _sessionsViewStyle == 'unread_focus' ||
         (_sessionsViewStyle == 'mission_control' && !folderDetail);
-    return selectableSessionIds(
+    final ids = selectableSessionIds(
       sessions: activeOnly
           ? sorted.active
           : [...sorted.active, ...sorted.inactive],
@@ -356,6 +366,71 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           !folderDetail &&
           ref.read(settingsNotifierProvider).hideInactiveSessions,
       folder: folderDetail ? widget.folderNotifier.value : null,
+    );
+    return _shownSubSessionScope(ids);
+  }
+
+  // ─── Sub-sessions ───────────────────────────────────
+
+  /// Search reveals every matching sub-session without manual expansion.
+  bool _isSubSessionExpanded(String parentId) =>
+      widget.searchQuery.isNotEmpty ||
+      _expandedSubSessionParents.contains(parentId);
+
+  /// Restricts [ids] to rows on screen: collapsed sub-sessions are not
+  /// selectable, so batch actions never touch rows the user cannot see.
+  Set<String> _shownSubSessionScope(Set<String> ids) {
+    if (!_nesting.hasNesting) return ids;
+    final shown = _nesting.shownIds(
+      ids.where((id) => !_nesting.isNested(id)),
+      _isSubSessionExpanded,
+    );
+    return ids.intersection(shown);
+  }
+
+  void _toggleSubSessions(String parentId) {
+    setState(() {
+      if (!_expandedSubSessionParents.remove(parentId)) {
+        _expandedSubSessionParents.add(parentId);
+      }
+    });
+    final sel = _sel.value;
+    if (!sel.isActive || sel.isBatchDeleting) return;
+    if (_isBoardStyle(_sessionsViewStyle)) {
+      final archive = _boardArchiveVisible;
+      final ids = _nesting.shownIds(
+        archive ? _boardArchivedRootIds : _boardRootIds ?? const {},
+        _isSubSessionExpanded,
+      );
+      if (archive) {
+        _boardArchivedIds = ids;
+      } else {
+        _boardSelectableIds = ids;
+      }
+      _sel.value = sel.copyWith(
+        selectedIds: sel.selectedIds.intersection(ids),
+        selectableIds: ids,
+      );
+    }
+    // Legacy layouts reconcile their scope on the next build.
+  }
+
+  /// Wraps a parent's row with its sub-session disclosure and children.
+  Widget _withSubSessions(
+    Session session,
+    Widget row,
+    Widget Function(Session child) childBuilder,
+  ) {
+    final children = _nesting.childrenOf(session.id);
+    if (children.isEmpty) return row;
+    return SubSessionGroup(
+      parent: session,
+      parentRow: row,
+      children: children,
+      summary: _nesting.summaryOf(session.id),
+      expanded: _isSubSessionExpanded(session.id),
+      onToggle: () => _toggleSubSessions(session.id),
+      childBuilder: childBuilder,
     );
   }
 
@@ -539,8 +614,19 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             timestampFor: orderingProjection.timestampFor,
           )
         : sorted.inactive;
+    // Children nest under a visible parent within the same list; the rest
+    // (including orphans whose parent is archived or filtered) stay rows.
+    final activeNesting = sessionsViewStyle == 'unread_focus'
+        ? _unreadFocusNesting(activeSessions, sessions, aggregateUiState!)
+        : _activeNestingMemo.of(activeSessions, sessions);
+    final inactiveNesting = _inactiveNestingMemo.of(inactiveSessions, sessions);
+    _nesting = activeNesting.merge(inactiveNesting);
     if (isBoard) {
-      _boardArchivedIds = inactiveSessions.map((s) => s.id).toSet();
+      _boardArchivedRootIds = {for (final s in inactiveNesting.topLevel) s.id};
+      _boardArchivedIds = _nesting.shownIds(
+        _boardArchivedRootIds,
+        _isSubSessionExpanded,
+      );
     } else {
       _reconcileLegacySelection(sorted);
     }
@@ -579,8 +665,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       color: Theme.of(context).colorScheme.primary,
       child: _buildSessionsList(
         context,
-        activeSessions,
-        inactiveSessions,
+        activeNesting.topLevel,
+        inactiveNesting.topLevel,
         machines,
         orderingProjection,
         aggregateUiState,
@@ -805,7 +891,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           key: ValueKey('board-$sessionsViewStyle'),
           scrollController: widget.scrollController,
           showStatusFilters: sessionsViewStyle == 'status',
-          onVisibleSessionIdsChanged: (ids) {
+          onVisibleSessionIdsChanged: (roots) {
+            _boardRootIds = roots;
+            final ids = _nesting.shownIds(roots, _isSubSessionExpanded);
             _boardSelectableIds = ids;
             final selected = _sel.value;
             if (selected.isActive &&
@@ -876,8 +964,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ? (_, {required tight}) =>
                   KubernetesSessionsStrip(compact: true, tight: tight)
             : null,
-        activeCount: activeSessions.length,
-        archivedCount: inactiveSessions.length,
+        activeCount: activeSessions.length + _nestedCount(activeSessions),
+        archivedCount: inactiveSessions.length + _nestedCount(inactiveSessions),
         showArchived: showArchived,
         onChanged: (archived) {
           if (_sel.value.isBatchDeleting || archived == showArchived) return;
@@ -934,6 +1022,36 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
       },
     );
+  }
+
+  /// Unread Focus splits rows by attention first, so children nest only
+  /// under a parent in the same group and never appear in both.
+  SessionNesting _unreadFocusNesting(
+    List<Session> active,
+    Map<String, Session> catalog,
+    SessionUiState uiState,
+  ) {
+    final attention = <Session>[];
+    final others = <Session>[];
+    for (final session in active) {
+      (_sessionNeedsAttention(session.id, session, uiState)
+              ? attention
+              : others)
+          .add(session);
+    }
+    return SessionNesting.build(
+      attention,
+      catalog: catalog,
+    ).merge(SessionNesting.build(others, catalog: catalog));
+  }
+
+  int _nestedCount(List<Session> topLevel) {
+    if (!_nesting.hasNesting) return 0;
+    var count = 0;
+    for (final session in topLevel) {
+      count += _nesting.summaryOf(session.id).total;
+    }
+    return count;
   }
 
   bool _sessionNeedsAttention(
@@ -1013,7 +1131,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     bool inbox = false,
     SessionRuntimeMark? runtime,
   }) {
-    return Consumer(
+    final tile = Consumer(
       builder: (context, ref, _) {
         final rowEntry = ref.watch(sessionUiEntryProvider(session.id));
         final triage = ref.watch(missionTriageProvider);
@@ -1033,6 +1151,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           showTriageMenu: showTriageMenu && !sel.isActive,
           inbox: inbox,
           runtime: runtime,
+          subSessionBadge: _nesting.isOrphan(session.id),
           showInlineApproval: !sel.isActive,
           onSelect: sel.isActive ? null : () => _onSessionLongPress(session.id),
           onArchive: sel.isActive
@@ -1064,6 +1183,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ? row
             : DismissibleActiveSession(session: session, child: row);
       },
+    );
+    return _withSubSessions(
+      session,
+      tile,
+      (child) => Consumer(
+        builder: (context, ref, _) => _buildMissionActionRow(
+          child,
+          SessionUiEntry.empty,
+          missionLaneFor(child, ref.watch(sessionUiEntryProvider(child.id))),
+          animateActivity: animateActivity,
+          highlighted: false,
+          showTriageMenu: showTriageMenu,
+        ),
+      ),
     );
   }
 
@@ -1202,9 +1335,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       lastMessageIsError: entry.lastMessageIsError,
       permissionRequests: session.agentState?.requests,
     );
-    return sel.isActive
-        ? card
-        : DismissibleActiveSession(session: session, child: card);
+    return _withSubSessions(
+      session,
+      sel.isActive
+          ? card
+          : DismissibleActiveSession(session: session, child: card),
+      (child) => _buildNeedsAttentionCard(
+        child,
+        entry:
+            ref.read(sessionUiStateNotifierProvider).bySessionId[child.id] ??
+            SessionUiEntry.empty,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+    );
   }
 
   Widget _buildFolderModeView(
@@ -1502,10 +1646,24 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       muted: archived,
     );
 
-    if (sel.isActive) return row;
-    return archived
-        ? DismissibleInactiveSession(session: session, child: row)
-        : DismissibleActiveSession(session: session, child: row);
+    return _withSubSessions(
+      session,
+      sel.isActive
+          ? row
+          : archived
+          ? DismissibleInactiveSession(session: session, child: row)
+          : DismissibleActiveSession(session: session, child: row),
+      (child) => _buildFolderSessionRow(
+        child,
+        entry:
+            ref.read(sessionUiStateNotifierProvider).bySessionId[child.id] ??
+            SessionUiEntry.empty,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+        displayName: null,
+        archived: archived,
+      ),
+    );
   }
 
   List<ListItem> _buildListItems(
@@ -1711,6 +1869,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           lastMessagePreview: entry.lastMessagePreview,
           lastMessageRole: entry.lastMessageRole,
           archiveCountdownLabel: _archiveCountdownLabel(session, entry),
+          subSessionBadge: _nesting.isOrphan(session.id),
         ),
         if (!item.isLast! && !item.isSingle!)
           Divider(
@@ -1722,9 +1881,28 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ),
       ],
     );
-    return sel.isActive
-        ? card
-        : DismissibleInactiveSession(session: session, child: card);
+    return _withSubSessions(
+      session,
+      sel.isActive
+          ? card
+          : DismissibleInactiveSession(session: session, child: card),
+      (child) => _buildArchivedCard(
+        context,
+        ListItem.archivedSession(
+          child,
+          0,
+          isFirst: false,
+          isLast: true,
+          isSingle: false,
+        ),
+        session: child,
+        entry:
+            ref.read(sessionUiStateNotifierProvider).bySessionId[child.id] ??
+            SessionUiEntry.empty,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+    );
   }
 
   Widget _buildItemWidget(
@@ -1901,9 +2079,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         archiveCountdownLabel: null,
       ),
     );
-    return sel.isActive
-        ? card
-        : DismissibleActiveSession(session: session, child: card);
+    return _withSubSessions(
+      session,
+      sel.isActive
+          ? card
+          : DismissibleActiveSession(session: session, child: card),
+      (child) => _buildActiveSessionCard(
+        child,
+        entry:
+            ref.read(sessionUiStateNotifierProvider).bySessionId[child.id] ??
+            SessionUiEntry.empty,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+    );
   }
 
   String? _archiveCountdownLabel(Session session, SessionUiEntry entry) {
@@ -2042,5 +2231,19 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     return items;
+  }
+}
+
+/// Recomputes a list's [SessionNesting] only when its inputs change.
+class _NestingMemo {
+  List<Session>? _list;
+  Map<String, Session>? _catalog;
+  SessionNesting _value = SessionNesting.empty;
+
+  SessionNesting of(List<Session> list, Map<String, Session> catalog) {
+    if (identical(list, _list) && identical(catalog, _catalog)) return _value;
+    _list = list;
+    _catalog = catalog;
+    return _value = SessionNesting.build(list, catalog: catalog);
   }
 }

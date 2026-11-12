@@ -25,6 +25,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 import 'widgets/session_pod_section.dart';
+import 'widgets/sub_session_links.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/components/app_banner.dart';
 import '../../core/utils/snack.dart';
@@ -426,6 +427,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             },
           ),
         ],
+
+        SessionNestingSections(session: session),
 
         gap,
         SettingsSection(

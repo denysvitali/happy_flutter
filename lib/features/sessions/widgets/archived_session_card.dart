@@ -7,6 +7,7 @@ import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'sub_session_group.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Session card for archived/inactive sessions with
@@ -30,6 +31,7 @@ class SessionCard extends StatefulWidget {
     this.lastMessagePreview,
     this.lastMessageRole,
     this.archiveCountdownLabel,
+    this.subSessionBadge = false,
   });
 
   final Session session;
@@ -48,6 +50,9 @@ class SessionCard extends StatefulWidget {
   final String? lastMessagePreview;
   final String? lastMessageRole;
   final String? archiveCountdownLabel;
+
+  /// Marks a sub-session listed without its parent.
+  final bool subSessionBadge;
 
   @override
   State<SessionCard> createState() => _SessionCardState();
@@ -190,11 +195,13 @@ class _SessionCardState extends State<SessionCard> {
                           dotColor: _d.status.isConnected
                               ? null
                               : cs.outlineVariant,
-                          badge: widget.archiveCountdownLabel == null
-                              ? null
-                              : ArchiveCountdownBadge(
+                          badge: widget.archiveCountdownLabel != null
+                              ? ArchiveCountdownBadge(
                                   label: widget.archiveCountdownLabel!,
-                                ),
+                                )
+                              : widget.subSessionBadge
+                              ? const SubSessionBadge()
+                              : null,
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         if (activityLine == null)

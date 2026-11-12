@@ -10970,6 +10970,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View preview'**
   String get sessionFileViewPreview;
+
+  /// Disclosure on a session row whose agent spawned child sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 sub-session} other {{count} sub-sessions}}'**
+  String subSessionCount(int count);
+
+  /// No description provided for @subSessionWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} working'**
+  String subSessionWorking(int count);
+
+  /// No description provided for @subSessionNeedsYou.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 needs you} other {{count} need you}}'**
+  String subSessionNeedsYou(int count);
+
+  /// No description provided for @subSessionShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show sub-sessions'**
+  String get subSessionShow;
+
+  /// No description provided for @subSessionHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide sub-sessions'**
+  String get subSessionHide;
+
+  /// Badge on a child session whose parent is not shown in the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-session'**
+  String get subSessionBadge;
+
+  /// No description provided for @subSessionOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-session of {title}'**
+  String subSessionOf(String title);
+
+  /// No description provided for @subSessionOfUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-session of a session that is not loaded'**
+  String get subSessionOfUnknown;
+
+  /// No description provided for @subSessionOpenParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Open parent session'**
+  String get subSessionOpenParent;
+
+  /// No description provided for @sessionInfoSectionParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Spawned by'**
+  String get sessionInfoSectionParent;
+
+  /// No description provided for @sessionInfoSectionSubSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-sessions'**
+  String get sessionInfoSectionSubSessions;
+
+  /// No description provided for @subSessionStateWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get subSessionStateWorking;
+
+  /// No description provided for @subSessionStateNeedsApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs approval'**
+  String get subSessionStateNeedsApproval;
+
+  /// No description provided for @subSessionStateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get subSessionStateReady;
+
+  /// No description provided for @subSessionStateOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get subSessionStateOffline;
+
+  /// No description provided for @subSessionStateArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get subSessionStateArchived;
 }
 
 class _AppLocalizationsDelegate

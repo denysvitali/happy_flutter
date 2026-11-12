@@ -6395,4 +6395,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionFileViewPreview => 'View preview';
+
+  @override
+  String subSessionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sub-sessions',
+      one: '1 sub-session',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String subSessionWorking(int count) {
+    return '$count working';
+  }
+
+  @override
+  String subSessionNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count need you',
+      one: '1 needs you',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get subSessionShow => 'Show sub-sessions';
+
+  @override
+  String get subSessionHide => 'Hide sub-sessions';
+
+  @override
+  String get subSessionBadge => 'Sub-session';
+
+  @override
+  String subSessionOf(String title) {
+    return 'Sub-session of $title';
+  }
+
+  @override
+  String get subSessionOfUnknown =>
+      'Sub-session of a session that is not loaded';
+
+  @override
+  String get subSessionOpenParent => 'Open parent session';
+
+  @override
+  String get sessionInfoSectionParent => 'Spawned by';
+
+  @override
+  String get sessionInfoSectionSubSessions => 'Sub-sessions';
+
+  @override
+  String get subSessionStateWorking => 'Working';
+
+  @override
+  String get subSessionStateNeedsApproval => 'Needs approval';
+
+  @override
+  String get subSessionStateReady => 'Ready';
+
+  @override
+  String get subSessionStateOffline => 'Offline';
+
+  @override
+  String get subSessionStateArchived => 'Archived';
 }

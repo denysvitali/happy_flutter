@@ -98,6 +98,7 @@ import 'widgets/kubernetes_startup_panel.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
+import 'widgets/sub_session_links.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
 import '../../core/utils/snack.dart';
@@ -2312,6 +2313,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // sync.onDataChanged tick via its own StatefulWidget so the
         // running/total counts stay current without invalidating the
         // chat list. Hides itself when no sub-agents are present.
+        // Agent-spawned sub-sessions link back to the session that made them.
+        ParentSessionBanner(sessionId: widget.sessionId),
         SubAgentStatusBanner(sessionId: widget.sessionId),
         Expanded(
           child: FrostedBottomDock(

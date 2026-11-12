@@ -18,6 +18,7 @@ import 'mission_control_triage_menu.dart';
 import 'mission_control_types.dart';
 import 'mission_heartbeat.dart';
 import 'session_cards.dart';
+import 'sub_session_group.dart';
 
 /// A compact conversation row with independent session and menu actions.
 ///
@@ -46,6 +47,7 @@ class MissionActionRow extends StatelessWidget {
     this.inbox = false,
     this.avatarStyle,
     this.runtime,
+    this.subSessionBadge = false,
   });
 
   final Session session;
@@ -92,6 +94,9 @@ class MissionActionRow extends StatelessWidget {
 
   /// Where the session runs (pod or machine), for project-grouped boards.
   final SessionRuntimeMark? runtime;
+
+  /// Marks a sub-session listed without its parent.
+  final bool subSessionBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +434,12 @@ class MissionActionRow extends StatelessWidget {
                                               ),
                                             ),
                                           ),
+                                        ],
+                                        if (subSessionBadge) ...[
+                                          const SizedBox(width: AppSpacing.xs),
+                                          // The pill's label carries the
+                                          // row's text baseline itself.
+                                          const SubSessionBadge(),
                                         ],
                                         if (isPinned) ...[
                                           const SizedBox(width: AppSpacing.xs),
