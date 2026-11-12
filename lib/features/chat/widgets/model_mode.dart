@@ -1,5 +1,6 @@
 import '../../../core/models/built_in_profiles.dart';
-import '../../../core/models/session.dart' show PrimeAgentModelInfo;
+import '../../../core/models/session.dart'
+    show ClaudeModelInfo, PrimeAgentModelInfo;
 import '../../../core/models/settings.dart'
     show AIBackendProfile, extendedContextWindowTokens;
 import '../../../core/rpc/rpc_types.dart';
@@ -47,7 +48,7 @@ class ChatModelMode {
     );
   }
 
-  static const _knownSlugs = {'fable', 'sonnet', 'opus'};
+  static const _knownSlugs = {'fable', 'sonnet', 'opus', 'haiku'};
 
   factory ChatModelMode.custom({required String slug, String? effort}) {
     final effortLabel = effort != null ? _capitalizeEffort(effort) : null;
@@ -99,6 +100,14 @@ class ChatModelMode {
     label: 'Opus',
     modeString: 'opus',
     modelSlug: 'opus',
+    flavor: 'claude',
+  );
+
+  /// Haiku-class mode (Claude Haiku; fastest model the CLI offers).
+  static const haiku = ChatModelMode._(
+    label: 'Haiku',
+    modeString: 'haiku',
+    modelSlug: 'haiku',
     flavor: 'claude',
   );
 
@@ -160,6 +169,7 @@ class ChatModelMode {
       (base: fable, displayName: 'Fable'),
       (base: sonnet, displayName: 'Sonnet'),
       (base: opus, displayName: 'Opus'),
+      (base: haiku, displayName: 'Haiku'),
     ];
     for (final tier in tiers) {
       list.add(tier.base);
@@ -176,7 +186,7 @@ class ChatModelMode {
     return list;
   }
 
-  static const values = [defaultModel, fable, sonnet, opus];
+  static const values = [defaultModel, fable, sonnet, opus, haiku];
 
   static final List<ChatModelMode> claudeModels = _buildClaudeModels();
 
@@ -225,6 +235,7 @@ class ChatModelMode {
       'fable' => fable,
       'sonnet' => sonnet,
       'opus' => opus,
+      'haiku' => haiku,
       final raw? when raw.contains(':') => _fromColonSelection(raw),
       final raw? when raw.isNotEmpty && raw != 'default' =>
         isKnownCodexModelString(raw)
@@ -306,6 +317,7 @@ class ChatModelMode {
     List<PrimeAgentModelInfo>? opencodeModels,
     List<PrimeAgentModelInfo>? harModels,
     List<PrimeAgentModelInfo>? primeAgentEfforts,
+    List<ClaudeModelInfo>? claudeCatalog,
   }) {
     if (flavor == 'har') return fromHarCatalog(harModels ?? const []);
     if (flavor == 'opencode') {
@@ -359,7 +371,16 @@ class ChatModelMode {
     }
     final baseModels = availableForFlavor(flavor);
     if (flavor == 'grok' || flavor == 'grok-build') return baseModels;
-    if (claudeCompatible && allowClaudeAliases) return baseModels;
+    if (claudeCompatible && allowClaudeAliases) {
+      // The Claude Code CLI owns its catalog (aliases, pinned versions and the
+      // effort levels each model accepts); prefer it over the built-in tiers.
+      if ((flavor == 'claude' || flavor == null) &&
+          claudeCatalog != null &&
+          claudeCatalog.isNotEmpty) {
+        return fromClaudeCatalog(claudeCatalog);
+      }
+      return baseModels;
+    }
     // Provider-owned model selection uses the selected backend profile.
     return const [defaultModel];
   }
@@ -549,6 +570,43 @@ class ChatModelMode {
             modelSlug: id,
             reasoningEffort: effort.id,
             flavor: 'prime-agent',
+          ),
+        );
+      }
+    }
+    return models;
+  }
+
+  /// Builds picker options from the catalog the Claude Code CLI reports.
+  ///
+  /// Each model gets an effort-less entry (the CLI default for that model)
+  /// plus one entry per effort level *that model* supports. `default` stays
+  /// the app's own entry: the CLI lists it too, but only as a pointer to
+  /// whichever model it currently resolves to.
+  static List<ChatModelMode> fromClaudeCatalog(List<ClaudeModelInfo> catalog) {
+    final models = <ChatModelMode>[defaultModel];
+    final seen = <String>{defaultModel.modeString};
+    for (final item in catalog) {
+      final id = item.id.trim();
+      if (id.isEmpty || !seen.add(id)) continue;
+      models.add(
+        ChatModelMode._(
+          label: item.name,
+          modeString: id,
+          modelSlug: id,
+          flavor: 'claude',
+        ),
+      );
+      final seenEfforts = <String>{};
+      for (final effort in item.efforts) {
+        if (!claudeEfforts.contains(effort) || !seenEfforts.add(effort)) {
+          continue;
+        }
+        models.add(
+          ChatModelMode.fromClaudeModel(
+            tier: id,
+            displayName: item.name,
+            effort: effort,
           ),
         );
       }
@@ -770,12 +828,16 @@ class ChatModelMode {
     }
     final slug = raw.substring(0, separator);
     final effort = raw.substring(separator + 1);
-    if (slug == 'opus' || slug == 'sonnet' || slug == 'fable') {
+    if (slug == 'opus' ||
+        slug == 'sonnet' ||
+        slug == 'fable' ||
+        slug == 'haiku') {
       return ChatModelMode.fromClaudeModel(
         tier: slug,
         displayName: switch (slug) {
           'opus' => 'Opus',
           'sonnet' => 'Sonnet',
+          'haiku' => 'Haiku',
           _ => 'Fable',
         },
         effort: effort,

@@ -185,6 +185,90 @@ List<PrimeAgentModelInfo>? _harModelsFromJson(dynamic value) {
   return models;
 }
 
+/// A model the Claude Code CLI itself offers for the running session.
+///
+/// happy-cli-go publishes these as `claudeModels` in session metadata, read
+/// from the CLI's own catalog. [id] is the `--model` value; [efforts] are the
+/// `--effort` levels that model accepts (empty when it has no effort control).
+@immutable
+class ClaudeModelInfo {
+  const ClaudeModelInfo({
+    required this.id,
+    required this.name,
+    this.description,
+    this.efforts = const [],
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final List<String> efforts;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    if (description != null) 'description': description,
+    'efforts': efforts,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClaudeModelInfo &&
+          other.id == id &&
+          other.name == name &&
+          other.description == description &&
+          _listEquals(other.efforts, efforts);
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, description, Object.hashAll(efforts));
+
+  @override
+  String toString() => 'ClaudeModelInfo(id: $id, name: $name)';
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}
+
+List<ClaudeModelInfo>? _claudeModelsFromJson(dynamic value) {
+  if (value is! List) return null;
+  final models = <ClaudeModelInfo>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    final id = item['id'];
+    if (id is! String || id.trim().isEmpty) continue;
+    final name = item['name'];
+    final description = item['description'];
+    final efforts = item['efforts'];
+    models.add(
+      ClaudeModelInfo(
+        id: id.trim(),
+        name: name is String && name.trim().isNotEmpty
+            ? name.trim()
+            : id.trim(),
+        description: description is String && description.trim().isNotEmpty
+            ? description.trim()
+            : null,
+        efforts: [
+          if (efforts is List)
+            for (final effort in efforts)
+              if (effort is String && effort.trim().isNotEmpty) effort.trim(),
+        ],
+      ),
+    );
+  }
+  return models;
+}
+
+dynamic _claudeModelsToJson(List<ClaudeModelInfo>? models) =>
+    models?.map((model) => model.toJson()).toList();
+
 Metadata? _metadataFromJson(dynamic value) {
   if (value is Map<String, dynamic>) return Metadata.fromJson(value);
   return null;
@@ -271,6 +355,8 @@ abstract class Metadata with _$Metadata {
     List<PrimeAgentModelInfo>? opencodeModels,
     @JsonKey(fromJson: _harModelsFromJson, toJson: _primeAgentModelsToJson)
     List<PrimeAgentModelInfo>? harModels,
+    @JsonKey(fromJson: _claudeModelsFromJson, toJson: _claudeModelsToJson)
+    List<ClaudeModelInfo>? claudeModels,
     @JsonKey(fromJson: _acpPlanFromJson) List<Map<String, dynamic>>? plan,
     @JsonKey(
       name: 'primeagentEfforts',

@@ -22,6 +22,7 @@ IconData iconForModel(ChatModelMode model) {
   if (model.modelSlug == 'opus') return Icons.diamond_outlined;
   if (model.modelSlug == 'sonnet') return Icons.auto_awesome_outlined;
   if (model.modelSlug == 'fable') return Icons.auto_stories_outlined;
+  if (model.modelSlug == 'haiku') return Icons.bolt_outlined;
   if (model == ChatModelMode.defaultModel) return Icons.smart_toy_outlined;
   return Icons.smart_toy_outlined;
 }

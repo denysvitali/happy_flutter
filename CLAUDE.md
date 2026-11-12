@@ -64,6 +64,13 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   and `metadata.plan` supplies the task banner. Effort, images, child anchors,
   and context/usage telemetry are unavailable.
 
+- **Claude owns its model catalog** — flavor `claude` lists the models the
+  running session publishes in `metadata.claudeModels` (`{id,name,description?,
+  efforts}`, read from the Claude Code CLI itself): Default plus each model with
+  only the effort levels *it* supports. Without a catalog (older agent, probe
+  failed) the built-in Fable/Sonnet/Opus/Haiku tiers apply. Third-party
+  Anthropic gateways keep Default only.
+
 - **Prime Agent switches model in place** — flavor `prime-agent` lists the
   models the running agent publishes in `metadata.primeagentModels`. A pick
   travels in the next message's `meta.model`. The Effort slider uses only

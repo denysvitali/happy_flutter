@@ -645,6 +645,7 @@ extension _ChatScreenActions on _ChatScreenState {
       opencodeModels: _session?.metadata?.opencodeModels,
       harModels: _session?.metadata?.harModels,
       primeAgentEfforts: _session?.metadata?.primeAgentEfforts,
+      claudeCatalog: _session?.metadata?.claudeModels,
     );
   }
 
