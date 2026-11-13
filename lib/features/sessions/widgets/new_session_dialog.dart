@@ -320,7 +320,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       _createError = null;
     });
 
-    const groupGap = SizedBox(height: AppSpacing.xxl);
+    const groupGap = SizedBox(height: AppSpacing.lg);
 
     final body = <Widget>[
       _SpawnBackendPicker(
@@ -333,7 +333,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       Padding(
         padding: const EdgeInsets.only(
           left: AppSpacing.lg,
-          bottom: AppSpacing.sm,
+          bottom: AppSpacing.xsm,
         ),
         child: NewSessionGroupHeader(text: l10n.sessionsAgent),
       ),
@@ -489,7 +489,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         data: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             shape: const StadiumBorder(),
-            minimumSize: const Size.fromHeight(52),
+            minimumSize: const Size.fromHeight(48),
             textStyle: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -511,9 +511,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final scrollingBody = SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.sm,
+        AppSpacing.xs,
         AppSpacing.lg,
-        AppSpacing.xxl,
+        AppSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -867,7 +867,7 @@ class _RecentWorkspaceCards extends ConsumerWidget {
         .toList();
     if (paths.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxl),
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: NewSessionGroup(
         header: context.l10n.newSessionRecentWorkspace,
         children: [
@@ -1045,9 +1045,9 @@ class _AgentTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ExcludeSemantics(
-                child: HarnessLogo(flavor: agent, size: AppIconSize.tab),
+                child: HarnessLogo(flavor: agent, size: AppIconSize.xl),
               ),
-              const SizedBox(height: AppSpacing.xsm),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 label,
                 maxLines: 1,
@@ -1070,7 +1070,7 @@ class _AgentTile extends StatelessWidget {
         labelPadding: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
-          vertical: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1249,16 +1249,16 @@ class _NewSessionFooter extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
         AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           status,
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           createButton,
         ],
       ),

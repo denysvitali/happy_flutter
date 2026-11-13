@@ -18,7 +18,7 @@ class _NewSessionHeading extends StatelessWidget {
         AppSpacing.xs,
       ),
       child: SizedBox(
-        height: AppTouchTarget.comfortable + AppSpacing.sm,
+        height: AppTouchTarget.comfortable,
         child: NavigationToolbar(
           leading: cancel,
           middle: Semantics(

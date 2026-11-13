@@ -57,7 +57,7 @@ class NewSessionGroup extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(
               left: AppSpacing.lg,
-              bottom: AppSpacing.sm,
+              bottom: AppSpacing.xsm,
             ),
             child: NewSessionGroupHeader(text: title),
           ),
@@ -135,9 +135,9 @@ InputDecoration newSessionRowDecoration({
     focusedErrorBorder: InputBorder.none,
     contentPadding: const EdgeInsets.fromLTRB(
       AppSpacing.xs,
-      AppSpacing.md,
+      AppSpacing.sm,
       AppSpacing.lg,
-      AppSpacing.md,
+      AppSpacing.sm,
     ),
   );
 }
@@ -154,12 +154,23 @@ class NewSessionRowChips extends StatelessWidget {
       kNewSessionRowTextInset,
       0,
       AppSpacing.lg,
-      AppSpacing.md,
+      AppSpacing.sm,
     ),
-    child: Wrap(
-      spacing: AppSpacing.xsm,
-      runSpacing: AppSpacing.xsm,
-      children: children,
+    child: Theme(
+      // Chips here are dense quick picks: without shrink-wrapping each run
+      // reserves a full 48 px tap row and the group balloons.
+      data: Theme.of(context).copyWith(
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        chipTheme: Theme.of(context).chipTheme.copyWith(
+          labelPadding: const EdgeInsets.only(right: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        ),
+      ),
+      child: Wrap(
+        spacing: AppSpacing.xsm,
+        runSpacing: AppSpacing.xsm,
+        children: children,
+      ),
     ),
   );
 }

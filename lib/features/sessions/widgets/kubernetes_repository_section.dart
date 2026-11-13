@@ -546,7 +546,7 @@ class _KubernetesRepositorySectionState
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xxl),
+        const SizedBox(height: AppSpacing.lg),
         // Occasional setup: folded away, with the current choice in each
         // summary line.
         NewSessionGroup(
