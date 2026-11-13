@@ -33,6 +33,7 @@ import '../../core/widgets/app_linear_progress_indicator.dart';
 import '../settings/widgets/machine_usage_scaffold.dart' show UsageWindowRow;
 import 'widgets/agent_update_banner.dart';
 import 'widgets/machine_git_identity.dart';
+import 'widgets/machine_kubernetes_claude_md.dart';
 import 'widgets/machine_provider_versions.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -296,6 +297,12 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             ),
 
             if (metadata?.spawnBackends?.contains('kubernetes') == true) ...[
+              const SizedBox(height: _kSectionGap),
+              MachineKubernetesClaudeMd(
+                key: ValueKey('kubernetes-claude-md-${widget.machineId}'),
+                machineId: widget.machineId,
+                isOnline: isOnline,
+              ),
               const SizedBox(height: _kSectionGap),
               SettingsSection(
                 title: context.l10n.claudeAuthTitle,

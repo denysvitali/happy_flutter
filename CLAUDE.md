@@ -51,6 +51,13 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   are separate from Settings → MCP servers (machine config files). Loki still
   needs the runtime binary and daemon `HAPPY_KUBERNETES_LOKI_URL` configuration.
 
+- **Kubernetes CLAUDE.md is machine-scoped** — Machine details → Kubernetes
+  instructions edits the daemon's `kubernetes-claude-md-get` / `-set` setting.
+  Preserve Markdown verbatim and enforce its 64 KiB UTF-8 byte limit. Empty
+  clears it. New Pods, including replacements, receive the saved instructions;
+  running Pods and repository CLAUDE.md files are unchanged. Unsupported daemons
+  show an upgrade requirement, never a silent local-only setting.
+
 - **Idle visual work is bounded** — covered/unfocused chats defer projection,
   not delivery. Tool clocks obey visibility; loading motion settles and honors
   reduced motion. CPU telemetry measures the local process, not machine vitals.

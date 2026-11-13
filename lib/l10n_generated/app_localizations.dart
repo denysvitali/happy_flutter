@@ -1431,6 +1431,102 @@ abstract class AppLocalizations {
   /// **'Could not save the git identity. Try again.'**
   String get gitIdentitySaveFailed;
 
+  /// No description provided for @kubernetesClaudeMdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes instructions'**
+  String get kubernetesClaudeMdTitle;
+
+  /// No description provided for @kubernetesClaudeMdDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'CLAUDE.md instructions for Claude sessions in each new Kubernetes Pod on this machine. Repository CLAUDE.md files are kept unchanged.'**
+  String get kubernetesClaudeMdDescription;
+
+  /// No description provided for @kubernetesClaudeMdRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CLAUDE.md'**
+  String get kubernetesClaudeMdRowTitle;
+
+  /// No description provided for @kubernetesClaudeMdConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured · tap to edit'**
+  String get kubernetesClaudeMdConfigured;
+
+  /// No description provided for @kubernetesClaudeMdNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No machine-level instructions. Tap to add them.'**
+  String get kubernetesClaudeMdNotSet;
+
+  /// No description provided for @kubernetesClaudeMdOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect this machine to view or edit Pod instructions.'**
+  String get kubernetesClaudeMdOffline;
+
+  /// No description provided for @kubernetesClaudeMdUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Happy CLI on this machine to manage Kubernetes instructions.'**
+  String get kubernetesClaudeMdUnsupported;
+
+  /// No description provided for @kubernetesClaudeMdLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load Pod instructions. Tap to retry.'**
+  String get kubernetesClaudeMdLoadFailed;
+
+  /// No description provided for @kubernetesClaudeMdContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown instructions'**
+  String get kubernetesClaudeMdContent;
+
+  /// No description provided for @kubernetesClaudeMdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'# Instructions\nDescribe how Claude should work in your Pods.'**
+  String get kubernetesClaudeMdHint;
+
+  /// No description provided for @kubernetesClaudeMdTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions must be no larger than 64 KiB in UTF-8.'**
+  String get kubernetesClaudeMdTooLarge;
+
+  /// No description provided for @kubernetesClaudeMdInvalidText.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions cannot contain NUL characters.'**
+  String get kubernetesClaudeMdInvalidText;
+
+  /// No description provided for @kubernetesClaudeMdAppliesToNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to newly created Pods, including replacement Pods. Running Pods keep their current instructions. Clear this setting to stop adding it to future Pods.'**
+  String get kubernetesClaudeMdAppliesToNew;
+
+  /// No description provided for @kubernetesClaudeMdSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes instructions saved'**
+  String get kubernetesClaudeMdSaved;
+
+  /// No description provided for @kubernetesClaudeMdRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes instructions cleared'**
+  String get kubernetesClaudeMdRemoved;
+
+  /// No description provided for @kubernetesClaudeMdSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save Pod instructions. Your draft is preserved; try again.'**
+  String get kubernetesClaudeMdSaveFailed;
+
   /// No description provided for @machineAgentsTitle.
   ///
   /// In en, this message translates to:

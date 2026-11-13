@@ -144,6 +144,7 @@ part '_sync_operations_session_model_env.dart';
 part '_sync_operations_machine_rpc.dart';
 part '_sync_machine_rpc_retry.dart';
 part '_sync_operations_git_identity.dart';
+part '_sync_operations_kubernetes_claude_md.dart';
 part '_sync_outbox_recovery.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';

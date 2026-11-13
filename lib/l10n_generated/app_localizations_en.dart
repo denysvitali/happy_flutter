@@ -815,6 +815,64 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not save the git identity. Try again.';
 
   @override
+  String get kubernetesClaudeMdTitle => 'Kubernetes instructions';
+
+  @override
+  String get kubernetesClaudeMdDescription =>
+      'CLAUDE.md instructions for Claude sessions in each new Kubernetes Pod on this machine. Repository CLAUDE.md files are kept unchanged.';
+
+  @override
+  String get kubernetesClaudeMdRowTitle => 'CLAUDE.md';
+
+  @override
+  String get kubernetesClaudeMdConfigured => 'Configured · tap to edit';
+
+  @override
+  String get kubernetesClaudeMdNotSet =>
+      'No machine-level instructions. Tap to add them.';
+
+  @override
+  String get kubernetesClaudeMdOffline =>
+      'Connect this machine to view or edit Pod instructions.';
+
+  @override
+  String get kubernetesClaudeMdUnsupported =>
+      'Update Happy CLI on this machine to manage Kubernetes instructions.';
+
+  @override
+  String get kubernetesClaudeMdLoadFailed =>
+      'Could not load Pod instructions. Tap to retry.';
+
+  @override
+  String get kubernetesClaudeMdContent => 'Markdown instructions';
+
+  @override
+  String get kubernetesClaudeMdHint =>
+      '# Instructions\nDescribe how Claude should work in your Pods.';
+
+  @override
+  String get kubernetesClaudeMdTooLarge =>
+      'Instructions must be no larger than 64 KiB in UTF-8.';
+
+  @override
+  String get kubernetesClaudeMdInvalidText =>
+      'Instructions cannot contain NUL characters.';
+
+  @override
+  String get kubernetesClaudeMdAppliesToNew =>
+      'Applies to newly created Pods, including replacement Pods. Running Pods keep their current instructions. Clear this setting to stop adding it to future Pods.';
+
+  @override
+  String get kubernetesClaudeMdSaved => 'Kubernetes instructions saved';
+
+  @override
+  String get kubernetesClaudeMdRemoved => 'Kubernetes instructions cleared';
+
+  @override
+  String get kubernetesClaudeMdSaveFailed =>
+      'Could not save Pod instructions. Your draft is preserved; try again.';
+
+  @override
   String get machineAgentsTitle => 'Coding agents';
 
   @override

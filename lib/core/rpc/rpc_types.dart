@@ -744,6 +744,33 @@ class GitIdentityResponse {
   bool get isConfigured => source != GitIdentitySource.none;
 }
 
+/// Machine-owned instructions installed for newly created Kubernetes Pods.
+class KubernetesClaudeMdResponse {
+  const KubernetesClaudeMdResponse({
+    required this.success,
+    this.content = '',
+    this.updatedAt,
+    this.error,
+  });
+
+  factory KubernetesClaudeMdResponse.fromJson(Map<String, dynamic> json) =>
+      KubernetesClaudeMdResponse(
+        success: json['success'] == true,
+        content: json['content'] is String ? json['content'] as String : '',
+        updatedAt: _parseInt64(json['updatedAt']),
+        error: json['error']?.toString(),
+      );
+
+  final bool success;
+
+  /// Preserved verbatim, including leading spaces and trailing newlines.
+  final String content;
+  final int? updatedAt;
+  final String? error;
+
+  bool get isConfigured => content.isNotEmpty;
+}
+
 // ---------------------------------------------------------------------------
 // abort
 // ---------------------------------------------------------------------------
