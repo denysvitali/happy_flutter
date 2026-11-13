@@ -34,6 +34,15 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
+- **Kubernetes default MCPs are per-spawn choices** — the new-session dialog
+  offers GitHub Actions and Loki for Claude/Codex only. All checked omits the
+  selection (daemon defaults); a subset or none sends `mcpServers` plus
+  `mcpServersSet: true`. Restores/model switches omit these fields so the
+  daemon preserves the saved grant. Never drop an explicit selection to work
+  around an older daemon: report an upgrade requirement instead. These defaults
+  are separate from Settings → MCP servers (machine config files). Loki still
+  needs the runtime binary and daemon `HAPPY_KUBERNETES_LOKI_URL` configuration.
+
 - **Idle visual work is bounded** — covered/unfocused chats defer projection,
   not delivery. Tool clocks obey visibility; loading motion settles and honors
   reduced motion. CPU telemetry measures the local process, not machine vitals.

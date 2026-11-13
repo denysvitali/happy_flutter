@@ -27,6 +27,7 @@ class SpawnSessionRequest {
     this.additionalRepos = const [],
     this.isRestore = false,
     this.profileId,
+    this.mcpServers,
   });
   final String type;
   final String directory;
@@ -54,7 +55,13 @@ class SpawnSessionRequest {
   /// null only when the profile is genuinely unknown.
   final String? profileId;
 
+  /// The default MCP servers a Kubernetes session starts with. Null leaves
+  /// the choice to the daemon: a new session gets every available server and
+  /// a restore keeps its recorded selection. Empty is an explicit "none".
+  final List<String>? mcpServers;
+
   /// This request without [profileId], for daemons that reject the field.
+  /// Preserve MCP selection, including an explicit empty list.
   SpawnSessionRequest withoutProfileId() => SpawnSessionRequest(
     type: type,
     directory: directory,
@@ -71,6 +78,7 @@ class SpawnSessionRequest {
     repoCommit: repoCommit,
     additionalRepos: additionalRepos,
     isRestore: isRestore,
+    mcpServers: mcpServers,
   );
 
   Map<String, dynamic> toJson() => {
@@ -96,6 +104,11 @@ class SpawnSessionRequest {
     if (additionalRepos.isNotEmpty) 'additionalRepos': additionalRepos,
     if (isRestore) 'isRestore': true,
     if (profileId != null && profileId!.isNotEmpty) 'profileId': profileId,
+    // The daemon distinguishes "unset" from "none" by mcpServersSet.
+    if (mcpServers != null) ...{
+      'mcpServers': mcpServers,
+      'mcpServersSet': true,
+    },
   };
 }
 

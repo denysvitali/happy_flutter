@@ -44,7 +44,14 @@ sources are recorded alongside the shared `HarnessLogo` widget. Local execution
 is preferred
 when available, even on machines advertising Kubernetes as their default;
 Kubernetes-only machines still launch pods, and explicit backend choices remain
-available under Advanced options.
+available under Advanced options. For Kubernetes Claude/Codex sessions, expand
+**Default MCP servers** to toggle GitHub Actions and Loki. Both are selected by
+default; uncheck both to start without injected defaults. Each server still
+requires machine-side configuration: Loki needs a runtime image containing
+`loki-mcp` and `HAPPY_KUBERNETES_LOKI_URL` on the daemon. The saved selection
+survives restores and model changes. Older daemons require an upgrade for
+custom selections. Settings → MCP servers edits machine config files instead;
+it does not control these injected defaults.
 
 Codex usage shows the account’s reported windows (including weekly and 5-hour
 labels), additional pools when provided, and per-model availability. Usage

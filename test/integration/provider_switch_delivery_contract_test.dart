@@ -143,6 +143,9 @@ void main() {
         'HAPPY_CODEX_FAST_MODE': '0',
       });
       expect(spawns.single['model'], 'default');
+      // Model/provider respawns must keep the daemon's saved MCP grant.
+      expect(spawns.single, isNot(contains('mcpServers')));
+      expect(spawns.single, isNot(contains('mcpServersSet')));
       expect(selections.read(sessionId), isNull);
       expect(http.capturedLocalIds, ['first', 'second']);
       expect(sync.testSessionMessages(sessionId), hasLength(2));

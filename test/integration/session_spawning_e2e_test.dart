@@ -15,6 +15,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
+import 'package:happy_flutter/core/rpc/rpc_exception.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
@@ -127,6 +128,101 @@ void main() {
         });
       },
     );
+
+    for (final selection in [
+      null,
+      <String>['loki'],
+      <String>[],
+    ]) {
+      test('createSession forwards MCP selection $selection', () async {
+        Map<String, dynamic>? captured;
+        sync.testMachineRPCOverride = (_, method, params) async {
+          expect(method, 'spawn-happy-session');
+          captured = params;
+          return {'type': 'success', 'sessionId': params['sessionId']};
+        };
+        await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/repo',
+          spawnBackend: 'kubernetes',
+          mcpServers: selection,
+        );
+        if (selection == null) {
+          expect(captured, isNot(contains('mcpServers')));
+          expect(captured, isNot(contains('mcpServersSet')));
+        } else {
+          expect(captured!['mcpServers'], selection);
+          expect(captured!['mcpServersSet'], isTrue);
+        }
+      });
+    }
+
+    test(
+      'legacy profile retry preserves an explicit no-MCP selection',
+      () async {
+        final attempts = <Map<String, dynamic>>[];
+        sync.testMachineRPCOverride = (_, method, params) async {
+          attempts.add(Map.of(params));
+          if (params.containsKey('profileId')) {
+            throw const RpcException(
+              code: RpcErrorCode.unknown,
+              message: 'unknown field "profileId"',
+              retryable: false,
+            );
+          }
+          return {'type': 'success', 'sessionId': params['sessionId']};
+        };
+        await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/repo',
+          spawnBackend: 'kubernetes',
+          mcpServers: const [],
+        );
+        expect(attempts, hasLength(2));
+        expect(attempts.first['sessionId'], attempts.last['sessionId']);
+        for (final params in attempts) {
+          expect(params['mcpServers'], isEmpty);
+          expect(params['mcpServersSet'], isTrue);
+        }
+        expect(attempts.last, isNot(contains('profileId')));
+      },
+    );
+
+    for (final field in ['mcpServers', 'mcpServersSet']) {
+      test(
+        'old daemon rejecting $field never enables deselected MCPs',
+        () async {
+          var attempts = 0;
+          sync.testMachineRPCOverride = (_, method, params) async {
+            attempts++;
+            throw RpcException(
+              code: RpcErrorCode.unknown,
+              message: 'unknown field "$field"',
+              retryable: false,
+            );
+          };
+          await expectLater(
+            sync.createSession(
+              agent: 'claude',
+              machineId: 'machine-1',
+              path: '/repo',
+              spawnBackend: 'kubernetes',
+              mcpServers: const [],
+            ),
+            throwsA(
+              isA<RpcException>().having(
+                (error) => error.message,
+                'upgrade message',
+                contains('Update Happy CLI'),
+              ),
+            ),
+          );
+          expect(attempts, 1);
+        },
+      );
+    }
 
     test('Har launch forwards the explicit Grok 4.7 model', () async {
       Map<String, dynamic>? captured;

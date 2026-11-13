@@ -733,6 +733,18 @@ extension SyncSpawnProfileResolution on Sync {
           timeout: timeout,
         );
       }
+      if (unknownField &&
+          req.mcpServers != null &&
+          error.message.contains('mcpServers')) {
+        // Never silently enable defaults the user explicitly deselected.
+        throw const RpcException(
+          code: RpcErrorCode.handlerError,
+          message:
+              'This machine does not support per-session MCP selection. '
+              'Update Happy CLI before starting a session with custom MCPs.',
+          retryable: false,
+        );
+      }
       final rejectedIsRestore =
           unknownField && error.message.contains('isRestore');
       if (!req.isRestore || req.agent == 'prime-agent' || !rejectedIsRestore) {

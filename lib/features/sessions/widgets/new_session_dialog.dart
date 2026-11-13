@@ -5,6 +5,7 @@ import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
+import '../../../core/models/default_mcp_servers.dart';
 import '../../../core/models/favorite_model.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
@@ -23,6 +24,7 @@ import '../../chat/model_selection_resolver.dart'
     show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
 import '../harness_logo.dart';
+import 'kubernetes_mcp_section.dart';
 import 'kubernetes_repository_section.dart';
 
 part 'new_session_fields.dart';
@@ -180,6 +182,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedRepoUrl;
   String _selectedRepoRef = 'main';
   List<String> _additionalRepos = const [];
+  Set<String> _mcpServers = {...kDefaultMcpServerIds};
 
   /// GitHub (asked through the machine) says the branch does not exist.
   bool _repoRefMissing = false;
@@ -541,6 +544,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       });
                     },
                   ),
+                if (isKubernetes && supportsDefaultMcpServers(_selectedAgent))
+                  KubernetesMcpSection(
+                    selected: _mcpServers,
+                    enabled: !_isCreating,
+                    onChanged: (selected) =>
+                        setState(() => _mcpServers = selected),
+                  ),
                 if (!isKubernetes) ...[
                   const SizedBox(height: AppSpacing.sm),
                   _NewSessionAdvancedOptions(
@@ -828,6 +838,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         repoUrl: repoUrl,
         repoRef: repoRef,
         additionalRepos: isKubernetes ? _additionalRepos : const [],
+        mcpServers: isKubernetes && supportsDefaultMcpServers(_selectedAgent)
+            ? mcpServersForSpawn(_mcpServers)
+            : null,
       );
       if (!_canUseRef) return;
       if (isKubernetes) {

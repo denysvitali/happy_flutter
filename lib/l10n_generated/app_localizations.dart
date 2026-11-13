@@ -537,6 +537,54 @@ abstract class AppLocalizations {
   /// **'Scheduling container and preparing repository…'**
   String get newSessionPhaseSchedulingContainer;
 
+  /// No description provided for @newSessionMcpServers.
+  ///
+  /// In en, this message translates to:
+  /// **'Default MCP servers'**
+  String get newSessionMcpServers;
+
+  /// No description provided for @newSessionMcpServersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools the session starts with. A server only runs when the machine is set up for it.'**
+  String get newSessionMcpServersHint;
+
+  /// No description provided for @newSessionMcpServersNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None enabled'**
+  String get newSessionMcpServersNone;
+
+  /// No description provided for @newSessionMcpServersAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All enabled'**
+  String get newSessionMcpServersAll;
+
+  /// No description provided for @newSessionMcpGithubActions.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub Actions'**
+  String get newSessionMcpGithubActions;
+
+  /// No description provided for @newSessionMcpGithubActionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check CI runs for the repository'**
+  String get newSessionMcpGithubActionsHint;
+
+  /// No description provided for @newSessionMcpLoki.
+  ///
+  /// In en, this message translates to:
+  /// **'Loki'**
+  String get newSessionMcpLoki;
+
+  /// No description provided for @newSessionMcpLokiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Query logs from Grafana Loki'**
+  String get newSessionMcpLokiHint;
+
   /// No description provided for @newSessionPhaseStartingAgent.
   ///
   /// In en, this message translates to:

@@ -473,6 +473,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     String? repoRef,
     String? repoCommit,
     List<String> additionalRepos = const [],
+    List<String>? mcpServers,
   }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
@@ -488,6 +489,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       repoRef: repoRef,
       repoCommit: repoCommit,
       additionalRepos: additionalRepos,
+      mcpServers: mcpServers,
     );
   }
 

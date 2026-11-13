@@ -244,6 +244,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Scheduling container and preparing repository…';
 
   @override
+  String get newSessionMcpServers => 'Default MCP servers';
+
+  @override
+  String get newSessionMcpServersHint =>
+      'Tools the session starts with. A server only runs when the machine is set up for it.';
+
+  @override
+  String get newSessionMcpServersNone => 'None enabled';
+
+  @override
+  String get newSessionMcpServersAll => 'All enabled';
+
+  @override
+  String get newSessionMcpGithubActions => 'GitHub Actions';
+
+  @override
+  String get newSessionMcpGithubActionsHint =>
+      'Check CI runs for the repository';
+
+  @override
+  String get newSessionMcpLoki => 'Loki';
+
+  @override
+  String get newSessionMcpLokiHint => 'Query logs from Grafana Loki';
+
+  @override
   String get newSessionPhaseStartingAgent => 'Starting agent…';
 
   @override

@@ -136,6 +136,10 @@ extension SyncSessionOperations on Sync {
     String? repoRef,
     String? repoCommit,
     List<String> additionalRepos = const [],
+
+    /// Default MCP servers for a Kubernetes session; null leaves the choice
+    /// to the daemon (all for a new session, the recorded set on restore).
+    List<String>? mcpServers,
   }) async {
     if (agent == 'har' && spawnBackend == 'kubernetes') {
       throw StateError(
@@ -292,6 +296,7 @@ extension SyncSessionOperations on Sync {
       repoRef: repoRef,
       repoCommit: repoCommit,
       additionalRepos: additionalRepos,
+      mcpServers: mcpServers,
       environmentVariables: envVars,
       // The new-session choice is always known: no resolved profile is the
       // explicit Default, which must not inherit the daemon's own profile.
@@ -461,6 +466,7 @@ extension SyncSessionOperations on Sync {
         repoRef: repoRef,
         repoCommit: repoCommit,
         additionalRepos: additionalRepos,
+        mcpServers: mcpServers,
       );
     }
 
