@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
+import 'package:happy_flutter/core/theme/app_scroll_behavior.dart';
 import 'package:happy_flutter/features/chat/widgets/kubernetes_startup_panel.dart';
 
 Session _session({
@@ -215,6 +216,73 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     expect(podCalls, 2);
   });
+
+  testWidgets(
+    'log tail scrolls under app scroll physics and keeps a reader in place',
+    (tester) async {
+      var logs = List.generate(80, (i) => 'line $i').join('\n');
+      await tester.pumpWidget(
+        MaterialApp(
+          scrollBehavior: const AppScrollBehavior(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: KubernetesStartupPanel(
+                session: _session(lifecycle: 'starting'),
+                pollInterval: const Duration(seconds: 1),
+                loadPod: () async => _pod(phase: 'Running'),
+                loadLogs: () async => SessionPodLogsResponse(
+                  podName: 'happy-s1',
+                  content: logs,
+                  truncated: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      ScrollPosition logPosition() => tester
+          .state<ScrollableState>(
+            find
+                .descendant(
+                  of: find.byKey(const Key('kubernetes-startup-logs')),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          )
+          .position;
+
+      final end = logPosition().maxScrollExtent;
+      expect(end, greaterThan(0));
+      expect(logPosition().pixels, end);
+
+      // Dragging over the selectable text scrolls the log box; the text's
+      // own phantom scrollable must not swallow the drag and spring back.
+      await tester.drag(
+        find.byKey(const Key('kubernetes-startup-logs')),
+        const Offset(0, 120),
+      );
+      await tester.pumpAndSettle();
+      final reading = logPosition().pixels;
+      expect(reading, lessThan(end - 60));
+
+      // New output while reading earlier lines does not yank the view.
+      logs = '$logs\nline 80';
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(logPosition().pixels, reading);
+
+      await tester.pumpWidget(_wrap(const SizedBox()));
+    },
+  );
 
   testWidgets('shows a waiting hint while the container has no logs', (
     tester,

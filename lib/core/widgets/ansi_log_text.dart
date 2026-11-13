@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ui/neutralize_inner_scroll.dart';
 import '../utils/ansi_span_cache.dart';
 
 /// Selectable monospace log output that renders ANSI SGR colours and styles
@@ -8,6 +9,10 @@ import '../utils/ansi_span_cache.dart';
 ///
 /// Parsing goes through [AnsiSpanCache], so polling views that rebuild with
 /// unchanged content reuse the previous spans.
+///
+/// Always placed inside a scroll view: the [SelectableText]'s own phantom
+/// scrollable is neutralized so vertical drags reach that scroll view instead
+/// of bouncing against nothing (see [NeutralizeInnerScroll]).
 class AnsiLogText extends StatelessWidget {
   const AnsiLogText(this.text, {required this.style, super.key});
 
@@ -19,10 +24,12 @@ class AnsiLogText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText.rich(
-      TextSpan(
-        style: style,
-        children: AnsiSpanCache.instance.parse(text, defaultStyle: style),
+    return NeutralizeInnerScroll(
+      child: SelectableText.rich(
+        TextSpan(
+          style: style,
+          children: AnsiSpanCache.instance.parse(text, defaultStyle: style),
+        ),
       ),
     );
   }

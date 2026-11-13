@@ -205,11 +205,14 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
       }
       if (!mounted) return;
       final hadLogs = _logs;
+      // Follow new output only while the reader is at the end; someone who
+      // scrolled up to read an earlier line must not be yanked back down.
+      final follow = !_logScroll.hasClients || _logsAtEnd(_logScroll.position);
       setState(() {
         if (pod != null) _pod = pod;
         if (logs != null && logs.isNotEmpty) _logs = logs;
       });
-      if (_logs != hadLogs) _scrollLogsToEnd();
+      if (_logs != hadLogs && follow) _scrollLogsToEnd();
     } finally {
       _polling = false;
       if (mounted && _active) {
@@ -217,6 +220,9 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
       }
     }
   }
+
+  static bool _logsAtEnd(ScrollPosition position) =>
+      position.pixels >= position.maxScrollExtent - 24;
 
   void _scrollLogsToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
