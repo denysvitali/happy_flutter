@@ -104,13 +104,7 @@ class NewSessionGroupHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Semantics(
       header: true,
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: Text(text, style: AppText.label(theme)),
     );
   }
 }

@@ -1053,10 +1053,13 @@ class _AgentTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? cs.onPrimaryContainer : cs.onSurface,
-                ),
+                style:
+                    AppText.label(
+                      theme,
+                      selected ? cs.onPrimaryContainer : cs.onSurface,
+                    ).copyWith(
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
               ),
             ],
           ),
