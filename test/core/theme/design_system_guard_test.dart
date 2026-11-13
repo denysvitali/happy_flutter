@@ -55,6 +55,9 @@ void main() {
       'app_typography.dart', // legacy mirror of the scale
       // 8sp numeral inside a 14dp running-count dot; 12sp cannot fit.
       'chat_app_bar.dart',
+      // Mermaid label sizes are diagram geometry: the scene is laid out in
+      // its own units (already text-scaled) and then scaled to fit.
+      'chat/markdown/mermaid/',
     },
   );
 
