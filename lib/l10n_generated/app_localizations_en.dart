@@ -59,8 +59,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newSessionAdvanced => 'Advanced options';
 
   @override
-  String get newSessionRecentWorkspace =>
-      'Start a new session in a recent workspace';
+  String get newSessionRecentWorkspace => 'Recent workspaces';
 
   @override
   String get newSessionWorktreeHint =>
@@ -341,6 +340,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get newSessionAdditionalRepos => 'More repositories';
+
+  @override
+  String get newSessionAdditionalReposNone => 'Only the main repository';
 
   @override
   String get newSessionAdditionalReposHelp =>

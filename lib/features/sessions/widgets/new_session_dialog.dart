@@ -46,6 +46,9 @@ enum NewSessionCreateBlocker {
   syncNotReady,
 }
 
+/// Below this width the dialog takes the whole screen.
+const _fullscreenBreakpoint = 600.0;
+
 const _agentIds = [
   'claude',
   'codex',
@@ -287,360 +290,258 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     // Mirrors _AgentPicker's two-column threshold.
     final largeText =
         MediaQuery.textScalerOf(context).scale(AppFontSize.base) > 20;
+    // Phones get the whole screen: a dialog card inside a phone leaves the
+    // form a sliver between its title and its buttons.
+    final fullscreen = MediaQuery.sizeOf(context).width < _fullscreenBreakpoint;
+    final offlineWarning =
+        selectedMachineOffline ||
+        createBlocker == NewSessionCreateBlocker.offlineMachine;
+
+    final body = <Widget>[
+      _SpawnBackendPicker(
+        backends: const ['local', 'kubernetes'],
+        selectedBackend: spawnMode,
+        onSelected: (mode) =>
+            _selectSpawnMode(mode, allMachinesSorted, machineSortNow),
+      ),
+      const SizedBox(height: AppSpacing.xl),
+      _SectionLabel(text: l10n.polishNewSessionWho),
+      const SizedBox(height: AppSpacing.sm),
+      if (largeText)
+        _AgentPicker(
+          selectedAgent: _selectedAgent,
+          onSelected: (agent) => setState(() => _selectedAgent = agent),
+        )
+      else
+        _AgentWrap(
+          selectedAgent: _selectedAgent,
+          onSelected: (agent) => setState(() => _selectedAgent = agent),
+        ),
+      if (_selectedAgent == 'har') ...[
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Host execution · approvals disabled. The model can be '
+          'changed during the conversation. Requires an installed '
+          'har binary and a local daemon with Boxy explicitly '
+          'disabled.',
+          style: AppText.secondary(theme, cs.onSurfaceVariant),
+        ),
+        if (isKubernetes)
+          Text(
+            'Har runs on a machine, not in Kubernetes. Select '
+            'Machine to start it.',
+            style: AppText.secondary(theme, cs.error),
+          ),
+      ],
+      const SizedBox(height: AppSpacing.xl),
+      _SectionLabel(text: l10n.polishNewSessionWhere),
+      const SizedBox(height: AppSpacing.sm),
+      if (machines.isEmpty)
+        Text(
+          isKubernetes && allMachinesSorted.isNotEmpty
+              ? l10n.newSessionNoKubernetesMachines
+              : l10n.newSessionNoMachinesFound,
+          style: AppText.secondary(theme, cs.onSurfaceVariant),
+        )
+      else
+        _MachineDropdown(
+          key: ValueKey('new-session-machine-$spawnMode-$selectedMachineId'),
+          machines: machines,
+          selectedMachineId: selectedMachineId,
+          isKubernetes: isKubernetes,
+          nowMs: machineSortNow,
+          onChanged: (value) {
+            if (value != null) {
+              final m = allMachines[value];
+              if (m != null && !m.isOnlineAt(machineSortNow)) return;
+            }
+            setState(() {
+              if (_selectedMachine != value) {
+                _selectedPath = null;
+                _selectedRepoUrl = null;
+              }
+              // Keep the mode the list was filtered by.
+              _spawnMode = spawnMode;
+              _spawnModeTouched = true;
+              _selectedMachine = value;
+            });
+          },
+        ),
+      if (offlineWarning) ...[
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          l10n.machineOfflineHelp,
+          style: AppText.secondary(theme, cs.onSurfaceVariant),
+        ),
+      ],
+      const SizedBox(height: AppSpacing.lg),
+      if (!isKubernetes) ...[
+        if (!largeText)
+          _RecentWorkspaceCards(
+            machineId: selectedMachineId,
+            machineLabel: selectedMachineObj?.displayLabel,
+            selectedPath: _selectedPath,
+            onSelected: (path) => setState(() {
+              _selectedPath = path;
+              _createError = null;
+            }),
+          ),
+        _PathField(
+          machineId: selectedMachineId,
+          selectedPath: _selectedPath,
+          onChanged: (value) => setState(() {
+            _selectedPath = value;
+            _createError = null;
+          }),
+          onSelected: (value) => setState(() {
+            _selectedPath = value;
+            _createError = null;
+          }),
+        ),
+        // Large text: the expandable list wraps long paths better than
+        // the one-tap cards.
+        if (largeText)
+          _RecentWorkspacePicker(
+            machineId: selectedMachineId,
+            selectedPath: _selectedPath,
+            onSelected: (path) => setState(() {
+              _selectedPath = path;
+              _createError = null;
+            }),
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        _NewSessionAdvancedOptions(
+          sessionType: _sessionType,
+          onSessionTypeChanged: (value) => setState(() => _sessionType = value),
+        ),
+      ],
+      if (isKubernetes) ...[
+        KubernetesRepositorySection(
+          key: ValueKey('k8s-repos-$selectedMachineId'),
+          initialRepoUrl: widget.initialRepositoryUrl,
+          initialRepoRef: widget.initialRepositoryRef,
+          suggestedRepoUrls: _repositoryUrlsForMachine(
+            ref.watch(sessionsNotifierProvider),
+            selectedMachineId,
+          ),
+          enabled: !_isCreating,
+          rejectedRef: _rejectedRepoRef,
+          lookupBranches: selectedMachineId == null
+              ? null
+              : (repoUrl, ref) => sync.machineRepoBranches(
+                  machineId: selectedMachineId,
+                  repoUrl: repoUrl,
+                  ref: ref,
+                ),
+          onChanged: (selection) {
+            if (!mounted) return;
+            setState(() {
+              _selectedRepoUrl = selection.repoUrl;
+              _selectedRepoRef = selection.repoRef;
+              _additionalRepos = selection.additionalRepos;
+              _repoRefMissing = selection.refMissing;
+              _createError = null;
+            });
+          },
+        ),
+        if (supportsDefaultMcpServers(_selectedAgent))
+          KubernetesMcpSection(
+            selected: _mcpServers,
+            enabled: !_isCreating,
+            onChanged: (selected) => setState(() => _mcpServers = selected),
+          ),
+      ],
+    ];
+
+    final footer = _NewSessionFooter(
+      blocker: createBlocker,
+      offlineWarning: offlineWarning,
+      error: _createError,
+      creationPhase: _isCreating ? _creationPhase : null,
+      actions: [
+        TextButton(
+          onPressed: _isCreating ? null : () => Navigator.pop(context),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButtonTheme(
+          data: FilledButtonThemeData(
+            style: FilledButton.styleFrom(
+              shape: const StadiumBorder(),
+              minimumSize: const Size(120, AppTouchTarget.comfortable),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+            ),
+          ),
+          child: _CreateButton(
+            isCreating: _isCreating,
+            onPressed: createBlocker == null
+                ? () => _createSession(context)
+                : null,
+            label: l10n.commonCreate,
+            tooltip: createBlocker == null
+                ? null
+                : _dialogRequirementText(l10n, createBlocker),
+          ),
+        ),
+      ],
+    );
+
+    final scrollingBody = SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.sm,
+        AppSpacing.xxl,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: body,
+      ),
+    );
+
+    final layout = Column(
+      mainAxisSize: fullscreen ? MainAxisSize.max : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl,
+            AppSpacing.xl,
+            AppSpacing.xxl,
+            AppSpacing.md,
+          ),
+          child: _NewSessionHeading(title: l10n.polishNewSessionTitle),
+        ),
+        if (fullscreen)
+          Expanded(child: scrollingBody)
+        else
+          Flexible(child: scrollingBody),
+        Divider(height: 1, color: cs.outlineVariant),
+        footer,
+      ],
+    );
 
     return PopScope(
       canPop: !_isCreating,
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xxxl),
-        ),
-        titlePadding: const EdgeInsets.fromLTRB(
-          AppSpacing.xxl,
-          AppSpacing.xxl,
-          AppSpacing.xxl,
-          AppSpacing.md,
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(
-          AppSpacing.xxl,
-          AppSpacing.sm,
-          AppSpacing.xxl,
-          AppSpacing.xl,
-        ),
-        constraints: BoxConstraints(
-          maxWidth: 560,
-          maxHeight:
-              (MediaQuery.sizeOf(context).height -
-                  MediaQuery.viewInsetsOf(context).bottom) *
-              0.9,
-        ),
-        insetPadding: const EdgeInsets.all(AppSpacing.lg),
-        title: _NewSessionHeading(title: l10n.polishNewSessionTitle),
-        content: SizedBox(
-          width: 480,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SpawnBackendPicker(
-                  backends: const ['local', 'kubernetes'],
-                  selectedBackend: spawnMode,
-                  onSelected: (mode) =>
-                      _selectSpawnMode(mode, allMachinesSorted, machineSortNow),
+      child: fullscreen
+          ? Dialog.fullscreen(child: SafeArea(child: layout))
+          : Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.xxxl),
+              ),
+              clipBehavior: Clip.antiAlias,
+              insetPadding: const EdgeInsets.all(AppSpacing.lg),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 560,
+                  maxHeight:
+                      (MediaQuery.sizeOf(context).height -
+                          MediaQuery.viewInsetsOf(context).bottom) *
+                      0.9,
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                _SectionLabel(text: l10n.polishNewSessionWho),
-                const SizedBox(height: AppSpacing.sm),
-                if (largeText)
-                  _AgentPicker(
-                    selectedAgent: _selectedAgent,
-                    onSelected: (agent) =>
-                        setState(() => _selectedAgent = agent),
-                  )
-                else
-                  _AgentStrip(
-                    selectedAgent: _selectedAgent,
-                    onSelected: (agent) =>
-                        setState(() => _selectedAgent = agent),
-                  ),
-                if (_selectedAgent == 'har') ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Host execution · approvals disabled. The model can be '
-                    'changed during the conversation. Requires an installed '
-                    'har binary and a local daemon with Boxy explicitly '
-                    'disabled.',
-                    style: AppText.secondary(theme, cs.onSurfaceVariant),
-                  ),
-                  if (isKubernetes)
-                    Text(
-                      'Har runs on a machine, not in Kubernetes. Select '
-                      'Machine to start it.',
-                      style: AppText.secondary(theme, cs.error),
-                    ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                _SectionLabel(text: l10n.polishNewSessionWhere),
-                const SizedBox(height: AppSpacing.sm),
-                if (!isKubernetes && !largeText)
-                  _RecentWorkspaceCards(
-                    machineId: selectedMachineId,
-                    machineLabel: selectedMachineObj?.displayLabel,
-                    selectedPath: _selectedPath,
-                    onSelected: (path) => setState(() {
-                      _selectedPath = path;
-                      _createError = null;
-                    }),
-                  ),
-                if (!isKubernetes && !largeText && machines.isNotEmpty) ...[
-                  Text(
-                    l10n.polishNewSessionOtherFolder,
-                    style: AppText.secondary(theme, cs.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                if (machines.isEmpty)
-                  Text(
-                    isKubernetes && allMachinesSorted.isNotEmpty
-                        ? l10n.newSessionNoKubernetesMachines
-                        : l10n.newSessionNoMachinesFound,
-                  )
-                else
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(
-                      'new-session-machine-$spawnMode-$selectedMachineId',
-                    ),
-                    decoration: InputDecoration(
-                      labelText: isKubernetes
-                          ? l10n.newSessionKubernetesDaemon
-                          : l10n.sessionMachine,
-                    ),
-                    initialValue: selectedMachineId,
-                    isExpanded: true,
-                    selectedItemBuilder: (context) => [
-                      Text(
-                        l10n.sessionSelectMachine,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      ...machines.map(
-                        (machine) => Text(
-                          machine.displayLabel,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(l10n.sessionSelectMachine),
-                      ),
-                      ...machines.map((machine) {
-                        final online = machine.isOnlineAt(machineSortNow);
-                        return DropdownMenuItem(
-                          value: machine.id,
-                          enabled: online,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AppStatusDot(
-                                color: online
-                                    ? AppColors.success
-                                    : cs.onSurfaceVariant,
-                                size: 8,
-                                semanticLabel: online
-                                    ? l10n.machineOnline
-                                    : l10n.machineOffline,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Flexible(
-                                child: Text(
-                                  machine.displayLabel,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: online
-                                      ? null
-                                      : theme.textTheme.bodyMedium?.copyWith(
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                ),
-                              ),
-                              if (!online) ...[
-                                const SizedBox(width: AppSpacing.sm),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm,
-                                    vertical: AppSpacing.xxs,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: cs.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.xs,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    l10n.machineOffline,
-                                    style: AppText.secondary(
-                                      theme,
-                                      cs.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        final m = allMachines[value];
-                        if (m != null && !m.isOnlineAt(machineSortNow)) {
-                          return;
-                        }
-                      }
-                      setState(() {
-                        if (_selectedMachine != value) {
-                          _selectedPath = null;
-                          _selectedRepoUrl = null;
-                        }
-                        // Keep the mode the list was filtered by.
-                        _spawnMode = spawnMode;
-                        _spawnModeTouched = true;
-                        _selectedMachine = value;
-                      });
-                    },
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-                if (!isKubernetes) ...[
-                  _PathField(
-                    machineId: selectedMachineId,
-                    selectedPath: _selectedPath,
-                    onChanged: (value) => setState(() {
-                      _selectedPath = value;
-                      _createError = null;
-                    }),
-                    onSelected: (value) => setState(() {
-                      _selectedPath = value;
-                      _createError = null;
-                    }),
-                  ),
-                  // Large text: the expandable list wraps long paths better
-                  // than the one-tap cards above.
-                  if (largeText)
-                    _RecentWorkspacePicker(
-                      machineId: selectedMachineId,
-                      selectedPath: _selectedPath,
-                      onSelected: (path) => setState(() {
-                        _selectedPath = path;
-                        _createError = null;
-                      }),
-                    ),
-                ],
-                if (isKubernetes)
-                  KubernetesRepositorySection(
-                    key: ValueKey('k8s-repos-$selectedMachineId'),
-                    initialRepoUrl: widget.initialRepositoryUrl,
-                    initialRepoRef: widget.initialRepositoryRef,
-                    suggestedRepoUrls: _repositoryUrlsForMachine(
-                      ref.watch(sessionsNotifierProvider),
-                      selectedMachineId,
-                    ),
-                    enabled: !_isCreating,
-                    rejectedRef: _rejectedRepoRef,
-                    lookupBranches: selectedMachineId == null
-                        ? null
-                        : (repoUrl, ref) => sync.machineRepoBranches(
-                            machineId: selectedMachineId,
-                            repoUrl: repoUrl,
-                            ref: ref,
-                          ),
-                    onChanged: (selection) {
-                      if (!mounted) return;
-                      setState(() {
-                        _selectedRepoUrl = selection.repoUrl;
-                        _selectedRepoRef = selection.repoRef;
-                        _additionalRepos = selection.additionalRepos;
-                        _repoRefMissing = selection.refMissing;
-                        _createError = null;
-                      });
-                    },
-                  ),
-                if (isKubernetes && supportsDefaultMcpServers(_selectedAgent))
-                  KubernetesMcpSection(
-                    selected: _mcpServers,
-                    enabled: !_isCreating,
-                    onChanged: (selected) =>
-                        setState(() => _mcpServers = selected),
-                  ),
-                if (!isKubernetes) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _NewSessionAdvancedOptions(
-                    sessionType: _sessionType,
-                    onSessionTypeChanged: (value) =>
-                        setState(() => _sessionType = value),
-                  ),
-                ],
-                if (createBlocker != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _DialogRequirementStatus(
-                    blocker: createBlocker,
-                    selectedMachineOffline: selectedMachineOffline,
-                  ),
-                  if (selectedMachineOffline ||
-                      createBlocker ==
-                          NewSessionCreateBlocker.offlineMachine) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Padding(
-                      padding: const EdgeInsets.only(left: AppSpacing.xl),
-                      child: Text(
-                        l10n.machineOfflineHelp,
-                        style: AppText.secondary(theme, cs.onSurfaceVariant),
-                      ),
-                    ),
-                  ],
-                ],
-                if (createBlocker == null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _DialogRequirementStatus(
-                    blocker: null,
-                    selectedMachineOffline: false,
-                  ),
-                ],
-                if (_createError != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      _createError!,
-                      style: AppText.secondary(theme, cs.error),
-                    ),
-                  ),
-                ],
-                if (_isCreating && _creationPhase != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Semantics(
-                    liveRegion: true,
-                    child: Row(
-                      children: [
-                        const SizedBox.square(
-                          dimension: AppIconSize.md,
-                          child: AppCircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: Text(_creationPhase!)),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isCreating ? null : () => Navigator.pop(context),
-            child: Text(l10n.commonCancel),
-          ),
-          FilledButtonTheme(
-            data: FilledButtonThemeData(
-              style: FilledButton.styleFrom(
-                shape: const StadiumBorder(),
-                minimumSize: const Size(120, AppTouchTarget.comfortable),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                child: layout,
               ),
             ),
-            child: _CreateButton(
-              isCreating: _isCreating,
-              onPressed: createBlocker == null
-                  ? () => _createSession(context)
-                  : null,
-              label: l10n.commonCreate,
-              tooltip: createBlocker == null
-                  ? null
-                  : _dialogRequirementText(l10n, createBlocker),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1085,9 +986,10 @@ class _WorkspaceCard extends StatelessWidget {
   }
 }
 
-/// One scrolling row of agent pills ("who"), remembered between dialogs.
-class _AgentStrip extends StatelessWidget {
-  const _AgentStrip({required this.selectedAgent, required this.onSelected});
+/// Every agent as a wrapping row of pills ("who"), remembered between
+/// dialogs. Wrapping instead of scrolling keeps every choice visible.
+class _AgentWrap extends StatelessWidget {
+  const _AgentWrap({required this.selectedAgent, required this.onSelected});
 
   final String selectedAgent;
   final ValueChanged<String> onSelected;
@@ -1098,51 +1000,225 @@ class _AgentStrip extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return FocusTraversalGroup(
       policy: AppReadingOrderTraversalPolicy(),
-      child: SingleChildScrollView(
-        key: const PageStorageKey('new-session-agent-strip'),
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final agent in _agentIds)
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
-                child: Semantics(
-                  label: _agentLabel(l10n, agent),
-                  button: true,
-                  selected: agent == selectedAgent,
-                  inMutuallyExclusiveGroup: true,
-                  excludeSemantics: true,
-                  onTap: () => onSelected(agent),
-                  child: ChoiceChip(
-                    label: Text(_agentLabel(l10n, agent)),
-                    avatar: ExcludeSemantics(
-                      child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
-                    ),
-                    selected: agent == selectedAgent,
-                    showCheckmark: false,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: AppSpacing.sm,
-                    ),
-                    shape: const StadiumBorder(),
-                    side: BorderSide(
-                      color: agent == selectedAgent
-                          ? cs.primary
-                          : cs.outlineVariant.withValues(
-                              alpha: AppOpacity.medium,
-                            ),
-                    ),
-                    color: WidgetStateProperty.resolveWith(
-                      (states) => states.contains(WidgetState.selected)
-                          ? cs.primaryContainer
-                          : cs.surfaceContainerHigh,
-                    ),
-                    onSelected: (_) => onSelected(agent),
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: [
+          for (final agent in _agentIds)
+            Semantics(
+              label: _agentLabel(l10n, agent),
+              button: true,
+              selected: agent == selectedAgent,
+              inMutuallyExclusiveGroup: true,
+              excludeSemantics: true,
+              onTap: () => onSelected(agent),
+              child: ChoiceChip(
+                label: Text(_agentLabel(l10n, agent)),
+                avatar: ExcludeSemantics(
+                  child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
+                ),
+                selected: agent == selectedAgent,
+                showCheckmark: false,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.sm,
+                ),
+                shape: const StadiumBorder(),
+                side: BorderSide(
+                  color: agent == selectedAgent
+                      ? cs.primary
+                      : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
+                ),
+                color: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? cs.primaryContainer
+                      : cs.surfaceContainerHigh,
+                ),
+                onSelected: (_) => onSelected(agent),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The daemon that spawns the session. Offline daemons stay listed but
+/// cannot be chosen.
+class _MachineDropdown extends StatelessWidget {
+  const _MachineDropdown({
+    required this.machines,
+    required this.selectedMachineId,
+    required this.isKubernetes,
+    required this.nowMs,
+    required this.onChanged,
+    super.key,
+  });
+
+  final List<Machine> machines;
+  final String? selectedMachineId;
+  final bool isKubernetes;
+  final int nowMs;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: isKubernetes
+            ? l10n.newSessionKubernetesDaemon
+            : l10n.sessionMachine,
+        prefixIcon: Icon(
+          isKubernetes ? Icons.cloud_queue_outlined : Icons.computer_outlined,
+        ),
+      ),
+      initialValue: selectedMachineId,
+      isExpanded: true,
+      selectedItemBuilder: (context) => [
+        Text(l10n.sessionSelectMachine, overflow: TextOverflow.ellipsis),
+        ...machines.map(
+          (machine) =>
+              Text(machine.displayLabel, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+      items: [
+        DropdownMenuItem(value: null, child: Text(l10n.sessionSelectMachine)),
+        ...machines.map((machine) {
+          final online = machine.isOnlineAt(nowMs);
+          return DropdownMenuItem(
+            value: machine.id,
+            enabled: online,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppStatusDot(
+                  color: online ? AppColors.success : cs.onSurfaceVariant,
+                  size: 8,
+                  semanticLabel: online
+                      ? l10n.machineOnline
+                      : l10n.machineOffline,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    machine.displayLabel,
+                    overflow: TextOverflow.ellipsis,
+                    style: online
+                        ? null
+                        : theme.textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
                   ),
                 ),
-              ),
+                if (!online) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    l10n.machineOffline,
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// Pinned below the form: what still blocks Create (or the creation
+/// progress, or the last error) next to the buttons it explains.
+class _NewSessionFooter extends StatelessWidget {
+  const _NewSessionFooter({
+    required this.blocker,
+    required this.offlineWarning,
+    required this.error,
+    required this.creationPhase,
+    required this.actions,
+  });
+
+  final NewSessionCreateBlocker? blocker;
+  final bool offlineWarning;
+  final String? error;
+  final String? creationPhase;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final phase = creationPhase;
+    final failure = error;
+    final Widget status;
+    if (phase != null) {
+      status = Semantics(
+        liveRegion: true,
+        child: Row(
+          children: [
+            const SizedBox.square(
+              dimension: AppIconSize.md,
+              child: AppCircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(phase, style: AppText.secondary(theme, cs.onSurface)),
+            ),
           ],
         ),
+      );
+    } else if (failure != null) {
+      status = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(
+            child: Icon(
+              Icons.error_outline_rounded,
+              size: AppIconSize.md,
+              color: cs.error,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(failure, style: AppText.secondary(theme, cs.error)),
+            ),
+          ),
+        ],
+      );
+    } else {
+      status = _DialogRequirementStatus(
+        blocker: blocker,
+        selectedMachineOffline: offlineWarning,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.md,
+        AppSpacing.xxl,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          status,
+          const SizedBox(height: AppSpacing.md),
+          // Wraps rather than overflows with very large text.
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: actions,
+          ),
+        ],
       ),
     );
   }

@@ -164,50 +164,34 @@ class _AgentPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            l10n.sessionsAgent,
-            style: AppText.label(theme, cs.onSurfaceVariant),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        FocusTraversalGroup(
-          policy: AppReadingOrderTraversalPolicy(),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final twoColumns =
-                  constraints.maxWidth >= 320 &&
-                  MediaQuery.textScalerOf(context).scale(14) <= 20;
-              final width = twoColumns
-                  ? (constraints.maxWidth - AppSpacing.sm) / 2
-                  : constraints.maxWidth;
-              return Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  for (final agent in _agentIds)
-                    SizedBox(
-                      width: width,
-                      child: _AgentOption(
-                        label: _agentLabel(l10n, agent),
-                        agent: agent,
-                        selected: agent == selectedAgent,
-                        onTap: () => onSelected(agent),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
+    return FocusTraversalGroup(
+      policy: AppReadingOrderTraversalPolicy(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final twoColumns =
+              constraints.maxWidth >= 320 &&
+              MediaQuery.textScalerOf(context).scale(14) <= 20;
+          final width = twoColumns
+              ? (constraints.maxWidth - AppSpacing.sm) / 2
+              : constraints.maxWidth;
+          return Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final agent in _agentIds)
+                SizedBox(
+                  width: width,
+                  child: _AgentOption(
+                    label: _agentLabel(l10n, agent),
+                    agent: agent,
+                    selected: agent == selectedAgent,
+                    onTap: () => onSelected(agent),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

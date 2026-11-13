@@ -90,6 +90,12 @@ void main() {
     return container;
   }
 
+  /// Further repositories are folded away until asked for.
+  Future<void> expandMoreRepositories(WidgetTester tester) async {
+    await tester.tap(find.text('More repositories'));
+    await tester.pumpAndSettle();
+  }
+
   String fieldText(WidgetTester tester, String key) =>
       tester.widget<TextFormField>(find.byKey(Key(key))).controller!.text;
 
@@ -157,8 +163,9 @@ void main() {
     seed.dispose();
 
     await pump(tester, lookup: null);
-    // Recent repositories are one tap away, newest first.
-    expect(find.text('acme/other'), findsWidgets);
+    // Recent repositories are one tap away, labelled by name.
+    expect(find.text('other'), findsOneWidget);
+    expect(find.byTooltip('acme/other'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('repo-suggestion-acme/legacy')));
     await tester.pumpAndSettle();
 
@@ -172,6 +179,8 @@ void main() {
     tester,
   ) async {
     await pump(tester, url: 'https://github.com/acme/legacy', ref: 'master');
+    expect(find.text('Only the main repository'), findsOneWidget);
+    await expandMoreRepositories(tester);
     final field = find.byKey(const Key('k8s-additional-repo'));
 
     await tester.enterText(field, 'acme/docs');
@@ -206,6 +215,7 @@ void main() {
       url: 'https://github.com/acme/legacy',
       ref: 'master',
     );
+    await expandMoreRepositories(tester);
     await tester.enterText(
       find.byKey(const Key('k8s-additional-repo')),
       'acme/docs',
