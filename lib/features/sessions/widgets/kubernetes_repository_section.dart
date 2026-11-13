@@ -553,6 +553,8 @@ class _KubernetesRepositorySectionState
           header: widget.optionsHeader,
           children: [
             ExpansionTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
               key: const Key('k8s-additional-repos'),
               tilePadding: kNewSessionTilePadding,
               shape: const Border(),

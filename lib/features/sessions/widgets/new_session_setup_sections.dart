@@ -15,6 +15,8 @@ class _NewSessionAdvancedOptions extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     return ExpansionTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
       key: const PageStorageKey('new-session-advanced'),
       tilePadding: kNewSessionTilePadding,
       childrenPadding: const EdgeInsets.fromLTRB(

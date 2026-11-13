@@ -1182,7 +1182,9 @@ void main() {
       expect(find.byType(SegmentedButton<String>), findsOneWidget);
       expect(
         tester.getTopLeft(find.text('Kubernetes')).dy,
-        lessThan(tester.getTopLeft(find.text('Agent')).dy),
+        lessThan(
+          tester.getTopLeft(find.widgetWithText(ChoiceChip, 'Claude')).dy,
+        ),
       );
       expect(find.text('Worktree'), findsNothing);
       await tester.tap(find.text('Advanced options'));
