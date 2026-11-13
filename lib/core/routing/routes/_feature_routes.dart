@@ -20,6 +20,26 @@ List<RouteBase> get featureRoutes => [
     },
   ),
   GoRoute(
+    path: '/inbox/:sessionId/:messageId',
+    name: 'inbox-message',
+    pageBuilder: (context, state) {
+      final sessionId = _pathParameter(state, 'sessionId');
+      final messageId = _pathParameter(state, 'messageId');
+      if (sessionId == null) {
+        return _missingPathParameterPage(state, 'sessionId');
+      }
+      if (messageId == null) {
+        return _missingPathParameterPage(state, 'messageId');
+      }
+      return _slidePage(
+        AuthGate(
+          child: InboxMessageScreen(sessionId: sessionId, messageId: messageId),
+        ),
+        state,
+      );
+    },
+  ),
+  GoRoute(
     path: '/kubernetes',
     name: 'kubernetes',
     pageBuilder: (context, state) =>

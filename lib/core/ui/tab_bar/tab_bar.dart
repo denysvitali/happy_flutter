@@ -15,7 +15,11 @@ import '../../theme/app_tokens.dart';
 part 'tab_bar_layout.dart';
 
 /// Tab type for the app
-enum AppTab { sessions, loops, providers, settings }
+enum AppTab { sessions, inbox, loops, providers, settings }
+
+/// Destinations that surface a numeric badge: active loops and unread
+/// high-priority inbox messages.
+bool appTabShowsBadge(AppTab tab) => tab == AppTab.loops || tab == AppTab.inbox;
 
 const double _tabIconExtent = AppIconSize.tab + AppSpacing.xs;
 
@@ -117,7 +121,7 @@ class _TabItem extends StatefulWidget {
   final int badgeCount;
 
   /// Whether to paint the badge for this tab. Centralized so only
-  /// specific tab keys (currently [AppTab.loops]) can display a badge,
+  /// specific tab keys (see [appTabShowsBadge]) can display a badge,
   /// even when [badgeCounts] contains entries for other tabs.
   final bool showBadge;
 
@@ -352,6 +356,12 @@ const appTabs = <AppTabInfo>[
     label: 'Sessions',
   ),
   AppTabInfo(
+    key: AppTab.inbox,
+    icon: Icons.inbox_outlined,
+    activeIcon: Icons.inbox,
+    label: 'Inbox',
+  ),
+  AppTabInfo(
     key: AppTab.loops,
     icon: Icons.repeat_outlined,
     activeIcon: Icons.repeat,
@@ -373,6 +383,7 @@ const appTabs = <AppTabInfo>[
 
 String _labelForTab(AppTab tab, AppLocalizations l10n) => switch (tab) {
   AppTab.sessions => l10n.sessionHistoryTitle,
+  AppTab.inbox => l10n.tabsInbox,
   AppTab.loops => l10n.tabsLoops,
   AppTab.providers => l10n.tabsProviders,
   AppTab.settings => l10n.tabsSettings,
@@ -459,7 +470,7 @@ class _TabBarState extends State<TabBar> {
                   horizontal: layout.horizontal,
                   onTap: () => widget.onTabPress(tab.key),
                   badgeCount: widget.badgeCounts[tab.key] ?? 0,
-                  showBadge: tab.key == AppTab.loops,
+                  showBadge: appTabShowsBadge(tab.key),
                 ),
             ];
             return SizedBox(
@@ -549,7 +560,7 @@ class CompactTabBar extends StatelessWidget {
       children: appTabs.map((tab) {
         final isActive = activeTab == tab.key;
         final count = badgeCounts[tab.key] ?? 0;
-        final showBadge = tab.key == AppTab.loops && count > 0;
+        final showBadge = appTabShowsBadge(tab.key) && count > 0;
         final label = _labelForTab(tab.key, l10n);
         return Semantics(
           selected: isActive,

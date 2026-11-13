@@ -60,6 +60,7 @@ class _AppSidebarState extends State<AppSidebar> {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.inbox => l10n.tabsInbox,
       AppTab.loops => l10n.tabsLoops,
       AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
@@ -150,7 +151,7 @@ class _SidebarItem extends StatelessWidget {
     final inactiveColor = cs.onSurface.withValues(alpha: AppOpacity.half);
     final itemColor = isActive ? activeColor : inactiveColor;
 
-    final hasBadge = tab.key == AppTab.loops && badgeCount > 0;
+    final hasBadge = appTabShowsBadge(tab.key) && badgeCount > 0;
     final iconWidget = Badge(
       isLabelVisible: hasBadge,
       label: Text(badgeCount > 9 ? '9+' : '$badgeCount'),

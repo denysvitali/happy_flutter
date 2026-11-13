@@ -26,6 +26,8 @@ import '../../core/widgets/desktop_update_banner.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../chat/chat_screen.dart';
+import '../inbox/inbox_providers.dart';
+import '../inbox/inbox_screen.dart';
 import '../loops/all_loops_screen.dart';
 import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
@@ -173,6 +175,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (mounted) setState(() {});
   }
 
+  @override
+  void didUpdateWidget(SessionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // `go('/?tab=inbox')` (an Inbox notification tap) reuses this page;
+    // follow the requested tab instead of keeping the previous one.
+    final requested = widget.initialTab;
+    if (requested == null || requested == oldWidget.initialTab) return;
+    final tab = _parseTab(requested);
+    if (tab == _activeTab) return;
+    _activeTab = tab;
+    _builtTabs.add(tab);
+  }
+
   AppTab _parseTab(String? tab) => AppTab.values.firstWhere(
     (value) => value.name == tab,
     orElse: () => AppTab.sessions,
@@ -251,10 +266,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         : switch (_activeTab) {
             AppTab.sessions => _buildSessionsAppBar(context),
             AppTab.settings => AppBar(title: Text(l10n.settingsTitle)),
-            AppTab.loops || AppTab.providers => null,
+            AppTab.inbox || AppTab.loops || AppTab.providers => null,
           };
     final sidebarCollapsed = ref.watch(sidebarCollapsedProvider);
-    final badgeCounts = <AppTab, int>{AppTab.loops: totalActiveLoops};
+    final badgeCounts = <AppTab, int>{
+      AppTab.inbox: ref.watch(inboxUnreadCountProvider),
+      AppTab.loops: totalActiveLoops,
+    };
 
     final tabContent = Column(
       children: [
@@ -527,6 +545,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             onCreateSessionOnMachine: (machineId) =>
                 _showNewSessionDialog(context, initialMachineId: machineId),
           ),
+        ),
+        TickerMode(
+          enabled: _activeTab == AppTab.inbox,
+          child: _builtTabs.contains(AppTab.inbox)
+              ? const InboxView()
+              : const SizedBox.shrink(),
         ),
         TickerMode(
           enabled: _activeTab == AppTab.loops,

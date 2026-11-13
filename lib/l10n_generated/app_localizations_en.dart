@@ -6562,4 +6562,103 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subSessionStateReady => 'Ready';
+
+  @override
+  String get tabsInbox => 'Inbox';
+
+  @override
+  String get inboxTitle => 'Inbox';
+
+  @override
+  String get inboxSubtitle =>
+      'Only goals reached, decisions and blockers from your agents.';
+
+  @override
+  String get inboxFolderInbox => 'Inbox';
+
+  @override
+  String get inboxFolderDone => 'Done';
+
+  @override
+  String get inboxEmptyTitle => 'You\'re all caught up';
+
+  @override
+  String get inboxEmptyBody =>
+      'Agents write here only when they reach a goal or need a decision from you.';
+
+  @override
+  String get inboxDoneEmptyTitle => 'Nothing marked done';
+
+  @override
+  String get inboxDoneEmptyBody => 'Messages you mark as done are kept here.';
+
+  @override
+  String get inboxSelectMessage => 'Select a message to read it';
+
+  @override
+  String get inboxKindGoalReached => 'Goal reached';
+
+  @override
+  String get inboxKindQuestion => 'Question';
+
+  @override
+  String get inboxKindBlocked => 'Blocked';
+
+  @override
+  String get inboxNeedsReply => 'Needs reply';
+
+  @override
+  String get inboxReplied => 'Replied';
+
+  @override
+  String get inboxMarkDone => 'Mark as done';
+
+  @override
+  String get inboxMoveToInbox => 'Move to Inbox';
+
+  @override
+  String get inboxMarkUnread => 'Mark as unread';
+
+  @override
+  String get inboxOpenSession => 'Open session';
+
+  @override
+  String inboxReplyHint(String name) {
+    return 'Reply to $name…';
+  }
+
+  @override
+  String get inboxSuggestedReplies => 'Suggested replies';
+
+  @override
+  String get inboxSend => 'Send reply';
+
+  @override
+  String inboxReplySent(String name) {
+    return 'Reply sent to $name';
+  }
+
+  @override
+  String get inboxReplyFailed => 'Couldn\'t send your reply. Try again.';
+
+  @override
+  String get inboxYou => 'You';
+
+  @override
+  String get inboxToYou => 'to you';
+
+  @override
+  String get inboxMessageMissing => 'This message is no longer available.';
+
+  @override
+  String get inboxArchivedSession => 'Archived session';
+
+  @override
+  String get inboxMarkedDone => 'Marked as done';
+
+  @override
+  String get inboxUndo => 'Undo';
+
+  @override
+  String get inboxUnread => 'Unread';
 }

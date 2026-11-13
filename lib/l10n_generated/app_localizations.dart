@@ -11234,6 +11234,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ready'**
   String get subSessionStateReady;
+
+  /// Bottom-nav / sidebar label for the agent Inbox tab
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get tabsInbox;
+
+  /// Inbox screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get inboxTitle;
+
+  /// Inbox header caption explaining what lands there
+  ///
+  /// In en, this message translates to:
+  /// **'Only goals reached, decisions and blockers from your agents.'**
+  String get inboxSubtitle;
+
+  /// Inbox folder segment: open messages
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get inboxFolderInbox;
+
+  /// Inbox folder segment: messages filed as done
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get inboxFolderDone;
+
+  /// Inbox empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all caught up'**
+  String get inboxEmptyTitle;
+
+  /// Inbox empty state body
+  ///
+  /// In en, this message translates to:
+  /// **'Agents write here only when they reach a goal or need a decision from you.'**
+  String get inboxEmptyBody;
+
+  /// Done folder empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing marked done'**
+  String get inboxDoneEmptyTitle;
+
+  /// Done folder empty state body
+  ///
+  /// In en, this message translates to:
+  /// **'Messages you mark as done are kept here.'**
+  String get inboxDoneEmptyBody;
+
+  /// Inbox detail pane placeholder on wide screens
+  ///
+  /// In en, this message translates to:
+  /// **'Select a message to read it'**
+  String get inboxSelectMessage;
+
+  /// Inbox message kind label
+  ///
+  /// In en, this message translates to:
+  /// **'Goal reached'**
+  String get inboxKindGoalReached;
+
+  /// Inbox message kind label
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get inboxKindQuestion;
+
+  /// Inbox message kind label
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get inboxKindBlocked;
+
+  /// Inbox badge for an unanswered question or blocker
+  ///
+  /// In en, this message translates to:
+  /// **'Needs reply'**
+  String get inboxNeedsReply;
+
+  /// Inbox badge after the user replied
+  ///
+  /// In en, this message translates to:
+  /// **'Replied'**
+  String get inboxReplied;
+
+  /// Inbox action: file the message as done
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as done'**
+  String get inboxMarkDone;
+
+  /// Inbox action: restore a done message
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Inbox'**
+  String get inboxMoveToInbox;
+
+  /// Inbox action
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as unread'**
+  String get inboxMarkUnread;
+
+  /// Inbox action: open the sending session's chat
+  ///
+  /// In en, this message translates to:
+  /// **'Open session'**
+  String get inboxOpenSession;
+
+  /// Inbox reply composer placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'Reply to {name}…'**
+  String inboxReplyHint(String name);
+
+  /// Header above the agent's suggested answers
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested replies'**
+  String get inboxSuggestedReplies;
+
+  /// Inbox reply send button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Send reply'**
+  String get inboxSend;
+
+  /// Snack after an Inbox reply was delivered
+  ///
+  /// In en, this message translates to:
+  /// **'Reply sent to {name}'**
+  String inboxReplySent(String name);
+
+  /// Snack when an Inbox reply failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send your reply. Try again.'**
+  String get inboxReplyFailed;
+
+  /// Sender label for the user's own reply
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get inboxYou;
+
+  /// Recipient line under the sender name
+  ///
+  /// In en, this message translates to:
+  /// **'to you'**
+  String get inboxToYou;
+
+  /// Shown when an Inbox deep link points at a removed message
+  ///
+  /// In en, this message translates to:
+  /// **'This message is no longer available.'**
+  String get inboxMessageMissing;
+
+  /// Badge when the sending session is archived
+  ///
+  /// In en, this message translates to:
+  /// **'Archived session'**
+  String get inboxArchivedSession;
+
+  /// Snack after filing a message
+  ///
+  /// In en, this message translates to:
+  /// **'Marked as done'**
+  String get inboxMarkedDone;
+
+  /// Snack action to undo marking done
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get inboxUndo;
+
+  /// Screen-reader prefix for an unread Inbox row
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get inboxUnread;
 }
 
 class _AppLocalizationsDelegate

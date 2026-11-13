@@ -767,6 +767,16 @@ class NotificationService {
     if (_router == null) return;
 
     final sessionId = data['sessionId'] as String?;
+    // Inbox pushes open the message thread, not the chat.
+    final inboxId = data['inboxId'];
+    if (data['type'] == 'inbox' && sessionId != null && inboxId is String) {
+      _router!.go('/?tab=inbox');
+      _router!.pushNamed(
+        'inbox-message',
+        pathParameters: {'sessionId': sessionId, 'messageId': inboxId},
+      );
+      return;
+    }
     if (sessionId != null) {
       ChatSwitchMetrics().begin(sessionId, source: 'notification');
       _router!.goNamed('chat', pathParameters: {'sessionId': sessionId});

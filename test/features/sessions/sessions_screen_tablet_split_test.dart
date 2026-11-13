@@ -490,6 +490,10 @@ void main() {
     expect(sidebar.isCollapsed, isFalse);
     expect(sidebar.showCollapseToggle, isTrue);
 
+    sidebar.onTabPress(AppTab.inbox);
+    await tester.pump();
+    expect(find.text('Inbox'), findsWidgets);
+
     sidebar.onTabPress(AppTab.loops);
     await tester.pump();
     expect(find.text('Loops'), findsWidgets);

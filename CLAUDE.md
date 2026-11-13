@@ -127,6 +127,13 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   never the aliased copy. Har delegation arrives as an `Agent` call whose child
   tool calls and results are sidechain rows linked by `parentToolUseId`.
 
+- **The Inbox is for agent escalations only** — happy-cli-go's `inbox_send`
+  writes `metadata.inbox` (`InboxMessage`: `goal_reached`/`question`/`blocked`).
+  The Inbox tab aggregates every session's messages newest first; read,
+  replied and done are local triage (`InboxStateStorage`), like pins. Replies
+  are ordinary sends to the session quoting `Re: <subject>`. Push data
+  `type: inbox` opens `/inbox/:sessionId/:messageId`.
+
 - **Archive overrides survive catalog refreshes** — inactivity, archive
   confirmation, and omission from a fetch must not clear explicit session
   hiding; only unarchive or runtime reset clears it.

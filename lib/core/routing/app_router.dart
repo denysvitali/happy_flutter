@@ -24,6 +24,7 @@ import '../../features/dev/network_inspector_screen.dart';
 import '../../features/dev/notification_test_screen.dart';
 import '../../features/dev/power_diagnostics_screen.dart';
 import '../../features/dev/session_debug_screen.dart';
+import '../../features/inbox/inbox_screen.dart';
 import '../../features/kubernetes/kubernetes_sessions_screen.dart';
 import '../../features/machine/machine_detail_screen.dart';
 import '../../features/mcp/mcp_server_edit_screen.dart';

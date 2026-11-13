@@ -2,6 +2,7 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:happy_flutter/core/models/inbox_message.dart' show InboxMessage;
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
 part 'session.freezed.dart';
@@ -358,6 +359,13 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _claudeModelsFromJson, toJson: _claudeModelsToJson)
     List<ClaudeModelInfo>? claudeModels,
     @JsonKey(fromJson: _acpPlanFromJson) List<Map<String, dynamic>>? plan,
+    // High-priority agent messages (`inbox_send`), newest last. Kept with a
+    // toJson so cached metadata round-trips the Inbox.
+    @JsonKey(
+      fromJson: InboxMessage.listFromJson,
+      toJson: InboxMessage.listToJson,
+    )
+    List<InboxMessage>? inbox,
     @JsonKey(
       name: 'primeagentEfforts',
       fromJson: _primeAgentModelsFromJson,
