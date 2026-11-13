@@ -367,16 +367,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             podMachineId.isNotEmpty
         ? podOperationKey(podMachineId, session.id)
         : null;
-    final PodOperation? podOperation = podOperationKeyForSession == null
+    final podOperation = podOperationKeyForSession == null
         ? null
         : ref.watch(
-            podOperationsNotifierProvider.select(
+            podOperationsNotifierProvider.select<PodOperation?>(
               (ops) => ops[podOperationKeyForSession],
             ),
           );
     if (podOperationKeyForSession != null) {
-      ref.listen(
-        podOperationsNotifierProvider.select(
+      ref.listen<PodOperation?>(
+        podOperationsNotifierProvider.select<PodOperation?>(
           (ops) => ops[podOperationKeyForSession],
         ),
         _onPodOperation,

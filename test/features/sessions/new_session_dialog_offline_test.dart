@@ -108,6 +108,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
     String? repoRef,
     String? repoCommit,
     List<String> additionalRepos = const [],
+    List<String>? mcpServers,
   }) {
     onCreateModelMode?.call(modelMode);
     onCreateSessionArgs?.call(machineId, spawnBackend);
@@ -124,6 +125,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
         repoRef: repoRef,
         repoCommit: repoCommit,
         additionalRepos: additionalRepos,
+        mcpServers: mcpServers,
       );
     }
     return hook();

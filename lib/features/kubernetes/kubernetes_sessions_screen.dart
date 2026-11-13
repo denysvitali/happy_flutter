@@ -128,17 +128,17 @@ class _KubernetesSessionsScreenState
     );
     if (!mounted || generation != _generation) return;
     final podsByMachine = {
-      for (final (machineId, pods) in results)
-        if (pods != null) machineId: pods,
+      for (final (machineId, pods) in results) machineId: ?pods,
     };
     // Settle optimistic overlays this report confirms.
-    final operations = ref.read(podOperationsNotifierProvider.notifier);
-    operations.reconcile(
-      observedPodOperationStates(
-        operations: ref.read(podOperationsNotifierProvider),
-        podsByMachine: podsByMachine,
-      ),
-    );
+    ref
+        .read(podOperationsNotifierProvider.notifier)
+        .reconcile(
+          observedPodOperationStates(
+            operations: ref.read(podOperationsNotifierProvider),
+            podsByMachine: podsByMachine,
+          ),
+        );
     setState(() {
       _podsByMachine = podsByMachine;
       _unreachable = {
