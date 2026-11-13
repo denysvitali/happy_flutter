@@ -338,6 +338,8 @@ void main() {
         await tester.tap(find.text('Pause'));
         await tester.pumpAndSettle();
         expect(calls, ['pause:s1:aaa00001:true']);
+        // The pause shows at once, before the daemon's loop update.
+        expect(find.text('Resume'), findsOneWidget);
 
         await tester.tap(find.text('Delete'));
         await tester.pumpAndSettle();
@@ -345,8 +347,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(calls, ['pause:s1:aaa00001:true', 'delete:s1:aaa00001']);
-        expect(find.text('Pause'), findsOneWidget);
-        expect(find.text('Delete'), findsOneWidget);
+        // The deleted loop is hidden until the daemon's list confirms it.
+        expect(find.text('Resume'), findsNothing);
+        expect(find.text('Delete'), findsNothing);
       },
     );
 

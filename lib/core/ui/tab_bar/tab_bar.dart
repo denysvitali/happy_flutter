@@ -500,7 +500,10 @@ class _TabBarState extends State<TabBar> {
                           for (var i = 0; i < items.length; i += layout.columns)
                             Expanded(
                               child: Row(
-                                children: items.sublist(i, i + layout.columns),
+                                children: items.sublist(
+                                  i,
+                                  math.min(i + layout.columns, items.length),
+                                ),
                               ),
                             ),
                         ],

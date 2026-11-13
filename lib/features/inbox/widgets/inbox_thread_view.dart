@@ -10,6 +10,7 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../../core/utils/utils.dart' show formatRelativeTime;
 import '../../chat/markdown/markdown_view.dart' show SimpleMarkdownView;
 import '../../sessions/widgets/session_cards.dart' show buildSessionAvatar;
@@ -524,7 +525,7 @@ class _ReplyComposer extends StatelessWidget {
                 icon: sending
                     ? const SizedBox.square(
                         dimension: AppIconSize.md,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppCircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.send_rounded),
               ),
