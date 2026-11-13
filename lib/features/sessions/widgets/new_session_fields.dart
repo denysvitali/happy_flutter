@@ -1,28 +1,40 @@
 part of 'new_session_dialog.dart';
 
+/// Sheet header: Cancel on the leading edge, the title centred.
 class _NewSessionHeading extends StatelessWidget {
-  const _NewSessionHeading({required this.title});
+  const _NewSessionHeading({required this.title, required this.cancel});
 
   final String title;
+  final Widget cancel;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: cs.primaryContainer,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.xs,
+      ),
+      child: SizedBox(
+        height: AppTouchTarget.comfortable + AppSpacing.sm,
+        child: NavigationToolbar(
+          leading: cancel,
+          middle: Semantics(
+            header: true,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Icon(Icons.add_rounded, color: cs.onPrimaryContainer),
-          ),
+          middleSpacing: AppSpacing.sm,
         ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(child: Text(title)),
-      ],
+      ),
     );
   }
 }
@@ -92,10 +104,10 @@ class _PathFieldState extends ConsumerState<_PathField> {
           TextFormField(
             controller: controller,
             focusNode: focusNode,
-            decoration: InputDecoration(
-              labelText: context.l10n.sessionPath,
-              hintText: context.l10n.sessionPathHint,
-              prefixIcon: const Icon(Icons.folder_outlined),
+            decoration: newSessionRowDecoration(
+              label: context.l10n.sessionPath,
+              hint: context.l10n.sessionPathHint,
+              icon: Icons.folder_outlined,
             ),
             onChanged: widget.onChanged,
           ),
@@ -116,6 +128,10 @@ class _SpawnBackendPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SegmentedButton<String>(
+    showSelectedIcon: false,
+    style: SegmentedButton.styleFrom(
+      minimumSize: const Size.fromHeight(AppTouchTarget.min),
+    ),
     segments: backends
         .map(
           (backend) => ButtonSegment(
@@ -282,12 +298,13 @@ class _DialogRequirementStatus extends StatelessWidget {
         : Icons.check_circle_outline_rounded;
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ExcludeSemantics(
           child: Icon(icon, size: AppIconSize.md, color: color),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(
+        Flexible(
           child: Semantics(
             liveRegion: true,
             child: Text(

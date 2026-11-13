@@ -10704,7 +10704,7 @@ abstract class AppLocalizations {
   /// No description provided for @polishNewSessionWhere.
   ///
   /// In en, this message translates to:
-  /// **'Where'**
+  /// **'Location'**
   String get polishNewSessionWhere;
 
   /// No description provided for @polishNewSessionWho.

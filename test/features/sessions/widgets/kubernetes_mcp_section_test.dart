@@ -36,24 +36,24 @@ void main() {
     expect(find.text('All enabled'), findsOneWidget);
     final github = find.byKey(const ValueKey('k8s-mcp-github-actions'));
     final loki = find.byKey(const ValueKey('k8s-mcp-loki'));
-    expect(tester.widget<CheckboxListTile>(github).value, isTrue);
-    expect(tester.widget<CheckboxListTile>(loki).value, isTrue);
+    expect(tester.widget<SwitchListTile>(github).value, isTrue);
+    expect(tester.widget<SwitchListTile>(loki).value, isTrue);
     await tester.tap(github);
     await tester.pumpAndSettle();
-    expect(tester.widget<CheckboxListTile>(github).value, isFalse);
-    expect(tester.widget<CheckboxListTile>(loki).value, isTrue);
+    expect(tester.widget<SwitchListTile>(github).value, isFalse);
+    expect(tester.widget<SwitchListTile>(loki).value, isTrue);
     await tester.tap(loki);
     await tester.pumpAndSettle();
     expect(find.text('None enabled'), findsOneWidget);
     await tester.tap(github);
     await tester.pumpAndSettle();
-    expect(tester.widget<CheckboxListTile>(github).value, isTrue);
+    expect(tester.widget<SwitchListTile>(github).value, isTrue);
   });
 
   testWidgets('selection is locked while creating a session', (tester) async {
     await pump(tester, enabled: false);
     for (final id in kDefaultMcpServerIds) {
-      final tile = tester.widget<CheckboxListTile>(
+      final tile = tester.widget<SwitchListTile>(
         find.byKey(ValueKey('k8s-mcp-$id')),
       );
       expect(tile.onChanged, isNull);

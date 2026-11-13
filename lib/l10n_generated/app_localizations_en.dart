@@ -6227,7 +6227,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get polishNewSessionTitle => 'Hand off a task';
 
   @override
-  String get polishNewSessionWhere => 'Where';
+  String get polishNewSessionWhere => 'Location';
 
   @override
   String get polishNewSessionWho => 'Who';

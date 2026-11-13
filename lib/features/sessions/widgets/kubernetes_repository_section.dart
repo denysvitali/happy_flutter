@@ -10,6 +10,7 @@ import '../../../core/services/repo_history_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'new_session_form_group.dart';
 
 /// Asks the selected machine what GitHub knows about a repository and ref.
 typedef RepoBranchLookup =
@@ -78,7 +79,20 @@ class KubernetesRepositorySection extends ConsumerStatefulWidget {
     this.rejectedRef,
     this.enabled = true,
     this.lookupDebounce = const Duration(milliseconds: 450),
+    this.header,
+    this.optionsHeader,
+    this.extraOptions = const [],
   });
+
+  /// Title above the repository and branch group.
+  final String? header;
+
+  /// Title above the folded options group.
+  final String? optionsHeader;
+
+  /// Further folded rows shown in the options group after "More
+  /// repositories" (the dialog adds its MCP server choice here).
+  final List<Widget> extraOptions;
 
   final String? initialRepoUrl;
 
@@ -405,194 +419,223 @@ class _KubernetesRepositorySectionState
         ? repoDisplayName(repoSuggestions[index])
         : names[index];
 
+    final errorStyle = AppText.secondary(
+      theme,
+    ).copyWith(color: AppColors.error);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextFormField(
-          key: const Key('k8s-repo-url'),
-          controller: _url,
-          enabled: enabled,
-          decoration: InputDecoration(
-            labelText: l10n.newSessionRepositoryUrl,
-            hintText: l10n.newSessionRepositoryUrlHint,
-            prefixIcon: const Icon(Icons.source_outlined),
-            suffixIcon: IconButton(
-              key: const Key('k8s-save-repo-set'),
-              icon: const Icon(Icons.bookmark_add_outlined),
-              tooltip: l10n.newSessionRepoSetSave,
-              onPressed: enabled && urlKey.isNotEmpty ? _saveSet : null,
-            ),
-            errorText: lookup != null && lookup.notFound
-                ? l10n.newSessionRepositoryNotFound
-                : null,
-            errorMaxLines: 3,
-            errorStyle: AppText.secondary(
-              theme,
-            ).copyWith(color: AppColors.error),
-          ),
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          textInputAction: TextInputAction.next,
-          onChanged: (_) => _onUrlChanged(),
-        ),
-        if (history.sets.isNotEmpty || repoSuggestions.isNotEmpty)
-          _ChipRow(
-            children: [
-              for (final set in history.sets)
-                InputChip(
-                  key: ValueKey('repo-set-${set.id}'),
-                  visualDensity: VisualDensity.compact,
-                  avatar: Icon(Icons.bookmark_rounded, color: cs.primary),
-                  label: Text(set.name),
-                  tooltip: [
-                    '${repoDisplayName(set.repoUrl)} · ${set.repoRef}',
-                    for (final repo in set.additionalRepos)
-                      repoDisplayName(repo),
-                  ].join('\n'),
-                  onPressed: enabled ? () => _applySet(set) : null,
-                  onDeleted: enabled ? () => _deleteSet(set) : null,
-                  deleteButtonTooltipMessage: l10n.commonDelete,
-                ),
-              for (final (index, repo) in repoSuggestions.indexed)
-                ActionChip(
-                  key: ValueKey('repo-suggestion-${repoHistoryKey(repo)}'),
-                  visualDensity: VisualDensity.compact,
-                  avatar: const Icon(Icons.history_rounded),
-                  label: Text(shortName(index)),
-                  tooltip: repoDisplayName(repo),
-                  onPressed: enabled ? () => _pickRepo(repo) : null,
-                ),
-            ],
-          ),
-        const SizedBox(height: AppSpacing.lg),
-        TextFormField(
-          key: const Key('k8s-repo-ref'),
-          controller: _ref,
-          enabled: enabled,
-          decoration: InputDecoration(
-            labelText: l10n.newSessionGitRef,
-            hintText: lookup?.defaultBranch.isNotEmpty ?? false
-                ? lookup!.defaultBranch
-                : l10n.newSessionGitRefHint,
-            prefixIcon: const Icon(Icons.account_tree_outlined),
-            errorText: refMissing
-                ? l10n.newSessionBranchNotFound(
-                    _repoRef,
-                    repoDisplayName(_repoUrl),
-                  )
-                : null,
-            errorMaxLines: 3,
-            errorStyle: AppText.secondary(
-              theme,
-            ).copyWith(color: AppColors.error),
-          ),
-          autocorrect: false,
-          textInputAction: TextInputAction.next,
-          onChanged: (_) => _onRefTyped(),
-        ),
-        if (branchSuggestions.isNotEmpty)
-          _ChipRow(
-            children: [
-              for (final (index, branch) in branchSuggestions.indexed)
-                ActionChip(
-                  key: ValueKey('branch-suggestion-$branch'),
-                  visualDensity: VisualDensity.compact,
-                  avatar: Icon(
-                    refMissing && index == 0
-                        ? Icons.auto_fix_high_rounded
-                        : Icons.account_tree_outlined,
-                    color: refMissing && index == 0 ? cs.primary : null,
+        NewSessionGroup(
+          header: widget.header,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  key: const Key('k8s-repo-url'),
+                  controller: _url,
+                  enabled: enabled,
+                  decoration: newSessionRowDecoration(
+                    label: l10n.newSessionRepositoryUrl,
+                    hint: l10n.newSessionRepositoryUrlHint,
+                    icon: Icons.source_outlined,
+                    suffixIcon: IconButton(
+                      key: const Key('k8s-save-repo-set'),
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      tooltip: l10n.newSessionRepoSetSave,
+                      onPressed: enabled && urlKey.isNotEmpty ? _saveSet : null,
+                    ),
+                    errorText: lookup != null && lookup.notFound
+                        ? l10n.newSessionRepositoryNotFound
+                        : null,
+                    errorStyle: errorStyle,
                   ),
-                  label: Text(
-                    refMissing && index == 0
-                        ? l10n.newSessionUseBranch(branch)
-                        : branch,
-                  ),
-                  onPressed: enabled ? () => _pickRef(branch) : null,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _onUrlChanged(),
                 ),
-            ],
-          ),
-        const SizedBox(height: AppSpacing.sm),
-        // Further repositories are occasional: folded away, with the
-        // current choice in the summary line.
-        Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: const Key('k8s-additional-repos'),
-            tilePadding: EdgeInsets.zero,
-            shape: const Border(),
-            collapsedShape: const Border(),
-            leading: const Icon(Icons.add_link_rounded),
-            title: Text(l10n.newSessionAdditionalRepos),
-            subtitle: Text(
-              _additional.isEmpty
-                  ? l10n.newSessionAdditionalReposNone
-                  : _additional.map(repoDisplayName).join(', '),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.secondary(theme),
+                if (history.sets.isNotEmpty || repoSuggestions.isNotEmpty)
+                  NewSessionRowChips(
+                    children: [
+                      for (final set in history.sets)
+                        InputChip(
+                          key: ValueKey('repo-set-${set.id}'),
+                          visualDensity: VisualDensity.compact,
+                          avatar: Icon(
+                            Icons.bookmark_rounded,
+                            color: cs.primary,
+                          ),
+                          label: Text(set.name),
+                          tooltip: [
+                            '${repoDisplayName(set.repoUrl)} · ${set.repoRef}',
+                            for (final repo in set.additionalRepos)
+                              repoDisplayName(repo),
+                          ].join('\n'),
+                          onPressed: enabled ? () => _applySet(set) : null,
+                          onDeleted: enabled ? () => _deleteSet(set) : null,
+                          deleteButtonTooltipMessage: l10n.commonDelete,
+                        ),
+                      for (final (index, repo) in repoSuggestions.indexed)
+                        ActionChip(
+                          key: ValueKey(
+                            'repo-suggestion-${repoHistoryKey(repo)}',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.history_rounded),
+                          label: Text(shortName(index)),
+                          tooltip: repoDisplayName(repo),
+                          onPressed: enabled ? () => _pickRepo(repo) : null,
+                        ),
+                    ],
+                  ),
+              ],
             ),
-            childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
-            expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.newSessionAdditionalReposHelp,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  key: const Key('k8s-repo-ref'),
+                  controller: _ref,
+                  enabled: enabled,
+                  decoration: newSessionRowDecoration(
+                    label: l10n.newSessionGitRef,
+                    hint: lookup?.defaultBranch.isNotEmpty ?? false
+                        ? lookup!.defaultBranch
+                        : l10n.newSessionGitRefHint,
+                    icon: Icons.account_tree_outlined,
+                    errorText: refMissing
+                        ? l10n.newSessionBranchNotFound(
+                            _repoRef,
+                            repoDisplayName(_repoUrl),
+                          )
+                        : null,
+                    errorStyle: errorStyle,
+                  ),
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _onRefTyped(),
+                ),
+                if (branchSuggestions.isNotEmpty)
+                  NewSessionRowChips(
+                    children: [
+                      for (final (index, branch) in branchSuggestions.indexed)
+                        ActionChip(
+                          key: ValueKey('branch-suggestion-$branch'),
+                          visualDensity: VisualDensity.compact,
+                          avatar: Icon(
+                            refMissing && index == 0
+                                ? Icons.auto_fix_high_rounded
+                                : Icons.account_tree_outlined,
+                            color: refMissing && index == 0 ? cs.primary : null,
+                          ),
+                          label: Text(
+                            refMissing && index == 0
+                                ? l10n.newSessionUseBranch(branch)
+                                : branch,
+                          ),
+                          onPressed: enabled ? () => _pickRef(branch) : null,
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        // Occasional setup: folded away, with the current choice in each
+        // summary line.
+        NewSessionGroup(
+          header: widget.optionsHeader,
+          children: [
+            ExpansionTile(
+              key: const Key('k8s-additional-repos'),
+              tilePadding: kNewSessionTilePadding,
+              shape: const Border(),
+              collapsedShape: const Border(),
+              leading: const Icon(Icons.add_link_rounded),
+              title: Text(l10n.newSessionAdditionalRepos),
+              subtitle: Text(
+                _additional.isEmpty
+                    ? l10n.newSessionAdditionalReposNone
+                    : _additional.map(repoDisplayName).join(', '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AppText.secondary(theme),
               ),
-              if (_additional.isNotEmpty)
-                _ChipRow(
-                  children: [
-                    for (final repo in _additional)
-                      InputChip(
-                        key: ValueKey(
-                          'additional-repo-${repoHistoryKey(repo)}',
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        label: Text(repoDisplayName(repo)),
-                        onDeleted: enabled
-                            ? () => _removeAdditional(repo)
-                            : null,
-                        deleteButtonTooltipMessage: l10n.commonRemove,
-                      ),
-                  ],
-                ),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                key: const Key('k8s-additional-repo'),
-                controller: _extra,
-                enabled: enabled && _additional.length < _maxAdditional,
-                decoration: InputDecoration(
-                  hintText: l10n.newSessionAdditionalRepoHint,
-                  prefixIcon: const Icon(Icons.source_outlined),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.add_rounded),
-                    tooltip: l10n.newSessionAdditionalRepoAdd,
-                    onPressed: enabled ? _addAdditional : null,
-                  ),
-                ),
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _addAdditional(),
+              childrenPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.lg,
               ),
-              if (extraSuggestions.isNotEmpty)
-                _ChipRow(
-                  children: [
-                    for (final repo in extraSuggestions)
-                      ActionChip(
-                        key: ValueKey(
-                          'additional-suggestion-${repoHistoryKey(repo)}',
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        avatar: const Icon(Icons.add_rounded),
-                        label: Text(repoDisplayName(repo)),
-                        onPressed: enabled ? () => _addAdditional(repo) : null,
-                      ),
-                  ],
+              expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.newSessionAdditionalReposHelp,
+                  style: AppText.secondary(theme),
                 ),
-            ],
-          ),
+                if (_additional.isNotEmpty)
+                  _ChipRow(
+                    children: [
+                      for (final repo in _additional)
+                        InputChip(
+                          key: ValueKey(
+                            'additional-repo-${repoHistoryKey(repo)}',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          label: Text(repoDisplayName(repo)),
+                          onDeleted: enabled
+                              ? () => _removeAdditional(repo)
+                              : null,
+                          deleteButtonTooltipMessage: l10n.commonRemove,
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  key: const Key('k8s-additional-repo'),
+                  controller: _extra,
+                  enabled: enabled && _additional.length < _maxAdditional,
+                  decoration: InputDecoration(
+                    hintText: l10n.newSessionAdditionalRepoHint,
+                    prefixIcon: const Icon(Icons.source_outlined),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add_rounded),
+                      tooltip: l10n.newSessionAdditionalRepoAdd,
+                      onPressed: enabled ? _addAdditional : null,
+                    ),
+                  ),
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _addAdditional(),
+                ),
+                if (extraSuggestions.isNotEmpty)
+                  _ChipRow(
+                    children: [
+                      for (final repo in extraSuggestions)
+                        ActionChip(
+                          key: ValueKey(
+                            'additional-suggestion-${repoHistoryKey(repo)}',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.add_rounded),
+                          label: Text(repoDisplayName(repo)),
+                          onPressed: enabled
+                              ? () => _addAdditional(repo)
+                              : null,
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+            ...widget.extraOptions,
+          ],
         ),
         if (refMissing)
           // Announced once for screen readers; the field carries the text.

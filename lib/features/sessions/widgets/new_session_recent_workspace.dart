@@ -34,8 +34,9 @@ class _RecentWorkspacePicker extends ConsumerWidget {
         .toList();
     if (paths.isEmpty) return const SizedBox.shrink();
     return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
+      tilePadding: kNewSessionTilePadding,
       dense: true,
+      leading: const Icon(Icons.history_rounded),
       title: Text(
         context.l10n.newSessionRecentWorkspace,
         style: AppText.secondary(Theme.of(context)),
@@ -44,7 +45,7 @@ class _RecentWorkspacePicker extends ConsumerWidget {
         for (final path in paths)
           ListTile(
             dense: true,
-            contentPadding: EdgeInsets.zero,
+            contentPadding: kNewSessionTilePadding,
             leading: const Icon(Icons.folder_outlined),
             title: Text(path, maxLines: 2, overflow: TextOverflow.ellipsis),
             onTap: () => onSelected(path),

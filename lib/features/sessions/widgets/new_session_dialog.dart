@@ -26,6 +26,7 @@ import '../../chat/widgets/model_mode.dart';
 import '../harness_logo.dart';
 import 'kubernetes_mcp_section.dart';
 import 'kubernetes_repository_section.dart';
+import 'new_session_form_group.dart';
 
 part 'new_session_fields.dart';
 part 'new_session_resolution.dart';
@@ -297,6 +298,30 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         selectedMachineOffline ||
         createBlocker == NewSessionCreateBlocker.offlineMachine;
 
+    void selectMachine(String? value) {
+      if (value != null) {
+        final m = allMachines[value];
+        if (m != null && !m.isOnlineAt(machineSortNow)) return;
+      }
+      setState(() {
+        if (_selectedMachine != value) {
+          _selectedPath = null;
+          _selectedRepoUrl = null;
+        }
+        // Keep the mode the list was filtered by.
+        _spawnMode = spawnMode;
+        _spawnModeTouched = true;
+        _selectedMachine = value;
+      });
+    }
+
+    void selectPath(String value) => setState(() {
+      _selectedPath = value;
+      _createError = null;
+    });
+
+    const groupGap = SizedBox(height: AppSpacing.xxl);
+
     final body = <Widget>[
       _SpawnBackendPicker(
         backends: const ['local', 'kubernetes'],
@@ -304,118 +329,118 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         onSelected: (mode) =>
             _selectSpawnMode(mode, allMachinesSorted, machineSortNow),
       ),
-      const SizedBox(height: AppSpacing.xl),
-      _SectionLabel(text: l10n.polishNewSessionWho),
-      const SizedBox(height: AppSpacing.sm),
+      groupGap,
+      Padding(
+        padding: const EdgeInsets.only(
+          left: AppSpacing.lg,
+          bottom: AppSpacing.sm,
+        ),
+        child: NewSessionGroupHeader(text: l10n.sessionsAgent),
+      ),
       if (largeText)
         _AgentPicker(
           selectedAgent: _selectedAgent,
           onSelected: (agent) => setState(() => _selectedAgent = agent),
         )
       else
-        _AgentWrap(
+        _AgentGrid(
           selectedAgent: _selectedAgent,
           onSelected: (agent) => setState(() => _selectedAgent = agent),
         ),
-      if (_selectedAgent == 'har') ...[
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Host execution · approvals disabled. The model can be '
-          'changed during the conversation. Requires an installed '
-          'har binary and a local daemon with Boxy explicitly '
-          'disabled.',
-          style: AppText.secondary(theme, cs.onSurfaceVariant),
-        ),
-        if (isKubernetes)
-          Text(
-            'Har runs on a machine, not in Kubernetes. Select '
-            'Machine to start it.',
-            style: AppText.secondary(theme, cs.error),
+      if (_selectedAgent == 'har')
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            0,
           ),
-      ],
-      const SizedBox(height: AppSpacing.xl),
-      _SectionLabel(text: l10n.polishNewSessionWhere),
-      const SizedBox(height: AppSpacing.sm),
-      if (machines.isEmpty)
-        Text(
-          isKubernetes && allMachinesSorted.isNotEmpty
-              ? l10n.newSessionNoKubernetesMachines
-              : l10n.newSessionNoMachinesFound,
-          style: AppText.secondary(theme, cs.onSurfaceVariant),
-        )
-      else
-        _MachineDropdown(
-          key: ValueKey('new-session-machine-$spawnMode-$selectedMachineId'),
-          machines: machines,
-          selectedMachineId: selectedMachineId,
-          isKubernetes: isKubernetes,
-          nowMs: machineSortNow,
-          onChanged: (value) {
-            if (value != null) {
-              final m = allMachines[value];
-              if (m != null && !m.isOnlineAt(machineSortNow)) return;
-            }
-            setState(() {
-              if (_selectedMachine != value) {
-                _selectedPath = null;
-                _selectedRepoUrl = null;
-              }
-              // Keep the mode the list was filtered by.
-              _spawnMode = spawnMode;
-              _spawnModeTouched = true;
-              _selectedMachine = value;
-            });
-          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Host execution · approvals disabled. The model can be '
+                'changed during the conversation. Requires an installed '
+                'har binary and a local daemon with Boxy explicitly '
+                'disabled.',
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
+              ),
+              if (isKubernetes)
+                Text(
+                  'Har runs on a machine, not in Kubernetes. Select '
+                  'Machine to start it.',
+                  style: AppText.secondary(theme, cs.error),
+                ),
+            ],
+          ),
         ),
-      if (offlineWarning) ...[
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          l10n.machineOfflineHelp,
-          style: AppText.secondary(theme, cs.onSurfaceVariant),
-        ),
-      ],
-      const SizedBox(height: AppSpacing.lg),
+      groupGap,
+      NewSessionGroup(
+        header: l10n.polishNewSessionWhere,
+        footer: offlineWarning ? Text(l10n.machineOfflineHelp) : null,
+        children: [
+          if (machines.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.lg,
+              ),
+              child: Text(
+                isKubernetes && allMachinesSorted.isNotEmpty
+                    ? l10n.newSessionNoKubernetesMachines
+                    : l10n.newSessionNoMachinesFound,
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
+              ),
+            )
+          else
+            _MachineDropdown(
+              key: ValueKey(
+                'new-session-machine-$spawnMode-$selectedMachineId',
+              ),
+              machines: machines,
+              selectedMachineId: selectedMachineId,
+              isKubernetes: isKubernetes,
+              nowMs: machineSortNow,
+              onChanged: selectMachine,
+            ),
+          if (!isKubernetes)
+            _PathField(
+              machineId: selectedMachineId,
+              selectedPath: _selectedPath,
+              onChanged: selectPath,
+              onSelected: selectPath,
+            ),
+          // Large text: the expandable list wraps long paths better than
+          // the one-tap rows.
+          if (!isKubernetes && largeText)
+            _RecentWorkspacePicker(
+              machineId: selectedMachineId,
+              selectedPath: _selectedPath,
+              onSelected: selectPath,
+            ),
+        ],
+      ),
       if (!isKubernetes) ...[
         if (!largeText)
           _RecentWorkspaceCards(
             machineId: selectedMachineId,
             machineLabel: selectedMachineObj?.displayLabel,
             selectedPath: _selectedPath,
-            onSelected: (path) => setState(() {
-              _selectedPath = path;
-              _createError = null;
-            }),
+            onSelected: selectPath,
           ),
-        _PathField(
-          machineId: selectedMachineId,
-          selectedPath: _selectedPath,
-          onChanged: (value) => setState(() {
-            _selectedPath = value;
-            _createError = null;
-          }),
-          onSelected: (value) => setState(() {
-            _selectedPath = value;
-            _createError = null;
-          }),
-        ),
-        // Large text: the expandable list wraps long paths better than
-        // the one-tap cards.
-        if (largeText)
-          _RecentWorkspacePicker(
-            machineId: selectedMachineId,
-            selectedPath: _selectedPath,
-            onSelected: (path) => setState(() {
-              _selectedPath = path;
-              _createError = null;
-            }),
-          ),
-        const SizedBox(height: AppSpacing.sm),
-        _NewSessionAdvancedOptions(
-          sessionType: _sessionType,
-          onSessionTypeChanged: (value) => setState(() => _sessionType = value),
+        groupGap,
+        NewSessionGroup(
+          children: [
+            _NewSessionAdvancedOptions(
+              sessionType: _sessionType,
+              onSessionTypeChanged: (value) =>
+                  setState(() => _sessionType = value),
+            ),
+          ],
         ),
       ],
       if (isKubernetes) ...[
+        groupGap,
         KubernetesRepositorySection(
           key: ValueKey('k8s-repos-$selectedMachineId'),
           initialRepoUrl: widget.initialRepositoryUrl,
@@ -443,13 +468,15 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               _createError = null;
             });
           },
+          extraOptions: [
+            if (supportsDefaultMcpServers(_selectedAgent))
+              KubernetesMcpSection(
+                selected: _mcpServers,
+                enabled: !_isCreating,
+                onChanged: (selected) => setState(() => _mcpServers = selected),
+              ),
+          ],
         ),
-        if (supportsDefaultMcpServers(_selectedAgent))
-          KubernetesMcpSection(
-            selected: _mcpServers,
-            enabled: !_isCreating,
-            onChanged: (selected) => setState(() => _mcpServers = selected),
-          ),
       ],
     ];
 
@@ -458,39 +485,35 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       offlineWarning: offlineWarning,
       error: _createError,
       creationPhase: _isCreating ? _creationPhase : null,
-      actions: [
-        TextButton(
-          onPressed: _isCreating ? null : () => Navigator.pop(context),
-          child: Text(l10n.commonCancel),
-        ),
-        FilledButtonTheme(
-          data: FilledButtonThemeData(
-            style: FilledButton.styleFrom(
-              shape: const StadiumBorder(),
-              minimumSize: const Size(120, AppTouchTarget.comfortable),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      createButton: FilledButtonTheme(
+        data: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: const StadiumBorder(),
+            minimumSize: const Size.fromHeight(52),
+            textStyle: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
-          child: _CreateButton(
-            isCreating: _isCreating,
-            onPressed: createBlocker == null
-                ? () => _createSession(context)
-                : null,
-            label: l10n.commonCreate,
-            tooltip: createBlocker == null
-                ? null
-                : _dialogRequirementText(l10n, createBlocker),
-          ),
         ),
-      ],
+        child: _CreateButton(
+          isCreating: _isCreating,
+          onPressed: createBlocker == null
+              ? () => _createSession(context)
+              : null,
+          label: l10n.commonCreate,
+          tooltip: createBlocker == null
+              ? null
+              : _dialogRequirementText(l10n, createBlocker),
+        ),
+      ),
     );
 
     final scrollingBody = SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxl,
+        AppSpacing.lg,
         AppSpacing.sm,
+        AppSpacing.lg,
         AppSpacing.xxl,
-        AppSpacing.xl,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -503,20 +526,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       mainAxisSize: fullscreen ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xxl,
-            AppSpacing.xl,
-            AppSpacing.xxl,
-            AppSpacing.md,
+        _NewSessionHeading(
+          title: l10n.newSessionTitle,
+          cancel: TextButton(
+            onPressed: _isCreating ? null : () => Navigator.pop(context),
+            child: Text(l10n.commonCancel),
           ),
-          child: _NewSessionHeading(title: l10n.polishNewSessionTitle),
         ),
         if (fullscreen)
           Expanded(child: scrollingBody)
         else
           Flexible(child: scrollingBody),
-        Divider(height: 1, color: cs.outlineVariant),
+        Divider(
+          height: AppBorder.hairline,
+          thickness: AppBorder.hairline,
+          color: cs.outlineVariant.withValues(alpha: AppOpacity.strong),
+        ),
         footer,
       ],
     );
@@ -524,8 +549,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     return PopScope(
       canPop: !_isCreating,
       child: fullscreen
-          ? Dialog.fullscreen(child: SafeArea(child: layout))
+          ? Dialog.fullscreen(
+              backgroundColor: cs.surface,
+              child: SafeArea(child: layout),
+            )
           : Dialog(
+              backgroundColor: cs.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.xxxl),
               ),
@@ -797,28 +826,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 }
 
 // ---------------------------------------------------------------------------
-// Hand-off layout: task first, one-tap workspaces, compact teammate strip.
+// Inset grouped layout: mode, agent, location, then folded options.
 // ---------------------------------------------------------------------------
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Semantics(
-      header: true,
-      child: Text(
-        text,
-        style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
-/// Up to three recent folders on the chosen machine as big one-tap rows.
+/// Up to three recent folders on the chosen machine as one-tap rows.
 /// Selecting one only sets the path (never the agent or model).
 class _RecentWorkspaceCards extends ConsumerWidget {
   const _RecentWorkspaceCards({
@@ -855,28 +866,17 @@ class _RecentWorkspaceCards extends ConsumerWidget {
         .take(3)
         .toList();
     if (paths.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final l10n = context.l10n;
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.only(top: AppSpacing.xxl),
+      child: NewSessionGroup(
+        header: context.l10n.newSessionRecentWorkspace,
         children: [
-          Text(
-            l10n.newSessionRecentWorkspace,
-            style: AppText.secondary(theme, cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSpacing.xs),
           for (final path in paths)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xsm),
-              child: _WorkspaceCard(
-                path: path,
-                machineLabel: machineLabel,
-                selected: path == selectedPath,
-                onTap: () => onSelected(path),
-              ),
+            _WorkspaceRow(
+              path: path,
+              machineLabel: machineLabel,
+              selected: path == selectedPath,
+              onTap: () => onSelected(path),
             ),
         ],
       ),
@@ -884,8 +884,8 @@ class _RecentWorkspaceCards extends ConsumerWidget {
   }
 }
 
-class _WorkspaceCard extends StatelessWidget {
-  const _WorkspaceCard({
+class _WorkspaceRow extends StatelessWidget {
+  const _WorkspaceRow({
     required this.path,
     required this.machineLabel,
     required this.selected,
@@ -913,72 +913,51 @@ class _WorkspaceCard extends StatelessWidget {
       inMutuallyExclusiveGroup: true,
       label: machine == null ? path : '$path, $machine',
       excludeSemantics: true,
-      child: Material(
-        color: selected ? cs.primaryContainer : cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.smd,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: AppAvatarSize.small,
-                  height: AppAvatarSize.small,
-                  decoration: BoxDecoration(
-                    color: selected ? cs.primary : cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(
-                    Icons.folder_rounded,
-                    size: AppIconSize.lg,
-                    color: selected ? cs.onPrimary : cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        folder,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: selected
-                              ? cs.onPrimaryContainer
-                              : cs.onSurface,
-                        ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: kNewSessionTilePadding.add(
+            const EdgeInsets.symmetric(vertical: AppSpacing.smd),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.folder_outlined,
+                size: AppIconSize.tab,
+                color: selected ? cs.primary : cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      folder,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: cs.onSurface,
                       ),
-                      Text(
-                        path,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.secondary(
-                          theme,
-                          selected
-                              ? cs.onPrimaryContainer.withValues(
-                                  alpha: AppOpacity.strong,
-                                )
-                              : cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      path,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
+                    ),
+                  ],
                 ),
-                if (selected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: AppIconSize.xl,
-                    color: cs.primary,
-                  ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  Icons.check_rounded,
+                  size: AppIconSize.xl,
+                  color: cs.primary,
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -986,10 +965,10 @@ class _WorkspaceCard extends StatelessWidget {
   }
 }
 
-/// Every agent as a wrapping row of pills ("who"), remembered between
-/// dialogs. Wrapping instead of scrolling keeps every choice visible.
-class _AgentWrap extends StatelessWidget {
-  const _AgentWrap({required this.selectedAgent, required this.onSelected});
+/// Every agent as an evenly sized tile, four (or three) to a row, so the
+/// choice reads as one tidy grid instead of a ragged run of pills.
+class _AgentGrid extends StatelessWidget {
+  const _AgentGrid({required this.selectedAgent, required this.onSelected});
 
   final String selectedAgent;
   final ValueChanged<String> onSelected;
@@ -997,48 +976,112 @@ class _AgentWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
     return FocusTraversalGroup(
       policy: AppReadingOrderTraversalPolicy(),
-      child: Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.sm,
-        children: [
-          for (final agent in _agentIds)
-            Semantics(
-              label: _agentLabel(l10n, agent),
-              button: true,
-              selected: agent == selectedAgent,
-              inMutuallyExclusiveGroup: true,
-              excludeSemantics: true,
-              onTap: () => onSelected(agent),
-              child: ChoiceChip(
-                label: Text(_agentLabel(l10n, agent)),
-                avatar: ExcludeSemantics(
-                  child: HarnessLogo(flavor: agent, size: AppIconSize.lg),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const gap = AppSpacing.sm;
+          final columns = constraints.maxWidth >= 340 ? 4 : 3;
+          final width = ((constraints.maxWidth - gap * (columns - 1)) / columns)
+              .floorToDouble();
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final agent in _agentIds)
+                SizedBox(
+                  width: width,
+                  child: Center(
+                    child: _AgentTile(
+                      agent: agent,
+                      label: _agentLabel(l10n, agent),
+                      width: width,
+                      selected: agent == selectedAgent,
+                      onTap: () => onSelected(agent),
+                    ),
+                  ),
                 ),
-                selected: agent == selectedAgent,
-                showCheckmark: false,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.sm,
-                ),
-                shape: const StadiumBorder(),
-                side: BorderSide(
-                  color: agent == selectedAgent
-                      ? cs.primary
-                      : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
-                ),
-                color: WidgetStateProperty.resolveWith(
-                  (states) => states.contains(WidgetState.selected)
-                      ? cs.primaryContainer
-                      : cs.surfaceContainerHigh,
-                ),
-                onSelected: (_) => onSelected(agent),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AgentTile extends StatelessWidget {
+  const _AgentTile({
+    required this.agent,
+    required this.label,
+    required this.width,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String agent;
+  final String label;
+  final double width;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    // Chip padding and border take a few pixels; keep the label inside the
+    // cell so the chip never overflows it.
+    final labelWidth = (width - AppSpacing.lg).clamp(0.0, double.infinity);
+    return Semantics(
+      label: label,
+      button: true,
+      selected: selected,
+      inMutuallyExclusiveGroup: true,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: ChoiceChip(
+        label: SizedBox(
+          width: labelWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(
+                child: HarnessLogo(flavor: agent, size: AppIconSize.tab),
               ),
-            ),
-        ],
+              const SizedBox(height: AppSpacing.xsm),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? cs.onPrimaryContainer : cs.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        selected: selected,
+        showCheckmark: false,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        labelPadding: EdgeInsets.zero,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.md,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        side: BorderSide(
+          width: 1.5,
+          color: selected ? cs.primary : Colors.transparent,
+        ),
+        color: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? cs.primaryContainer
+              : cs.surfaceContainerHigh,
+        ),
+        onSelected: (_) => onTap(),
       ),
     );
   }
@@ -1068,14 +1111,15 @@ class _MachineDropdown extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        labelText: isKubernetes
+      decoration: newSessionRowDecoration(
+        label: isKubernetes
             ? l10n.newSessionKubernetesDaemon
             : l10n.sessionMachine,
-        prefixIcon: Icon(
-          isKubernetes ? Icons.cloud_queue_outlined : Icons.computer_outlined,
-        ),
+        icon: isKubernetes
+            ? Icons.cloud_queue_outlined
+            : Icons.computer_outlined,
       ),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       initialValue: selectedMachineId,
       isExpanded: true,
       selectedItemBuilder: (context) => [
@@ -1132,21 +1176,21 @@ class _MachineDropdown extends StatelessWidget {
 }
 
 /// Pinned below the form: what still blocks Create (or the creation
-/// progress, or the last error) next to the buttons it explains.
+/// progress, or the last error) right above the button it explains.
 class _NewSessionFooter extends StatelessWidget {
   const _NewSessionFooter({
     required this.blocker,
     required this.offlineWarning,
     required this.error,
     required this.creationPhase,
-    required this.actions,
+    required this.createButton,
   });
 
   final NewSessionCreateBlocker? blocker;
   final bool offlineWarning;
   final String? error;
   final String? creationPhase;
-  final List<Widget> actions;
+  final Widget createButton;
 
   @override
   Widget build(BuildContext context) {
@@ -1159,13 +1203,14 @@ class _NewSessionFooter extends StatelessWidget {
       status = Semantics(
         liveRegion: true,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox.square(
               dimension: AppIconSize.md,
               child: AppCircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(
+            Flexible(
               child: Text(phase, style: AppText.secondary(theme, cs.onSurface)),
             ),
           ],
@@ -1173,6 +1218,7 @@ class _NewSessionFooter extends StatelessWidget {
       );
     } else if (failure != null) {
       status = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ExcludeSemantics(
@@ -1183,7 +1229,7 @@ class _NewSessionFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(
+          Flexible(
             child: Semantics(
               liveRegion: true,
               child: Text(failure, style: AppText.secondary(theme, cs.error)),
@@ -1199,9 +1245,9 @@ class _NewSessionFooter extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxl,
+        AppSpacing.lg,
         AppSpacing.md,
-        AppSpacing.xxl,
+        AppSpacing.lg,
         AppSpacing.lg,
       ),
       child: Column(
@@ -1210,14 +1256,7 @@ class _NewSessionFooter extends StatelessWidget {
         children: [
           status,
           const SizedBox(height: AppSpacing.md),
-          // Wraps rather than overflows with very large text.
-          Wrap(
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: actions,
-          ),
+          createButton,
         ],
       ),
     );

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/default_mcp_servers.dart';
 import '../../../core/theme/app_text.dart';
+import '../../../core/theme/app_tokens.dart';
+import 'new_session_form_group.dart';
 
 /// Chooses which default MCP servers a new Kubernetes session starts with.
 ///
@@ -38,32 +40,42 @@ class KubernetesMcpSection extends StatelessWidget {
       data: theme.copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         key: const Key('k8s-mcp-servers'),
-        tilePadding: EdgeInsets.zero,
+        tilePadding: kNewSessionTilePadding,
         shape: const Border(),
         collapsedShape: const Border(),
         leading: const Icon(Icons.extension_outlined),
         title: Text(l10n.newSessionMcpServers),
         subtitle: Text(summary, style: AppText.secondary(theme)),
+        childrenPadding: const EdgeInsets.only(bottom: AppSpacing.sm),
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.newSessionMcpServersHint,
-              style: AppText.secondary(theme),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                l10n.newSessionMcpServersHint,
+                style: AppText.secondary(theme),
+              ),
             ),
           ),
           for (final id in kDefaultMcpServerIds)
-            CheckboxListTile(
+            SwitchListTile(
               key: ValueKey('k8s-mcp-$id'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
               value: selected.contains(id),
               title: Text(_title(l10n, id)),
               subtitle: Text(_hint(l10n, id)),
               onChanged: enabled
                   ? (value) {
                       final next = {...selected};
-                      if (value ?? false) {
+                      if (value) {
                         next.add(id);
                       } else {
                         next.remove(id);

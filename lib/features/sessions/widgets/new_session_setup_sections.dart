@@ -16,7 +16,14 @@ class _NewSessionAdvancedOptions extends StatelessWidget {
     final theme = Theme.of(context);
     return ExpansionTile(
       key: const PageStorageKey('new-session-advanced'),
-      tilePadding: EdgeInsets.zero,
+      tilePadding: kNewSessionTilePadding,
+      childrenPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
+      expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
       shape: const Border(),
       collapsedShape: const Border(),
       leading: const Icon(Icons.tune_rounded),
@@ -55,7 +62,6 @@ class _NewSessionAdvancedOptions extends StatelessWidget {
                 onSessionTypeChanged(selection.first),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
       ],
     );
   }

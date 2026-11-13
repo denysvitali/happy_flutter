@@ -37,16 +37,17 @@ progress bar runs, then restores the controls with any failure feedback.
 Search and folder headers adapt to larger text. Bottom navigation keeps full
 labels visible and supports keyboard activation.
 
-The new-session dialog presents readable, touch-friendly harness cards in two
-columns, or one column on narrow screens and at larger text sizes. Recent
-workspaces and backend/worktree controls stay collapsed until needed. Asset
+The new-session dialog is an inset grouped form: a Cancel/title header, a
+Machine/Kubernetes switch, an evenly sized agent grid (one or two columns of
+readable cards at larger text sizes), a Location group (machine and path, or
+the Kubernetes daemon), recent workspaces or the repository and branch, and a
+folded options group, with Create pinned full width at the bottom. Asset
 sources are recorded alongside the shared `HarnessLogo` widget. Local execution
-is preferred
-when available, even on machines advertising Kubernetes as their default;
-Kubernetes-only machines still launch pods, and explicit backend choices remain
-available under Advanced options. For Kubernetes Claude/Codex sessions, expand
-**Default MCP servers** to toggle GitHub Actions and Loki. Both are selected by
-default; uncheck both to start without injected defaults. Each server still
+is preferred when available, even on machines advertising Kubernetes as their
+default; Kubernetes-only machines still launch pods, and the worktree choice
+stays under Advanced options. For Kubernetes Claude/Codex sessions, expand
+**Default MCP servers** to toggle GitHub Actions and Loki. Both are on by
+default; switch both off to start without injected defaults. Each server still
 requires machine-side configuration: Loki needs a runtime image containing
 `loki-mcp` and `HAPPY_KUBERNETES_LOKI_URL` on the daemon. The saved selection
 survives restores and model changes. Older daemons require an upgrade for
