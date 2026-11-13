@@ -10,16 +10,63 @@ pub struct StrippedOutput {
     pub scan_micros: u32,
 }
 
-/// Match the app's `\x1b\[([0-9;]*)m` SGR-only strip rule.
-fn sgr_end(bytes: &[u8], at: usize) -> Option<usize> {
-    if bytes.get(at) != Some(&0x1b) || bytes.get(at + 1) != Some(&b'[') {
+/// Returns the end of the escape sequence starting at `at`, mirroring the
+/// app's `AnsiParser` rule: CSI (any final byte), OSC and DCS/SOS/PM/APC
+/// strings (ending at their terminator or the next line break), nF charset
+/// designations such as `ESC(B`, and single-character escapes. A lone ESC is
+/// dropped on its own.
+fn escape_end(bytes: &[u8], at: usize) -> Option<usize> {
+    if bytes.get(at) != Some(&0x1b) {
         return None;
     }
-    let mut end = at + 2;
-    while matches!(bytes.get(end), Some(b'0'..=b'9' | b';')) {
-        end += 1;
+    let lone = Some(at + 1);
+    let next = at + 1;
+    let Some(&kind) = bytes.get(next) else {
+        return lone;
+    };
+    match kind {
+        b'[' => {
+            let mut end = next + 1;
+            while matches!(bytes.get(end), Some(0x30..=0x3f)) {
+                end += 1;
+            }
+            while matches!(bytes.get(end), Some(0x20..=0x2f)) {
+                end += 1;
+            }
+            if matches!(bytes.get(end), Some(0x40..=0x7e)) {
+                Some(end + 1)
+            } else {
+                Some(next + 1)
+            }
+        }
+        b']' | b'P' | b'X' | b'^' | b'_' => {
+            let mut end = next + 1;
+            while let Some(&b) = bytes.get(end) {
+                if b == 0x1b || b == b'\n' || (kind == b']' && b == 0x07) {
+                    break;
+                }
+                end += 1;
+            }
+            match bytes.get(end) {
+                Some(0x07) => Some(end + 1),
+                Some(0x1b) if bytes.get(end + 1) == Some(&b'\\') => Some(end + 2),
+                _ => Some(end),
+            }
+        }
+        0x20..=0x2f => {
+            let mut end = next;
+            while matches!(bytes.get(end), Some(0x20..=0x2f)) {
+                end += 1;
+            }
+            if matches!(bytes.get(end), Some(0x30..=0x7e)) {
+                Some(end + 1)
+            } else {
+                lone
+            }
+        }
+        0x30..=0x7e => Some(next + 1),
+        _ => lone,
     }
-    (bytes.get(end) == Some(&b'm')).then_some(end + 1)
 }
 
 pub fn strip_ansi(text: &str) -> StrippedOutput {
@@ -29,7 +76,7 @@ pub fn strip_ansi(text: &str) -> StrippedOutput {
     let mut segment_start = 0;
     let mut at = 0;
     while at < bytes.len() {
-        if let Some(end) = sgr_end(bytes, at) {
+        if let Some(end) = escape_end(bytes, at) {
             stripped.push_str(&text[segment_start..at]);
             at = end;
             segment_start = end;
@@ -49,9 +96,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn strips_sgr_without_changing_unicode_or_invalid_sequences() {
-        let text = "☕\x1b[31mred\x1b[0m\n日本\x1b[31K\x1b[3xm\x1b[m";
-        assert_eq!(strip_ansi(text).text, "☕red\n日本\x1b[31K\x1b[3xm");
+    fn strips_sgr_without_changing_unicode() {
+        let text = "☕\x1b[31mred\x1b[0m\n日本\x1b[m";
+        assert_eq!(strip_ansi(text).text, "☕red\n日本");
+    }
+
+    #[test]
+    fn strips_non_sgr_sequences_like_the_dart_parser() {
+        let text = "\x1b[2K\x1b[?25lstep\x1b(B\x1b[m \x1b]8;;https://e.x\x07link\x1b]8;;\x1b\\ \x1b]0;t\x07end\x1b=";
+        assert_eq!(strip_ansi(text).text, "step link end");
+        assert_eq!(strip_ansi("\x1b[31K\x1b[3xm").text, "m");
+        assert_eq!(strip_ansi("\x1b]0;cut off\nnext").text, "\nnext");
+        assert_eq!(strip_ansi("a\x1b").text, "a");
     }
 
     #[test]

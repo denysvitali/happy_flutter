@@ -9,6 +9,7 @@ import '../../../core/providers/pod_operations_notifier.dart';
 import '../../../core/rpc/rpc_types.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/ansi_log_text.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../kubernetes/kubernetes_pod_operation_view.dart';
 import '../../kubernetes/kubernetes_pod_state.dart';
@@ -60,6 +61,7 @@ class SessionPodSection extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final logStyle = AppText.secondary(theme).copyWith(fontFamily: 'monospace');
     final currentPod = pod;
     final state = currentPod?.displayState ?? session.podDisplayState;
     final stateLabel = kubernetesPodStateLabel(l10n, state);
@@ -210,14 +212,12 @@ class SessionPodSection extends StatelessWidget {
                   ),
                   child: SingleChildScrollView(
                     reverse: true,
-                    child: SelectableText(
-                      logsResponse.content.isEmpty
-                          ? l10n.sessionPodLogsEmpty
-                          : logsResponse.content,
-                      style: AppText.secondary(
-                        theme,
-                      ).copyWith(fontFamily: 'monospace'),
-                    ),
+                    child: logsResponse.content.isEmpty
+                        ? SelectableText(
+                            l10n.sessionPodLogsEmpty,
+                            style: logStyle,
+                          )
+                        : AnsiLogText(logsResponse.content, style: logStyle),
                   ),
                 ),
                 if (logsResponse.truncated)

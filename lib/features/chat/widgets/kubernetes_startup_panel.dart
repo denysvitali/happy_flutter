@@ -10,6 +10,8 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/ansi_parser.dart';
+import '../../../core/widgets/ansi_log_text.dart';
 import '../session_failure_reason.dart';
 
 /// Container/pod reasons that mean the pod will not become ready on its own.
@@ -80,16 +82,21 @@ String kubernetesLogsWithoutEmptySections(String content) {
   final out = <String>[];
   String? pendingHeader;
   for (final line in content.split('\n')) {
-    if (_logSectionHeader.hasMatch(line.trim())) {
+    // Judge emptiness on visible text: a line of bare colour resets or
+    // erase sequences prints nothing.
+    final visible = AnsiParser.strip(line).trim();
+    if (_logSectionHeader.hasMatch(visible)) {
       pendingHeader = line;
       continue;
     }
-    if (line.trim().isEmpty) {
+    if (visible.isEmpty) {
       if (pendingHeader == null && out.isNotEmpty) out.add(line);
       continue;
     }
     if (pendingHeader != null) {
-      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      if (out.isNotEmpty && AnsiParser.strip(out.last).trim().isNotEmpty) {
+        out.add('');
+      }
       out.add(pendingHeader);
       pendingHeader = null;
     }
@@ -277,7 +284,7 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
             )
           : SingleChildScrollView(
               controller: _logScroll,
-              child: SelectableText(
+              child: AnsiLogText(
                 logs,
                 style: AppText.mono(
                   theme,

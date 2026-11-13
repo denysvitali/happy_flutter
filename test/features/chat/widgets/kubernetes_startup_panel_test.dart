@@ -320,6 +320,43 @@ void main() {
     );
   });
 
+  test('log sections holding only escape sequences are dropped', () {
+    const content = '==> init <==\n\x1b[0m\x1b[K\n==> agent <==\nready\n';
+    expect(kubernetesLogsWithoutEmptySections(content), '==> agent <==\nready');
+  });
+
+  testWidgets('renders ANSI colours in the log tail, not raw escapes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        KubernetesStartupPanel(
+          session: _session(lifecycle: 'starting'),
+          loadPod: () async => _pod(),
+          loadLogs: () async => const SessionPodLogsResponse(
+            podName: 'happy-s1',
+            content: 'cloning \x1b[32mdone\x1b[0m\x1b[K\n',
+            truncated: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('cloning done'), findsOneWidget);
+    final text = tester.widget<SelectableText>(
+      find.descendant(
+        of: find.byKey(const Key('kubernetes-startup-logs')),
+        matching: find.byType(SelectableText),
+      ),
+    );
+    final spans = text.textSpan!.children!.cast<TextSpan>();
+    final done = spans.firstWhere((span) => span.text == 'done');
+    expect(done.style?.color, const Color(0xFF00CC00));
+    await tester.pumpWidget(_wrap(const SizedBox()));
+  });
+
   test('log sections without output are dropped', () {
     expect(
       kubernetesLogsWithoutEmptySections(

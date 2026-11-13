@@ -16,10 +16,38 @@ import 'package:flutter/material.dart';
 /// - 38;2;R;G;B: RGB foreground
 /// - 48;5;N: 256-color background
 /// - 48;2;R;G;B: RGB background
+///
+/// Every other escape sequence (cursor movement and erase CSI sequences such
+/// as `ESC[K`, OSC titles and hyperlinks, charset selection such as `ESC(B`)
+/// is consumed without output, so it never shows up as raw text.
 class AnsiParser {
   AnsiParser._();
 
-  static final RegExp _ansiRegex = RegExp(r'\x1b\[([0-9;]*)m');
+  /// Matches one escape sequence. Group 1 holds CSI parameter bytes, group 2
+  /// intermediate bytes and group 3 the CSI final byte; the group is null for
+  /// non-CSI sequences. Order matters: CSI and OSC are tried before the
+  /// single-character fallbacks.
+  static final RegExp _ansiRegex = RegExp(
+    r'\x1b(?:'
+    r'\[([0-?]*)([ -/]*)([@-~])' // CSI
+    // OSC (titles, hyperlinks) and DCS/SOS/PM/APC strings. An unterminated
+    // one ends at the line break so a truncated log cannot swallow the rest.
+    r'|\][^\x07\x1b\n]*(?:\x07|\x1b\\)?'
+    r'|[PX^_][^\x1b\n]*(?:\x1b\\)?'
+    r'|[ -/]+[0-~]' // nF: charset designation like ESC(B
+    r'|[0-~]' // Fp/Fe/Fs single-character escapes
+    r')?',
+  );
+
+  static final RegExp _sgrParams = RegExp(r'^[0-9;]*$');
+
+  /// Returns the SGR parameter string of [match], or null when [match] is
+  /// some other escape sequence that only needs to be dropped.
+  static String? _sgrParamsOf(RegExpMatch match) {
+    if (match.group(3) != 'm' || match.group(2)!.isNotEmpty) return null;
+    final params = match.group(1)!;
+    return _sgrParams.hasMatch(params) ? params : null;
+  }
 
   /// Standard ANSI foreground colors (30-37).
   static const List<Color> _fgColors = [
@@ -52,7 +80,8 @@ class AnsiParser {
   /// [defaultStyle] is applied to text without ANSI styling.
   static List<TextSpan> parse(String text, {TextStyle? defaultStyle}) {
     final spans = <TextSpan>[];
-    var currentStyle = defaultStyle ?? const TextStyle();
+    final baseStyle = defaultStyle ?? const TextStyle();
+    var currentStyle = baseStyle;
     var bold = false;
     var italic = false;
     var underline = false;
@@ -60,7 +89,9 @@ class AnsiParser {
     Color? bgColor;
 
     void applyStyle() {
-      var style = currentStyle;
+      // Rebuild from the base so attribute resets (22, 23, 24, 39, 49)
+      // actually remove what an earlier code added.
+      var style = baseStyle;
       if (bold) {
         style = style.copyWith(fontWeight: FontWeight.bold);
       }
@@ -75,10 +106,6 @@ class AnsiParser {
       }
       if (bgColor != null) {
         style = style.copyWith(backgroundColor: bgColor);
-      }
-      // Re-apply the default style's base properties if not overridden
-      if (defaultStyle != null) {
-        style = defaultStyle.merge(style);
       }
       currentStyle = style;
     }
@@ -95,8 +122,11 @@ class AnsiParser {
         );
       }
 
-      // Parse the SGR parameters.
-      final params = match.group(1)!;
+      lastIndex = match.end;
+
+      // Parse the SGR parameters; other sequences are simply dropped.
+      final params = _sgrParamsOf(match);
+      if (params == null) continue;
       if (params.isEmpty) {
         // \x1b[m is equivalent to \x1b[0m (reset).
         bold = false;
@@ -104,7 +134,7 @@ class AnsiParser {
         underline = false;
         fgColor = null;
         bgColor = null;
-        currentStyle = defaultStyle ?? const TextStyle();
+        currentStyle = baseStyle;
       } else {
         final codes = params.split(';').map(int.tryParse).toList();
         var i = 0;
@@ -122,7 +152,7 @@ class AnsiParser {
               underline = false;
               fgColor = null;
               bgColor = null;
-              currentStyle = defaultStyle ?? const TextStyle();
+              currentStyle = baseStyle;
 
             case 1: // Bold
               bold = true;
@@ -221,17 +251,11 @@ class AnsiParser {
       }
 
       applyStyle();
-      lastIndex = match.end;
     }
 
     // Add remaining text after the last escape sequence.
     if (lastIndex < text.length) {
       spans.add(TextSpan(text: text.substring(lastIndex), style: currentStyle));
-    }
-
-    // If no ANSI sequences were found, return the original text.
-    if (spans.isEmpty && text.isNotEmpty) {
-      spans.add(TextSpan(text: text, style: currentStyle));
     }
 
     return spans;
