@@ -7765,13 +7765,13 @@ abstract class AppLocalizations {
   /// No description provided for @permissionExpiredNoPending.
   ///
   /// In en, this message translates to:
-  /// **'Permission expired \\u2014 no longer pending'**
+  /// **'Permission expired — no longer pending'**
   String get permissionExpiredNoPending;
 
   /// No description provided for @permissionExpiredRestarted.
   ///
   /// In en, this message translates to:
-  /// **'Permission expired \\u2014 session was restarted'**
+  /// **'Permission expired — session was restarted'**
   String get permissionExpiredRestarted;
 
   /// No description provided for @profilesAddProfileSubtitle.

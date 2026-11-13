@@ -4317,11 +4317,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get permissionExpiredNoPending =>
-      'Permission expired \\u2014 no longer pending';
+      'Permission expired — no longer pending';
 
   @override
   String get permissionExpiredRestarted =>
-      'Permission expired \\u2014 session was restarted';
+      'Permission expired — session was restarted';
 
   @override
   String get profilesAddProfileSubtitle =>

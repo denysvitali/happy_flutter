@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
 import '../utils/permission_description.dart';
+import '../utils/permission_failure.dart';
 import 'chat_switch_metrics.dart';
 import 'logger_service.dart';
 import 'sync_service.dart';
@@ -691,11 +692,26 @@ class NotificationService {
           '$permissionId',
         );
       }
-    } on StateError catch (e) {
-      // Permission expired or session restarted — expected race.
-      logger.warning('Permission action from notification failed: $e');
     } catch (e) {
       logger.warning('Permission action from notification failed: $e');
+      // The request is gone (resolved, expired or restarted): the
+      // notification can never succeed, so dismiss it instead of leaving
+      // an undismissable Allow/Deny behind.
+      if (e is StateError || isExpectedPermissionRace(e.toString())) {
+        await _cancelPermissionFromPayload(payload);
+      }
+    }
+  }
+
+  Future<void> _cancelPermissionFromPayload(String payload) async {
+    try {
+      final data = json.decode(payload) as Map<String, dynamic>;
+      final permissionId = data['permissionId'] as String?;
+      if (permissionId != null) {
+        await cancelPermissionNotification(permissionId);
+      }
+    } catch (e) {
+      logger.warning('Failed to cancel stale permission notification: $e');
     }
   }
 
