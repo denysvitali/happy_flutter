@@ -117,6 +117,18 @@ class KubernetesPodEntry {
     return current;
   }
 
+  /// When the pod was created, for sorting: the running pod's start time,
+  /// else the owning session's creation time (a paused pod has no start
+  /// time); 0 when neither is known.
+  int get createdAtMs {
+    final started = pod?.startedAtMs ?? 0;
+    if (started > 0) return started;
+    return session?.createdAt ?? 0;
+  }
+
+  /// Whether the owning session can be archived from the pods screen.
+  bool get canArchive => session != null && !busy;
+
   /// Title of the owning session, or null for an untracked pod.
   String? get sessionTitle {
     final owner = session;
@@ -147,14 +159,6 @@ List<String> kubernetesPodMachineIds({
   return ids.toList()..sort();
 }
 
-int _stateRank(SessionPodDisplayState state) => switch (state) {
-  SessionPodDisplayState.failed => 0,
-  SessionPodDisplayState.scheduling => 1,
-  SessionPodDisplayState.ready => 2,
-  SessionPodDisplayState.paused => 3,
-  SessionPodDisplayState.archived => 4,
-};
-
 /// Merges the daemons' live pod lists with the session catalog.
 ///
 /// A daemon that answered is authoritative for its machine: every pod it
@@ -162,6 +166,7 @@ int _stateRank(SessionPodDisplayState state) => switch (state) {
 /// a session it did not report has no pod. Live Kubernetes sessions on
 /// machines that were not reachable fall back to their metadata and are
 /// marked not [KubernetesPodEntry.live]. Archived pods are omitted.
+/// Entries are sorted newest first ([KubernetesPodEntry.createdAtMs]).
 List<KubernetesPodEntry> mergeKubernetesPods({
   required Map<String, Session> sessions,
   required Map<String, List<SessionPod>> podsByMachine,
@@ -191,9 +196,10 @@ List<KubernetesPodEntry> mergeKubernetesPods({
   return entries;
 }
 
+/// Newest pod first; ties by title, then key, so the order is stable.
 int _compareEntries(KubernetesPodEntry a, KubernetesPodEntry b) {
-  final rank = _stateRank(a.state).compareTo(_stateRank(b.state));
-  if (rank != 0) return rank;
+  final created = b.createdAtMs.compareTo(a.createdAtMs);
+  if (created != 0) return created;
   final title = (a.sessionTitle ?? a.podName).toLowerCase().compareTo(
     (b.sessionTitle ?? b.podName).toLowerCase(),
   );
@@ -203,8 +209,8 @@ int _compareEntries(KubernetesPodEntry a, KubernetesPodEntry b) {
 /// Draws app-local pod [operations] over merged daemon [entries].
 ///
 /// Each entry picks up its operation; a kill that succeeded hides the entry
-/// (the pod is gone, even if the daemon is still terminating it), and the
-/// list is re-sorted because a succeeded pause/resume changes the state.
+/// (the pod is gone, even if the daemon is still terminating it). The
+/// creation-time order of [entries] is kept.
 List<KubernetesPodEntry> applyPodOperations(
   List<KubernetesPodEntry> entries,
   Map<String, PodOperation> operations,
@@ -222,7 +228,6 @@ List<KubernetesPodEntry> applyPodOperations(
     }
     result.add(entry.withOperation(operation));
   }
-  result.sort(_compareEntries);
   return result;
 }
 

@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/providers/session_operations_notifier.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/kubernetes/kubernetes_pod_format.dart';
@@ -20,6 +21,7 @@ import 'package:happy_flutter/features/sessions/widgets/sessions_view_style.dart
 
 Session _session(
   String id, {
+  int createdAt = 1,
   bool kubernetes = true,
   bool active = true,
   bool archived = false,
@@ -31,7 +33,7 @@ Session _session(
 }) => Session(
   id: id,
   seq: 1,
-  createdAt: 1,
+  createdAt: createdAt,
   updatedAt: 1,
   active: active,
   activeAt: 1,
@@ -114,6 +116,16 @@ class _StubSessions extends SessionsNotifier {
 
   @override
   Map<String, Session> build() => initial;
+}
+
+class _RecordingSessionOperations extends SessionOperationsNotifier {
+  final archived = <String>[];
+
+  @override
+  bool archive(Session session) {
+    archived.add(session.id);
+    return true;
+  }
 }
 
 class _StubMachines extends MachinesNotifier {
@@ -255,36 +267,75 @@ void main() {
           ],
         },
       );
-      expect(entries.map((e) => e.key), ['m1/orphan', 'm1/a', 'm2/remote']);
-      final orphan = entries.first;
+      // Newest first; the orphan has no known creation time.
+      expect(entries.map((e) => e.key), ['m1/a', 'm2/remote', 'm1/orphan']);
+      final orphan = entries.last;
       expect(orphan.session, isNull);
       expect(orphan.sessionTitle, isNull);
+      expect(orphan.canArchive, isFalse);
       expect(orphan.state, SessionPodDisplayState.scheduling);
-      final tracked = entries[1];
+      final tracked = entries.first;
+      expect(tracked.canArchive, isTrue);
       expect(tracked.session?.id, 'a');
       expect(tracked.live, isTrue);
       expect(tracked.repoRef, 'main');
       // m2 did not answer: metadata fallback, marked not live.
-      final remote = entries.last;
+      final remote = entries[1];
       expect(remote.live, isFalse);
       expect(remote.pod, isNull);
       expect(remote.podName, 'happy-remote');
       expect(remote.state, SessionPodDisplayState.ready);
     });
 
-    test('failed pods sort first and carry their reason', () {
+    test('sorts newest pods first and failed pods carry their reason', () {
       final entries = mergeKubernetesPods(
-        sessions: const {},
+        sessions: {
+          // Paused: no pod start time, so the session's creation counts.
+          'paused': _session('paused', createdAt: 2500, podPaused: true),
+        },
         podsByMachine: {
           'm1': [
-            _pod('ok'),
-            _pod('bad', reason: 'ImagePullBackOff', ready: false),
+            _pod('old', startedAtMs: 1000),
+            _pod(
+              'bad',
+              reason: 'ImagePullBackOff',
+              ready: false,
+              startedAtMs: 3000,
+            ),
+            _pod('mid', startedAtMs: 2000),
+            _pod('paused', paused: true),
           ],
         },
       );
-      expect(entries.first.key, 'm1/bad');
+      expect(entries.map((e) => e.key), [
+        'm1/bad',
+        'm1/paused',
+        'm1/mid',
+        'm1/old',
+      ]);
       expect(entries.first.state, SessionPodDisplayState.failed);
       expect(entries.first.detail, 'ImagePullBackOff');
+      // A succeeded pause keeps the creation-time order.
+      final paused = applyPodOperations(entries, {
+        'm1/mid': PodOperation(
+          id: 1,
+          key: 'm1/mid',
+          request: const PodRequest(
+            machineId: 'm1',
+            sessionId: 'mid',
+            action: KubernetesPodAction.pause,
+          ),
+          phase: OperationPhase.succeeded,
+          submittedAtMs: 0,
+        ),
+      });
+      expect(paused.map((e) => e.key), [
+        'm1/bad',
+        'm1/paused',
+        'm1/mid',
+        'm1/old',
+      ]);
+      expect(paused[2].state, SessionPodDisplayState.paused);
     });
   });
 
@@ -386,10 +437,9 @@ void main() {
         ),
       );
       expect(find.text('happy-orphan'), findsOneWidget);
-      expect(find.text('No matching session'), findsOneWidget);
+      expect(find.textContaining('No matching session'), findsOneWidget);
       expect(find.text('Session s'), findsOneWidget);
-      expect(find.text('happy-s · happy'), findsOneWidget);
-      expect(find.text('Last known'), findsOneWidget);
+      expect(find.textContaining('Last known'), findsOneWidget);
       // Only the tracked pod has somewhere to go, so only it has a menu.
       expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
     });
@@ -417,15 +467,16 @@ void main() {
           ),
         ),
       );
-      expect(find.text('acme/app @ main'), findsOneWidget);
-      expect(find.text('Up 2h 14m'), findsOneWidget);
-      expect(find.text('2 restarts'), findsOneWidget);
-      expect(find.text('0.25 / 2'), findsOneWidget);
-      expect(find.text('512 MiB / 4 GiB'), findsOneWidget);
-      expect(find.text('happy-a · worker-1'), findsOneWidget);
+      expect(find.text('Ready · acme/app @ main · 2 restarts'), findsOneWidget);
+      expect(find.text('2h 14m'), findsOneWidget);
+      expect(find.byTooltip('Up 2h 14m'), findsOneWidget);
+      expect(
+        find.text('CPU 0.25 / 2 · Memory 512 MiB / 4 GiB'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('a ready pod without metrics says so instead of a meter', (
+    testWidgets('a ready pod without metrics shows no usage line', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -439,8 +490,8 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Usage unavailable'), findsOneWidget);
-      expect(find.byKey(const Key('kubernetes-usage-cpu')), findsNothing);
+      expect(find.byKey(const Key('kubernetes-pod-usage')), findsNothing);
+      expect(find.textContaining('Usage'), findsNothing);
     });
 
     testWidgets('pods screen merges live pods and flags unreachable daemons', (
@@ -485,8 +536,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(asked..sort(), ['down', 'k8s']);
       expect(find.byKey(const Key('kubernetes-unreachable')), findsOneWidget);
-      expect(find.byKey(const Key('kubernetes-section-failed')), findsOne);
-      expect(find.byKey(const Key('kubernetes-section-ready')), findsOne);
+      expect(find.byKey(const Key('kubernetes-pod-list')), findsOne);
+      expect(find.text('3 pods · 1 failed · 2 running'), findsOne);
       expect(find.text('happy-orphan'), findsOneWidget);
       expect(find.text('Session a'), findsOneWidget);
       // b's daemon did not answer: last known metadata state.
@@ -539,15 +590,14 @@ void main() {
       await tester.pumpAndSettle();
       final summary = find.byKey(const Key('kubernetes-summary'));
       expect(
-        find.descendant(of: summary, matching: find.text('2 of 2 ready')),
+        find.descendant(of: summary, matching: find.text('2 pods · 2 running')),
         findsOneWidget,
       );
       expect(
-        find.descendant(of: summary, matching: find.text('0.5')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: summary, matching: find.text('1 GiB')),
+        find.descendant(
+          of: summary,
+          matching: find.text('CPU 0.5 · Memory 1 GiB'),
+        ),
         findsOneWidget,
       );
 
@@ -630,6 +680,127 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('pod-operation-failed-k8s/a')), findsNothing);
       expect(find.text('Session a'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('selects several pods and archives their sessions', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final recorder = _RecordingSessionOperations();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionsNotifierProvider.overrideWith(
+              () => _StubSessions({
+                'a': _session('a', machineId: 'k8s'),
+                'b': _session('b', machineId: 'k8s'),
+                'c': _session('c', machineId: 'k8s'),
+              }),
+            ),
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachines({'k8s': _machine('k8s', activeAt: now)}),
+            ),
+            sessionOperationsNotifierProvider.overrideWith(() => recorder),
+          ],
+          child: _routerApp(
+            KubernetesSessionsScreen(
+              loadPods: (_) async => [
+                _pod('a', startedAtMs: now - 3000),
+                _pod('b', startedAtMs: now - 2000),
+                _pod('c', startedAtMs: now - 1000),
+                _pod('orphan', startedAtMs: now),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Long-press enters selection mode with that row selected; taps then
+      // toggle rows instead of opening the chat.
+      await tester.longPress(find.text('Session a'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 selected'), findsOneWidget);
+      await tester.tap(find.text('Session b'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 selected'), findsOneWidget);
+      expect(find.text('chat b'), findsNothing);
+      // An untracked pod has no session to archive.
+      await tester.tap(find.text('happy-orphan'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 selected'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('kubernetes-archive-selected')));
+      await tester.pumpAndSettle();
+      expect(find.text('Archive 2 sessions?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Archive'));
+      await tester.pumpAndSettle();
+
+      expect(recorder.archived, unorderedEquals(['a', 'b']));
+      // The rows leave at once and selection mode ends.
+      expect(find.text('Session a'), findsNothing);
+      expect(find.text('Session b'), findsNothing);
+      expect(find.text('Session c'), findsOneWidget);
+      expect(find.text('Kubernetes'), findsOneWidget);
+
+      // Select all picks every archivable row; close leaves selection.
+      await tester.tap(find.byKey(const Key('kubernetes-select')));
+      await tester.pumpAndSettle();
+      expect(find.text('0 selected'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('kubernetes-select-all')));
+      await tester.pumpAndSettle();
+      expect(find.text('1 selected'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('kubernetes-selection-close')));
+      await tester.pumpAndSettle();
+      expect(find.text('Kubernetes'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('sorts by creation time and flips to oldest first', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionsNotifierProvider.overrideWith(
+              () => _StubSessions({
+                'old': _session('old', machineId: 'k8s'),
+                'new': _session('new', machineId: 'k8s'),
+              }),
+            ),
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachines({'k8s': _machine('k8s', activeAt: now)}),
+            ),
+          ],
+          child: _routerApp(
+            KubernetesSessionsScreen(
+              loadPods: (_) async => [
+                _pod('old', startedAtMs: now - 60000),
+                _pod('new', startedAtMs: now - 1000),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      double top(String text) => tester.getTopLeft(find.text(text)).dy;
+      expect(top('Session new'), lessThan(top('Session old')));
+
+      await tester.tap(find.byKey(const Key('kubernetes-sort')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Oldest first'));
+      await tester.pumpAndSettle();
+      expect(top('Session old'), lessThan(top('Session new')));
 
       await tester.pumpWidget(const SizedBox());
     });

@@ -879,23 +879,47 @@ abstract class AppLocalizations {
   /// **'Last known'**
   String get kubernetesLastKnown;
 
-  /// Label of the pod count tile in the Kubernetes screen summary
+  /// Total number of pods in the Kubernetes screen summary line
   ///
   /// In en, this message translates to:
-  /// **'Pods'**
-  String get kubernetesSummaryPods;
+  /// **'{count, plural, =1{1 pod} other{{count} pods}}'**
+  String kubernetesPodCount(int count);
 
-  /// Caption under the pod count: how many of the listed pods are ready
+  /// Tooltip of the sort-order menu on the Kubernetes screen
   ///
   /// In en, this message translates to:
-  /// **'{ready} of {total} ready'**
-  String kubernetesSummaryReady(int ready, int total);
+  /// **'Sort'**
+  String get kubernetesSort;
 
-  /// Caption under the total CPU/memory usage in the Kubernetes screen summary
+  /// Sort pods by creation time, newest at the top
   ///
   /// In en, this message translates to:
-  /// **'in use'**
-  String get kubernetesSummaryInUse;
+  /// **'Newest first'**
+  String get kubernetesSortNewest;
+
+  /// Sort pods by creation time, oldest at the top
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest first'**
+  String get kubernetesSortOldest;
+
+  /// Tooltip of the action that enters multi-select mode on the Kubernetes screen
+  ///
+  /// In en, this message translates to:
+  /// **'Select pods'**
+  String get kubernetesSelectPods;
+
+  /// Pod menu item that copies the Kubernetes pod name
+  ///
+  /// In en, this message translates to:
+  /// **'Copy pod name'**
+  String get kubernetesCopyPodName;
+
+  /// Explanation in the confirmation for archiving sessions from the Kubernetes screen
+  ///
+  /// In en, this message translates to:
+  /// **'Their pods stop. Workspaces are kept, so the conversation can resume later.'**
+  String get kubernetesArchiveHint;
 
   /// Label of a pod's CPU usage meter (values are in cores)
   ///
@@ -908,12 +932,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Memory'**
   String get kubernetesMemory;
-
-  /// Shown on a running pod when the cluster reported no CPU/memory metrics
-  ///
-  /// In en, this message translates to:
-  /// **'Usage unavailable'**
-  String get kubernetesMetricsUnavailable;
 
   /// Badge with how long a pod has been running, e.g. 'Up 2h 14m'
   ///

@@ -495,24 +495,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kubernetesLastKnown => 'Last known';
 
   @override
-  String get kubernetesSummaryPods => 'Pods';
-
-  @override
-  String kubernetesSummaryReady(int ready, int total) {
-    return '$ready of $total ready';
+  String kubernetesPodCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pods',
+      one: '1 pod',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get kubernetesSummaryInUse => 'in use';
+  String get kubernetesSort => 'Sort';
+
+  @override
+  String get kubernetesSortNewest => 'Newest first';
+
+  @override
+  String get kubernetesSortOldest => 'Oldest first';
+
+  @override
+  String get kubernetesSelectPods => 'Select pods';
+
+  @override
+  String get kubernetesCopyPodName => 'Copy pod name';
+
+  @override
+  String get kubernetesArchiveHint =>
+      'Their pods stop. Workspaces are kept, so the conversation can resume later.';
 
   @override
   String get kubernetesCpu => 'CPU';
 
   @override
   String get kubernetesMemory => 'Memory';
-
-  @override
-  String get kubernetesMetricsUnavailable => 'Usage unavailable';
 
   @override
   String kubernetesUptime(String duration) {

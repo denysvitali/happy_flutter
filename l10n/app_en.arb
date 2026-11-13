@@ -234,25 +234,38 @@
   "@kubernetesLastKnown": {
     "description": "Badge on a pod whose daemon could not be asked for its live state"
   },
-  "kubernetesSummaryPods": "Pods",
-  "@kubernetesSummaryPods": {
-    "description": "Label of the pod count tile in the Kubernetes screen summary"
-  },
-  "kubernetesSummaryReady": "{ready} of {total} ready",
-  "@kubernetesSummaryReady": {
-    "description": "Caption under the pod count: how many of the listed pods are ready",
+  "kubernetesPodCount": "{count, plural, =1{1 pod} other{{count} pods}}",
+  "@kubernetesPodCount": {
+    "description": "Total number of pods in the Kubernetes screen summary line",
     "placeholders": {
-      "ready": {
-        "type": "int"
-      },
-      "total": {
+      "count": {
         "type": "int"
       }
     }
   },
-  "kubernetesSummaryInUse": "in use",
-  "@kubernetesSummaryInUse": {
-    "description": "Caption under the total CPU/memory usage in the Kubernetes screen summary"
+  "kubernetesSort": "Sort",
+  "@kubernetesSort": {
+    "description": "Tooltip of the sort-order menu on the Kubernetes screen"
+  },
+  "kubernetesSortNewest": "Newest first",
+  "@kubernetesSortNewest": {
+    "description": "Sort pods by creation time, newest at the top"
+  },
+  "kubernetesSortOldest": "Oldest first",
+  "@kubernetesSortOldest": {
+    "description": "Sort pods by creation time, oldest at the top"
+  },
+  "kubernetesSelectPods": "Select pods",
+  "@kubernetesSelectPods": {
+    "description": "Tooltip of the action that enters multi-select mode on the Kubernetes screen"
+  },
+  "kubernetesCopyPodName": "Copy pod name",
+  "@kubernetesCopyPodName": {
+    "description": "Pod menu item that copies the Kubernetes pod name"
+  },
+  "kubernetesArchiveHint": "Their pods stop. Workspaces are kept, so the conversation can resume later.",
+  "@kubernetesArchiveHint": {
+    "description": "Explanation in the confirmation for archiving sessions from the Kubernetes screen"
   },
   "kubernetesCpu": "CPU",
   "@kubernetesCpu": {
@@ -261,10 +274,6 @@
   "kubernetesMemory": "Memory",
   "@kubernetesMemory": {
     "description": "Label of a pod's memory usage meter"
-  },
-  "kubernetesMetricsUnavailable": "Usage unavailable",
-  "@kubernetesMetricsUnavailable": {
-    "description": "Shown on a running pod when the cluster reported no CPU/memory metrics"
   },
   "kubernetesUptime": "Up {duration}",
   "@kubernetesUptime": {

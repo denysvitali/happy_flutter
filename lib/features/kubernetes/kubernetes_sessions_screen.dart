@@ -8,11 +8,11 @@ import '../../core/components/app_badge.dart';
 import '../../core/components/app_banner.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
-import '../../core/components/app_status_dot.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/session_operations_notifier.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
@@ -20,23 +20,30 @@ import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
-import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'kubernetes_pod_format.dart';
 import 'kubernetes_pod_operation_view.dart';
 import 'kubernetes_pod_state.dart';
+import 'kubernetes_pod_tile.dart';
 import 'kubernetes_pods_model.dart';
 
 export '../../core/providers/pod_operations_notifier.dart'
     show KubernetesPodAction, KubernetesPodActionRunner;
+export 'kubernetes_pod_tile.dart';
 
 /// Loads one machine's session pods. Injectable for tests.
 typedef KubernetesPodsLoader =
     Future<List<SessionPod>> Function(String machineId);
 
 /// Live list of Kubernetes session pods across every reachable daemon,
-/// grouped by pod state, with uptime, restarts and CPU/memory usage.
-/// Cards open the session's chat; each card's menu pauses, resumes or kills
-/// the pod, or opens Session info for logs.
+/// newest first (toggleable), as compact rows with state, uptime, restarts
+/// and CPU/memory usage. Rows open the session's chat; each row's menu
+/// pauses, resumes or kills the pod, archives the session, or opens
+/// Session info for logs.
+///
+/// Long-press (or the Select action) enters selection mode, where several
+/// sessions are archived at once. Archiving goes through
+/// [sessionOperationsNotifierProvider]: rows leave the list immediately and
+/// a failure is reported by the app-wide operation failure listener.
 ///
 /// Pod actions never block the screen: they are recorded in
 /// [podOperationsNotifierProvider], which syncs them to the daemon in the
@@ -68,6 +75,16 @@ class _KubernetesSessionsScreenState
   int _generation = 0;
   Timer? _poll;
   bool _foreground = true;
+
+  /// Newest pods first unless the user flipped the order.
+  bool _newestFirst = true;
+
+  /// Selected entry keys while in selection mode; null outside it.
+  Set<String>? _selection;
+
+  /// Sessions archived from this screen; their rows stay hidden while the
+  /// archive syncs and the daemons catch up. A failed archive unhides them.
+  final Set<String> _archivedSessionIds = {};
 
   @override
   void initState() {
@@ -192,6 +209,92 @@ class _KubernetesSessionsScreenState
         );
   }
 
+  void _enterSelection([String? key]) {
+    setState(() => _selection = {?key});
+  }
+
+  void _exitSelection() {
+    if (_selection == null) return;
+    setState(() => _selection = null);
+  }
+
+  void _toggleSelected(String key) {
+    final selection = _selection;
+    if (selection == null) return;
+    setState(() {
+      _selection = selection.contains(key)
+          ? ({...selection}..remove(key))
+          : {...selection, key};
+    });
+  }
+
+  /// Archives the sessions of [targets] after one confirmation. Each archive
+  /// syncs in the background (stopping the pod, keeping its workspace); the
+  /// rows leave the list at once.
+  Future<void> _archive(List<KubernetesPodEntry> targets) async {
+    final archivable = [
+      for (final entry in targets)
+        if (entry.canArchive) entry,
+    ];
+    if (archivable.isEmpty) return;
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sessionsArchiveNConfirm(archivable.length),
+      content: switch (archivable) {
+        [final only] =>
+          '${only.sessionTitle ?? only.podName}\n\n'
+              '${l10n.kubernetesArchiveHint}',
+        _ => l10n.kubernetesArchiveHint,
+      },
+      confirmLabel: l10n.sessionsArchive,
+    );
+    if (!confirmed || !mounted) return;
+    final operations = ref.read(sessionOperationsNotifierProvider.notifier);
+    setState(() {
+      for (final entry in archivable) {
+        if (operations.archive(entry.session!)) {
+          _archivedSessionIds.add(entry.sessionId);
+        }
+      }
+      _selection = null;
+    });
+  }
+
+  /// A failed archive restores its row (the failure itself is reported by
+  /// the app-wide operation failure listener).
+  void _onSessionOperationsChanged(
+    Map<String, SessionOperation>? previous,
+    Map<String, SessionOperation> next,
+  ) {
+    if (!mounted) return;
+    final restored = <String>[
+      for (final id in _archivedSessionIds)
+        if (next[id] case final operation?
+            when operation.isFailed &&
+                operation.request.action == SessionOperationAction.archive)
+          id,
+    ];
+    if (restored.isEmpty) return;
+    setState(() => _archivedSessionIds.removeAll(restored));
+  }
+
+  /// Whether [entry]'s session is archived or being archived, so its pod
+  /// no longer belongs on this screen.
+  bool _isArchiving(
+    KubernetesPodEntry entry,
+    Map<String, SessionOperation> sessionOperations,
+  ) {
+    if (entry.session?.archived ?? false) return true;
+    final id = entry.sessionId;
+    if (id.isEmpty) return false;
+    if (_archivedSessionIds.contains(id)) return true;
+    final operation = sessionOperations[id];
+    return operation != null &&
+        !operation.isFailed &&
+        operation.request.action == SessionOperationAction.archive;
+  }
+
   /// Reacts to operations settling: a success re-reads the daemons so the
   /// report catches up with the overlay; a failure is announced once (the
   /// card keeps the error until dismissed).
@@ -227,18 +330,32 @@ class _KubernetesSessionsScreenState
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     ref.listen(podOperationsNotifierProvider, _onOperationsChanged);
+    ref.listen(sessionOperationsNotifierProvider, _onSessionOperationsChanged);
     final operations = ref.watch(podOperationsNotifierProvider);
-    final entries = applyPodOperations(
+    final sessionOperations = ref.watch(sessionOperationsNotifierProvider);
+    final merged = applyPodOperations(
       mergeKubernetesPods(
         sessions: ref.watch(sessionsNotifierProvider),
         podsByMachine: _podsByMachine,
       ),
       operations,
-    );
-    final groups = <SessionPodDisplayState, List<KubernetesPodEntry>>{};
-    for (final entry in entries) {
-      (groups[entry.state] ??= []).add(entry);
-    }
+    ).where((entry) => !_isArchiving(entry, sessionOperations));
+    final entries = _newestFirst
+        ? merged.toList()
+        : merged.toList().reversed.toList();
+    final archivable = [
+      for (final entry in entries)
+        if (entry.canArchive) entry,
+    ];
+    // Rows that left the list (or became busy) drop out of the selection.
+    final selection = _selection;
+    final selected = selection == null
+        ? const <KubernetesPodEntry>[]
+        : [
+            for (final entry in archivable)
+              if (selection.contains(entry.key)) entry,
+          ];
+    final selecting = selection != null;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     final Widget body;
@@ -258,6 +375,42 @@ class _KubernetesSessionsScreenState
       );
     } else {
       final now = DateTime.now();
+      final rows = <Widget>[];
+      for (final entry in entries) {
+        if (rows.isNotEmpty) {
+          rows.add(Divider(height: 1, thickness: 1, color: cs.outlineVariant));
+        }
+        final session = entry.session;
+        rows.add(
+          KubernetesPodTile(
+            key: ValueKey('kubernetes-pod-${entry.key}'),
+            entry: entry,
+            now: now,
+            selected: selecting ? selected.contains(entry) : null,
+            onTap: selecting
+                ? (entry.canArchive ? () => _toggleSelected(entry.key) : null)
+                : session == null
+                ? null
+                : () => _openChat(session),
+            onLongPress: selecting || !entry.canArchive
+                ? null
+                : () => _enterSelection(entry.key),
+            onInfo: session == null ? null : () => _openInfo(session),
+            onAction: entry.canControl
+                ? (action) => unawaited(_runAction(entry, action))
+                : null,
+            onArchive: entry.canArchive
+                ? () => unawaited(_archive([entry]))
+                : null,
+            onRetry: () => ref
+                .read(podOperationsNotifierProvider.notifier)
+                .retry(entry.key),
+            onDismiss: () => ref
+                .read(podOperationsNotifierProvider.notifier)
+                .dismiss(entry.key),
+          ),
+        );
+      }
       body = ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: AppScreenPadding.settings.copyWith(
@@ -270,110 +423,129 @@ class _KubernetesSessionsScreenState
               tone: AppBadgeTone.warning,
               message: l10n.kubernetesUnreachable(_unreachable.length),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
           ],
           if (entries.isNotEmpty) ...[
             KubernetesPodsSummary(entries: entries),
-            const SizedBox(height: AppSpacing.xl),
-          ],
-          for (final MapEntry(key: state, value: rows) in groups.entries) ...[
-            Padding(
-              key: Key('kubernetes-section-${state.name}'),
-              padding: const EdgeInsets.only(
-                left: AppSpacing.xs,
-                bottom: AppSpacing.sm,
+            const SizedBox(height: AppSpacing.sm),
+            Card(
+              key: const Key('kubernetes-pod-list'),
+              margin: EdgeInsets.zero,
+              color: cs.surfaceContainerLow,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                side: BorderSide(color: cs.outlineVariant),
               ),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  kubernetesPodCountLabel(l10n, state, rows.length),
-                  style: AppText.label(Theme.of(context)),
-                ),
-              ),
+              child: Column(children: rows),
             ),
-            for (final entry in rows) ...[
-              KubernetesPodTile(
-                key: ValueKey('kubernetes-pod-${entry.key}'),
-                entry: entry,
-                now: now,
-                onTap: entry.session == null
-                    ? null
-                    : () => _openChat(entry.session!),
-                onInfo: entry.session == null
-                    ? null
-                    : () => _openInfo(entry.session!),
-                onAction: entry.canControl
-                    ? (action) => unawaited(_runAction(entry, action))
-                    : null,
-                onRetry: () => ref
-                    .read(podOperationsNotifierProvider.notifier)
-                    .retry(entry.key),
-                onDismiss: () => ref
-                    .read(podOperationsNotifierProvider.notifier)
-                    .dismiss(entry.key),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            const SizedBox(height: AppSpacing.md),
           ],
         ],
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.kubernetesTitle),
-        actions: [
-          IconButton(
-            tooltip: l10n.commonRefresh,
-            onPressed: _refreshing ? null : () => unawaited(_refresh()),
-            icon: _refreshing
-                ? const SizedBox.square(
-                    dimension: AppIconSize.md,
-                    child: AppCircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-        ],
+    final allSelected =
+        selected.isNotEmpty && selected.length == archivable.length;
+    final appBar = selecting
+        ? AppBar(
+            leading: IconButton(
+              key: const Key('kubernetes-selection-close'),
+              tooltip: l10n.commonClose,
+              icon: const Icon(Icons.close_rounded),
+              onPressed: _exitSelection,
+            ),
+            title: Text(l10n.sessionsSelectedCount(selected.length)),
+            actions: [
+              IconButton(
+                key: const Key('kubernetes-select-all'),
+                tooltip: allSelected
+                    ? l10n.sessionsDeselectAll
+                    : l10n.sessionsSelectAll,
+                icon: Icon(
+                  allSelected
+                      ? Icons.deselect_rounded
+                      : Icons.select_all_rounded,
+                ),
+                onPressed: archivable.isEmpty
+                    ? null
+                    : () => setState(
+                        () => _selection = allSelected
+                            ? <String>{}
+                            : {for (final entry in archivable) entry.key},
+                      ),
+              ),
+              IconButton(
+                key: const Key('kubernetes-archive-selected'),
+                tooltip: l10n.sessionsArchive,
+                icon: const Icon(Icons.archive_outlined),
+                onPressed: selected.isEmpty
+                    ? null
+                    : () => unawaited(_archive(selected)),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+          )
+        : AppBar(
+            title: Text(l10n.kubernetesTitle),
+            actions: [
+              PopupMenuButton<bool>(
+                key: const Key('kubernetes-sort'),
+                tooltip: l10n.kubernetesSort,
+                icon: Icon(Icons.sort_rounded, color: cs.onSurfaceVariant),
+                initialValue: _newestFirst,
+                onSelected: (newest) => setState(() => _newestFirst = newest),
+                itemBuilder: (_) => [
+                  CheckedPopupMenuItem(
+                    value: true,
+                    checked: _newestFirst,
+                    child: Text(l10n.kubernetesSortNewest),
+                  ),
+                  CheckedPopupMenuItem(
+                    value: false,
+                    checked: !_newestFirst,
+                    child: Text(l10n.kubernetesSortOldest),
+                  ),
+                ],
+              ),
+              if (archivable.isNotEmpty)
+                IconButton(
+                  key: const Key('kubernetes-select'),
+                  tooltip: l10n.kubernetesSelectPods,
+                  onPressed: _enterSelection,
+                  icon: Icon(
+                    Icons.checklist_rounded,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              IconButton(
+                tooltip: l10n.commonRefresh,
+                onPressed: _refreshing ? null : () => unawaited(_refresh()),
+                icon: _refreshing
+                    ? const SizedBox.square(
+                        dimension: AppIconSize.md,
+                        child: AppCircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(Icons.refresh_rounded, color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+          );
+
+    return PopScope(
+      canPop: !selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exitSelection();
+      },
+      child: Scaffold(
+        appBar: appBar,
+        body: RefreshIndicator(onRefresh: _refresh, child: body),
       ),
-      body: RefreshIndicator(onRefresh: _refresh, child: body),
     );
   }
 }
 
-/// The outlined card every block on this screen shares.
-class _PodCard extends StatelessWidget {
-  const _PodCard({required this.child, super.key, this.onTap, this.padding});
-
-  final Widget child;
-  final VoidCallback? onTap;
-  final EdgeInsetsGeometry? padding;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      color: cs.surfaceContainerLow,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// Totals across the listed pods: how many are ready, and the CPU and
-/// memory they use when the cluster reports metrics.
+/// One line over the list: how many pods there are, how many are in each
+/// state, and the CPU and memory they use when the cluster reports metrics.
 class KubernetesPodsSummary extends StatelessWidget {
   const KubernetesPodsSummary({required this.entries, super.key});
 
@@ -382,9 +554,11 @@ class KubernetesPodsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final ready = entries
-        .where((e) => e.state == SessionPodDisplayState.ready)
-        .length;
+    final theme = Theme.of(context);
+    final counts = <SessionPodDisplayState, int>{};
+    for (final entry in entries) {
+      counts[entry.state] = (counts[entry.state] ?? 0) + 1;
+    }
     var cpu = 0;
     var memory = 0;
     var sampled = false;
@@ -395,498 +569,47 @@ class KubernetesPodsSummary extends StatelessWidget {
       cpu += pod.cpuUsageMillicores;
       memory += pod.memoryUsageBytes;
     }
-    return _PodCard(
+    final states = [
+      for (final state in const [
+        SessionPodDisplayState.failed,
+        SessionPodDisplayState.scheduling,
+        SessionPodDisplayState.ready,
+        SessionPodDisplayState.paused,
+      ])
+        if ((counts[state] ?? 0) > 0)
+          kubernetesPodCountLabel(l10n, state, counts[state]!),
+    ];
+    return Padding(
       key: const Key('kubernetes-summary'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       child: Row(
         children: [
           Expanded(
-            child: _SummaryStat(
-              label: l10n.kubernetesSummaryPods,
-              value: '${entries.length}',
-              caption: l10n.kubernetesSummaryReady(ready, entries.length),
+            child: Semantics(
+              header: true,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: l10n.kubernetesPodCount(entries.length),
+                      style: AppText.label(theme, theme.colorScheme.onSurface),
+                    ),
+                    for (final label in states) TextSpan(text: ' · $label'),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.secondary(theme),
+              ),
             ),
           ),
           if (sampled) ...[
-            Expanded(
-              child: _SummaryStat(
-                label: l10n.kubernetesCpu,
-                value: formatCpuCores(cpu),
-                caption: l10n.kubernetesSummaryInUse,
-              ),
-            ),
-            Expanded(
-              child: _SummaryStat(
-                label: l10n.kubernetesMemory,
-                value: formatBinaryBytes(memory),
-                caption: l10n.kubernetesSummaryInUse,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryStat extends StatelessWidget {
-  const _SummaryStat({
-    required this.label,
-    required this.value,
-    required this.caption,
-  });
-
-  final String label;
-  final String value;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppText.label(theme)),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-        Text(
-          caption,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.secondary(theme),
-        ),
-      ],
-    );
-  }
-}
-
-/// One pod card: state, session title (or pod name for an untracked pod),
-/// repository, uptime and restarts, CPU/memory usage against the pod's
-/// limits, any failure detail, and the pod/node identity. The menu opens
-/// the chat or Session info and pauses, resumes or kills the pod.
-class KubernetesPodTile extends StatelessWidget {
-  const KubernetesPodTile({
-    required this.entry,
-    super.key,
-    this.now,
-    this.onTap,
-    this.onInfo,
-    this.onAction,
-    this.onRetry,
-    this.onDismiss,
-  });
-
-  final KubernetesPodEntry entry;
-
-  /// Reference time for uptime; defaults to the build time.
-  final DateTime? now;
-
-  final VoidCallback? onTap;
-  final VoidCallback? onInfo;
-
-  /// Pod lifecycle actions; null when the pod cannot be controlled.
-  final ValueChanged<KubernetesPodAction>? onAction;
-
-  /// Retry / dismiss a failed operation shown on the card.
-  final VoidCallback? onRetry;
-  final VoidCallback? onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final state = entry.state;
-    final tone = kubernetesPodStateTone(state);
-    final toneColors = AppToneColors.of(context, tone);
-    final title = entry.sessionTitle;
-    final running = entry.runningPod;
-    final repo = formatPodRepo(entry.repoUrl, entry.repoRef);
-    final detail = entry.detail;
-    final identity = [
-      if (entry.podName.isNotEmpty && title != null) entry.podName,
-      if (running != null && running.nodeName.isNotEmpty) running.nodeName,
-      if (running == null || running.nodeName.isEmpty)
-        if (entry.namespace.isNotEmpty) entry.namespace,
-    ].join(' · ');
-    final startedAt = running == null || running.startedAtMs <= 0
-        ? null
-        : DateTime.fromMillisecondsSinceEpoch(running.startedAtMs);
-    final restarts = running?.restartCount ?? 0;
-    final operation = entry.operation;
-    final pendingKill =
-        operation != null &&
-        operation.isPending &&
-        operation.action == KubernetesPodAction.kill;
-
-    final card = _PodCard(
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.xs,
-        AppSpacing.md,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    AppStatusDot(
-                      color: toneColors.iconColor,
-                      size: AppSpacing.sm,
-                      pulse: state == SessionPodDisplayState.scheduling,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        title ?? entry.podName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.title(theme).copyWith(
-                          fontFamily: title == null ? 'monospace' : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (title == null)
-                  Text(
-                    l10n.kubernetesUntrackedPod,
-                    style: AppText.secondary(theme),
-                  ),
-                if (repo.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.source_outlined,
-                        size: AppIconSize.sm,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          repo,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.secondary(theme),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    AppBadge(
-                      label: kubernetesPodStateLabel(l10n, state),
-                      tone: tone,
-                    ),
-                    if (operation != null && operation.isPending)
-                      AppBadge(
-                        key: const Key('kubernetes-pod-operation-pending'),
-                        leading: const Icon(Icons.sync_rounded),
-                        label: kubernetesPodPendingLabel(
-                          l10n,
-                          operation.action,
-                        ),
-                        tone: operation.action == KubernetesPodAction.kill
-                            ? AppBadgeTone.danger
-                            : AppBadgeTone.info,
-                      ),
-                    if (startedAt != null)
-                      AppBadge(
-                        leading: const Icon(Icons.schedule_rounded),
-                        label: l10n.kubernetesUptime(
-                          formatPodUptime(
-                            (now ?? DateTime.now()).difference(startedAt),
-                          ),
-                        ),
-                      ),
-                    if (restarts > 0)
-                      AppBadge(
-                        label: l10n.kubernetesRestarts(restarts),
-                        tone: AppBadgeTone.warning,
-                      ),
-                    if (!entry.live) AppBadge(label: l10n.kubernetesLastKnown),
-                  ],
-                ),
-                if (detail.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    detail,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.secondary(
-                      theme,
-                      state == SessionPodDisplayState.failed
-                          ? cs.error
-                          : cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-                if (running != null && running.metricsAvailable) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: KubernetesUsageMeter(
-                            key: const Key('kubernetes-usage-cpu'),
-                            label: l10n.kubernetesCpu,
-                            value: formatCpuCores(running.cpuUsageMillicores),
-                            capacity: _capacity(
-                              running.cpuLimitMillicores,
-                              running.cpuRequestMillicores,
-                              formatCpuCores,
-                            ),
-                            fraction: podUsageFraction(
-                              usage: running.cpuUsageMillicores,
-                              limit: running.cpuLimitMillicores,
-                              request: running.cpuRequestMillicores,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: KubernetesUsageMeter(
-                            key: const Key('kubernetes-usage-memory'),
-                            label: l10n.kubernetesMemory,
-                            value: formatBinaryBytes(running.memoryUsageBytes),
-                            capacity: _capacity(
-                              running.memoryLimitBytes,
-                              running.memoryRequestBytes,
-                              formatBinaryBytes,
-                            ),
-                            fraction: podUsageFraction(
-                              usage: running.memoryUsageBytes,
-                              limit: running.memoryLimitBytes,
-                              request: running.memoryRequestBytes,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else if (running != null &&
-                    state == SessionPodDisplayState.ready) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    l10n.kubernetesMetricsUnavailable,
-                    style: AppText.secondary(theme),
-                  ),
-                ],
-                if (identity.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    identity,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.mono(theme),
-                  ),
-                ],
-                if (operation != null && operation.isFailed) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.md),
-                    child: PodOperationFailureBanner(
-                      operation: operation,
-                      onRetry: onRetry ?? () {},
-                      onDismiss: onDismiss ?? () {},
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          _menu(context),
-        ],
-      ),
-    );
-    // A pod being deleted fades while the daemon confirms.
-    return pendingKill ? Opacity(opacity: 0.6, child: card) : card;
-  }
-
-  static String? _capacity(int limit, int request, String Function(int) fmt) {
-    if (limit > 0) return fmt(limit);
-    if (request > 0) return fmt(request);
-    return null;
-  }
-
-  Widget _menu(BuildContext context) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    if (entry.busy) {
-      return const SizedBox.square(
-        dimension: AppTouchTarget.comfortable,
-        child: Center(
-          child: SizedBox.square(
-            dimension: AppIconSize.md,
-            child: AppCircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    final action = onAction;
-    final paused = entry.state == SessionPodDisplayState.paused;
-    final items = <PopupMenuEntry<VoidCallback>>[
-      if (onTap != null)
-        PopupMenuItem(
-          value: onTap,
-          child: _MenuRow(
-            icon: Icons.chat_bubble_outline_rounded,
-            label: l10n.kubernetesOpenChat,
-          ),
-        ),
-      if (onInfo != null)
-        PopupMenuItem(
-          value: onInfo,
-          child: _MenuRow(
-            icon: Icons.info_outline_rounded,
-            label: l10n.kubernetesInfoAndLogs,
-          ),
-        ),
-      if (action != null) ...[
-        if (onTap != null || onInfo != null) const PopupMenuDivider(),
-        if (paused)
-          PopupMenuItem(
-            value: () => action(KubernetesPodAction.resume),
-            child: _MenuRow(
-              icon: Icons.play_arrow_rounded,
-              label: l10n.sessionPodResume,
-            ),
-          )
-        else
-          PopupMenuItem(
-            value: () => action(KubernetesPodAction.pause),
-            child: _MenuRow(
-              icon: Icons.pause_rounded,
-              label: l10n.sessionPodPause,
-            ),
-          ),
-        PopupMenuItem(
-          key: const Key('kubernetes-pod-kill'),
-          value: () => action(KubernetesPodAction.kill),
-          child: _MenuRow(
-            icon: Icons.delete_forever_outlined,
-            label: l10n.sessionPodKill,
-            color: cs.error,
-          ),
-        ),
-      ],
-    ];
-    if (items.isEmpty) return const SizedBox(width: AppSpacing.md);
-    return PopupMenuButton<VoidCallback>(
-      key: Key('kubernetes-pod-menu-${entry.key}'),
-      tooltip: l10n.kubernetesPodActions,
-      icon: Icon(Icons.more_vert_rounded, color: cs.onSurfaceVariant),
-      onSelected: (callback) => callback(),
-      itemBuilder: (_) => items,
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label, this.color});
-
-  final IconData icon;
-  final String label;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: AppIconSize.lg, color: color),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(
-          child: Text(label, style: TextStyle(color: color)),
-        ),
-      ],
-    );
-  }
-}
-
-/// A labelled usage bar: `CPU  0.25 / 2` over a bar filled to the share of
-/// the limit (or request). Without either, only the value is shown.
-class KubernetesUsageMeter extends StatelessWidget {
-  const KubernetesUsageMeter({
-    required this.label,
-    required this.value,
-    super.key,
-    this.capacity,
-    this.fraction,
-  });
-
-  final String label;
-  final String value;
-  final String? capacity;
-  final double? fraction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final share = fraction;
-    final barColor = share == null
-        ? null
-        : share >= 0.9
-        ? AppToneColors.of(context, AppBadgeTone.danger).iconColor
-        : share >= 0.75
-        ? AppToneColors.of(context, AppBadgeTone.warning).iconColor
-        : cs.primary;
-    final text = capacity == null ? value : '$value / $capacity';
-    return Semantics(
-      label: '$label $text',
-      excludeSemantics: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(label, style: AppText.label(theme)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: AppText.badge(
-                    theme,
-                    cs.onSurface,
-                  ).copyWith(fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          if (share != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            AppLinearProgressIndicator(
-              value: share,
-              minHeight: AppSpacing.xs,
-              borderRadius: BorderRadius.circular(AppRadius.xs),
-              backgroundColor: cs.surfaceContainerHighest,
-              color: barColor,
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              key: const Key('kubernetes-summary-usage'),
+              '${l10n.kubernetesCpu} ${formatCpuCores(cpu)} · '
+              '${l10n.kubernetesMemory} ${formatBinaryBytes(memory)}',
+              style: AppText.badge(theme),
             ),
           ],
         ],
