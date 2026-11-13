@@ -6,7 +6,7 @@
 /// state, so no UI waits on the network:
 ///
 /// ```text
-/// submit ──▶ pending ──▶ succeeded ──(authoritative state confirms | TTL)──▶ gone
+/// submit ──▶ pending ──▶ succeeded ──(confirmed | TTL)──▶ gone
 ///                   └──▶ failed ──(retry)──▶ pending
 ///                               └─(dismiss)──▶ gone
 /// ```

@@ -71,8 +71,8 @@ Future<void> runLoopOperationWithFeedback({
   String? successLabel,
   bool Function(Object error)? shouldHandleError,
 }) async {
-  final operations = ref.read(loopOperationsNotifierProvider.notifier);
-  operations.submit(request);
+  final operations = ref.read(loopOperationsNotifierProvider.notifier)
+    ..submit(request);
   final settled = await operations.whenSettled(operations.keyOf(request));
   if (settled == null) return;
   if (settled.isSucceeded) {
@@ -83,7 +83,10 @@ Future<void> runLoopOperationWithFeedback({
   final error = settled.cause ?? settled.error ?? 'unknown error';
   // A failed record has no overlay; clear it so it cannot linger.
   operations.dismiss(settled.key);
-  if (shouldHandleError != null && !shouldHandleError(error)) throw error;
+  if (shouldHandleError != null && !shouldHandleError(error)) {
+    // Rethrow the original failure (any type) for the caller to classify.
+    Error.throwWithStackTrace(error, StackTrace.current);
+  }
   logger.warning('$failureLogMessage: $error', error);
   if (!isMounted()) return;
   messenger.showSnack('$failureLabel: $error', tone: SnackTone.error);

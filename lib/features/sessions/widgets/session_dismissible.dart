@@ -89,8 +89,8 @@ class _DismissibleActiveSessionState
       confirmSessionArchive(context, ref, widget.session);
 
   Future<bool> _confirmDelete(BuildContext context) async {
-    // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
-    // See GlitchTip HAPPY_FLUTTER-396.
+    // Capture notifier reference BEFORE any async gap to avoid
+    // ref-after-dispose. See GlitchTip HAPPY_FLUTTER-396.
     final operations = ref.read(sessionOperationsNotifierProvider.notifier);
     final l10n = context.l10n;
     final confirmed = await showConfirmDialog(
