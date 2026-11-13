@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/sessions_api.dart';
 import 'package:happy_flutter/core/models/loop.dart';
+import 'package:happy_flutter/core/models/machine.dart';
+import 'package:happy_flutter/core/models/mcp_server.dart';
+import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:riverpod/riverpod.dart';
@@ -69,6 +72,58 @@ class _PublishingLoops extends StubLoopsNotifier {
 
   void publish(Map<String, List<Loop>> loops) => state = loops;
 }
+
+Machine _machine(String id) => Machine(
+  id: id,
+  seq: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  active: true,
+  activeAt: 1,
+  metadataVersion: 1,
+  daemonStateVersion: 1,
+);
+
+class _StubMachines extends MachinesNotifier {
+  @override
+  Map<String, Machine> build() => {'m1': _machine('m1'), 'm2': _machine('m2')};
+
+  @override
+  void loadFromSync() {}
+}
+
+class _StubPermissions extends PermissionsNotifier {
+  final replies = <Completer<PermissionResponse>>[];
+
+  Future<PermissionResponse> _next() {
+    final reply = Completer<PermissionResponse>();
+    replies.add(reply);
+    return reply.future;
+  }
+
+  @override
+  Future<PermissionResponse> allow(
+    String sessionId,
+    String permissionId, {
+    String? mode,
+    List<String>? allowTools,
+    String? decision,
+    Map<String, dynamic>? updatedInput,
+  }) => _next();
+
+  @override
+  Future<PermissionResponse> deny(
+    String sessionId,
+    String permissionId, {
+    String? decision,
+  }) => _next();
+}
+
+const _search = McpServer(
+  name: 'search',
+  scope: McpServerScope.user,
+  transport: McpTransport.stdio,
+);
 
 void main() {
   group('SessionOperationsNotifier', () {
@@ -233,5 +288,149 @@ void main() {
       expect(settled.cause, isA<ArgumentError>());
       expect(visible().single.paused, isFalse);
     });
+  });
+
+  group('MachineOperationsNotifier', () {
+    test(
+      'a deleting machine leaves the list until the server answers',
+      () async {
+        final reply = Completer<int?>();
+        final container = ProviderContainer(
+          overrides: [
+            machinesNotifierProvider.overrideWith(_StubMachines.new),
+            machineDeleteRunnerProvider.overrideWithValue((_) => reply.future),
+          ],
+        );
+        addTearDown(container.dispose);
+        List<String> listed() =>
+            container.read(machinesListProvider).map((m) => m.id).toList();
+
+        container.read(machineOperationsNotifierProvider.notifier).delete('m1');
+        expect(listed(), ['m2']);
+
+        reply.complete(503);
+        await pumpEventQueue();
+        // Refused: the machine is back and the failure keeps its status.
+        expect(listed(), unorderedEquals(['m1', 'm2']));
+        final failed = container.read(machineOperationsNotifierProvider)['m1']!;
+        expect(failed.isFailed, isTrue);
+        expect(failed.error, '503');
+      },
+    );
+
+    test('a confirmed delete removes the machine for good', () async {
+      final container = ProviderContainer(
+        overrides: [
+          machinesNotifierProvider.overrideWith(_StubMachines.new),
+          machineDeleteRunnerProvider.overrideWithValue((_) async => null),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(machineOperationsNotifierProvider.notifier).delete('m1');
+      await pumpEventQueue();
+      expect(container.read(machinesNotifierProvider).keys, ['m2']);
+      expect(container.read(machineOperationsNotifierProvider), isEmpty);
+    });
+  });
+
+  group('PermissionOperationsNotifier', () {
+    test('a decision counts as answered while it syncs', () async {
+      final permissions = _StubPermissions();
+      final container = ProviderContainer(
+        overrides: [
+          permissionsNotifierProvider.overrideWith(() => permissions),
+        ],
+      );
+      addTearDown(container.dispose);
+      bool? decided(String id) => decidedPermission(
+        container.read(permissionOperationsNotifierProvider),
+        's1',
+        id,
+      );
+      final store = container.read(
+        permissionOperationsNotifierProvider.notifier,
+      );
+
+      store.submit(
+        const PermissionDecision(
+          sessionId: 's1',
+          permissionId: 'p1',
+          allow: true,
+        ),
+      );
+      store.submit(
+        const PermissionDecision(
+          sessionId: 's1',
+          permissionId: 'p2',
+          allow: false,
+        ),
+      );
+      expect(decided('p1'), isTrue);
+      expect(decided('p2'), isFalse);
+      expect(decided('p3'), isNull);
+
+      permissions.replies[0].complete(
+        const PermissionResponse(success: true, scope: 'once'),
+      );
+      permissions.replies[1].complete(
+        const PermissionResponse(success: false, error: 'expired'),
+      );
+      await pumpEventQueue();
+      // Applied stays answered; a refusal returns the request to pending.
+      expect(decided('p1'), isTrue);
+      expect(
+        container.read(permissionOperationsNotifierProvider)['s1/p1']!.receipt,
+        isNotNull,
+      );
+      expect(decided('p2'), isNull);
+      expect(
+        container.read(permissionOperationsNotifierProvider)['s1/p2']!.error,
+        'expired',
+      );
+    });
+  });
+
+  group('McpOperationsNotifier', () {
+    test(
+      'lists show the change at once; a refusal keeps the response',
+      () async {
+        final reply = Completer<McpConfigResponse>();
+        final container = ProviderContainer(
+          overrides: [
+            mcpChangeRunnerProvider.overrideWithValue((_) => reply.future),
+          ],
+        );
+        addTearDown(container.dispose);
+        final store = container.read(mcpOperationsNotifierProvider.notifier);
+        store.submit(
+          const McpRequest(
+            machineId: 'm1',
+            server: _search,
+            action: McpOperationAction.disable,
+          ),
+        );
+        final ops = container.read(mcpOperationsNotifierProvider);
+        expect(
+          applyMcpOperations('m1', const [_search], ops).single.enabled,
+          isFalse,
+        );
+        // Another machine's identical server is untouched.
+        expect(
+          applyMcpOperations('m2', const [_search], ops).single.enabled,
+          isTrue,
+        );
+
+        reply.complete(const McpConfigResponse(success: false));
+        final settled = await store.whenSettled(mcpOperationKey('m1', _search));
+        expect(settled!.isFailed, isTrue);
+        expect(settled.cause, isA<McpOperationFailed>());
+        expect(
+          applyMcpOperations('m1', const [
+            _search,
+          ], container.read(mcpOperationsNotifierProvider)).single.enabled,
+          isTrue,
+        );
+      },
+    );
   });
 }

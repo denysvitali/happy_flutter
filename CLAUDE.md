@@ -35,17 +35,22 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 ## Core Invariants
 
 - **User operations are app-local and synced in the background** — pod
-  pause/resume/kill, session archive/delete, and loop pause/resume/delete go
-  through `OperationStore` (`lib/core/operations/`): `pending → succeeded |
-  failed`, one in-flight operation per target, records outlive the screen.
-  Screens draw the pending/expected state immediately and never await the
-  RPC to update. Pods and loops keep a success overlay until a daemon report
-  confirms it (pods time out after 60s); sessions hide at once (archive via
-  sync's optimistic set, delete via `optimisticDelete`, which also survives
-  catalog refreshes). Failures revert the overlay: pod cards keep them inline
-  with Retry/Dismiss, sessions get an app-wide Retry snack
-  (`OperationFailureListener`). Batch select-and-delete/archive keeps its own
-  busy selection flow.
+  pause/resume/kill, session archive/delete/abort, machine delete, permission
+  decisions, MCP server toggle/remove, and loop pause/resume/delete go through
+  `OperationStore` (`lib/core/operations/`): `pending → succeeded | failed`,
+  one in-flight operation per target, records outlive the screen. Screens
+  draw the pending/expected state immediately and never await the RPC to
+  update. Pods and loops keep a success overlay until a daemon report
+  confirms it; sessions hide at once (archive via sync's optimistic set,
+  delete via `optimisticDelete`, which survives catalog refreshes); machines
+  leave `machinesListProvider`; a permission counts as answered on every
+  surface. Failures drop the overlay: pod cards keep them inline with
+  Retry/Dismiss; everything else reports through `OperationFailureListener`
+  (Retry except for permissions). Batch select-and-delete/archive keeps its
+  own busy selection flow; goal loops and artifact delete were already
+  optimistic. Creates, sign-in/verification and form saves stay awaited on
+  purpose (they need a server id or validation result). The permission
+  `permissionActionDelegate` test seam keeps the awaited path.
 
 - **Kubernetes default MCPs are per-spawn choices** — the new-session dialog
   offers GitHub Actions and Loki for Claude/Codex only. All checked omits the

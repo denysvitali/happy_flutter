@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/components/app_badge.dart';
 import '../../core/components/app_banner.dart';
 import '../../core/components/app_icon_tile.dart';
@@ -54,7 +53,6 @@ class MachineDetailScreen extends ConsumerStatefulWidget {
 class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     with SyncSubscriptionMixin {
   bool _deletePending = false;
-  bool _deleting = false;
 
   @override
   void initState() {
@@ -109,36 +107,24 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
         isDestructive: true,
       );
       if (!context.mounted || !isCurrent() || !confirmed) return;
-      setState(() => _deleting = true);
-      final api = ApiClient();
-      final response = await api.delete('/v1/machines/$machineId');
-      if (!context.mounted || !isCurrent()) return;
-      if (api.isSuccess(response)) {
-        ref.read(machinesNotifierProvider.notifier).remove(machineId);
-        sync.machinesSync.invalidate();
-        safePop<void>(context);
-      } else {
-        context.showSnack(
-          context.l10n.machineDeleteFailed(response.statusCode ?? 0),
-        );
-      }
-    } catch (_) {
-      if (context.mounted && isCurrent()) {
-        context.showSnack(context.l10n.machineDeleteFailed(0));
-      }
+      // Deletes in the background: the machine leaves every list at once
+      // and a failure brings it back with an app-wide Retry.
+      ref.read(machineOperationsNotifierProvider.notifier).delete(machineId);
+      safePop<void>(context);
     } finally {
-      if (mounted) {
-        setState(() {
-          _deletePending = false;
-          _deleting = false;
-        });
-      }
+      if (mounted) setState(() => _deletePending = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final machine = ref.watch(machineByIdProvider(widget.machineId));
+    // Embedded (tablet) panes stay open while a delete syncs.
+    final deleting = ref.watch(
+      machineOperationsNotifierProvider.select(
+        (ops) => ops[widget.machineId]?.isPending ?? false,
+      ),
+    );
     final sessions = ref.watch(
       sessionsNotifierProvider.select(
         (all) => Map.fromEntries(
@@ -478,7 +464,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                         ),
                   semanticsButton: true,
                   semanticsEnabled: !_deletePending,
-                  trailing: _deleting
+                  trailing: deleting
                       ? Semantics(
                           label: context.l10n.machineRemoveMachine,
                           liveRegion: true,

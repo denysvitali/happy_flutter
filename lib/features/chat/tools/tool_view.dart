@@ -7,7 +7,6 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
-import '../../../core/rpc/rpc_types.dart' show PermissionResponse;
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/ui/neutralize_inner_scroll.dart';
 import '../../../core/utils/grok_acp_normalize.dart';
@@ -388,6 +387,25 @@ class _ToolViewState extends ConsumerState<ToolView>
     await _performPermissionAction(action);
   }
 
+  /// Shows a decision that is still syncing (see
+  /// [permissionOperationsNotifierProvider]) as already answered.
+  Map<String, dynamic>? _withPendingDecision(Map<String, dynamic>? permission) {
+    final sessionId = widget.sessionId;
+    if (permission == null || sessionId == null) return permission;
+    if ((permission['status'] as String? ?? 'pending') != 'pending') {
+      return permission;
+    }
+    final permissionId = _resolvePermissionId(permission);
+    if (permissionId == null) return permission;
+    final allowed = ref.watch(
+      permissionOperationsNotifierProvider.select(
+        (ops) => decidedPermission(ops, sessionId, permissionId),
+      ),
+    );
+    if (allowed == null) return permission;
+    return {...permission, 'status': allowed ? 'approved' : 'denied'};
+  }
+
   String? _resolvePermissionId(Map<String, dynamic> permission) {
     final candidates = <dynamic>[
       permission['id'],
@@ -406,66 +424,78 @@ class _ToolViewState extends ConsumerState<ToolView>
     return null;
   }
 
+  /// Records the decision in [permissionOperationsNotifierProvider] and
+  /// returns at once: the card shows it answered while it syncs, a failure
+  /// returns it to pending (reported app-wide), and the daemon's receipt
+  /// confirms the scope that was applied.
   Future<void> _performPermissionAction(PermissionAction action) async {
-    final notifier = ref.read(permissionsNotifierProvider.notifier);
-    late final PermissionResponse receipt;
-    switch (action.kind) {
-      case PermissionActionKind.allow:
-        receipt = await notifier.allow(action.sessionId, action.permissionId);
-      case PermissionActionKind.deny:
-        receipt = await notifier.deny(action.sessionId, action.permissionId);
-      case PermissionActionKind.allowAllEdits:
-        receipt = await notifier.allow(
-          action.sessionId,
-          action.permissionId,
-          mode: 'acceptEdits',
-        );
-      case PermissionActionKind.allowForSession:
-        final List<String> allowTools;
-        if (action.toolName == 'Bash') {
-          final command = action.toolInput?['command'] as String? ?? '';
-          allowTools = ['Bash($command)'];
-        } else {
-          allowTools = [action.toolName];
-        }
-        receipt = await notifier.allow(
-          action.sessionId,
-          action.permissionId,
-          allowTools: allowTools,
-        );
-      case PermissionActionKind.yolo:
-        receipt = await notifier.allow(
-          action.sessionId,
-          action.permissionId,
-          mode: 'yolo',
-        );
-      case PermissionActionKind.codexApprove:
-        receipt = await notifier.allow(
-          action.sessionId,
-          action.permissionId,
-          decision: 'approved',
-        );
-      case PermissionActionKind.codexApproveForSession:
-        receipt = await notifier.allow(
-          action.sessionId,
-          action.permissionId,
-          decision: 'approved_for_session',
-        );
-      case PermissionActionKind.codexAbort:
-        receipt = await notifier.deny(
-          action.sessionId,
-          action.permissionId,
-          decision: 'abort',
-        );
-    }
-    if (!mounted || !receipt.success) return;
+    final decision = switch (action.kind) {
+      PermissionActionKind.allow => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+      ),
+      PermissionActionKind.deny => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: false,
+      ),
+      PermissionActionKind.allowAllEdits => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+        mode: 'acceptEdits',
+      ),
+      PermissionActionKind.allowForSession => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+        allowTools: action.toolName == 'Bash'
+            ? ['Bash(${action.toolInput?['command'] as String? ?? ''})']
+            : [action.toolName],
+      ),
+      PermissionActionKind.yolo => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+        mode: 'yolo',
+      ),
+      PermissionActionKind.codexApprove => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+        decision: 'approved',
+      ),
+      PermissionActionKind.codexApproveForSession => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: true,
+        decision: 'approved_for_session',
+      ),
+      PermissionActionKind.codexAbort => PermissionDecision(
+        sessionId: action.sessionId,
+        permissionId: action.permissionId,
+        allow: false,
+        decision: 'abort',
+      ),
+    };
+    final operations = ref.read(permissionOperationsNotifierProvider.notifier);
+    if (!operations.submit(decision)) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = context.l10n;
-    final message = receipt.decision == 'denied' || receipt.decision == 'abort'
-        ? l10n.permissionDenialApplied
-        : receipt.scope == 'session'
-        ? l10n.permissionAppliedForSession
-        : l10n.permissionAppliedOnce;
-    ScaffoldMessenger.maybeOf(context)?.showSnack(message);
+    unawaited(
+      operations.whenSettled(operations.keyOf(decision)).then((settled) {
+        final receipt = settled?.receipt;
+        if (receipt == null) return;
+        messenger?.showSnack(
+          receipt.decision == 'denied' || receipt.decision == 'abort'
+              ? l10n.permissionDenialApplied
+              : receipt.scope == 'session'
+              ? l10n.permissionAppliedForSession
+              : l10n.permissionAppliedOnce,
+        );
+      }),
+    );
   }
 
   @override
@@ -530,7 +560,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     final toolState = widget.tool['state'] as String? ?? 'pending';
     final toolInput = displayDispatch.input;
     final toolResult = widget.tool['result'];
-    final permission = WireParsers.asMap(widget.tool['permission']);
+    final permission = _withPendingDecision(
+      WireParsers.asMap(widget.tool['permission']),
+    );
     final createdAt = widget.tool['createdAt'] as int?;
 
     final knownTool = KnownTools.get(toolName);

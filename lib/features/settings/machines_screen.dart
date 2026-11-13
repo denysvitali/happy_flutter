@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/settings_section.dart';
@@ -16,7 +15,6 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
-import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
@@ -28,8 +26,6 @@ class MachinesScreen extends ConsumerStatefulWidget {
 
 class _MachinesScreenState extends ConsumerState<MachinesScreen>
     with SyncSubscriptionMixin {
-  final Set<String> _deletingMachineIds = <String>{};
-
   @override
   void initState() {
     super.initState();
@@ -54,33 +50,13 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
       isDestructive: true,
     );
 
-    if (!confirmed) {
+    if (!confirmed || !mounted) {
       return;
     }
 
-    setState(() {
-      _deletingMachineIds.add(machineId);
-    });
-
-    final response = await ApiClient().delete('/v1/machines/$machineId');
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _deletingMachineIds.remove(machineId);
-    });
-
-    if (ApiClient().isSuccess(response)) {
-      ref.read(machinesNotifierProvider.notifier).remove(machineId);
-      sync.machinesSync.invalidate();
-      return;
-    }
-
-    context.showSnack(
-      context.l10n.machineDeleteFailed(response.statusCode ?? 0),
-    );
+    // Deletes in the background: the row leaves at once and a failure
+    // brings it back with an app-wide Retry.
+    ref.read(machineOperationsNotifierProvider.notifier).delete(machineId);
   }
 
   @override
@@ -101,7 +77,11 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
             ? const _MachinesEmptyState()
             : _MachinesList(
                 machines: machineList,
-                deletingIds: _deletingMachineIds,
+                deletingIds: ref.watch(
+                  machineOperationsNotifierProvider.select(
+                    machinesBeingDeleted,
+                  ),
+                ),
                 onDelete: _deleteMachine,
               ),
       ),

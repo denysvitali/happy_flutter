@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/widgets/operation_failure_listener.dart';
 import 'package:happy_flutter/features/machine/machine_detail_screen.dart';
 
 /// Stub [MachinesNotifier] that returns pre-seeded state and no-ops
@@ -103,6 +104,8 @@ Widget _buildApp({
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // Background operation failures surface app-wide, as in the app.
+      builder: (context, child) => OperationFailureListener(child: child!),
       home: MachineDetailScreen(machineId: machineId),
     ),
   );

@@ -61,7 +61,6 @@ class SessionPeekSheet extends ConsumerStatefulWidget {
 
 class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
   Future<List<Map<String, dynamic>>>? _messages;
-  bool _stopping = false;
 
   @override
   void initState() {
@@ -69,31 +68,19 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
     _messages = MessageCacheService().getMessagesAsync(widget.session.id);
   }
 
-  Future<void> _stop() async {
-    if (_stopping) return;
+  /// Requests the stop in the background and closes the sheet at once; a
+  /// failure is reported app-wide with Retry.
+  void _stop() {
     final l10n = context.l10n;
-    setState(() => _stopping = true);
-    try {
-      await ref
-          .read(chatActionNotifierProvider.notifier)
-          .abortSession(widget.session.id, reason: peekAbortReason);
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.maybeOf(context)?.showSnack(
-          l10n.missionControlPeekStopRequested,
-          duration: const Duration(seconds: 2),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _stopping = false);
-        ScaffoldMessenger.maybeOf(context)?.showSnack(
-          l10n.missionControlPeekStopFailed,
-          duration: const Duration(seconds: 2),
-          tone: SnackTone.error,
-        );
-      }
-    }
+    ref
+        .read(sessionOperationsNotifierProvider.notifier)
+        .abort(widget.session.id, reason: peekAbortReason);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    Navigator.of(context).pop();
+    messenger?.showSnack(
+      l10n.missionControlPeekStopRequested,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   @override
@@ -244,16 +231,8 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                         foregroundColor: cs.error,
                         side: BorderSide(color: cs.error),
                       ),
-                      onPressed: _stopping ? null : _stop,
-                      icon: _stopping
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: AppCircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.stop_rounded),
+                      onPressed: _stop,
+                      icon: const Icon(Icons.stop_rounded),
                       label: Text(l10n.missionControlPeekStop),
                     ),
                   ],

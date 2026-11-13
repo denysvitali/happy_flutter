@@ -49,7 +49,6 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
 
   /// Identity of the server currently being written, so only its row shows a
   /// pending state instead of freezing the whole list.
-  String? _busyIdentity;
 
   @override
   void initState() {
@@ -158,25 +157,47 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
       );
       if (!confirmed || !mounted) return;
     }
-    setState(() => _busyIdentity = server.identity);
-    final response = await Sync().machineToggleMcpServer(
+    // The switch flips at once; the change syncs in the background (see
+    // _onOperationsChanged) and a failure is reported app-wide.
+    final operations = ref.read(mcpOperationsNotifierProvider.notifier);
+    final request = McpRequest(
       machineId: machineId,
-      scope: server.scope,
-      name: server.name,
-      enabled: enabled,
-      projectDir: server.projectDir ?? _selectedProjectDir,
+      server: server,
+      action: enabled ? McpOperationAction.enable : McpOperationAction.disable,
+      projectDir: _selectedProjectDir,
     );
-    if (!mounted) return;
-    setState(() => _busyIdentity = null);
-    _applyResult(response, fallback: context.l10n.mcpToggleFailed(server.name));
-    if (enabled && response.success && mounted) {
-      context.showSnack(
-        context.l10n.mcpEnabledWithUndo,
-        action: SnackBarAction(
-          label: context.l10n.commonUndo,
-          onPressed: () => unawaited(_toggle(server, false)),
-        ),
-      );
+    if (!operations.submit(request) || !enabled) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final settled = await operations.whenSettled(operations.keyOf(request));
+    if (settled == null || !settled.isSucceeded || !mounted) return;
+    messenger.showSnack(
+      l10n.mcpEnabledWithUndo,
+      action: SnackBarAction(
+        label: l10n.commonUndo,
+        onPressed: () => unawaited(_toggle(server, false)),
+      ),
+    );
+  }
+
+  /// Adopts the daemon's snapshot after a change on the selected machine.
+  void _onOperationsChanged(
+    Map<String, McpOperation>? previous,
+    Map<String, McpOperation> next,
+  ) {
+    for (final MapEntry(:key, value: operation) in next.entries) {
+      final before = previous?[key];
+      if (before == null || before.id != operation.id || !before.isPending) {
+        continue;
+      }
+      final snapshot = operation.snapshot;
+      if (!operation.isSucceeded || snapshot == null) continue;
+      // A snapshot for a machine the user switched away from must not
+      // repaint the list: row actions target the selected machine.
+      if (operation.request.machineId == _selectedMachineId) {
+        _applyResult(snapshot, fallback: '');
+      }
+      ref.read(mcpOperationsNotifierProvider.notifier).dismiss(key);
     }
   }
 
@@ -192,16 +213,17 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
-    setState(() => _busyIdentity = server.identity);
-    final response = await Sync().machineRemoveMcpServer(
-      machineId: machineId,
-      scope: server.scope,
-      name: server.name,
-      projectDir: server.projectDir ?? _selectedProjectDir,
-    );
-    if (!mounted) return;
-    setState(() => _busyIdentity = null);
-    _applyResult(response, fallback: l10n.mcpDeleteFailed(server.name));
+    // The row leaves at once; the removal syncs in the background.
+    ref
+        .read(mcpOperationsNotifierProvider.notifier)
+        .submit(
+          McpRequest(
+            machineId: machineId,
+            server: server,
+            action: McpOperationAction.remove,
+            projectDir: _selectedProjectDir,
+          ),
+        );
   }
 
   Future<void> _openEditor({McpServer? server}) async {
@@ -230,6 +252,8 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final machines = ref.watch(machinesNotifierProvider);
+    ref.listen(mcpOperationsNotifierProvider, _onOperationsChanged);
+    final operations = ref.watch(mcpOperationsNotifierProvider);
     final config = _config;
 
     return Scaffold(
@@ -281,7 +305,7 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
                 ),
               )
             else if (config != null)
-              ..._buildConfigBody(context, config),
+              ..._buildConfigBody(context, config, operations),
           ],
         ),
       ),
@@ -291,9 +315,12 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
   List<Widget> _buildConfigBody(
     BuildContext context,
     McpConfigResponse config,
+    Map<String, McpOperation> operations,
   ) {
     final l10n = context.l10n;
-    if (config.servers.isEmpty) {
+    final machineId = _selectedMachineId ?? '';
+    final servers = applyMcpOperations(machineId, config.servers, operations);
+    if (servers.isEmpty) {
       return [
         Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -308,7 +335,7 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
 
     // Group by scope so it is obvious which file an edit will touch.
     final grouped = <McpServerScope, List<McpServer>>{};
-    for (final server in config.servers) {
+    for (final server in servers) {
       grouped.putIfAbsent(server.scope, () => []).add(server);
     }
     final orderedScopes = McpServerScope.values
@@ -355,7 +382,10 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
                 for (final server in grouped[scope]!)
                   _ServerRow(
                     server: server,
-                    busy: _busyIdentity == server.identity,
+                    busy:
+                        operations[mcpOperationKey(machineId, server)]
+                            ?.isPending ??
+                        false,
                     onToggle: (value) => unawaited(_toggle(server, value)),
                     onEdit: () => unawaited(_openEditor(server: server)),
                     onDelete: () => unawaited(_delete(server)),
@@ -500,13 +530,8 @@ class _ServerRow extends StatelessWidget {
                   tone: AppBadgeTone.warning,
                 ),
               ),
-            if (busy)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: AppLoadingIndicator(size: AppSpacing.lg),
-              )
-            else
-              Switch(value: server.enabled, onChanged: onToggle),
+            // Shows the requested state at once; locked while it syncs.
+            Switch(value: server.enabled, onChanged: busy ? null : onToggle),
             PopupMenuButton<String>(
               tooltip: l10n.commonMore,
               onSelected: (value) {

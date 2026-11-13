@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
+import '../../../core/utils/permission_failure.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../widgets/chat_agent_scope.dart';
 import '../widgets/inline_permission_visibility.dart';
@@ -105,29 +106,13 @@ class _PermissionFooterState extends State<PermissionFooter> {
       final msg = e.toString();
       // Expected race conditions when server resolves/expires the
       // permission before the user acts — downgrade to info.
-      final isExpectedRace =
-          msg.contains('restarted') ||
-          msg.contains('expired') ||
-          msg.contains('no pending permission') ||
-          msg.contains('not available') ||
-          msg.contains('failed to resolve');
-      if (isExpectedRace) {
+      if (isExpectedPermissionRace(msg)) {
         logger.info('Permission action skipped: $e');
       } else {
         logger.warning('Permission action failed: $e');
       }
       if (mounted) {
-        final l10n = AppLocalizations.of(context);
-        final String label;
-        if (msg.contains('restarted') || msg.contains('expired')) {
-          label = l10n.permissionExpiredRestarted;
-        } else if (msg.contains('no pending permission') ||
-            msg.contains('not available') ||
-            msg.contains('failed to resolve')) {
-          label = l10n.permissionExpiredNoPending;
-        } else {
-          label = l10n.permissionActionFailed;
-        }
+        final label = permissionFailureLabel(AppLocalizations.of(context), msg);
         context.showSnack(label, tone: SnackTone.error);
       }
     } finally {

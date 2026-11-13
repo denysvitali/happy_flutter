@@ -4,6 +4,7 @@ import '../models/artifact.dart';
 import '../models/machine.dart';
 import '../models/session.dart';
 import 'artifacts_notifier.dart';
+import 'machine_operations_notifier.dart';
 import 'machines_notifier.dart';
 import 'session_ui_state_notifier.dart';
 import 'sessions_notifier.dart';
@@ -129,7 +130,16 @@ final recentPathsForMachineProvider = Provider.autoDispose
 /// emits when there's a real change).
 final machinesListProvider = Provider<List<Machine>>((ref) {
   final machines = ref.watch(machinesNotifierProvider);
-  return List<Machine>.unmodifiable(machines.values);
+  // A machine whose delete is syncing in the background is already gone
+  // for the user.
+  final deleting = ref.watch(
+    machineOperationsNotifierProvider.select(machinesBeingDeleted),
+  );
+  return List<Machine>.unmodifiable(
+    deleting.isEmpty
+        ? machines.values
+        : machines.values.where((m) => !deleting.contains(m.id)),
+  );
 });
 
 /// Identity-stable list of all [Session] values. Same caching guarantee as

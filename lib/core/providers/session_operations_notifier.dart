@@ -15,9 +15,11 @@ import '../api/sessions_api.dart';
 import '../models/session.dart';
 import '../operations/operation_store.dart';
 import '../services/session_archive.dart';
+import 'chat_action_notifier.dart';
 import 'sessions_notifier.dart';
 
-enum SessionOperationAction { archive, delete }
+/// `abort` stops the agent's current turn; the session stays open.
+enum SessionOperationAction { archive, delete, abort }
 
 @immutable
 class SessionRequest {
@@ -25,6 +27,7 @@ class SessionRequest {
     required this.sessionId,
     required this.action,
     this.session,
+    this.reason,
   });
 
   final String sessionId;
@@ -32,6 +35,9 @@ class SessionRequest {
 
   /// The row as the user saw it; decides whether a live process is stopped.
   final Session? session;
+
+  /// Diagnostic reason recorded with an abort.
+  final String? reason;
 }
 
 typedef SessionOperation = Operation<SessionRequest>;
@@ -44,7 +50,11 @@ class SessionOperationsNotifier extends OperationStore<SessionRequest> {
   String get logName => 'Session';
 
   @override
-  String keyOf(SessionRequest request) => request.sessionId;
+  String keyOf(SessionRequest request) =>
+      request.action == SessionOperationAction.abort
+      // A Stop never blocks a later archive/delete of the same session.
+      ? '${request.sessionId}#abort'
+      : request.sessionId;
 
   SessionsNotifier get _sessions => ref.read(sessionsNotifierProvider.notifier);
 
@@ -60,6 +70,15 @@ class SessionOperationsNotifier extends OperationStore<SessionRequest> {
   /// Deletes [sessionId] in the background; it leaves the list at once.
   bool delete(String sessionId) => submit(
     SessionRequest(sessionId: sessionId, action: SessionOperationAction.delete),
+  );
+
+  /// Stops the agent's current turn in the background.
+  bool abort(String sessionId, {required String reason}) => submit(
+    SessionRequest(
+      sessionId: sessionId,
+      action: SessionOperationAction.abort,
+      reason: reason,
+    ),
   );
 
   @override
@@ -86,6 +105,10 @@ class SessionOperationsNotifier extends OperationStore<SessionRequest> {
         if (!await _sessions.optimisticDelete(request.sessionId)) {
           throw const OperationRejected('rejected by server');
         }
+      case SessionOperationAction.abort:
+        await ref
+            .read(chatActionNotifierProvider.notifier)
+            .abortSession(request.sessionId, reason: request.reason ?? '');
     }
     return null;
   }
@@ -99,7 +122,9 @@ class SessionOperationsNotifier extends OperationStore<SessionRequest> {
 
   @override
   void onSucceeded(SessionOperation operation) {
-    _sessions.loadFromSync();
+    if (operation.request.action != SessionOperationAction.abort) {
+      _sessions.loadFromSync();
+    }
     dismiss(operation.key);
   }
 }

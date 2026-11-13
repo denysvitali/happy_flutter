@@ -9,8 +9,6 @@ import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/snack.dart';
-import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// One-line Allow/Deny for the oldest pending permission request, so a
 /// blocked agent unblocks straight from the sessions list. Mirrors the
@@ -39,8 +37,6 @@ class InlinePermissionActions extends ConsumerStatefulWidget {
 
 class _InlinePermissionActionsState
     extends ConsumerState<InlinePermissionActions> {
-  bool _busy = false;
-
   static const _buttonStyle = ButtonStyle(
     minimumSize: WidgetStatePropertyAll(Size(64, 32)),
     fixedSize: WidgetStatePropertyAll(Size.fromHeight(32)),
@@ -51,23 +47,28 @@ class _InlinePermissionActionsState
     visualDensity: VisualDensity.compact,
   );
 
+  /// Requests still awaiting an answer: a decision syncing in
+  /// [permissionOperationsNotifierProvider] already counts as answered.
+  Map<String, RequestInfo> _undecided(Map<String, PermissionOperation> ops) => {
+    for (final MapEntry(:key, :value) in widget.requests.entries)
+      if (decidedPermission(ops, widget.sessionId, key) == null) key: value,
+  };
+
+  /// Sends the decision in the background; the row updates at once and a
+  /// failure brings the request back (reported app-wide).
   Future<void> _act(bool allow) async {
-    if (_busy || !widget.isOnline || widget.requests.isEmpty) return;
-    final requestId = widget.requests.keys.first;
-    setState(() => _busy = true);
+    final requests = _undecided(ref.read(permissionOperationsNotifierProvider));
+    if (!widget.isOnline || requests.isEmpty) return;
+    ref
+        .read(permissionOperationsNotifierProvider.notifier)
+        .submit(
+          PermissionDecision(
+            sessionId: widget.sessionId,
+            permissionId: requests.keys.first,
+            allow: allow,
+          ),
+        );
     await HapticFeedback.mediumImpact();
-    try {
-      final notifier = ref.read(permissionsNotifierProvider.notifier);
-      if (allow) {
-        await notifier.allow(widget.sessionId, requestId);
-      } else {
-        await notifier.deny(widget.sessionId, requestId);
-      }
-    } catch (_) {
-      if (mounted) context.showSnack(context.l10n.permissionActionFailed);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   @override
@@ -80,6 +81,10 @@ class _InlinePermissionActionsState
     final allowBg = appColors?.warningContainer ?? cs.errorContainer;
     final allowFg = appColors?.onWarningContainer ?? cs.onErrorContainer;
     final hint = widget.context?.trim();
+    final undecided = _undecided(
+      ref.watch(permissionOperationsNotifierProvider),
+    );
+    if (undecided.isEmpty) return const SizedBox.shrink();
     return Row(
       children: [
         Expanded(
@@ -97,12 +102,7 @@ class _InlinePermissionActionsState
                 ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        if (_busy)
-          const SizedBox.square(
-            dimension: AppIconSize.md,
-            child: AppCircularProgressIndicator(strokeWidth: 2),
-          )
-        else ...[
+        ...[
           TextButton(
             onPressed: widget.isOnline ? () => _act(false) : null,
             style: TextButton.styleFrom(
