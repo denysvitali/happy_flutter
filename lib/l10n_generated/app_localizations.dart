@@ -951,6 +951,24 @@ abstract class AppLocalizations {
   /// **'{action} failed: {error}'**
   String kubernetesActionFailed(String action, String error);
 
+  /// Pod card badge while a pause request syncs to the daemon
+  ///
+  /// In en, this message translates to:
+  /// **'Pausing…'**
+  String get kubernetesPodPausing;
+
+  /// Pod card badge while a resume request syncs to the daemon
+  ///
+  /// In en, this message translates to:
+  /// **'Resuming…'**
+  String get kubernetesPodResuming;
+
+  /// Pod card badge while a kill (delete) request syncs to the daemon
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting…'**
+  String get kubernetesPodDeleting;
+
   /// Kubernetes board section for sessions that run directly on a machine instead of in a pod
   ///
   /// In en, this message translates to:

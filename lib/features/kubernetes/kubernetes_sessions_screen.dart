@@ -22,8 +22,12 @@ import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'kubernetes_pod_format.dart';
+import 'kubernetes_pod_operation_view.dart';
 import 'kubernetes_pod_state.dart';
 import 'kubernetes_pods_model.dart';
+
+export '../../core/providers/pod_operations_notifier.dart'
+    show KubernetesPodAction, KubernetesPodActionRunner;
 
 /// Loads one machine's session pods. Injectable for tests.
 typedef KubernetesPodsLoader =
@@ -34,12 +38,17 @@ typedef KubernetesPodsLoader =
 /// Cards open the session's chat; each card's menu pauses, resumes or kills
 /// the pod, or opens Session info for logs.
 ///
+/// Pod actions never block the screen: they are recorded in
+/// [podOperationsNotifierProvider], which syncs them to the daemon in the
+/// background. A card shows its operation in progress ("Deleting…"), its
+/// expected outcome once the daemon accepted it, or an inline failure with
+/// Retry until the user dismisses it.
+///
 /// Polls while it is the visible route and the app is in the foreground.
 class KubernetesSessionsScreen extends ConsumerStatefulWidget {
-  const KubernetesSessionsScreen({super.key, this.loadPods, this.runPodAction});
+  const KubernetesSessionsScreen({super.key, this.loadPods});
 
   final KubernetesPodsLoader? loadPods;
-  final KubernetesPodActionRunner? runPodAction;
 
   /// Refresh cadence while the screen is visible.
   static const Duration pollInterval = Duration(seconds: 10);
@@ -59,9 +68,6 @@ class _KubernetesSessionsScreenState
   int _generation = 0;
   Timer? _poll;
   bool _foreground = true;
-
-  /// Entry keys with a pod action in flight.
-  Set<String> _busy = const {};
 
   @override
   void initState() {
@@ -121,11 +127,20 @@ class _KubernetesSessionsScreenState
       }),
     );
     if (!mounted || generation != _generation) return;
+    final podsByMachine = {
+      for (final (machineId, pods) in results)
+        if (pods != null) machineId: pods,
+    };
+    // Settle optimistic overlays this report confirms.
+    final operations = ref.read(podOperationsNotifierProvider.notifier);
+    operations.reconcile(
+      observedPodOperationStates(
+        operations: ref.read(podOperationsNotifierProvider),
+        podsByMachine: podsByMachine,
+      ),
+    );
     setState(() {
-      _podsByMachine = {
-        for (final (machineId, pods) in results)
-          if (pods != null) machineId: pods,
-      };
+      _podsByMachine = podsByMachine;
       _unreachable = {
         for (final (machineId, pods) in results)
           if (pods == null) machineId,
@@ -150,43 +165,11 @@ class _KubernetesSessionsScreenState
     );
   }
 
-  Future<SessionPodActionResponse> _send(
-    String machineId,
-    String sessionId,
-    KubernetesPodAction action,
-  ) {
-    final runner = widget.runPodAction;
-    if (runner != null) return runner(machineId, sessionId, action);
-    return switch (action) {
-      KubernetesPodAction.pause => sync.machinePauseSessionPod(
-        machineId: machineId,
-        sessionId: sessionId,
-      ),
-      KubernetesPodAction.resume => sync.machineResumeSessionPod(
-        machineId: machineId,
-        sessionId: sessionId,
-      ),
-      KubernetesPodAction.kill => sync.machineKillSessionPod(
-        machineId: machineId,
-        sessionId: sessionId,
-      ),
-    };
-  }
-
-  String _actionLabel(KubernetesPodAction action) {
-    final l10n = context.l10n;
-    return switch (action) {
-      KubernetesPodAction.pause => l10n.sessionPodPause,
-      KubernetesPodAction.resume => l10n.sessionPodResume,
-      KubernetesPodAction.kill => l10n.sessionPodKill,
-    };
-  }
-
   Future<void> _runAction(
     KubernetesPodEntry entry,
     KubernetesPodAction action,
   ) async {
-    if (!entry.canControl || _busy.contains(entry.key)) return;
+    if (!entry.canControl) return;
     final l10n = context.l10n;
     if (action == KubernetesPodAction.kill) {
       final confirmed = await showConfirmDialog(
@@ -200,35 +183,57 @@ class _KubernetesSessionsScreenState
       );
       if (!confirmed || !mounted) return;
     }
-    final label = _actionLabel(action);
-    setState(() => _busy = {..._busy, entry.key});
-    try {
-      final response = await _send(entry.machineId!, entry.sessionId, action);
-      if (!response.success) throw StateError(response.message);
-    } catch (error, stack) {
-      logger.warning('Pod action failed: ${action.name}', error, stack);
-      final message = error is StateError ? error.message : '$error';
-      if (mounted) {
+    ref
+        .read(podOperationsNotifierProvider.notifier)
+        .submit(
+          machineId: entry.machineId!,
+          sessionId: entry.sessionId,
+          action: action,
+        );
+  }
+
+  /// Reacts to operations settling: a success re-reads the daemons so the
+  /// report catches up with the overlay; a failure is announced once (the
+  /// card keeps the error until dismissed).
+  void _onOperationsChanged(
+    Map<String, PodOperation>? previous,
+    Map<String, PodOperation> next,
+  ) {
+    if (!mounted) return;
+    var settled = false;
+    for (final MapEntry(:key, value: operation) in next.entries) {
+      final before = previous?[key];
+      if (before == null || before.id != operation.id || !before.isPending) {
+        continue;
+      }
+      if (operation.isPending) continue;
+      settled = true;
+      if (operation.isFailed) {
+        final l10n = context.l10n;
         context.showSnack(
-          l10n.kubernetesActionFailed(label, message),
+          l10n.kubernetesActionFailed(
+            kubernetesPodActionLabel(l10n, operation.action),
+            operation.error ?? '',
+          ),
           tone: SnackTone.error,
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _busy = {..._busy}..remove(entry.key));
-      }
     }
-    if (mounted) await _refresh();
+    if (settled) unawaited(_refresh());
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    final entries = mergeKubernetesPods(
-      sessions: ref.watch(sessionsNotifierProvider),
-      podsByMachine: _podsByMachine,
+    ref.listen(podOperationsNotifierProvider, _onOperationsChanged);
+    final operations = ref.watch(podOperationsNotifierProvider);
+    final entries = applyPodOperations(
+      mergeKubernetesPods(
+        sessions: ref.watch(sessionsNotifierProvider),
+        podsByMachine: _podsByMachine,
+      ),
+      operations,
     );
     final groups = <SessionPodDisplayState, List<KubernetesPodEntry>>{};
     for (final entry in entries) {
@@ -291,7 +296,6 @@ class _KubernetesSessionsScreenState
                 key: ValueKey('kubernetes-pod-${entry.key}'),
                 entry: entry,
                 now: now,
-                busy: _busy.contains(entry.key),
                 onTap: entry.session == null
                     ? null
                     : () => _openChat(entry.session!),
@@ -301,6 +305,12 @@ class _KubernetesSessionsScreenState
                 onAction: entry.canControl
                     ? (action) => unawaited(_runAction(entry, action))
                     : null,
+                onRetry: () => ref
+                    .read(podOperationsNotifierProvider.notifier)
+                    .retry(entry.key),
+                onDismiss: () => ref
+                    .read(podOperationsNotifierProvider.notifier)
+                    .dismiss(entry.key),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
@@ -331,17 +341,6 @@ class _KubernetesSessionsScreenState
     );
   }
 }
-
-/// A pod lifecycle action sent to the owning daemon.
-enum KubernetesPodAction { pause, resume, kill }
-
-/// Sends a pod action. Injectable for tests.
-typedef KubernetesPodActionRunner =
-    Future<SessionPodActionResponse> Function(
-      String machineId,
-      String sessionId,
-      KubernetesPodAction action,
-    );
 
 /// The outlined card every block on this screen shares.
 class _PodCard extends StatelessWidget {
@@ -481,10 +480,11 @@ class KubernetesPodTile extends StatelessWidget {
     required this.entry,
     super.key,
     this.now,
-    this.busy = false,
     this.onTap,
     this.onInfo,
     this.onAction,
+    this.onRetry,
+    this.onDismiss,
   });
 
   final KubernetesPodEntry entry;
@@ -492,13 +492,15 @@ class KubernetesPodTile extends StatelessWidget {
   /// Reference time for uptime; defaults to the build time.
   final DateTime? now;
 
-  /// Whether a pod action is in flight; replaces the menu with a spinner.
-  final bool busy;
   final VoidCallback? onTap;
   final VoidCallback? onInfo;
 
   /// Pod lifecycle actions; null when the pod cannot be controlled.
   final ValueChanged<KubernetesPodAction>? onAction;
+
+  /// Retry / dismiss a failed operation shown on the card.
+  final VoidCallback? onRetry;
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -522,8 +524,13 @@ class KubernetesPodTile extends StatelessWidget {
         ? null
         : DateTime.fromMillisecondsSinceEpoch(running.startedAtMs);
     final restarts = running?.restartCount ?? 0;
+    final operation = entry.operation;
+    final pendingKill =
+        operation != null &&
+        operation.isPending &&
+        operation.action == KubernetesPodAction.kill;
 
-    return _PodCard(
+    final card = _PodCard(
       onTap: onTap,
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -593,6 +600,18 @@ class KubernetesPodTile extends StatelessWidget {
                       label: kubernetesPodStateLabel(l10n, state),
                       tone: tone,
                     ),
+                    if (operation != null && operation.isPending)
+                      AppBadge(
+                        key: const Key('kubernetes-pod-operation-pending'),
+                        leading: const Icon(Icons.sync_rounded),
+                        label: kubernetesPodPendingLabel(
+                          l10n,
+                          operation.action,
+                        ),
+                        tone: operation.action == KubernetesPodAction.kill
+                            ? AppBadgeTone.danger
+                            : AppBadgeTone.info,
+                      ),
                     if (startedAt != null)
                       AppBadge(
                         leading: const Icon(Icons.schedule_rounded),
@@ -685,6 +704,17 @@ class KubernetesPodTile extends StatelessWidget {
                     style: AppText.mono(theme),
                   ),
                 ],
+                if (operation != null && operation.isFailed) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.md),
+                    child: PodOperationFailureBanner(
+                      operation: operation,
+                      onRetry: onRetry ?? () {},
+                      onDismiss: onDismiss ?? () {},
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -692,6 +722,8 @@ class KubernetesPodTile extends StatelessWidget {
         ],
       ),
     );
+    // A pod being deleted fades while the daemon confirms.
+    return pendingKill ? Opacity(opacity: 0.6, child: card) : card;
   }
 
   static String? _capacity(int limit, int request, String Function(int) fmt) {
@@ -703,7 +735,7 @@ class KubernetesPodTile extends StatelessWidget {
   Widget _menu(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    if (busy) {
+    if (entry.busy) {
       return const SizedBox.square(
         dimension: AppTouchTarget.comfortable,
         child: Center(

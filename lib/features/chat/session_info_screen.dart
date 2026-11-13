@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -91,7 +92,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   SessionPod? _pod;
   SessionPodLogsResponse? _podLogs;
   bool _podLoading = false;
-  bool _podActionRunning = false;
   Object? _podError;
   late final TextEditingController _startupResumeMessageController;
   late bool _startupResumeEnabled;
@@ -195,38 +195,27 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     }
   }
 
-  Future<void> _runPodAction(String action) async {
+  /// Records the pod action in the app-wide operation store, which syncs it
+  /// to the daemon in the background; the section reflects its outcome.
+  void _runPodAction(KubernetesPodAction action) {
     final machineId = widget.session.metadata?.machineId;
     if (machineId == null || machineId.isEmpty) return;
-    setState(() {
-      _podActionRunning = true;
-      _podError = null;
-    });
-    try {
-      final response = switch (action) {
-        'pause' => await sync.machinePauseSessionPod(
+    ref
+        .read(podOperationsNotifierProvider.notifier)
+        .submit(
           machineId: machineId,
           sessionId: widget.session.id,
-        ),
-        'resume' => await sync.machineResumeSessionPod(
-          machineId: machineId,
-          sessionId: widget.session.id,
-        ),
-        _ => await sync.machineKillSessionPod(
-          machineId: machineId,
-          sessionId: widget.session.id,
-        ),
-      };
-      if (!response.success) throw StateError(response.message);
-      if (!mounted) return;
-      setState(() => _pod = response.pod ?? _pod);
-      await _refreshPod(loadLogs: _podLogs != null);
-    } catch (error, stack) {
-      logger.warning('Session pod action failed: $action', error, stack);
-      if (mounted) setState(() => _podError = error);
-    } finally {
-      if (mounted) setState(() => _podActionRunning = false);
-    }
+          action: action,
+        );
+  }
+
+  /// Applies a settled pod operation for this session: a success adopts the
+  /// daemon's pod report and refreshes it.
+  void _onPodOperation(PodOperation? previous, PodOperation? next) {
+    if (previous == null || next == null || previous.id != next.id) return;
+    if (!previous.isPending || !next.isSucceeded || !mounted) return;
+    setState(() => _pod = next.pod ?? _pod);
+    unawaited(_refreshPod(loadLogs: _podLogs != null));
   }
 
   String _formatDate(int timestamp) {
@@ -371,6 +360,29 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final cs = theme.colorScheme;
     const gap = SizedBox(height: AppSpacing.xl);
 
+    final podMachineId = meta?.machineId;
+    final podOperationKeyForSession =
+        session.isKubernetesSession &&
+            podMachineId != null &&
+            podMachineId.isNotEmpty
+        ? podOperationKey(podMachineId, session.id)
+        : null;
+    final PodOperation? podOperation = podOperationKeyForSession == null
+        ? null
+        : ref.watch(
+            podOperationsNotifierProvider.select(
+              (ops) => ops[podOperationKeyForSession],
+            ),
+          );
+    if (podOperationKeyForSession != null) {
+      ref.listen(
+        podOperationsNotifierProvider.select(
+          (ops) => ops[podOperationKeyForSession],
+        ),
+        _onPodOperation,
+      );
+    }
+
     return ListView(
       padding: AppScreenPadding.standard,
       children: [
@@ -408,13 +420,22 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             pod: _pod,
             logs: _podLogs,
             loading: _podLoading,
-            actionRunning: _podActionRunning,
+            actionRunning: podOperation?.isPending ?? false,
             error: _podError,
+            failedOperation: podOperation?.isFailed ?? false
+                ? podOperation
+                : null,
+            onRetryOperation: () => ref
+                .read(podOperationsNotifierProvider.notifier)
+                .retry(podOperationKeyForSession!),
+            onDismissOperation: () => ref
+                .read(podOperationsNotifierProvider.notifier)
+                .dismiss(podOperationKeyForSession!),
             onRefresh: () => _refreshPod(loadLogs: _podLogs != null),
             onLoadLogs: () => _refreshPod(loadLogs: true),
             onHideLogs: () => setState(() => _podLogs = null),
-            onPause: () => _runPodAction('pause'),
-            onResume: () => _runPodAction('resume'),
+            onPause: () => _runPodAction(KubernetesPodAction.pause),
+            onResume: () => _runPodAction(KubernetesPodAction.resume),
             onKill: () async {
               final confirmed = await showConfirmDialog(
                 context,
@@ -423,7 +444,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 confirmLabel: l10n.sessionPodKill,
                 isDestructive: true,
               );
-              if (confirmed && mounted) await _runPodAction('kill');
+              if (confirmed && mounted) {
+                _runPodAction(KubernetesPodAction.kill);
+              }
             },
           ),
         ],

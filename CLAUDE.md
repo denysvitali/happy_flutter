@@ -34,6 +34,14 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
+- **Pod actions are app-local operations synced in the background** —
+  pause/resume/kill are recorded in `podOperationsNotifierProvider`
+  (`pending → succeeded | failed`) and sent to the daemon without blocking
+  any screen. Cards overlay the pending/expected state on the last daemon
+  report until a fresh report confirms it (or 60s pass); a failure stays
+  inline with Retry/Dismiss. Records outlive the screen that submitted them;
+  one in-flight operation per pod.
+
 - **Kubernetes default MCPs are per-spawn choices** — the new-session dialog
   offers GitHub Actions and Loki for Claude/Codex only. All checked omits the
   selection (daemon defaults); a subset or none sends `mcpServers` plus

@@ -12,6 +12,7 @@ export 'machines_notifier.dart';
 export 'network_notifier.dart';
 export 'offline_dictation_notifier.dart';
 export 'permissions_notifier.dart';
+export 'pod_operations_notifier.dart';
 export 'profile_notifier.dart';
 export 'provider_usage_notifier.dart';
 export 'session_git_status_notifier.dart';

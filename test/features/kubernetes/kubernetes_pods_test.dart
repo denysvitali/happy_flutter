@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -505,6 +507,7 @@ void main() {
       final now = DateTime.now().millisecondsSinceEpoch;
       final sent = <String>[];
       var killed = false;
+      final reply = Completer<SessionPodActionResponse>();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -514,6 +517,14 @@ void main() {
             machinesNotifierProvider.overrideWith(
               () => _StubMachines({'k8s': _machine('k8s', activeAt: now)}),
             ),
+            podActionRunnerProvider.overrideWithValue((
+              machineId,
+              sessionId,
+              action,
+            ) {
+              sent.add('$machineId/$sessionId/${action.name}');
+              return reply.future;
+            }),
           ],
           child: _routerApp(
             KubernetesSessionsScreen(
@@ -521,14 +532,6 @@ void main() {
                 if (!killed) _pod('a', metrics: true),
                 _pod('b', metrics: true),
               ],
-              runPodAction: (machineId, sessionId, action) async {
-                sent.add('$machineId/$sessionId/${action.name}');
-                killed = true;
-                return const SessionPodActionResponse(
-                  success: true,
-                  message: '',
-                );
-              },
             ),
           ),
         ),
@@ -556,9 +559,77 @@ void main() {
       expect(find.textContaining('workspace volume is deleted'), findsOne);
       expect(sent, isEmpty);
       await tester.tap(find.widgetWithText(FilledButton, 'Kill pod'));
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(sent, ['k8s/a/kill']);
+      // The daemon has not answered yet: the screen is not blocked and the
+      // card shows the deletion in progress.
+      expect(find.text('Session a'), findsOneWidget);
+      expect(find.text('Deleting…'), findsOneWidget);
+
+      killed = true;
+      reply.complete(
+        const SessionPodActionResponse(success: true, message: ''),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Session a'), findsNothing);
+      expect(find.text('Deleting…'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('failed kill restores the card with an error and retry', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      var attempts = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionsNotifierProvider.overrideWith(
+              () => _StubSessions({'a': _session('a', machineId: 'k8s')}),
+            ),
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachines({'k8s': _machine('k8s', activeAt: now)}),
+            ),
+            podActionRunnerProvider.overrideWithValue((_, _, _) async {
+              attempts++;
+              if (attempts == 1) throw StateError('forbidden');
+              return const SessionPodActionResponse(
+                success: false,
+                message: 'pod is locked',
+              );
+            }),
+          ],
+          child: _routerApp(
+            KubernetesSessionsScreen(loadPods: (_) async => [_pod('a')]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('kubernetes-pod-menu-k8s/a')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('kubernetes-pod-kill')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Kill pod'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Session a'), findsOneWidget);
+      expect(find.text('Deleting…'), findsNothing);
+      expect(
+        find.byKey(const Key('pod-operation-failed-k8s/a')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('forbidden'), findsWidgets);
+
+      await tester.tap(find.byKey(const Key('pod-operation-retry')));
+      await tester.pumpAndSettle();
+      expect(attempts, 2);
+      expect(find.textContaining('pod is locked'), findsWidgets);
+
+      await tester.tap(find.byKey(const Key('pod-operation-dismiss')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pod-operation-failed-k8s/a')), findsNothing);
+      expect(find.text('Session a'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
     });

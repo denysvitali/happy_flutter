@@ -316,6 +316,18 @@
       }
     }
   },
+  "kubernetesPodPausing": "Pausing…",
+  "@kubernetesPodPausing": {
+    "description": "Pod card badge while a pause request syncs to the daemon"
+  },
+  "kubernetesPodResuming": "Resuming…",
+  "@kubernetesPodResuming": {
+    "description": "Pod card badge while a resume request syncs to the daemon"
+  },
+  "kubernetesPodDeleting": "Deleting…",
+  "@kubernetesPodDeleting": {
+    "description": "Pod card badge while a kill (delete) request syncs to the daemon"
+  },
   "kubernetesLocalSessions": "On machines",
   "@kubernetesLocalSessions": {
     "description": "Kubernetes board section for sessions that run directly on a machine instead of in a pod"

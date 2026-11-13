@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
+import '../../core/providers/pod_operations_notifier.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/utils/session_utils.dart' show getSessionName;
 import 'kubernetes_pod_state.dart';
@@ -15,6 +16,7 @@ class KubernetesPodEntry {
     this.session,
     this.pod,
     this.live = true,
+    this.operation,
   }) : assert(session != null || pod != null);
 
   final String? machineId;
@@ -25,13 +27,41 @@ class KubernetesPodEntry {
   /// the last state the session metadata recorded.
   final bool live;
 
+  /// The app-local pod operation recorded for this pod, if any. While it is
+  /// pending or succeeded-but-unconfirmed its effect is drawn over the
+  /// daemon's report; a failed one only adds its error.
+  final PodOperation? operation;
+
+  KubernetesPodEntry withOperation(PodOperation? operation) =>
+      KubernetesPodEntry(
+        machineId: machineId,
+        session: session,
+        pod: pod,
+        live: live,
+        operation: operation,
+      );
+
+  /// The state the daemon (or session metadata) last reported.
+  SessionPodDisplayState get reportedState =>
+      pod?.displayState ?? session!.podDisplayState;
+
   String get key {
     final id = pod?.sessionId ?? session?.id ?? '';
     return id.isNotEmpty ? '$machineId/$id' : '$machineId/pod:$podName';
   }
 
-  SessionPodDisplayState get state =>
-      pod?.displayState ?? session!.podDisplayState;
+  /// Displayed state: a succeeded pause/resume shows its target state until
+  /// the daemon's report catches up.
+  SessionPodDisplayState get state {
+    final op = operation;
+    if (op != null && op.isSucceeded && op.expectedState != null) {
+      return op.expectedState!;
+    }
+    return reportedState;
+  }
+
+  /// Whether an operation for this pod is still syncing.
+  bool get busy => operation?.isPending ?? false;
 
   String get podName {
     final reported = pod?.podName ?? '';
@@ -73,7 +103,7 @@ class KubernetesPodEntry {
   /// Whether pod actions (pause, resume, kill) can be sent: they are keyed
   /// by session on the owning daemon.
   bool get canControl =>
-      live && sessionId.isNotEmpty && (machineId?.isNotEmpty ?? false);
+      live && !busy && sessionId.isNotEmpty && (machineId?.isNotEmpty ?? false);
 
   /// The live pod report when the pod is actually running; null for paused,
   /// archived, or last-known entries, whose usage would be meaningless.
@@ -82,6 +112,8 @@ class KubernetesPodEntry {
     if (current == null || !live || current.paused || current.archived) {
       return null;
     }
+    // A pause that succeeded but is not reported yet.
+    if (state == SessionPodDisplayState.paused) return null;
     return current;
   }
 
@@ -155,13 +187,57 @@ List<KubernetesPodEntry> mergeKubernetesPods({
       KubernetesPodEntry(machineId: machineId, session: session, live: false),
     );
   }
-  entries.sort((a, b) {
-    final rank = _stateRank(a.state).compareTo(_stateRank(b.state));
-    if (rank != 0) return rank;
-    final title = (a.sessionTitle ?? a.podName).toLowerCase().compareTo(
-      (b.sessionTitle ?? b.podName).toLowerCase(),
-    );
-    return title != 0 ? title : a.key.compareTo(b.key);
-  });
+  entries.sort(_compareEntries);
   return entries;
 }
+
+int _compareEntries(KubernetesPodEntry a, KubernetesPodEntry b) {
+  final rank = _stateRank(a.state).compareTo(_stateRank(b.state));
+  if (rank != 0) return rank;
+  final title = (a.sessionTitle ?? a.podName).toLowerCase().compareTo(
+    (b.sessionTitle ?? b.podName).toLowerCase(),
+  );
+  return title != 0 ? title : a.key.compareTo(b.key);
+}
+
+/// Draws app-local pod [operations] over merged daemon [entries].
+///
+/// Each entry picks up its operation; a kill that succeeded hides the entry
+/// (the pod is gone, even if the daemon is still terminating it), and the
+/// list is re-sorted because a succeeded pause/resume changes the state.
+List<KubernetesPodEntry> applyPodOperations(
+  List<KubernetesPodEntry> entries,
+  Map<String, PodOperation> operations,
+) {
+  if (operations.isEmpty) return entries;
+  final result = <KubernetesPodEntry>[];
+  for (final entry in entries) {
+    final operation = operations[entry.key];
+    if (operation == null) {
+      result.add(entry);
+      continue;
+    }
+    if (operation.isSucceeded && operation.action == KubernetesPodAction.kill) {
+      continue;
+    }
+    result.add(entry.withOperation(operation));
+  }
+  result.sort(_compareEntries);
+  return result;
+}
+
+/// The state each operation's pod is reported in by daemons that answered
+/// ([podsByMachine]); null when the daemon listed no pod for it. Operations
+/// on machines that did not answer are omitted. Feeds
+/// [PodOperationsNotifier.reconcile].
+Map<String, SessionPodDisplayState?> observedPodOperationStates({
+  required Map<String, PodOperation> operations,
+  required Map<String, List<SessionPod>> podsByMachine,
+}) => {
+  for (final operation in operations.values)
+    if (podsByMachine[operation.machineId] case final pods?)
+      operation.key: pods
+          .where((pod) => pod.sessionId == operation.sessionId)
+          .firstOrNull
+          ?.displayState,
+};

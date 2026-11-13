@@ -5,10 +5,12 @@ import '../../../core/components/app_banner.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/providers/pod_operations_notifier.dart';
 import '../../../core/rpc/rpc_types.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../kubernetes/kubernetes_pod_operation_view.dart';
 import '../../kubernetes/kubernetes_pod_state.dart';
 import 'session_info_widgets.dart';
 
@@ -29,6 +31,9 @@ class SessionPodSection extends StatelessWidget {
     required this.onPause,
     required this.onResume,
     required this.onKill,
+    this.failedOperation,
+    this.onRetryOperation,
+    this.onDismissOperation,
   });
 
   final Session session;
@@ -43,6 +48,12 @@ class SessionPodSection extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onKill;
+
+  /// A pod action that failed to sync; shown with Retry and Dismiss until
+  /// the user acts on it.
+  final PodOperation? failedOperation;
+  final VoidCallback? onRetryOperation;
+  final VoidCallback? onDismissOperation;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +138,20 @@ class SessionPodSection extends StatelessWidget {
             ],
           ),
         ),
+        if (failedOperation case final failed?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: PodOperationFailureBanner(
+              operation: failed,
+              onRetry: onRetryOperation ?? () {},
+              onDismiss: onDismissOperation ?? () {},
+            ),
+          ),
         if (detail.isNotEmpty || error != null)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),

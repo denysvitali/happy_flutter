@@ -548,6 +548,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get kubernetesPodPausing => 'Pausing…';
+
+  @override
+  String get kubernetesPodResuming => 'Resuming…';
+
+  @override
+  String get kubernetesPodDeleting => 'Deleting…';
+
+  @override
   String get kubernetesLocalSessions => 'On machines';
 
   @override
