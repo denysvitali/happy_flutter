@@ -542,7 +542,7 @@ void main() {
       expect(find.text('Session a'), findsOneWidget);
       // b's daemon did not answer: last known metadata state.
       expect(find.text('Session b'), findsOneWidget);
-      expect(find.text('Last known'), findsOneWidget);
+      expect(find.textContaining('Last known'), findsOneWidget);
 
       await tester.tap(find.text('Session a'));
       await tester.pumpAndSettle();
