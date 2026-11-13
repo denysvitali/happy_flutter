@@ -130,7 +130,13 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final loopsBySession = ref.watch(loopsNotifierProvider);
+    // Pending pause/resume/delete operations draw over the daemon's loops.
+    final operations = ref.watch(loopOperationsNotifierProvider);
+    final loopsBySession = {
+      for (final MapEntry(:key, :value)
+          in ref.watch(loopsNotifierProvider).entries)
+        key: applyLoopOperations(value, operations),
+    };
     final sessions = ref.watch(sessionsNotifierProvider);
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 

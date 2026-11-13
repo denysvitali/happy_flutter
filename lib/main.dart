@@ -45,6 +45,7 @@ import 'core/utils/theme_helper.dart';
 import 'core/widgets/app_focus_ticker_mode.dart';
 import 'core/widgets/app_focus_traversal.dart';
 import 'core/widgets/error_boundary.dart';
+import 'core/widgets/operation_failure_listener.dart';
 import 'features/command_palette/command_palette.dart';
 import 'flatpak_certificates_io.dart'
     if (dart.library.js_interop) 'flatpak_certificates_stub.dart';
@@ -789,7 +790,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
                       appRouter: _router,
                       child: CommandPaletteAppOverlay(
                         appRouter: _router,
-                        child: child ?? const SizedBox.shrink(),
+                        child: OperationFailureListener(
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),

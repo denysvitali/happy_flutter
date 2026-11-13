@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/sessions_api.dart';
 import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/services/logger_service.dart' show logger;
-import '../../../core/services/session_archive.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/snack.dart';
 
 /// Shared confirmed archive action for swipe and the visible row menu.
+///
+/// Returns as soon as the user confirms: the row leaves the list at once and
+/// the archive syncs in the background ([SessionOperationsNotifier]); a
+/// failure brings the row back and is reported app-wide with Retry.
 Future<bool> confirmSessionArchive(
   BuildContext context,
   WidgetRef ref,
@@ -19,8 +19,7 @@ Future<bool> confirmSessionArchive(
 ) async {
   // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
   // See GlitchTip HAPPY_FLUTTER-396.
-  final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
-  final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
+  final operations = ref.read(sessionOperationsNotifierProvider.notifier);
   final l10n = context.l10n;
   final confirmed = await showConfirmDialog(
     context,
@@ -31,24 +30,8 @@ Future<bool> confirmSessionArchive(
   );
 
   if (!confirmed) return false;
-
-  try {
-    await archiveSessionStoppingProcess(
-      session.id,
-      api: SessionsApi(),
-      session: session,
-    );
-    // Mark optimistically archived to prevent reappear during server lag.
-    await sessionsNotifier.markSessionArchived(session.id, true);
-    sessionsNotifier.loadFromSync();
-    return true;
-  } catch (e, st) {
-    logger.error('Failed to archive session: sessionId=${session.id}', e, st);
-    if (context.mounted) {
-      context.showSnack(failedArchiveMsg);
-    }
-    return false;
-  }
+  operations.archive(session);
+  return true;
 }
 
 enum _SwipeAction { archive, delete }
@@ -108,8 +91,7 @@ class _DismissibleActiveSessionState
   Future<bool> _confirmDelete(BuildContext context) async {
     // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
     // See GlitchTip HAPPY_FLUTTER-396.
-    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
-    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
+    final operations = ref.read(sessionOperationsNotifierProvider.notifier);
     final l10n = context.l10n;
     final confirmed = await showConfirmDialog(
       context,
@@ -121,13 +103,10 @@ class _DismissibleActiveSessionState
 
     if (!confirmed) return false;
 
-    // Optimistic: remove from UI immediately, roll back on failure.
-    final success = await sessionsNotifier.optimisticDelete(widget.session.id);
-
-    if (!success && context.mounted) {
-      context.showSnack(failedDeleteMsg);
-    }
-    return success;
+    // The row leaves at once; the delete syncs in the background and a
+    // failure restores it (reported app-wide with Retry).
+    operations.delete(widget.session.id);
+    return true;
   }
 }
 
@@ -273,8 +252,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
     // Capture the notifier reference BEFORE any async gap so that we never
     // touch `ref` after the surrounding widget may have been unmounted.
     // See GlitchTip HAPPY_FLUTTER-396.
-    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
-    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
+    final operations = ref.read(sessionOperationsNotifierProvider.notifier);
     final l10n = context.l10n;
     final confirmed = await showConfirmDialog(
       context,
@@ -286,12 +264,9 @@ class DismissibleInactiveSession extends ConsumerWidget {
 
     if (!confirmed) return false;
 
-    // Optimistic: remove from UI immediately, roll back on failure.
-    final success = await sessionsNotifier.optimisticDelete(session.id);
-
-    if (!success && context.mounted) {
-      context.showSnack(failedDeleteMsg);
-    }
-    return success;
+    // The row leaves at once; the delete syncs in the background and a
+    // failure restores it (reported app-wide with Retry).
+    operations.delete(session.id);
+    return true;
   }
 }

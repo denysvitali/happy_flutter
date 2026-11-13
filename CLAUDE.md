@@ -34,13 +34,18 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
-- **Pod actions are app-local operations synced in the background** —
-  pause/resume/kill are recorded in `podOperationsNotifierProvider`
-  (`pending → succeeded | failed`) and sent to the daemon without blocking
-  any screen. Cards overlay the pending/expected state on the last daemon
-  report until a fresh report confirms it (or 60s pass); a failure stays
-  inline with Retry/Dismiss. Records outlive the screen that submitted them;
-  one in-flight operation per pod.
+- **User operations are app-local and synced in the background** — pod
+  pause/resume/kill, session archive/delete, and loop pause/resume/delete go
+  through `OperationStore` (`lib/core/operations/`): `pending → succeeded |
+  failed`, one in-flight operation per target, records outlive the screen.
+  Screens draw the pending/expected state immediately and never await the
+  RPC to update. Pods and loops keep a success overlay until a daemon report
+  confirms it (pods time out after 60s); sessions hide at once (archive via
+  sync's optimistic set, delete via `optimisticDelete`, which also survives
+  catalog refreshes). Failures revert the overlay: pod cards keep them inline
+  with Retry/Dismiss, sessions get an app-wide Retry snack
+  (`OperationFailureListener`). Batch select-and-delete/archive keeps its own
+  busy selection flow.
 
 - **Kubernetes default MCPs are per-spawn choices** — the new-session dialog
   offers GitHub Actions and Loki for Claude/Codex only. All checked omits the

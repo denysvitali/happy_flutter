@@ -303,13 +303,10 @@ Future<void> showConfirmDeleteDialog(
     isDestructive: true,
   );
   if (!confirmed || !context.mounted) return;
-  final deleted = await ProviderScope.containerOf(
+  // Deletes in the background; a failure restores the session and is
+  // reported app-wide with Retry, so the chat closes now.
+  ProviderScope.containerOf(
     context,
-  ).read(sessionsNotifierProvider.notifier).optimisticDelete(sessionId);
-  if (!context.mounted) return;
-  if (deleted) {
-    Navigator.of(context).pop();
-    return;
-  }
-  context.showSnack(l10n.chatFailedToDeleteSession);
+  ).read(sessionOperationsNotifierProvider.notifier).delete(sessionId);
+  Navigator.of(context).pop();
 }

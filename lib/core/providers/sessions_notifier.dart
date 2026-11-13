@@ -162,6 +162,23 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     return SessionCollectionSnapshot(const {});
   }
 
+  /// Sessions with a delete in flight; a catalog refresh must not bring
+  /// them back before the server answers.
+  final Set<String> _locallyDeleted = {};
+
+  void _dropLocallyDeleted() {
+    if (_locallyDeleted.isEmpty) return;
+    final changes = <String, Session?>{
+      for (final id in _locallyDeleted)
+        if (state.containsKey(id)) id: null,
+    };
+    if (changes.isEmpty) return;
+    state = SessionCollectionSnapshot.patch(
+      SessionCollectionSnapshot(state),
+      changes,
+    );
+  }
+
   void _publish(Map<String, Session> sessions) {
     state = SessionCollectionSnapshot(sessions);
   }
@@ -235,6 +252,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
         );
         _mergeLocalState(changedIds);
       }
+      _dropLocallyDeleted();
       _catalogRevision = revision;
       _lastDataChangeCounter = counter;
     } catch (e, st) {
@@ -307,22 +325,33 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   /// Removes [id] from state immediately, then confirms with the server.
   /// Rolls back on failure and logs a warning. Returns whether the server
   /// accepted the deletion.
+  ///
+  /// The row is hidden synchronously (before the first await), and stays
+  /// hidden across catalog refreshes until the server answers.
   Future<bool> optimisticDelete(String id) async {
     final snapshot = state;
     final session = snapshot[id];
+    _locallyDeleted.add(id);
+    _publish(Map<String, Session>.from(state)..remove(id));
+    void rollback() {
+      _locallyDeleted.remove(id);
+      state = snapshot;
+    }
+
     if (session != null && !await _cleanupKubernetesSession(session)) {
+      rollback();
       return false;
     }
-    _publish(Map<String, Session>.from(state)..remove(id));
     try {
       final ok = await sync.deleteSession(id);
       if (!ok) {
-        state = snapshot;
+        rollback();
         return false;
       }
+      _locallyDeleted.remove(id);
       return true;
     } catch (e, stack) {
-      state = snapshot;
+      rollback();
       logger.warning(
         'OptimisticMutation: deleteSession($id) failed, rolled back',
         e,
@@ -420,6 +449,21 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     } else {
       await _foldersStorage.removeSession(id);
     }
+  }
+
+  /// Hides [id] from the active list at once (sync's optimistic archive
+  /// set), ahead of the server archive.
+  void hideArchived(String id) {
+    if (!sync.isInitialized) return;
+    sync.markSessionArchived(id);
+    loadFromSync();
+  }
+
+  /// Reverts [hideArchived] after a failed archive.
+  void unhideArchived(String id) {
+    if (!sync.isInitialized) return;
+    sync.markSessionUnarchived(id);
+    loadFromSync();
   }
 
   /// Archive a session on the server. Unarchiving is not supported by the

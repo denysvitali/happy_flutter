@@ -6,7 +6,6 @@ import 'package:happy_flutter/core/utils/clipboard_feedback.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/sessions_api.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/dialogs/confirm_dialog.dart';
@@ -17,7 +16,6 @@ import '../../core/routing/safe_pop.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
-import '../../core/services/session_archive.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
@@ -87,8 +85,6 @@ class _SessionInfoBody extends ConsumerStatefulWidget {
 }
 
 class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
-  bool _isArchiving = false;
-  bool _isDeleting = false;
   SessionPod? _pod;
   SessionPodLogsResponse? _podLogs;
   bool _podLoading = false;
@@ -202,7 +198,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (machineId == null || machineId.isEmpty) return;
     ref
         .read(podOperationsNotifierProvider.notifier)
-        .submit(
+        .submitAction(
           machineId: machineId,
           sessionId: widget.session.id,
           action: action,
@@ -268,11 +264,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     );
   }
 
+  /// Archives in the background: the session leaves the list at once and a
+  /// failure is reported app-wide with Retry, so the screen closes now.
   Future<void> _handleArchiveSession() async {
-    final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
-    final sessionId = widget.session.id;
-    final embedded = widget.embedded;
-    final api = SessionsApi();
+    final operations = ref.read(sessionOperationsNotifierProvider.notifier);
     final l10n = context.l10n;
     final confirmed = await showConfirmDialog(
       context,
@@ -281,42 +276,14 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       confirmLabel: l10n.sessionsArchive,
       isDestructive: true,
     );
-
-    if (!confirmed) return;
-    if (!mounted) return;
-
-    setState(() => _isArchiving = true);
-    try {
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .markSessionArchived(sessionId, true);
-      await archiveSessionStoppingProcess(
-        sessionId,
-        api: api,
-        session: widget.session,
-      );
-      if (!mounted) return;
-      if (!embedded) {
-        safePop<void>(context);
-      }
-    } catch (e, st) {
-      logger.error(
-        'Failed to archive session from info screen: '
-        'sessionId=$sessionId',
-        e,
-        st,
-      );
-      _showError(failedArchiveMsg);
-    } finally {
-      if (mounted) setState(() => _isArchiving = false);
-    }
+    if (!confirmed || !mounted) return;
+    operations.archive(widget.session);
+    if (!widget.embedded) safePop<void>(context);
   }
 
+  /// Deletes in the background, like [_handleArchiveSession].
   Future<void> _handleDeleteSession() async {
-    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
-    final sessionId = widget.session.id;
-    final embedded = widget.embedded;
-    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+    final operations = ref.read(sessionOperationsNotifierProvider.notifier);
     final l10n = context.l10n;
     final confirmed = await showConfirmDialog(
       context,
@@ -325,20 +292,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       confirmLabel: l10n.commonDelete,
       isDestructive: true,
     );
-
-    if (!confirmed) return;
-    if (!mounted) return;
-    setState(() => _isDeleting = true);
-    final deleted = await sessionsNotifier.optimisticDelete(sessionId);
-    if (!mounted) return;
-    setState(() => _isDeleting = false);
-    if (deleted) {
-      if (!embedded) {
-        safePop<void>(context);
-      }
-    } else {
-      _showError(failedDeleteMsg);
-    }
+    if (!confirmed || !mounted) return;
+    operations.delete(widget.session.id);
+    if (!widget.embedded) safePop<void>(context);
   }
 
   @override
@@ -359,6 +315,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     final cs = theme.colorScheme;
     const gap = SizedBox(height: AppSpacing.xl);
+
+    final sessionPending = ref.watch(
+      sessionOperationsNotifierProvider.select<SessionOperationAction?>((ops) {
+        final operation = ops[session.id];
+        return operation != null && operation.isPending
+            ? operation.request.action
+            : null;
+      }),
+    );
 
     final podMachineId = meta?.machineId;
     final podOperationKeyForSession =
@@ -564,16 +529,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 icon: Icons.archive_outlined,
                 label: l10n.sessionInfoActionArchive,
                 color: cs.error,
-                isLoading: _isArchiving,
-                onTap: _isArchiving ? null : _handleArchiveSession,
+                isLoading: sessionPending == SessionOperationAction.archive,
+                onTap: sessionPending != null ? null : _handleArchiveSession,
               ),
             if (hasDeleteAction)
               ActionRow(
                 icon: Icons.delete_outline,
                 label: l10n.sessionInfoActionDelete,
                 color: cs.error,
-                isLoading: _isDeleting,
-                onTap: _isDeleting ? null : _handleDeleteSession,
+                isLoading: sessionPending == SessionOperationAction.delete,
+                onTap: sessionPending != null ? null : _handleDeleteSession,
               ),
           ],
         ),

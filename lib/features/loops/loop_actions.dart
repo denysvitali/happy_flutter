@@ -5,7 +5,10 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/utils/snack.dart';
 
-/// Deletes a loop and reports failures consistently across loop screens.
+/// Deletes a loop through [LoopOperationsNotifier]: lists hide it at once and
+/// the delete syncs in the background. Completes when the daemon answered,
+/// reporting failures consistently across loop screens; callers that only
+/// need the optimistic UI may leave it unawaited.
 Future<void> deleteLoopWithFeedback({
   required WidgetRef ref,
   required ScaffoldMessengerState messenger,
@@ -16,21 +19,23 @@ Future<void> deleteLoopWithFeedback({
   required String loopId,
   String? successLabel,
   bool Function(Object error)? shouldHandleError,
-}) async {
-  await runLoopActionWithFeedback(
-    action: () => ref
-        .read(loopsNotifierProvider.notifier)
-        .deleteLoop(sessionId: sessionId, loopId: loopId),
-    messenger: messenger,
-    isMounted: isMounted,
-    failureLogMessage: failureLogMessage,
-    failureLabel: failureLabel,
-    successLabel: successLabel,
-    shouldHandleError: shouldHandleError,
-  );
-}
+}) => runLoopOperationWithFeedback(
+  ref: ref,
+  request: LoopRequest(
+    sessionId: sessionId,
+    loopId: loopId,
+    action: LoopOperationAction.delete,
+  ),
+  messenger: messenger,
+  isMounted: isMounted,
+  failureLogMessage: failureLogMessage,
+  failureLabel: failureLabel,
+  successLabel: successLabel,
+  shouldHandleError: shouldHandleError,
+);
 
-/// Pauses or resumes a loop and reports failures consistently.
+/// Pauses or resumes a loop through [LoopOperationsNotifier]; lists show the
+/// new state at once. Completes when the daemon answered.
 Future<void> pauseLoopWithFeedback({
   required WidgetRef ref,
   required ScaffoldMessengerState messenger,
@@ -40,21 +45,25 @@ Future<void> pauseLoopWithFeedback({
   required String sessionId,
   required String loopId,
   required bool paused,
-}) async {
-  await runLoopActionWithFeedback(
-    action: () => ref
-        .read(loopsNotifierProvider.notifier)
-        .pauseLoop(sessionId: sessionId, loopId: loopId, paused: paused),
-    messenger: messenger,
-    isMounted: isMounted,
-    failureLogMessage: failureLogMessage,
-    failureLabel: failureLabel,
-  );
-}
+}) => runLoopOperationWithFeedback(
+  ref: ref,
+  request: LoopRequest(
+    sessionId: sessionId,
+    loopId: loopId,
+    action: paused ? LoopOperationAction.pause : LoopOperationAction.resume,
+  ),
+  messenger: messenger,
+  isMounted: isMounted,
+  failureLogMessage: failureLogMessage,
+  failureLabel: failureLabel,
+);
 
-/// Runs a loop mutation and reports failures consistently across loop screens.
-Future<void> runLoopActionWithFeedback({
-  required Future<void> Function() action,
+/// Submits [request] and reports its outcome: [successLabel] on success,
+/// `failureLabel: error` on failure. Errors [shouldHandleError] rejects are
+/// rethrown (the optimistic overlay is already dropped).
+Future<void> runLoopOperationWithFeedback({
+  required WidgetRef ref,
+  required LoopRequest request,
   required ScaffoldMessengerState messenger,
   required bool Function() isMounted,
   required String failureLogMessage,
@@ -62,15 +71,20 @@ Future<void> runLoopActionWithFeedback({
   String? successLabel,
   bool Function(Object error)? shouldHandleError,
 }) async {
-  try {
-    await action();
-    if (successLabel != null && isMounted()) {
-      messenger.showSnack(successLabel);
-    }
-  } catch (e, st) {
-    if (shouldHandleError != null && !shouldHandleError(e)) rethrow;
-    logger.warning('$failureLogMessage: $e', e, st);
-    if (!isMounted()) return;
-    messenger.showSnack('$failureLabel: $e', tone: SnackTone.error);
+  final operations = ref.read(loopOperationsNotifierProvider.notifier);
+  operations.submit(request);
+  final settled = await operations.whenSettled(operations.keyOf(request));
+  if (settled == null) return;
+  if (settled.isSucceeded) {
+    if (successLabel != null && isMounted()) messenger.showSnack(successLabel);
+    return;
   }
+  if (!settled.isFailed) return;
+  final error = settled.cause ?? settled.error ?? 'unknown error';
+  // A failed record has no overlay; clear it so it cannot linger.
+  operations.dismiss(settled.key);
+  if (shouldHandleError != null && !shouldHandleError(error)) throw error;
+  logger.warning('$failureLogMessage: $error', error);
+  if (!isMounted()) return;
+  messenger.showSnack('$failureLabel: $error', tone: SnackTone.error);
 }

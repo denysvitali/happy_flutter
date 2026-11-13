@@ -103,10 +103,14 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final loops = ref.watch(
-      loopsNotifierProvider.select(
-        (state) => state[widget.sessionId] ?? const <Loop>[],
+    // Pending pause/resume/delete operations draw over the daemon's loops.
+    final loops = applyLoopOperations(
+      ref.watch(
+        loopsNotifierProvider.select(
+          (state) => state[widget.sessionId] ?? const <Loop>[],
+        ),
       ),
+      ref.watch(loopOperationsNotifierProvider),
     );
 
     return Scaffold(

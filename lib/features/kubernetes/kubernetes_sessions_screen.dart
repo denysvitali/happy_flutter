@@ -185,7 +185,7 @@ class _KubernetesSessionsScreenState
     }
     ref
         .read(podOperationsNotifierProvider.notifier)
-        .submit(
+        .submitAction(
           machineId: entry.machineId!,
           sessionId: entry.sessionId,
           action: action,

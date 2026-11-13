@@ -39,29 +39,29 @@ void main() {
   group('PodOperationsNotifier', () {
     test('submit records pending immediately and settles succeeded', () async {
       expect(
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.kill,
         ),
         isTrue,
       );
-      expect(ops()['m/s']!.phase, PodOperationPhase.pending);
+      expect(ops()['m/s']!.phase, OperationPhase.pending);
       expect(sent, ['m/s/kill']);
 
       replies.single.complete(_ok);
       await pumpEventQueue();
-      expect(ops()['m/s']!.phase, PodOperationPhase.succeeded);
+      expect(ops()['m/s']!.phase, OperationPhase.succeeded);
     });
 
     test('submit ignores a second action while one is pending', () async {
-      notifier().submit(
+      notifier().submitAction(
         machineId: 'm',
         sessionId: 's',
         action: KubernetesPodAction.pause,
       );
       expect(
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.kill,
@@ -75,7 +75,7 @@ void main() {
     test(
       'a rejected or thrown action settles failed with its message',
       () async {
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.kill,
@@ -84,21 +84,21 @@ void main() {
           const SessionPodActionResponse(success: false, message: 'denied'),
         );
         await pumpEventQueue();
-        expect(ops()['m/s']!.phase, PodOperationPhase.failed);
+        expect(ops()['m/s']!.phase, OperationPhase.failed);
         expect(ops()['m/s']!.error, 'denied');
 
         expect(notifier().retry('m/s'), isTrue);
-        expect(ops()['m/s']!.phase, PodOperationPhase.pending);
+        expect(ops()['m/s']!.phase, OperationPhase.pending);
         replies.last.completeError(StateError('offline'));
         await pumpEventQueue();
-        expect(ops()['m/s']!.phase, PodOperationPhase.failed);
+        expect(ops()['m/s']!.phase, OperationPhase.failed);
         expect(ops()['m/s']!.error, contains('offline'));
         expect(sent, ['m/s/kill', 'm/s/kill']);
       },
     );
 
     test('dismiss forgets settled operations but not pending ones', () async {
-      notifier().submit(
+      notifier().submitAction(
         machineId: 'm',
         sessionId: 's',
         action: KubernetesPodAction.kill,
@@ -118,7 +118,11 @@ void main() {
         ('resume', KubernetesPodAction.resume),
         ('away', KubernetesPodAction.kill),
       ]) {
-        notifier().submit(machineId: 'm', sessionId: session, action: action);
+        notifier().submitAction(
+          machineId: 'm',
+          sessionId: session,
+          action: action,
+        );
       }
       for (final reply in replies) {
         reply.complete(_ok);
@@ -148,7 +152,7 @@ void main() {
 
     test('an unconfirmed success expires after the timeout', () {
       fakeAsync((async) {
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.pause,
@@ -156,7 +160,7 @@ void main() {
         replies.single.complete(_ok);
         async.flushMicrotasks();
         expect(ops()['m/s']!.isSucceeded, isTrue);
-        async.elapse(PodOperationsNotifier.confirmationTimeout);
+        async.elapse(notifier().confirmationTimeout);
         expect(ops(), isEmpty);
       });
     });
@@ -164,14 +168,14 @@ void main() {
     test(
       'a superseded completion does not overwrite the newer record',
       () async {
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.pause,
         );
         replies.first.completeError(StateError('x'));
         await pumpEventQueue();
-        notifier().submit(
+        notifier().submitAction(
           machineId: 'm',
           sessionId: 's',
           action: KubernetesPodAction.kill,
@@ -185,10 +189,9 @@ void main() {
   group('PodOperation.isConfirmedBy', () {
     PodOperation op(KubernetesPodAction action) => PodOperation(
       id: 1,
-      machineId: 'm',
-      sessionId: 's',
-      action: action,
-      phase: PodOperationPhase.succeeded,
+      key: 'm/s',
+      request: PodRequest(machineId: 'm', sessionId: 's', action: action),
+      phase: OperationPhase.succeeded,
       submittedAtMs: 0,
     );
 
