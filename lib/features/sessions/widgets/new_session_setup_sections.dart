@@ -16,13 +16,16 @@ class _NewSessionAdvancedOptions extends StatelessWidget {
     final theme = Theme.of(context);
     return ExpansionTile(
       key: const PageStorageKey('new-session-advanced'),
-      dense: true,
       tilePadding: EdgeInsets.zero,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      leading: const Icon(Icons.tune_rounded),
       title: Text(l10n.newSessionAdvanced),
       subtitle: Text(
         sessionType == 'worktree'
             ? l10n.sessionsWorktree
             : l10n.newSessionLocalSummary,
+        style: AppText.secondary(theme),
       ),
       children: [
         Text(l10n.newSessionWorktreeHint, style: AppText.secondary(theme)),

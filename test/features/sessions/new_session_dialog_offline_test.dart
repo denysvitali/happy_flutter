@@ -556,13 +556,10 @@ void main() {
       await tester.pumpWidget(buildHarness(machines: {}));
       await tester.pumpAndSettle();
       expect(find.byType(ChoiceChip), findsNWidgets(8));
-      // AlertDialog's outer alignment fills the available viewport; measure
-      // the Material card rather than that full-height wrapper.
+      // Phones get a full-screen dialog that still ends above the keyboard,
+      // with Create and Cancel pinned there.
       final dialogCard = find
-          .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(Material),
-          )
+          .descendant(of: find.byType(Dialog), matching: find.byType(Material))
           .first;
       expect(tester.getSize(dialogCard).height, lessThanOrEqualTo(544));
       expect(tester.getBottomRight(dialogCard).dy, lessThanOrEqualTo(544));
@@ -1098,7 +1095,7 @@ void main() {
         ),
       );
       expect(find.text('/other-machine'), findsNothing);
-      await tester.tap(find.text('Start a new session in a recent workspace'));
+      await tester.tap(find.text('Recent workspaces'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('/recent-repo'));
       await tester.pump();

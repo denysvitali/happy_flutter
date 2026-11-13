@@ -39,6 +39,8 @@ class KubernetesMcpSection extends StatelessWidget {
       child: ExpansionTile(
         key: const Key('k8s-mcp-servers'),
         tilePadding: EdgeInsets.zero,
+        shape: const Border(),
+        collapsedShape: const Border(),
         leading: const Icon(Icons.extension_outlined),
         title: Text(l10n.newSessionMcpServers),
         subtitle: Text(summary, style: AppText.secondary(theme)),

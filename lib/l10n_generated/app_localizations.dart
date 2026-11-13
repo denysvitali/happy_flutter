@@ -180,7 +180,7 @@ abstract class AppLocalizations {
   /// No description provided for @newSessionRecentWorkspace.
   ///
   /// In en, this message translates to:
-  /// **'Start a new session in a recent workspace'**
+  /// **'Recent workspaces'**
   String get newSessionRecentWorkspace;
 
   /// No description provided for @newSessionWorktreeHint.
@@ -704,6 +704,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More repositories'**
   String get newSessionAdditionalRepos;
+
+  /// No description provided for @newSessionAdditionalReposNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the main repository'**
+  String get newSessionAdditionalReposNone;
 
   /// No description provided for @newSessionAdditionalReposHelp.
   ///
