@@ -247,8 +247,9 @@ class KubernetesPodTile extends StatelessWidget {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     if (entry.busy) {
-      return const SizedBox.square(
-        dimension: AppTouchTarget.comfortable,
+      return const SizedBox(
+        width: AppControlSize.lg,
+        height: AppControlSize.md,
         child: Center(
           child: SizedBox.square(
             dimension: AppIconSize.md,
@@ -332,7 +333,18 @@ class KubernetesPodTile extends StatelessWidget {
     return PopupMenuButton<VoidCallback>(
       key: Key('kubernetes-pod-menu-${entry.key}'),
       tooltip: l10n.kubernetesPodActions,
-      icon: Icon(Icons.more_vert_rounded, color: cs.onSurfaceVariant),
+      // Compact button: the default 48dp square, not the two text lines,
+      // would set the row height and leave a blank band under each row.
+      style: IconButton.styleFrom(
+        minimumSize: const Size(AppControlSize.lg, AppControlSize.md),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: Icon(
+        Icons.more_vert_rounded,
+        size: AppIconSize.xl,
+        color: cs.onSurfaceVariant,
+      ),
       onSelected: (callback) => callback(),
       itemBuilder: (_) => items,
     );
