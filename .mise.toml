@@ -1,7 +1,7 @@
 # Flutter / Dart / Java / Make toolchain for happy_flutter.
 #
-# Pins Flutter 3.41.9 / Dart 3.11.5 / Java 21 / GNU Make 4.4.1 for
-# local development and CI.
+# Pins Flutter 3.41.9 / Dart 3.11.5 / Java 21 (Temurin) / GNU Make 4.4.1
+# / Rust stable for local development and CI.
 # sodium 4.0.2+1 needs Dart ^3.11.0 and Flutter >3.41.0.
 # sodium's native build also shells out to make.
 #
@@ -11,8 +11,12 @@
 [tools]
 flutter = "3.41.9"
 dart    = "3.11.5"
-java    = "21.0.2"
+# Bare OpenJDK GA pins such as "21.0.2" fail on current mise ("no metadata
+# found"); Temurin keeps receiving 21 LTS builds.
+java    = "temurin-21.0.13+9.0.LTS"
 make    = "4.4.1"
+# rust/happy_core (native core, `cargo test`); CI uses the runner's stable.
+rust    = "stable"
 
 [env]
 # Cap the Dart VM heap to match CI and avoid OOMs on heavy local runs.
