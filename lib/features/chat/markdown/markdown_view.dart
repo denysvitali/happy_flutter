@@ -17,6 +17,7 @@ import '../../../core/utils/text_truncate.dart';
 import '../code_block_widget.dart';
 import '../widgets/message_detail_sheet.dart';
 import 'linear_code_syntax.dart';
+import 'mermaid/mermaid_view.dart';
 
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
@@ -598,7 +599,8 @@ Map<String, Object?> _uriBreadcrumbData(Uri uri) {
   };
 }
 
-/// Builder that renders fenced code blocks using [CodeBlockWidget].
+/// Builder that renders fenced code blocks using [CodeBlockWidget], or
+/// [MermaidDiagramView] for ```mermaid blocks.
 ///
 /// Extracts the language from the `code` child element's `class` attribute
 /// (e.g. `language-dart`) and renders a fully styled code block with syntax
@@ -636,6 +638,10 @@ class _CodeBlockBuilder extends MarkdownElementBuilder {
         ? code.substring(0, code.length - 1)
         : code;
 
+    // ```mermaid blocks render as native diagrams (source one tap away).
+    if (isMermaidLanguage(language)) {
+      return MermaidDiagramView(source: trimmed);
+    }
     return CodeBlockWidget(code: trimmed, language: language);
   }
 }

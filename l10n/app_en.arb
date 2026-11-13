@@ -2919,6 +2919,39 @@
   "@codeBlockTitle": {
     "description": "Fallback title of the full-screen code reader"
   },
+  "mermaidDiagramTitle": "Diagram",
+  "@mermaidDiagramTitle": {
+    "description": "Header and full-screen title of a rendered Mermaid diagram in chat"
+  },
+  "mermaidShowSource": "Show diagram source",
+  "@mermaidShowSource": {
+    "description": "Tooltip for switching a rendered Mermaid diagram to its source code"
+  },
+  "mermaidShowDiagram": "Show diagram",
+  "@mermaidShowDiagram": {
+    "description": "Tooltip for switching Mermaid source code back to the rendered diagram"
+  },
+  "mermaidOpenFullScreen": "Open diagram full screen",
+  "@mermaidOpenFullScreen": {
+    "description": "Tooltip for opening a Mermaid diagram in a zoomable full-screen viewer"
+  },
+  "mermaidRenderFailed": "This diagram couldn't be rendered, so its source is shown.",
+  "@mermaidRenderFailed": {
+    "description": "Notice above Mermaid source that failed to parse or lay out"
+  },
+  "mermaidUnsupported": "This Mermaid diagram type isn't supported yet, so its source is shown.",
+  "@mermaidUnsupported": {
+    "description": "Notice above Mermaid source whose diagram type the app cannot render"
+  },
+  "mermaidSemanticsLabel": "Diagram: {labels}",
+  "@mermaidSemanticsLabel": {
+    "description": "Screen reader label for a rendered Mermaid diagram, listing its text labels",
+    "placeholders": {
+      "labels": {
+        "type": "String"
+      }
+    }
+  },
   "codeBlockOpenFullScreen": "Open full screen",
   "@codeBlockOpenFullScreen": {
     "description": "Tooltip for the code block full-screen button"

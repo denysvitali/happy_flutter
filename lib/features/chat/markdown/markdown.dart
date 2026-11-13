@@ -2,7 +2,7 @@
 ///
 /// This library provides markdown parsing with custom extensions for:
 /// - `\<options\>` blocks with interactive chips
-/// - Mermaid diagram support
+/// - Native Mermaid diagrams (flowchart, sequence, pie) for ```mermaid blocks
 ///
 /// ## Usage
 ///
@@ -23,3 +23,4 @@ library;
 export 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
     hide Markdown, MarkdownBody;
 export 'markdown_view.dart';
+export 'mermaid/mermaid_view.dart' show MermaidDiagramView, isMermaidLanguage;

@@ -63,6 +63,24 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   running Pods and repository CLAUDE.md files are unchanged. Unsupported daemons
   show an upgrade requirement, never a silent local-only setting.
 
+- **Mermaid renders natively and offline** — ```mermaid fences in chat
+  markdown are parsed and painted in Dart (`features/chat/markdown/mermaid/`):
+  flowchart/graph (shapes, subgraphs, `classDef`/`class`/`:::`/`style`/
+  `linkStyle` colours), sequenceDiagram (notes, blocks, `rect rgb()`,
+  autonumber) and pie. Never send diagram source to a web renderer. Other
+  types, malformed input and oversized diagrams fall back to the code block
+  with a notice. The daemon's Happy MCP instructions advertise exactly this
+  subset to agents; keep them in sync with happy-cli-go `internal/mcp`.
+
+- **Mermaid renders natively and offline** — ```mermaid fences in chat
+  markdown are parsed and painted in Dart (`features/chat/markdown/mermaid/`):
+  flowchart/graph (shapes, subgraphs, `classDef`/`class`/`:::`/`style`/
+  `linkStyle` colours), sequenceDiagram (notes, blocks, `rect rgb()`,
+  autonumber) and pie. Never send diagram source to a web renderer. Other
+  types, malformed input and oversized diagrams fall back to the code block
+  with a notice. The daemon's Happy MCP instructions advertise exactly this
+  subset to agents; keep them in sync with happy-cli-go `internal/mcp`.
+
 - **Idle visual work is bounded** — covered/unfocused chats defer projection,
   not delivery. Tool clocks obey visibility; loading motion settles and honors
   reduced motion. CPU telemetry measures the local process, not machine vitals.

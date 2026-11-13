@@ -5403,6 +5403,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codeBlockTitle => 'Code';
 
   @override
+  String get mermaidDiagramTitle => 'Diagram';
+
+  @override
+  String get mermaidShowSource => 'Show diagram source';
+
+  @override
+  String get mermaidShowDiagram => 'Show diagram';
+
+  @override
+  String get mermaidOpenFullScreen => 'Open diagram full screen';
+
+  @override
+  String get mermaidRenderFailed =>
+      'This diagram couldn\'t be rendered, so its source is shown.';
+
+  @override
+  String get mermaidUnsupported =>
+      'This Mermaid diagram type isn\'t supported yet, so its source is shown.';
+
+  @override
+  String mermaidSemanticsLabel(String labels) {
+    return 'Diagram: $labels';
+  }
+
+  @override
   String get codeBlockOpenFullScreen => 'Open full screen';
 
   @override

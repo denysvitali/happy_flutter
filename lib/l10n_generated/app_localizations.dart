@@ -9411,6 +9411,48 @@ abstract class AppLocalizations {
   /// **'Code'**
   String get codeBlockTitle;
 
+  /// Header and full-screen title of a rendered Mermaid diagram in chat
+  ///
+  /// In en, this message translates to:
+  /// **'Diagram'**
+  String get mermaidDiagramTitle;
+
+  /// Tooltip for switching a rendered Mermaid diagram to its source code
+  ///
+  /// In en, this message translates to:
+  /// **'Show diagram source'**
+  String get mermaidShowSource;
+
+  /// Tooltip for switching Mermaid source code back to the rendered diagram
+  ///
+  /// In en, this message translates to:
+  /// **'Show diagram'**
+  String get mermaidShowDiagram;
+
+  /// Tooltip for opening a Mermaid diagram in a zoomable full-screen viewer
+  ///
+  /// In en, this message translates to:
+  /// **'Open diagram full screen'**
+  String get mermaidOpenFullScreen;
+
+  /// Notice above Mermaid source that failed to parse or lay out
+  ///
+  /// In en, this message translates to:
+  /// **'This diagram couldn\'t be rendered, so its source is shown.'**
+  String get mermaidRenderFailed;
+
+  /// Notice above Mermaid source whose diagram type the app cannot render
+  ///
+  /// In en, this message translates to:
+  /// **'This Mermaid diagram type isn\'t supported yet, so its source is shown.'**
+  String get mermaidUnsupported;
+
+  /// Screen reader label for a rendered Mermaid diagram, listing its text labels
+  ///
+  /// In en, this message translates to:
+  /// **'Diagram: {labels}'**
+  String mermaidSemanticsLabel(String labels);
+
   /// Tooltip for the code block full-screen button
   ///
   /// In en, this message translates to:
