@@ -142,7 +142,8 @@ InputDecoration newSessionRowDecoration({
   );
 }
 
-/// Quick-pick chips shown inside a group, under the field they fill.
+/// Quick-pick chips shown inside a group, under the field they fill, on a
+/// single horizontally scrolling line.
 class NewSessionRowChips extends StatelessWidget {
   const NewSessionRowChips({required this.children, super.key});
 
@@ -166,10 +167,17 @@ class NewSessionRowChips extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
         ),
       ),
-      child: Wrap(
-        spacing: AppSpacing.xsm,
-        runSpacing: AppSpacing.xsm,
-        children: children,
+      // One scrolling line instead of wrapping into several rows.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final (index, child) in children.indexed) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.xsm),
+              child,
+            ],
+          ],
+        ),
       ),
     ),
   );

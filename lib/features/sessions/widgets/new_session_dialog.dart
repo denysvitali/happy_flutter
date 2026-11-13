@@ -330,19 +330,19 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             _selectSpawnMode(mode, allMachinesSorted, machineSortNow),
       ),
       groupGap,
-      Padding(
-        padding: const EdgeInsets.only(
-          left: AppSpacing.lg,
-          bottom: AppSpacing.xsm,
+      if (largeText) ...[
+        Padding(
+          padding: const EdgeInsets.only(
+            left: AppSpacing.lg,
+            bottom: AppSpacing.xsm,
+          ),
+          child: NewSessionGroupHeader(text: l10n.sessionsAgent),
         ),
-        child: NewSessionGroupHeader(text: l10n.sessionsAgent),
-      ),
-      if (largeText)
         _AgentPicker(
           selectedAgent: _selectedAgent,
           onSelected: (agent) => setState(() => _selectedAgent = agent),
-        )
-      else
+        ),
+      ] else
         _AgentGrid(
           selectedAgent: _selectedAgent,
           onSelected: (agent) => setState(() => _selectedAgent = agent),
@@ -376,7 +376,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         ),
       groupGap,
       NewSessionGroup(
-        header: l10n.polishNewSessionWhere,
         footer: offlineWarning ? Text(l10n.machineOfflineHelp) : null,
         children: [
           if (machines.isEmpty)
@@ -489,7 +488,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         data: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             shape: const StadiumBorder(),
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size(112, 44),
             textStyle: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -965,45 +964,58 @@ class _WorkspaceRow extends StatelessWidget {
   }
 }
 
-/// Every agent as an evenly sized tile, four (or three) to a row, so the
-/// choice reads as one tidy grid instead of a ragged run of pills.
-class _AgentGrid extends StatelessWidget {
+/// Every agent as a compact logo + name chip on one horizontally scrolling
+/// row: a single line of height instead of a two-row tile grid. The
+/// selected agent is scrolled into view when the dialog opens.
+class _AgentGrid extends StatefulWidget {
   const _AgentGrid({required this.selectedAgent, required this.onSelected});
 
   final String selectedAgent;
   final ValueChanged<String> onSelected;
 
   @override
+  State<_AgentGrid> createState() => _AgentGridState();
+}
+
+class _AgentGridState extends State<_AgentGrid> {
+  final _selectedKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _selectedKey.currentContext;
+      if (!mounted || target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return FocusTraversalGroup(
       policy: AppReadingOrderTraversalPolicy(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = AppSpacing.sm;
-          final columns = constraints.maxWidth >= 340 ? 4 : 3;
-          final width = ((constraints.maxWidth - gap * (columns - 1)) / columns)
-              .floorToDouble();
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final agent in _agentIds)
-                SizedBox(
-                  width: width,
-                  child: Center(
-                    child: _AgentTile(
-                      agent: agent,
-                      label: _agentLabel(l10n, agent),
-                      width: width,
-                      selected: agent == selectedAgent,
-                      onTap: () => onSelected(agent),
-                    ),
-                  ),
-                ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        // Let chips run to the screen edge so a clipped one hints at more.
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            for (final (index, agent) in _agentIds.indexed) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.xsm),
+              _AgentTile(
+                key: agent == widget.selectedAgent ? _selectedKey : null,
+                agent: agent,
+                label: _agentLabel(l10n, agent),
+                selected: agent == widget.selectedAgent,
+                onTap: () => widget.onSelected(agent),
+              ),
             ],
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -1013,14 +1025,13 @@ class _AgentTile extends StatelessWidget {
   const _AgentTile({
     required this.agent,
     required this.label,
-    required this.width,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final String agent;
   final String label;
-  final double width;
   final bool selected;
   final VoidCallback onTap;
 
@@ -1028,9 +1039,6 @@ class _AgentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    // Chip padding and border take a few pixels; keep the label inside the
-    // cell so the chip never overflows it.
-    final labelWidth = (width - AppSpacing.lg).clamp(0.0, double.infinity);
     return Semantics(
       label: label,
       button: true,
@@ -1039,41 +1047,28 @@ class _AgentTile extends StatelessWidget {
       excludeSemantics: true,
       onTap: onTap,
       child: ChoiceChip(
-        label: SizedBox(
-          width: labelWidth,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ExcludeSemantics(
-                child: HarnessLogo(flavor: agent, size: AppIconSize.xl),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style:
-                    AppText.label(
-                      theme,
-                      selected ? cs.onPrimaryContainer : cs.onSurface,
-                    ).copyWith(
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-              ),
-            ],
-          ),
+        avatar: ExcludeSemantics(
+          child: HarnessLogo(flavor: agent, size: AppIconSize.md),
+        ),
+        label: Text(
+          label,
+          maxLines: 1,
+          style: AppText.label(
+            theme,
+            selected ? cs.onPrimaryContainer : cs.onSurface,
+          ).copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
         ),
         selected: selected,
         showCheckmark: false,
+        visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        labelPadding: EdgeInsets.zero,
+        labelPadding: const EdgeInsets.only(left: AppSpacing.xs),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         side: BorderSide(
           width: 1.5,
@@ -1206,7 +1201,7 @@ class _NewSessionFooter extends StatelessWidget {
       status = Semantics(
         liveRegion: true,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             const SizedBox.square(
               dimension: AppIconSize.md,
@@ -1221,7 +1216,7 @@ class _NewSessionFooter extends StatelessWidget {
       );
     } else if (failure != null) {
       status = Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ExcludeSemantics(
@@ -1253,12 +1248,11 @@ class _NewSessionFooter extends StatelessWidget {
         AppSpacing.lg,
         AppSpacing.md,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // One row: what blocks Create sits beside the button it explains.
+      child: Row(
         children: [
-          status,
-          const SizedBox(height: AppSpacing.sm),
+          Expanded(child: status),
+          const SizedBox(width: AppSpacing.md),
           createButton,
         ],
       ),

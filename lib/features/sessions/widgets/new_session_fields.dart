@@ -130,7 +130,9 @@ class _SpawnBackendPicker extends StatelessWidget {
   Widget build(BuildContext context) => SegmentedButton<String>(
     showSelectedIcon: false,
     style: SegmentedButton.styleFrom(
-      minimumSize: const Size.fromHeight(AppTouchTarget.min),
+      minimumSize: const Size.fromHeight(40),
+      visualDensity: VisualDensity.compact,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
     segments: backends
         .map(
@@ -298,7 +300,7 @@ class _DialogRequirementStatus extends StatelessWidget {
         : Icons.check_circle_outline_rounded;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         ExcludeSemantics(
           child: Icon(icon, size: AppIconSize.md, color: color),
