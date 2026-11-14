@@ -43,6 +43,15 @@ extension _ChatInputPolishLayout on _ChatInputState {
                 : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
             width: isFocused ? AppBorder.thin : AppBorder.hairline,
           ),
+          boxShadow: isFocused
+              ? [
+                  BoxShadow(
+                    color: cs.primary.withValues(alpha: 0.08),
+                    blurRadius: 0,
+                    spreadRadius: 3,
+                  ),
+                ]
+              : null,
         ),
         child: child,
       ),
