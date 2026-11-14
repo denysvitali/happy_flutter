@@ -96,25 +96,26 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
       },
       child: GestureDetector(
         onTap: widget.onTap,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
           margin: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xxs,
+            vertical: 2,
           ),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+            horizontal: AppSpacing.md,
+            vertical: 10,
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? colorScheme.primary.withValues(alpha: 0.12)
+                ? colorScheme.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: isSelected
-                  ? colorScheme.primary.withValues(alpha: 0.2)
+                  ? colorScheme.primary.withValues(alpha: 0.14)
                   : Colors.transparent,
-              width: AppBorder.thick,
             ),
           ),
           child: Row(

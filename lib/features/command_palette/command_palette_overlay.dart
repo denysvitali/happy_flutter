@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -409,89 +410,122 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               color: Colors.transparent,
               child: Container(
                 constraints: const BoxConstraints(
-                  maxWidth: 640,
-                  maxHeight: 500,
+                  maxWidth: 680,
+                  maxHeight: 520,
                 ),
-                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  boxShadow: AppShadow.modal,
-                  border: Border.all(color: colorScheme.outlineVariant),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: AppSpacing.xxl,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Search input
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: colorScheme.outlineVariant),
+                        color: colorScheme.surface.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        boxShadow: AppShadow.modal,
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.search,
-                            color: colorScheme.onSurfaceVariant,
-                            size: AppSpacing.xl - AppSpacing.sm,
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              focusNode: _searchFocusNode,
-                              decoration: InputDecoration(
-                                hintText: l10n.commandSearchHint,
-                                hintStyle: TextStyle(
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.38,
-                                  ),
-                                ),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              style: TextStyle(
-                                fontSize: AppFontSize.lg,
-                                color: colorScheme.onSurface,
-                              ),
-                              onChanged: _onSearchChanged,
-                            ),
-                          ),
+                          // Search input
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: AppSpacing.xxs,
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.md,
+                              AppSpacing.md,
+                              AppSpacing.md,
                             ),
                             decoration: BoxDecoration(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.06,
-                              ),
-                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                            ),
-                            child: Text(
-                              'ESC',
-                              style: TextStyle(
-                                fontSize: AppFontSize.sm,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurfaceVariant,
-                                fontFamily: 'monospace',
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: colorScheme.outlineVariant.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
                               ),
                             ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: colorScheme.onSurfaceVariant,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    focusNode: _searchFocusNode,
+                                    decoration: InputDecoration(
+                                      hintText: l10n.commandSearchHint,
+                                      hintStyle: TextStyle(
+                                        color: colorScheme.onSurfaceVariant
+                                            .withValues(alpha: 0.7),
+                                        fontSize: AppFontSize.base,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      filled: false,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: AppFontSize.base,
+                                      color: colorScheme.onSurface,
+                                      letterSpacing: -0.1,
+                                    ),
+                                    onChanged: _onSearchChanged,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.sm,
+                                    ),
+                                    border: Border.all(
+                                      color: colorScheme.outlineVariant
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'ESC',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onSurfaceVariant,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Results
+                          Flexible(
+                            child: _filteredCategories.isEmpty
+                                ? _buildEmptyState(colorScheme, l10n)
+                                : _buildResultsList(colorScheme),
                           ),
                         ],
                       ),
                     ),
-
-                    // Results
-                    Flexible(
-                      child: _filteredCategories.isEmpty
-                          ? _buildEmptyState(colorScheme, l10n)
-                          : _buildResultsList(colorScheme),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

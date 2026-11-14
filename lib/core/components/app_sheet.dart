@@ -23,47 +23,54 @@ Future<T?> showAppSheet<T>(
 }) {
   HapticFeedback.lightImpact();
   final cs = Theme.of(context).colorScheme;
+  final size = MediaQuery.sizeOf(context);
+  final isWide = size.width >= AppBreakpoint.tablet;
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
     useSafeArea: useSafeArea,
     backgroundColor: Colors.transparent,
+    constraints: isWide ? const BoxConstraints(maxWidth: 640) : null,
     // cs.scrim follows the M3 theme — dark in light mode, light in
     // dark mode. The previous Colors.black.withValues(alpha: 0.45)
     // was always-on-top black regardless of theme.
     barrierColor: barrierColor ?? cs.scrim.withValues(alpha: 0.45),
-    builder: (ctx) => ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: _kSheetBlurSigma,
-          sigmaY: _kSheetBlurSigma,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            // Translucent fill over the blur creates the frosted look
-            // while keeping content underneath faintly visible.
-            color: cs.surface.withValues(alpha: 0.88),
-            border: Border(
-              top: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.3),
-                width: AppBorder.hairline,
-              ),
-            ),
+    builder: (ctx) => Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isWide ? 640 : double.infinity),
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(
+            top: const Radius.circular(AppRadius.xl),
+            bottom: isWide ? const Radius.circular(AppRadius.xl) : Radius.zero,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _SheetDragHandle(),
-              Flexible(
-                child: Material(
-                  color: Colors.transparent,
-                  child: Builder(builder: builder),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: _kSheetBlurSigma,
+              sigmaY: _kSheetBlurSigma,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                // Translucent fill over the blur creates the frosted look
+                // while keeping content underneath faintly visible.
+                color: cs.surface.withValues(alpha: 0.9),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.25),
+                  width: AppBorder.hairline,
                 ),
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetDragHandle(),
+                  Flexible(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Builder(builder: builder),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

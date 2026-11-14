@@ -641,17 +641,30 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
   return DialogThemeData(
     backgroundColor: dark ? _kDarkSurface : _kLightSurface,
     surfaceTintColor: Colors.transparent,
+    elevation: 0,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.xl),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      side: BorderSide(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.06),
+      ),
     ),
     titleTextStyle: _inter(
-      fontSize: AppFontSize.xl,
+      fontSize: AppFontSize.lg,
       fontWeight: FontWeight.w600,
+      letterSpacing: -0.2,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
     contentTextStyle: _inter(
       fontSize: AppFontSize.base,
       color: dark ? _kDarkTextMuted : _kLightTextMuted,
+    ),
+    actionsPadding: const EdgeInsets.fromLTRB(
+      AppSpacing.lg,
+      AppSpacing.sm,
+      AppSpacing.lg,
+      AppSpacing.md,
     ),
   );
 }
@@ -665,6 +678,88 @@ SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
     ),
     behavior: SnackBarBehavior.floating,
     elevation: 4,
+  );
+}
+
+TooltipThemeData _buildTooltipTheme({required bool dark}) {
+  final bg = dark ? const Color(0xFF2D3140) : const Color(0xFF1E293B);
+  return TooltipThemeData(
+    decoration: BoxDecoration(
+      color: bg.withValues(alpha: 0.96),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      border: Border.all(
+        color: Colors.white.withValues(alpha: dark ? 0.08 : 0.06),
+      ),
+    ),
+    textStyle: _inter(
+      fontSize: AppFontSize.sm,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.xs,
+    ),
+    waitDuration: const Duration(milliseconds: 450),
+  );
+}
+
+PopupMenuThemeData _buildPopupMenuTheme({required bool dark}) {
+  final bg = dark ? _kDarkSurface : _kLightSurface;
+  return PopupMenuThemeData(
+    color: bg,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      side: BorderSide(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.08),
+      ),
+    ),
+    textStyle: _inter(
+      fontSize: AppFontSize.base,
+      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
+    ),
+    labelTextStyle: WidgetStatePropertyAll(
+      _inter(
+        fontSize: AppFontSize.base,
+        color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
+      ),
+    ),
+  );
+}
+
+MenuThemeData _buildMenuTheme({required bool dark}) {
+  final bg = dark ? _kDarkSurface : _kLightSurface;
+  return MenuThemeData(
+    style: MenuStyle(
+      backgroundColor: WidgetStatePropertyAll(bg),
+      surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(0),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      ),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+TextSelectionThemeData _buildTextSelectionTheme({required bool dark}) {
+  return TextSelectionThemeData(
+    cursorColor: _kSeedColor,
+    selectionColor: _kSeedColor.withValues(alpha: dark ? 0.35 : 0.25),
+    selectionHandleColor: _kSeedColor,
   );
 }
 
@@ -724,6 +819,10 @@ class ThemeHelper {
       bottomSheetTheme: _buildBottomSheetTheme(dark: false),
       dialogTheme: _buildDialogTheme(dark: false),
       snackBarTheme: _buildSnackBarTheme(dark: false),
+      tooltipTheme: _buildTooltipTheme(dark: false),
+      popupMenuTheme: _buildPopupMenuTheme(dark: false),
+      menuTheme: _buildMenuTheme(dark: false),
+      textSelectionTheme: _buildTextSelectionTheme(dark: false),
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -791,6 +890,10 @@ class ThemeHelper {
       bottomSheetTheme: _buildBottomSheetTheme(dark: true),
       dialogTheme: _buildDialogTheme(dark: true),
       snackBarTheme: _buildSnackBarTheme(dark: true),
+      tooltipTheme: _buildTooltipTheme(dark: true),
+      popupMenuTheme: _buildPopupMenuTheme(dark: true),
+      menuTheme: _buildMenuTheme(dark: true),
+      textSelectionTheme: _buildTextSelectionTheme(dark: true),
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
