@@ -94,7 +94,7 @@ void main() {
       final bounds = tester.getRect(find.byKey(_conversation));
       expect(bounds.top, 0);
       expect(bounds.height, 800);
-      expect(bounds.width, width < 960 ? width : 880);
+      expect(bounds.width, width < 960 ? width : 920);
     });
   }
 
@@ -149,7 +149,7 @@ void main() {
     expect(tester.getSize(find.byKey(_conversation)).width, greaterThan(700));
     await tester.pumpWidget(_harness());
     expect(find.byKey(_inspector), findsNothing);
-    expect(tester.getSize(find.byKey(_conversation)).width, 880);
+    expect(tester.getSize(find.byKey(_conversation)).width, 920);
     expect(tester.takeException(), isNull);
   });
 

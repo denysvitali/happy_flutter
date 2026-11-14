@@ -7,12 +7,12 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import '../utils/utils.dart';
 import 'app_status_dot.dart';
 import 'voice_assistant_status_bar.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sidebar navigation widget matching React Native's SidebarView.tsx.
 ///
@@ -174,8 +174,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: AppControlSize.md,
+            height: AppControlSize.md,
             decoration: BoxDecoration(
               color: cs.primaryContainer.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -192,11 +192,10 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                   l10n.sidebarSessionsTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: headerTintColor,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                  ),
+                  style: AppText.title(
+                    theme,
+                    headerTintColor,
+                  ).copyWith(letterSpacing: -0.2),
                 ),
                 if (connectionInfo.text.isNotEmpty) ...[
                   const SizedBox(height: 2),
@@ -231,7 +230,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
           ),
           _buildNavIcon(
             context,
-            icon: Icons.add_rounded,
+            icon: Icons.add,
             onTap: widget.onNewSession ?? () => _showNewSessionDialog(context),
             tintColor: cs.onSurfaceVariant,
             tooltip: AppLocalizations.of(context).sessionsNew,
@@ -263,8 +262,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             borderRadius: BorderRadius.circular(AppRadius.sm),
             mouseCursor: SystemMouseCursors.click,
             child: SizedBox(
-              width: 32,
-              height: 32,
+              width: AppControlSize.md,
+              height: AppControlSize.md,
               child: Icon(icon, size: size, color: tintColor),
             ),
           ),

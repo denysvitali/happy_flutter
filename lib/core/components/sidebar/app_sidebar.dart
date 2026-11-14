@@ -5,7 +5,6 @@ import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
 
 import '../../i18n/app_localizations.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
 import '../../ui/tab_bar/tab_bar.dart';
 
@@ -218,7 +217,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                 child: AnimatedContainer(
                   duration: AppMotion.duration(context, AppDuration.fast),
                   curve: AppCurve.standard,
-                  height: 40,
+                  height: AppTouchTarget.min,
                   padding: EdgeInsets.symmetric(
                     horizontal: widget.isCollapsed ? 0 : AppSpacing.md,
                   ),
@@ -231,7 +230,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                       : Row(
                           children: [
                             SizedBox(
-                              width: 28,
+                              width: AppControlSize.sm,
                               child: Center(child: iconWidget),
                             ),
                             const SizedBox(width: AppSpacing.sm),
@@ -307,7 +306,7 @@ class _CollapseToggleState extends State<_CollapseToggle> {
               child: AnimatedContainer(
                 duration: AppMotion.duration(context, AppDuration.fast),
                 curve: AppCurve.standard,
-                height: 36,
+                height: AppRowHeight.compact,
                 decoration: BoxDecoration(
                   color: _hovered
                       ? cs.onSurface.withValues(alpha: 0.05)
