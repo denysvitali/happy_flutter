@@ -25,11 +25,17 @@ class DesktopChatWorkspace extends StatelessWidget {
       return builder(!searching && mobileHideToolCalls);
     }
     final cs = Theme.of(context).colorScheme;
-    final conversation = Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 880),
-        child: builder(!searching),
+    final conversation = ColoredBox(
+      color: Color.alphaBlend(
+        cs.surfaceContainerLowest.withValues(alpha: 0.18),
+        cs.surface,
+      ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: builder(!searching),
+        ),
       ),
     );
     // Only allocate inspector space after an explicit selection. Flex sizes
@@ -41,8 +47,15 @@ class DesktopChatWorkspace extends StatelessWidget {
       children: [
         Expanded(flex: 3, child: conversation),
         if (inspector case final detail?) ...[
-          VerticalDivider(width: 1, color: cs.outlineVariant),
-          Expanded(flex: 2, child: detail),
+          VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.7),
+          ),
+          Expanded(
+            flex: 2,
+            child: ColoredBox(color: cs.surface, child: detail),
+          ),
         ],
       ],
     );

@@ -147,127 +147,97 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     bool shouldLeftJustify,
   ) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final headerTintColor =
-        theme.appBarTheme.titleTextStyle?.color ?? theme.colorScheme.onSurface;
+        theme.appBarTheme.titleTextStyle?.color ?? cs.onSurface;
+    final top = MediaQuery.paddingOf(context).top;
 
-    return SizedBox(
-      height: kToolbarHeight + MediaQuery.paddingOf(context).top,
-      child: Padding(
-        padding: EdgeInsets.only(
-          top: MediaQuery.paddingOf(context).top,
-          left: AppSpacing.lg,
-          right: AppSpacing.sm,
+    return Container(
+      padding: EdgeInsets.only(
+        top: top + AppSpacing.sm,
+        left: AppSpacing.lg,
+        right: AppSpacing.sm,
+        bottom: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          cs.surfaceContainerLow.withValues(alpha: 0.35),
+          cs.surface,
         ),
-        child: Row(
-          children: [
-            // Logo (using icon since assets don't exist yet)
-            SizedBox(
-              width: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
-              height: AppSpacing.xxxl - AppSpacing.lg,
-              child: Icon(
-                Icons.terminal,
-                size: AppSpacing.xxxl - AppSpacing.lg,
-                color: headerTintColor,
-              ),
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-
-            // Left-justified title (when experiments enabled
-            if (shouldLeftJustify)
-              Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.sm),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.sidebarSessionsTitle,
-                      style: theme.appBarTheme.titleTextStyle?.copyWith(
-                        fontSize: AppFontSize.xl,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (connectionInfo.text.isNotEmpty)
-                      Row(
-                        children: [
-                          AppStatusDot(
-                            color: connectionInfo.color,
-                            pulse: connectionInfo.isPulsing,
-                            size: AppSpacing.xs + AppSpacing.xs,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            connectionInfo.text,
-                            style: AppText.label(theme, connectionInfo.color),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-
-            const Spacer(),
-
-            // Navigation icons
-            Row(
+            child: Icon(Icons.terminal_rounded, size: 18, color: cs.primary),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Settings icon
-                _buildNavIcon(
-                  context,
-                  icon: Icons.settings_outlined,
-                  onTap: () => context.push('/settings'),
-                  tintColor: headerTintColor,
-                  tooltip: AppLocalizations.of(context).commonSettings,
+                Text(
+                  l10n.sidebarSessionsTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: headerTintColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
                 ),
-
-                // New session icon
-                _buildNavIcon(
-                  context,
-                  icon: Icons.add,
-                  onTap:
-                      widget.onNewSession ??
-                      () => _showNewSessionDialog(context),
-                  tintColor: headerTintColor,
-                  tooltip: AppLocalizations.of(context).sessionsNew,
-                  size: 28,
-                ),
+                if (connectionInfo.text.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      AppStatusDot(
+                        color: connectionInfo.color,
+                        pulse: connectionInfo.isPulsing,
+                        size: 8,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          connectionInfo.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.label(theme, cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
-
-            // Centered title (when experiments disabled and sidebar is wide)
-            if (!shouldLeftJustify)
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      l10n.sidebarSessionsTitle,
-                      style: theme.appBarTheme.titleTextStyle?.copyWith(
-                        fontSize: AppFontSize.xl,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (connectionInfo.text.isNotEmpty)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AppStatusDot(
-                            color: connectionInfo.color,
-                            pulse: connectionInfo.isPulsing,
-                            size: AppSpacing.xs + AppSpacing.xs,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            connectionInfo.text,
-                            style: AppText.label(theme, connectionInfo.color),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+          ),
+          _buildNavIcon(
+            context,
+            icon: Icons.settings_outlined,
+            onTap: () => context.push('/settings'),
+            tintColor: cs.onSurfaceVariant,
+            tooltip: AppLocalizations.of(context).commonSettings,
+          ),
+          _buildNavIcon(
+            context,
+            icon: Icons.add_rounded,
+            onTap: widget.onNewSession ?? () => _showNewSessionDialog(context),
+            tintColor: cs.onSurfaceVariant,
+            tooltip: AppLocalizations.of(context).sessionsNew,
+            size: 22,
+          ),
+        ],
       ),
     );
   }
@@ -278,19 +248,25 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     required VoidCallback onTap,
     required Color tintColor,
     required String tooltip,
-    double size = AppSpacing.xxl,
+    double size = 20,
   }) {
     return Tooltip(
       message: tooltip,
+      waitDuration: const Duration(milliseconds: 400),
       child: Semantics(
         button: true,
         label: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Icon(icon, size: size, color: tintColor),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            mouseCursor: SystemMouseCursors.click,
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: Icon(icon, size: size, color: tintColor),
+            ),
           ),
         ),
       ),
@@ -329,25 +305,40 @@ class _DefaultSessionContent extends ConsumerWidget {
 
     if (sessionIds.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.computer_outlined, size: 48, color: cs.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              l10n.sessionNoSessionsYet,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 40,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                l10n.sessionNoSessionsYet,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.lg,
+      ),
       itemCount: sessionIds.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 2),
       itemBuilder: (context, index) {
         final sessionId = sessionIds[index];
         return _SidebarSessionListItem(
@@ -374,57 +365,60 @@ class _SidebarSessionListItem extends ConsumerWidget {
     final cs = theme.colorScheme;
     final lastMessageTimestamp = sync.getLastMessageTimestamp(session.id);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      elevation: 0,
-      color: cs.surface,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: () {
           ChatSwitchMetrics().begin(session.id, source: 'sidebar');
           context.push('/chat/${session.id}');
         },
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        mouseCursor: SystemMouseCursors.click,
+        hoverColor: cs.onSurface.withValues(alpha: 0.04),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
-              // Status indicator
               Container(
-                width: AppSpacing.sm + AppSpacing.xs,
-                height: AppSpacing.sm + AppSpacing.xs,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: session.active
                       ? AppColors.success
-                      : cs.onSurfaceVariant,
+                      : cs.outline.withValues(alpha: 0.7),
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              // Session name
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       session.metadata?.name ?? session.id,
-                      style: AppText.title(theme),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    if (session.metadata?.path != null)
+                    if (session.metadata?.path != null) ...[
+                      const SizedBox(height: 2),
                       Text(
                         session.metadata!.path!,
                         style: AppText.secondary(theme, cs.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
+                    ],
                   ],
                 ),
               ),
-              // Timestamp
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 _formatTimestamp(
                   lastMessageTimestamp ??

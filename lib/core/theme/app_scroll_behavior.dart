@@ -1,6 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
+import 'app_tokens.dart';
 
 /// App-wide, platform-adaptive scroll behavior.
 ///
@@ -11,6 +15,11 @@ import 'package:flutter/material.dart';
 class AppScrollBehavior extends MaterialScrollBehavior {
   /// Creates the app scroll behavior.
   const AppScrollBehavior();
+
+  bool get _isDesktopPlatform =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.windows;
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
@@ -34,6 +43,32 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   ) {
     // Bouncing physics already communicates the edge — no glow/stretch.
     return child;
+  }
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    if (!_isDesktopPlatform) {
+      return super.buildScrollbar(context, child, details);
+    }
+    switch (axisDirectionToAxis(details.direction)) {
+      case Axis.horizontal:
+        return child;
+      case Axis.vertical:
+        final controller = details.controller;
+        if (controller == null) return child;
+        return Scrollbar(
+          controller: controller,
+          thumbVisibility: false,
+          thickness: 8,
+          radius: const Radius.circular(AppRadius.pill),
+          interactive: true,
+          child: child,
+        );
+    }
   }
 
   @override

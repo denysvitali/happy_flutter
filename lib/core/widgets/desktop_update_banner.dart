@@ -86,9 +86,8 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final tone = AppToneColors.of(context, AppBadgeTone.info);
-    final bg = tone.background;
-    final fg = tone.foreground;
 
     return Container(
       width: double.infinity,
@@ -96,24 +95,37 @@ class _Row extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.xs,
       ),
-      color: bg,
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          tone.background.withValues(alpha: 0.75),
+          cs.surfaceContainerLow,
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
       child: Wrap(
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xxs,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: AppIconSize.md, color: fg),
+              Icon(icon, size: 18, color: cs.onSurface),
               const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
                   label,
                   style: TextStyle(
                     fontSize: AppFontSize.sm,
-                    color: fg,
+                    color: cs.onSurface,
                     fontWeight: FontWeight.w500,
+                    letterSpacing: -0.1,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -121,15 +133,15 @@ class _Row extends StatelessWidget {
             ],
           ),
           if (actionLabel != null && onAction != null)
-            TextButton(
+            FilledButton.tonal(
               onPressed: onAction,
-              style: TextButton.styleFrom(
-                foregroundColor: fg,
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xxs,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
                 ),
-                minimumSize: const Size(AppTouchTarget.min, AppTouchTarget.min),
+                minimumSize: const Size(0, 32),
                 textStyle: const TextStyle(
                   fontSize: AppFontSize.sm,
                   fontWeight: FontWeight.w600,
@@ -145,7 +157,11 @@ class _Row extends StatelessWidget {
             IconButton(
               onPressed: onDismiss,
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.close_rounded, size: AppIconSize.lg, color: fg),
+              icon: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
               tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             ),
         ],

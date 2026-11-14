@@ -47,10 +47,10 @@ class AppSidebar extends StatefulWidget {
   final bool showCollapseToggle;
 
   /// Width when fully expanded.
-  static const double expandedWidth = 200;
+  static const double expandedWidth = 224;
 
   /// Width when collapsed (icon-only).
-  static const double collapsedWidth = 56;
+  static const double collapsedWidth = 64;
 
   @override
   State<AppSidebar> createState() => _AppSidebarState();
@@ -78,37 +78,51 @@ class _AppSidebarState extends State<AppSidebar> {
       duration: AppMotion.duration(context, AppDuration.normal),
       curve: AppCurve.standard,
       width: targetWidth,
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: cs.surface,
+          color: Color.alphaBlend(
+            cs.surfaceContainerLow.withValues(alpha: 0.55),
+            cs.surface,
+          ),
           border: Border(
             right: BorderSide(
-              color: cs.onSurface.withValues(alpha: AppOpacity.faint),
+              color: cs.outlineVariant.withValues(alpha: 0.7),
+              width: AppBorder.hairline,
             ),
           ),
         ),
         child: SafeArea(
           right: false,
+          bottom: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: AppSpacing.sm),
-              // Navigation items
-              ...(appTabs.map(
-                (tab) => _SidebarItem(
-                  tab: tab,
-                  label: _labelForTab(tab.key, context.l10n),
-                  isActive: widget.activeTab == tab.key,
-                  isCollapsed: widget.isCollapsed,
-                  badgeCount: widget.badgeCounts[tab.key] ?? 0,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    widget.onTabPress(tab.key);
-                  },
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed
+                      ? AppSpacing.xs
+                      : AppSpacing.sm,
                 ),
-              )),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final tab in appTabs)
+                      _SidebarItem(
+                        tab: tab,
+                        label: _labelForTab(tab.key, context.l10n),
+                        isActive: widget.activeTab == tab.key,
+                        isCollapsed: widget.isCollapsed,
+                        badgeCount: widget.badgeCounts[tab.key] ?? 0,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          widget.onTabPress(tab.key);
+                        },
+                      ),
+                  ],
+                ),
+              ),
               const Spacer(),
-              // Collapse/expand toggle
               if (widget.showCollapseToggle)
                 _CollapseToggle(
                   isCollapsed: widget.isCollapsed,
@@ -126,7 +140,7 @@ class _AppSidebarState extends State<AppSidebar> {
 // ─── _SidebarItem ────────────────────────────────────────────────────────────
 
 /// A single sidebar navigation item with icon and optional label.
-class _SidebarItem extends StatelessWidget {
+class _SidebarItem extends StatefulWidget {
   const _SidebarItem({
     required this.tab,
     required this.label,
@@ -144,73 +158,101 @@ class _SidebarItem extends StatelessWidget {
   final int badgeCount;
 
   @override
+  State<_SidebarItem> createState() => _SidebarItemState();
+}
+
+class _SidebarItemState extends State<_SidebarItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
-    final activeColor = cs.primary;
-    final inactiveColor = cs.onSurface.withValues(alpha: AppOpacity.half);
-    final itemColor = isActive ? activeColor : inactiveColor;
+    final isActive = widget.isActive;
+    final inactiveColor = cs.onSurfaceVariant;
+    final itemColor = isActive ? cs.onSurface : inactiveColor;
 
-    final hasBadge = appTabShowsBadge(tab.key) && badgeCount > 0;
+    final hasBadge = appTabShowsBadge(widget.tab.key) && widget.badgeCount > 0;
     final iconWidget = Badge(
       isLabelVisible: hasBadge,
-      label: Text(badgeCount > 9 ? '9+' : '$badgeCount'),
+      label: Text(widget.badgeCount > 9 ? '9+' : '${widget.badgeCount}'),
       child: Icon(
-        isActive ? tab.activeIcon : tab.icon,
-        size: AppIconSize.tab,
+        isActive ? widget.tab.activeIcon : widget.tab.icon,
+        size: 20,
         color: itemColor,
       ),
     );
 
     final semanticsLabel = hasBadge
-        ? context.l10n.a11yTabWithBadge(label, badgeCount)
-        : label;
+        ? context.l10n.a11yTabWithBadge(widget.label, widget.badgeCount)
+        : widget.label;
 
-    return Semantics(
-      excludeSemantics: true,
-      selected: isActive,
-      button: true,
-      label: semanticsLabel,
-      child: Tooltip(
-        message: isCollapsed ? label : '',
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: AnimatedContainer(
-            duration: AppMotion.duration(context, AppDuration.normal),
-            curve: AppCurve.standard,
-            height: AppTouchTarget.comfortable,
-            margin: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: AppSpacing.xxs,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? AppSpacing.sm : AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: isActive ? cs.surfaceContainerHighest : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: isCollapsed
-                ? Center(child: iconWidget)
-                : Row(
-                    children: [
-                      iconWidget,
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: itemColor,
-                            fontWeight: isActive
-                                ? FontWeight.w700
-                                : FontWeight.normal,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+    final background = isActive
+        ? cs.primary.withValues(alpha: 0.12)
+        : _hovered
+        ? cs.onSurface.withValues(alpha: 0.05)
+        : Colors.transparent;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Semantics(
+        excludeSemantics: true,
+        selected: isActive,
+        button: true,
+        label: semanticsLabel,
+        child: Tooltip(
+          message: widget.isCollapsed ? widget.label : '',
+          waitDuration: const Duration(milliseconds: 500),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                hoverColor: Colors.transparent,
+                splashColor: cs.primary.withValues(alpha: 0.08),
+                highlightColor: cs.primary.withValues(alpha: 0.06),
+                child: AnimatedContainer(
+                  duration: AppMotion.duration(context, AppDuration.fast),
+                  curve: AppCurve.standard,
+                  height: 40,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: widget.isCollapsed ? 0 : AppSpacing.md,
                   ),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: widget.isCollapsed
+                      ? Center(child: iconWidget)
+                      : Row(
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              child: Center(child: iconWidget),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                widget.label,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: itemColor,
+                                  fontWeight: isActive
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  letterSpacing: -0.1,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -221,42 +263,69 @@ class _SidebarItem extends StatelessWidget {
 // ─── _CollapseToggle ─────────────────────────────────────────────────────────
 
 /// Toggle button at the bottom of the sidebar that collapses or expands it.
-class _CollapseToggle extends StatelessWidget {
+class _CollapseToggle extends StatefulWidget {
   const _CollapseToggle({required this.isCollapsed, required this.onToggle});
 
   final bool isCollapsed;
   final VoidCallback onToggle;
 
   @override
+  State<_CollapseToggle> createState() => _CollapseToggleState();
+}
+
+class _CollapseToggleState extends State<_CollapseToggle> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final icon = isCollapsed
-        ? Icons.keyboard_arrow_right
-        : Icons.keyboard_arrow_left;
+    final icon = widget.isCollapsed
+        ? Icons.chevron_right_rounded
+        : Icons.chevron_left_rounded;
     final shortcut = (!kIsWeb && Platform.isMacOS) ? '⌘B' : 'Ctrl+B';
-    final label = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    final label = widget.isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
     final tooltip = '$label ($shortcut)';
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
+        horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
       child: Tooltip(
         message: tooltip,
-        child: InkWell(
-          onTap: onToggle,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Container(
-            height: AppTouchTarget.min,
-            alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
-            padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? AppSpacing.sm : AppSpacing.md,
-            ),
-            child: Icon(
-              icon,
-              size: AppSpacing.xl,
-              color: cs.onSurface.withValues(alpha: AppOpacity.medium),
+        waitDuration: const Duration(milliseconds: 500),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onToggle,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              hoverColor: Colors.transparent,
+              child: AnimatedContainer(
+                duration: AppMotion.duration(context, AppDuration.fast),
+                curve: AppCurve.standard,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: _hovered
+                      ? cs.onSurface.withValues(alpha: 0.05)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                alignment: widget.isCollapsed
+                    ? Alignment.center
+                    : Alignment.centerLeft,
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 0 : AppSpacing.md,
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
+              ),
             ),
           ),
         ),
