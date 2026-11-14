@@ -9,7 +9,7 @@
 # When paired with direnv, `.envrc` calls `use mise` so flutter /
 # dart / java / make land on PATH the moment you `cd` into the repo.
 [tools]
-flutter = "3.41.9"
+flutter = "3.50.0"
 dart    = "3.11.5"
 # Bare OpenJDK GA pins such as "21.0.2" fail on current mise ("no metadata
 # found"); Temurin keeps receiving 21 LTS builds.
