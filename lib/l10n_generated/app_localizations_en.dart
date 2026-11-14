@@ -482,6 +482,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String kubernetesUnreachableDetails(String machines) {
+    return 'Could not reach: $machines. Showing last known state where available.';
+  }
+
+  @override
+  String kubernetesLastUpdated(String time) {
+    return 'Updated $time';
+  }
+
+  @override
+  String kubernetesActionInProgress(String action) {
+    return '$action is already in progress for this pod.';
+  }
+
+  @override
+  String get kubernetesArchiveInProgress =>
+      'Archive is already in progress for this session.';
+
+  @override
+  String get kubernetesRefreshing => 'Refreshing pod state…';
+
+  @override
   String get kubernetesEmptyTitle => 'No session pods running';
 
   @override

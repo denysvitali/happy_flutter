@@ -855,6 +855,36 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1 {1 daemon could not be reached; its pods show their last known state.} other {{count} daemons could not be reached; their pods show their last known state.}}'**
   String kubernetesUnreachable(int count);
 
+  /// Warning details listing unreachable Kubernetes daemons
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach: {machines}. Showing last known state where available.'**
+  String kubernetesUnreachableDetails(String machines);
+
+  /// When pod data for a machine was last successfully refreshed
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time}'**
+  String kubernetesLastUpdated(String time);
+
+  /// Snack shown when the user triggers a pod action that is already pending
+  ///
+  /// In en, this message translates to:
+  /// **'{action} is already in progress for this pod.'**
+  String kubernetesActionInProgress(String action);
+
+  /// Snack shown when archive is requested while an archive operation is already pending
+  ///
+  /// In en, this message translates to:
+  /// **'Archive is already in progress for this session.'**
+  String get kubernetesArchiveInProgress;
+
+  /// Status shown while the Kubernetes screen is refreshing
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing pod state…'**
+  String get kubernetesRefreshing;
+
   /// Empty state title of the Kubernetes screen
   ///
   /// In en, this message translates to:

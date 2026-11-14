@@ -218,6 +218,41 @@
       }
     }
   },
+  "kubernetesUnreachableDetails": "Could not reach: {machines}. Showing last known state where available.",
+  "@kubernetesUnreachableDetails": {
+    "description": "Warning details listing unreachable Kubernetes daemons",
+    "placeholders": {
+      "machines": {
+        "type": "String"
+      }
+    }
+  },
+  "kubernetesLastUpdated": "Updated {time}",
+  "@kubernetesLastUpdated": {
+    "description": "When pod data for a machine was last successfully refreshed",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "kubernetesActionInProgress": "{action} is already in progress for this pod.",
+  "@kubernetesActionInProgress": {
+    "description": "Snack shown when the user triggers a pod action that is already pending",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "kubernetesArchiveInProgress": "Archive is already in progress for this session.",
+  "@kubernetesArchiveInProgress": {
+    "description": "Snack shown when archive is requested while an archive operation is already pending"
+  },
+  "kubernetesRefreshing": "Refreshing pod state…",
+  "@kubernetesRefreshing": {
+    "description": "Status shown while the Kubernetes screen is refreshing"
+  },
   "kubernetesEmptyTitle": "No session pods running",
   "@kubernetesEmptyTitle": {
     "description": "Empty state title of the Kubernetes screen"

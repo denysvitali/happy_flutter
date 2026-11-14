@@ -444,6 +444,25 @@ void main() {
       expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
     });
 
+    testWidgets('stale pod tile shows when it was last updated', (tester) async {
+      final now = DateTime.now();
+      await tester.pumpWidget(
+        _app(
+          KubernetesPodTile(
+            entry: KubernetesPodEntry(
+              machineId: 'm2',
+              session: _session('s'),
+              live: false,
+            ),
+            now: now,
+            lastUpdatedMs: now.subtract(const Duration(minutes: 3)).millisecondsSinceEpoch,
+          ),
+        ),
+      );
+      expect(find.textContaining('Last known'), findsOneWidget);
+      expect(find.textContaining('Updated'), findsOneWidget);
+    });
+
     testWidgets('pod tile shows uptime, restarts and usage against limits', (
       tester,
     ) async {

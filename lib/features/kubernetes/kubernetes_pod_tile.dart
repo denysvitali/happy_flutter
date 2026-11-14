@@ -9,6 +9,7 @@ import '../../core/providers/pod_operations_notifier.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/session_utils.dart' show formatRelativeTime;
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'kubernetes_pod_format.dart';
@@ -27,6 +28,7 @@ class KubernetesPodTile extends StatelessWidget {
     required this.entry,
     super.key,
     this.now,
+    this.lastUpdatedMs,
     this.onTap,
     this.onLongPress,
     this.onInfo,
@@ -41,6 +43,9 @@ class KubernetesPodTile extends StatelessWidget {
 
   /// Reference time for uptime; defaults to the build time.
   final DateTime? now;
+
+  /// When this machine's pod state was last successfully refreshed.
+  final int? lastUpdatedMs;
 
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -87,6 +92,7 @@ class KubernetesPodTile extends StatelessWidget {
         operation.isPending &&
         operation.action == KubernetesPodAction.kill;
     final isSelected = selected ?? false;
+    final lastUpdated = lastUpdatedMs;
 
     final separator = TextSpan(text: ' · ', style: AppText.secondary(theme));
     final meta = <InlineSpan>[
@@ -109,7 +115,15 @@ class KubernetesPodTile extends StatelessWidget {
           ),
         ),
       ],
-      if (!entry.live) ...[separator, TextSpan(text: l10n.kubernetesLastKnown)],
+      if (!entry.live) ...[
+        separator,
+        TextSpan(
+          text: lastUpdated != null
+              ? '${l10n.kubernetesLastKnown} · '
+                    '${l10n.kubernetesLastUpdated(formatRelativeTime(lastUpdated))}'
+              : l10n.kubernetesLastKnown,
+        ),
+      ],
     ];
 
     final Widget leading = _selecting
@@ -183,7 +197,7 @@ class KubernetesPodTile extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text.rich(
                       TextSpan(children: meta),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.secondary(theme),
                     ),

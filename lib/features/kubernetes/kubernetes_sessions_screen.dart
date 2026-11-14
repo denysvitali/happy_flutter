@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,9 @@ typedef KubernetesPodsLoader =
 /// Retry until the user dismisses it.
 ///
 /// Polls while it is the visible route and the app is in the foreground.
+/// Refreshes also react to machine/session catalog changes, isolate slow or
+/// failing daemons with per-machine timeouts/backoff, and keep last-known
+/// state visible when a daemon is temporarily unreachable.
 class KubernetesSessionsScreen extends ConsumerStatefulWidget {
   const KubernetesSessionsScreen({super.key, this.loadPods});
 
@@ -60,9 +64,37 @@ class KubernetesSessionsScreen extends ConsumerStatefulWidget {
   /// Refresh cadence while the screen is visible.
   static const Duration pollInterval = Duration(seconds: 10);
 
+  /// Upper bound for one machine's pod list request.
+  static const Duration machineTimeout = Duration(seconds: 12);
+
   @override
   ConsumerState<KubernetesSessionsScreen> createState() =>
       _KubernetesSessionsScreenState();
+}
+
+class _MachinePodFetchState {
+  const _MachinePodFetchState({
+    this.lastSuccessMs,
+    this.consecutiveFailures = 0,
+    this.nextAllowedFetchMs = 0,
+  });
+
+  final int? lastSuccessMs;
+  final int consecutiveFailures;
+  final int nextAllowedFetchMs;
+
+  _MachinePodFetchState copyWith({
+    int? lastSuccessMs,
+    bool clearLastSuccess = false,
+    int? consecutiveFailures,
+    int? nextAllowedFetchMs,
+  }) => _MachinePodFetchState(
+    lastSuccessMs: clearLastSuccess
+        ? null
+        : (lastSuccessMs ?? this.lastSuccessMs),
+    consecutiveFailures: consecutiveFailures ?? this.consecutiveFailures,
+    nextAllowedFetchMs: nextAllowedFetchMs ?? this.nextAllowedFetchMs,
+  );
 }
 
 class _KubernetesSessionsScreenState
@@ -70,10 +102,12 @@ class _KubernetesSessionsScreenState
     with WidgetsBindingObserver {
   Map<String, List<SessionPod>> _podsByMachine = const {};
   Set<String> _unreachable = const {};
+  final Map<String, _MachinePodFetchState> _machineFetch = {};
   bool _loaded = false;
   bool _refreshing = true;
   int _generation = 0;
   Timer? _poll;
+  Timer? _catalogRefreshDebounce;
   bool _foreground = true;
 
   /// Newest pods first unless the user flipped the order.
@@ -95,7 +129,7 @@ class _KubernetesSessionsScreenState
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     unawaited(_refresh());
     _poll = Timer.periodic(KubernetesSessionsScreen.pollInterval, (_) {
-      if (!mounted || !_foreground || _refreshing) return;
+      if (!mounted || !_foreground) return;
       if (ModalRoute.of(context)?.isCurrent == false) return;
       unawaited(_refresh());
     });
@@ -104,6 +138,7 @@ class _KubernetesSessionsScreenState
   @override
   void dispose() {
     _poll?.cancel();
+    _catalogRefreshDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -113,6 +148,16 @@ class _KubernetesSessionsScreenState
     final foreground = state == AppLifecycleState.resumed;
     if (foreground && !_foreground && mounted) unawaited(_refresh());
     _foreground = foreground;
+  }
+
+  void _scheduleCatalogRefresh() {
+    if (!mounted) return;
+    _catalogRefreshDebounce?.cancel();
+    _catalogRefreshDebounce = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted || !_foreground) return;
+      if (ModalRoute.of(context)?.isCurrent == false) return;
+      unawaited(_refresh());
+    });
   }
 
   Future<List<SessionPod>> _load(String machineId) async {
@@ -125,43 +170,99 @@ class _KubernetesSessionsScreenState
     return response.pods;
   }
 
+  Future<List<SessionPod>> _loadWithTimeout(String machineId) =>
+      _load(machineId).timeout(KubernetesSessionsScreen.machineTimeout);
+
+  int _backoffMs(int failures) {
+    const stepsMs = [10000, 20000, 40000, 60000];
+    return stepsMs[math.min(failures - 1, stepsMs.length - 1)];
+  }
+
   Future<void> _refresh() async {
     final generation = ++_generation;
-    if (!_refreshing) setState(() => _refreshing = true);
+    if (!_refreshing && mounted) setState(() => _refreshing = true);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
     final machineIds = kubernetesPodMachineIds(
       machines: ref.read(machinesNotifierProvider),
       sessions: ref.read(sessionsNotifierProvider),
-      nowMs: DateTime.now().millisecondsSinceEpoch,
+      nowMs: nowMs,
     );
+    final machines = ref.read(machinesNotifierProvider);
+    final queried = <String>[];
+    final deferred = <String>[];
+    for (final machineId in machineIds) {
+      final fetchState = _machineFetch[machineId];
+      if (fetchState != null && nowMs < fetchState.nextAllowedFetchMs) {
+        deferred.add(machineId);
+      } else {
+        queried.add(machineId);
+      }
+    }
+
     final results = await Future.wait(
-      machineIds.map((machineId) async {
+      queried.map((machineId) async {
         try {
-          return (machineId, await _load(machineId));
+          return (machineId, await _loadWithTimeout(machineId));
         } catch (error, stack) {
-          logger.warning('Failed to list session pods', error, stack);
+          final machine = machines[machineId];
+          if (machine == null || !machine.isOnlineAt(nowMs)) {
+            logger.info(
+              'Skipping unavailable Kubernetes daemon $machineId: $error',
+            );
+          } else {
+            logger.warning('Failed to list session pods', error, stack);
+          }
           return (machineId, null);
         }
       }),
     );
     if (!mounted || generation != _generation) return;
-    final podsByMachine = {
-      for (final (machineId, pods) in results) machineId: ?pods,
-    };
+
+    final nextPodsByMachine = Map<String, List<SessionPod>>.of(_podsByMachine)
+      ..removeWhere((id, _) => !machineIds.contains(id));
+    final nextFetch = Map<String, _MachinePodFetchState>.from(_machineFetch)
+      ..removeWhere((id, _) => !machineIds.contains(id));
+    final unreachable = <String>{...deferred};
+    final completedNow = DateTime.now().millisecondsSinceEpoch;
+
+    for (final (machineId, pods) in results) {
+      if (pods != null) {
+        nextPodsByMachine[machineId] = pods;
+        nextFetch[machineId] = const _MachinePodFetchState();
+      } else {
+        unreachable.add(machineId);
+        final previous = nextFetch[machineId];
+        final hadData = nextPodsByMachine.containsKey(machineId);
+        final failures = (previous?.consecutiveFailures ?? 0) + 1;
+        nextFetch[machineId] = _MachinePodFetchState(
+          lastSuccessMs: previous?.lastSuccessMs,
+          consecutiveFailures: failures,
+          nextAllowedFetchMs: completedNow + _backoffMs(failures),
+        );
+        if (!hadData && previous?.lastSuccessMs == null) {
+          nextPodsByMachine.remove(machineId);
+        }
+      }
+    }
+
     // Settle optimistic overlays this report confirms.
     ref
         .read(podOperationsNotifierProvider.notifier)
         .reconcile(
           observedPodOperationStates(
             operations: ref.read(podOperationsNotifierProvider),
-            podsByMachine: podsByMachine,
+            podsByMachine: {
+              for (final (machineId, pods) in results) machineId: ?pods,
+            },
           ),
         );
+
     setState(() {
-      _podsByMachine = podsByMachine;
-      _unreachable = {
-        for (final (machineId, pods) in results)
-          if (pods == null) machineId,
-      };
+      _podsByMachine = nextPodsByMachine;
+      _unreachable = unreachable;
+      _machineFetch
+        ..clear()
+        ..addAll(nextFetch);
       _loaded = true;
       _refreshing = false;
     });
@@ -186,7 +287,18 @@ class _KubernetesSessionsScreenState
     KubernetesPodEntry entry,
     KubernetesPodAction action,
   ) async {
-    if (!entry.canControl) return;
+    if (!entry.canControl) {
+      final op = entry.operation;
+      if (op != null && op.isPending && mounted) {
+        final l10n = context.l10n;
+        context.showSnack(
+          l10n.kubernetesActionInProgress(
+            kubernetesPodActionLabel(l10n, op.action),
+          ),
+        );
+      }
+      return;
+    }
     final l10n = context.l10n;
     if (action == KubernetesPodAction.kill) {
       final confirmed = await showConfirmDialog(
@@ -200,13 +312,18 @@ class _KubernetesSessionsScreenState
       );
       if (!confirmed || !mounted) return;
     }
-    ref
+    final submitted = ref
         .read(podOperationsNotifierProvider.notifier)
         .submitAction(
           machineId: entry.machineId!,
           sessionId: entry.sessionId,
           action: action,
         );
+    if (!submitted && mounted) {
+      context.showSnack(
+        l10n.kubernetesActionInProgress(kubernetesPodActionLabel(l10n, action)),
+      );
+    }
   }
 
   void _enterSelection([String? key]) {
@@ -251,14 +368,20 @@ class _KubernetesSessionsScreenState
     );
     if (!confirmed || !mounted) return;
     final operations = ref.read(sessionOperationsNotifierProvider.notifier);
+    var rejected = 0;
     setState(() {
       for (final entry in archivable) {
         if (operations.archive(entry.session!)) {
           _archivedSessionIds.add(entry.sessionId);
+        } else {
+          rejected++;
         }
       }
       _selection = null;
     });
+    if (rejected > 0 && mounted) {
+      context.showSnack(l10n.kubernetesArchiveInProgress);
+    }
   }
 
   /// A failed archive restores its row (the failure itself is reported by
@@ -270,31 +393,34 @@ class _KubernetesSessionsScreenState
     Map<String, SessionOperation>? previous,
     Map<String, SessionOperation> next,
   ) {
-    if (!mounted || _archivedSessionIds.isEmpty) return;
-    final restored = <String>[];
-    final cleared = <String>[];
-    for (final id in _archivedSessionIds) {
-      final operation = next[id];
-      if (operation == null) {
-        cleared.add(id);
-        continue;
+    if (!mounted) return;
+    if (_archivedSessionIds.isNotEmpty) {
+      final restored = <String>[];
+      final cleared = <String>[];
+      for (final id in _archivedSessionIds) {
+        final operation = next[id];
+        if (operation == null) {
+          cleared.add(id);
+          continue;
+        }
+        if (operation.request.action != SessionOperationAction.archive) {
+          cleared.add(id);
+          continue;
+        }
+        if (operation.isFailed) {
+          restored.add(id);
+        } else if (!operation.isPending) {
+          cleared.add(id);
+        }
       }
-      if (operation.request.action != SessionOperationAction.archive) {
-        cleared.add(id);
-        continue;
-      }
-      if (operation.isFailed) {
-        restored.add(id);
-      } else if (!operation.isPending) {
-        cleared.add(id);
+      if (restored.isNotEmpty || cleared.isNotEmpty) {
+        setState(() {
+          _archivedSessionIds
+            ..removeAll(restored)
+            ..removeAll(cleared);
+        });
       }
     }
-    if (restored.isEmpty && cleared.isEmpty) return;
-    setState(() {
-      _archivedSessionIds
-        ..removeAll(restored)
-        ..removeAll(cleared);
-    });
   }
 
   /// Whether [entry]'s session is archived or being archived, so its pod
@@ -345,10 +471,28 @@ class _KubernetesSessionsScreenState
     if (settled) unawaited(_refresh());
   }
 
+  String _unreachableMessage(AppLocalizations l10n) {
+    if (_unreachable.isEmpty) return '';
+    final machines = ref.read(machinesNotifierProvider);
+    final names = _unreachable.map((id) {
+      final machine = machines[id];
+      final host = machine?.metadata?.displayName ?? machine?.metadata?.host;
+      if (host != null && host.trim().isNotEmpty) return host.trim();
+      return id.length > 8 ? '${id.substring(0, 8)}…' : id;
+    }).toList()..sort();
+    final base = l10n.kubernetesUnreachable(_unreachable.length);
+    if (names.length <= 3) {
+      return '$base ${l10n.kubernetesUnreachableDetails(names.join(', '))}';
+    }
+    return base;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
+    ref.listen(machinesNotifierProvider, (_, _) => _scheduleCatalogRefresh());
+    ref.listen(sessionsNotifierProvider, (_, _) => _scheduleCatalogRefresh());
     ref.listen(podOperationsNotifierProvider, _onOperationsChanged);
     ref.listen(sessionOperationsNotifierProvider, _onSessionOperationsChanged);
     final operations = ref.watch(podOperationsNotifierProvider);
@@ -401,11 +545,15 @@ class _KubernetesSessionsScreenState
           rows.add(Divider(height: 1, thickness: 1, color: cs.outlineVariant));
         }
         final session = entry.session;
+        final lastSuccessMs = entry.machineId == null
+            ? null
+            : _machineFetch[entry.machineId!]?.lastSuccessMs;
         rows.add(
           KubernetesPodTile(
             key: ValueKey('kubernetes-pod-${entry.key}'),
             entry: entry,
             now: now,
+            lastUpdatedMs: lastSuccessMs,
             selected: selecting ? selected.contains(entry) : null,
             onTap: selecting
                 ? (entry.canArchive ? () => _toggleSelected(entry.key) : null)
@@ -416,7 +564,7 @@ class _KubernetesSessionsScreenState
                 ? null
                 : () => _enterSelection(entry.key),
             onInfo: session == null ? null : () => _openInfo(session),
-            onAction: entry.canControl
+            onAction: (entry.canControl || entry.busy)
                 ? (action) => unawaited(_runAction(entry, action))
                 : null,
             onArchive: entry.canArchive
@@ -441,7 +589,7 @@ class _KubernetesSessionsScreenState
             AppBanner(
               key: const Key('kubernetes-unreachable'),
               tone: AppBadgeTone.warning,
-              message: l10n.kubernetesUnreachable(_unreachable.length),
+              message: _unreachableMessage(l10n),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
