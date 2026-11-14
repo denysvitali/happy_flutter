@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/operations/operation_store.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/providers/pod_operations_notifier.dart';
 import 'package:happy_flutter/core/providers/session_operations_notifier.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
@@ -444,7 +446,9 @@ void main() {
       expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
     });
 
-    testWidgets('stale pod tile shows when it was last updated', (tester) async {
+    testWidgets('stale pod tile shows when it was last updated', (
+      tester,
+    ) async {
       final now = DateTime.now();
       await tester.pumpWidget(
         _app(
@@ -455,7 +459,9 @@ void main() {
               live: false,
             ),
             now: now,
-            lastUpdatedMs: now.subtract(const Duration(minutes: 3)).millisecondsSinceEpoch,
+            lastUpdatedMs: now
+                .subtract(const Duration(minutes: 3))
+                .millisecondsSinceEpoch,
           ),
         ),
       );
@@ -911,6 +917,69 @@ void main() {
       final ids = sections.expand((s) => s.rows).map((r) => r.session.id);
       expect(ids.toSet().length, ids.length);
       expect(ids, isNot(contains('archived')));
+    });
+  });
+
+  group('pod operation reconciliation helpers', () {
+    PodOperation op({
+      required String machineId,
+      required String sessionId,
+      required KubernetesPodAction action,
+    }) => PodOperation(
+      id: 1,
+      key: '$machineId/$sessionId',
+      request: PodRequest(
+        machineId: machineId,
+        sessionId: sessionId,
+        action: action,
+      ),
+      phase: OperationPhase.succeeded,
+      submittedAtMs: 0,
+    );
+
+    test('observedPodOperationStates reads only machines that answered', () {
+      final observed = observedPodOperationStates(
+        operations: {
+          'm1/a': op(
+            machineId: 'm1',
+            sessionId: 'a',
+            action: KubernetesPodAction.pause,
+          ),
+          'm2/b': op(
+            machineId: 'm2',
+            sessionId: 'b',
+            action: KubernetesPodAction.kill,
+          ),
+        },
+        podsByMachine: {
+          'm1': [_pod('a', paused: true)],
+        },
+      );
+      expect(observed, {'m1/a': SessionPodDisplayState.paused});
+      expect(observed.containsKey('m2/b'), isFalse);
+    });
+
+    test('applyPodOperations removes confirmed kills and keeps overlays', () {
+      final entries = mergeKubernetesPods(
+        sessions: {'a': _session('a'), 'b': _session('b')},
+        podsByMachine: {
+          'm1': [_pod('a'), _pod('b')],
+        },
+      );
+      final applied = applyPodOperations(entries, {
+        'm1/a': op(
+          machineId: 'm1',
+          sessionId: 'a',
+          action: KubernetesPodAction.kill,
+        ),
+        'm1/b': op(
+          machineId: 'm1',
+          sessionId: 'b',
+          action: KubernetesPodAction.pause,
+        ),
+      });
+      expect(applied.map((e) => e.key), ['m1/b']);
+      expect(applied.single.state, SessionPodDisplayState.paused);
     });
   });
 }

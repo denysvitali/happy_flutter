@@ -41,6 +41,14 @@ class KubernetesPodEntry {
         operation: operation,
       );
 
+  KubernetesPodEntry withLive(bool live) => KubernetesPodEntry(
+    machineId: machineId,
+    session: session,
+    pod: pod,
+    live: live,
+    operation: operation,
+  );
+
   /// The state the daemon (or session metadata) last reported.
   SessionPodDisplayState get reportedState =>
       pod?.displayState ?? session!.podDisplayState;

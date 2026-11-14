@@ -497,13 +497,20 @@ class _KubernetesSessionsScreenState
     ref.listen(sessionOperationsNotifierProvider, _onSessionOperationsChanged);
     final operations = ref.watch(podOperationsNotifierProvider);
     final sessionOperations = ref.watch(sessionOperationsNotifierProvider);
-    final merged = applyPodOperations(
-      mergeKubernetesPods(
-        sessions: ref.watch(sessionsNotifierProvider),
-        podsByMachine: _podsByMachine,
-      ),
-      operations,
-    ).where((entry) => !_isArchiving(entry, sessionOperations));
+    final merged =
+        applyPodOperations(
+              mergeKubernetesPods(
+                sessions: ref.watch(sessionsNotifierProvider),
+                podsByMachine: _podsByMachine,
+              ),
+              operations,
+            )
+            .where((entry) => !_isArchiving(entry, sessionOperations))
+            .map(
+              (entry) => _unreachable.contains(entry.machineId)
+                  ? entry.withLive(false)
+                  : entry,
+            );
     final entries = _newestFirst
         ? merged.toList()
         : merged.toList().reversed.toList();
