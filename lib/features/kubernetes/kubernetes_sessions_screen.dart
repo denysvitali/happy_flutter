@@ -262,21 +262,39 @@ class _KubernetesSessionsScreenState
   }
 
   /// A failed archive restores its row (the failure itself is reported by
-  /// the app-wide operation failure listener).
+  /// the app-wide operation failure listener). Successful or superseded
+  /// archive operations drop their optimistic hide once the catalog can
+  /// reflect the archived state, so an unarchived session is never stuck
+  /// hidden by this screen's local set.
   void _onSessionOperationsChanged(
     Map<String, SessionOperation>? previous,
     Map<String, SessionOperation> next,
   ) {
-    if (!mounted) return;
-    final restored = <String>[
-      for (final id in _archivedSessionIds)
-        if (next[id] case final operation?
-            when operation.isFailed &&
-                operation.request.action == SessionOperationAction.archive)
-          id,
-    ];
-    if (restored.isEmpty) return;
-    setState(() => _archivedSessionIds.removeAll(restored));
+    if (!mounted || _archivedSessionIds.isEmpty) return;
+    final restored = <String>[];
+    final cleared = <String>[];
+    for (final id in _archivedSessionIds) {
+      final operation = next[id];
+      if (operation == null) {
+        cleared.add(id);
+        continue;
+      }
+      if (operation.request.action != SessionOperationAction.archive) {
+        cleared.add(id);
+        continue;
+      }
+      if (operation.isFailed) {
+        restored.add(id);
+      } else if (!operation.isPending) {
+        cleared.add(id);
+      }
+    }
+    if (restored.isEmpty && cleared.isEmpty) return;
+    setState(() {
+      _archivedSessionIds
+        ..removeAll(restored)
+        ..removeAll(cleared);
+    });
   }
 
   /// Whether [entry]'s session is archived or being archived, so its pod
@@ -288,11 +306,13 @@ class _KubernetesSessionsScreenState
     if (entry.session?.archived ?? false) return true;
     final id = entry.sessionId;
     if (id.isEmpty) return false;
-    if (_archivedSessionIds.contains(id)) return true;
     final operation = sessionOperations[id];
-    return operation != null &&
+    if (operation != null &&
         !operation.isFailed &&
-        operation.request.action == SessionOperationAction.archive;
+        operation.request.action == SessionOperationAction.archive) {
+      return true;
+    }
+    return _archivedSessionIds.contains(id);
   }
 
   /// Reacts to operations settling: a success re-reads the daemons so the
