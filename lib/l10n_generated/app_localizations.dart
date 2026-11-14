@@ -1143,6 +1143,54 @@ abstract class AppLocalizations {
   /// **'The agent stopped'**
   String get sessionPodStageStopped;
 
+  /// No description provided for @sessionPodStepsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup steps'**
+  String get sessionPodStepsTitle;
+
+  /// No description provided for @sessionPodTerminating.
+  ///
+  /// In en, this message translates to:
+  /// **'Pod is terminating'**
+  String get sessionPodTerminating;
+
+  /// No description provided for @sessionPodStepWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get sessionPodStepWaiting;
+
+  /// No description provided for @sessionPodStepRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get sessionPodStepRunning;
+
+  /// No description provided for @sessionPodStepDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get sessionPodStepDone;
+
+  /// No description provided for @sessionPodStepFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get sessionPodStepFailed;
+
+  /// No description provided for @sessionPodEventsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cluster events'**
+  String get sessionPodEventsTitle;
+
+  /// No description provided for @sessionPodDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get sessionPodDiagnosticsTitle;
+
   /// No description provided for @sessionPodNoOutput.
   ///
   /// In en, this message translates to:
@@ -1202,6 +1250,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The pod did not start in time.'**
   String get sessionFailureStartTimeout;
+
+  /// No description provided for @sessionFailureStopTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous pod would not stop in time, so the new one was never started.'**
+  String get sessionFailureStopTimeout;
 
   /// No description provided for @sessionFailurePodGone.
   ///

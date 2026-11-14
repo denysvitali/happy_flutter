@@ -19,6 +19,10 @@ enum SessionFailureKind {
   outOfMemory,
   unschedulable,
   startTimeout,
+
+  /// The previous pod of this conversation did not terminate in time, so
+  /// its replacement was never created.
+  stopTimeout,
   podGone,
   agentExited,
 }
@@ -57,10 +61,15 @@ SessionFailureKind? classifySessionFailure(String? rawError) {
   if (has('unschedulable') || has('insufficient ')) {
     return SessionFailureKind.unschedulable;
   }
+  if (has('confirm pod') && has('stopped') && has('deadline exceeded')) {
+    return SessionFailureKind.stopTimeout;
+  }
   if (has('made no startup progress') || has('did not start within')) {
     return SessionFailureKind.startTimeout;
   }
-  if (has('pod no longer exists') || has('evicted')) {
+  if (has('pod no longer exists') ||
+      has('was deleted while starting') ||
+      has('evicted')) {
     return SessionFailureKind.podGone;
   }
   // The daemon leads a container failure with the container's name.
@@ -87,6 +96,7 @@ String sessionFailureReasonText(
   SessionFailureKind.outOfMemory => l10n.sessionFailureOutOfMemory,
   SessionFailureKind.unschedulable => l10n.sessionFailureUnschedulable,
   SessionFailureKind.startTimeout => l10n.sessionFailureStartTimeout,
+  SessionFailureKind.stopTimeout => l10n.sessionFailureStopTimeout,
   SessionFailureKind.podGone => l10n.sessionFailurePodGone,
   SessionFailureKind.agentExited => l10n.sessionFailureAgentExited,
 };
@@ -104,4 +114,26 @@ String? sessionFailureDetail(String? rawError) {
     raw = raw.substring(lead.end).trim();
   }
   return raw.isEmpty ? null : raw;
+}
+
+/// A failure sentence split into its cause and the daemon's diagnostic facts.
+///
+/// The daemon appends `[phase Pending; node n; init: a running 1m29s, ...]`
+/// to a start failure: where the pod was stuck, which step, which events.
+/// [summary] is everything before it; [facts] are its `;`-separated parts.
+typedef SessionFailureParts = ({String summary, List<String> facts});
+
+SessionFailureParts splitSessionFailureDiagnosis(String detail) {
+  final text = detail.trim();
+  final open = text.indexOf(' [');
+  if (open < 0 || !text.endsWith(']')) {
+    return (summary: text, facts: const []);
+  }
+  final facts = text
+      .substring(open + 2, text.length - 1)
+      .split(';')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+  return (summary: text.substring(0, open).trim(), facts: facts);
 }

@@ -656,6 +656,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionPodStageStopped => 'The agent stopped';
 
   @override
+  String get sessionPodStepsTitle => 'Startup steps';
+
+  @override
+  String get sessionPodTerminating => 'Pod is terminating';
+
+  @override
+  String get sessionPodStepWaiting => 'Waiting';
+
+  @override
+  String get sessionPodStepRunning => 'Running';
+
+  @override
+  String get sessionPodStepDone => 'Done';
+
+  @override
+  String get sessionPodStepFailed => 'Failed';
+
+  @override
+  String get sessionPodEventsTitle => 'Cluster events';
+
+  @override
+  String get sessionPodDiagnosticsTitle => 'Diagnostics';
+
+  @override
   String get sessionPodNoOutput => 'The pod printed nothing before it stopped.';
 
   @override
@@ -690,6 +714,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionFailureStartTimeout => 'The pod did not start in time.';
+
+  @override
+  String get sessionFailureStopTimeout =>
+      'The previous pod would not stop in time, so the new one was never started.';
 
   @override
   String get sessionFailurePodGone =>

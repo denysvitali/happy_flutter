@@ -73,6 +73,201 @@ String kubernetesPodStageLabel(AppLocalizations l10n, SessionPod? pod) {
   return [pod.phase, pod.reason].where((part) => part.isNotEmpty).join(' · ');
 }
 
+/// `45s`, `1m 29s`, `2h 3m`: how long a startup step has run.
+String kubernetesStepDuration(Duration d) {
+  final seconds = d.inSeconds;
+  if (seconds < 60) return '${seconds}s';
+  final minutes = d.inMinutes;
+  if (minutes < 60) return '${minutes}m ${seconds % 60}s';
+  return '${d.inHours}h ${minutes % 60}m';
+}
+
+/// One row per init/app container of [pod], in start order, with the state
+/// the kubelet reports. Hidden when an older daemon reports no containers.
+class KubernetesPodSteps extends StatelessWidget {
+  const KubernetesPodSteps({required this.pod, super.key, this.nowMs});
+
+  final SessionPod pod;
+
+  /// Clock for running steps; defaults to now.
+  final int? nowMs;
+
+  @override
+  Widget build(BuildContext context) {
+    final containers = pod.containers;
+    if (containers.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    return Padding(
+      key: const Key('kubernetes-startup-steps'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        0,
+        AppSpacing.sm,
+        AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.sessionPodStepsTitle,
+            style: AppInlineText.chromeStrong(context),
+          ),
+          for (final c in containers)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: _stepRow(context, l10n, cs, c, now),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme cs,
+    SessionPodContainer c,
+    int now,
+  ) {
+    final Widget icon;
+    final String state;
+    if (c.failed) {
+      icon = const Icon(
+        Icons.error_outline_rounded,
+        size: 16,
+        color: AppColors.error,
+      );
+      state = l10n.sessionPodStepFailed;
+    } else if (c.succeeded) {
+      icon = Icon(
+        Icons.check_circle_outline_rounded,
+        size: 16,
+        color: cs.primary,
+      );
+      state = l10n.sessionPodStepDone;
+    } else if (c.state == 'running') {
+      icon = SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+      );
+      state = l10n.sessionPodStepRunning;
+    } else {
+      icon = Icon(Icons.schedule_rounded, size: 16, color: cs.onSurfaceVariant);
+      state = l10n.sessionPodStepWaiting;
+    }
+    final elapsed = c.elapsed(now);
+    final detail = [
+      state,
+      if (c.reason.isNotEmpty && c.reason != 'Completed') c.reason,
+      if (c.exitCode != null && c.exitCode != 0) 'exit ${c.exitCode}',
+      if (elapsed != null && c.state != 'waiting')
+        kubernetesStepDuration(elapsed),
+      if (c.restartCount > 0) '↻ ${c.restartCount}',
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            icon,
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                c.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppInlineText.chrome(context),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppInlineText.chrome(context).copyWith(
+                color: c.failed ? AppColors.error : cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        if (c.failed && c.message.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Text(
+              c.message,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppInlineText.chrome(
+                context,
+              ).copyWith(color: AppColors.error),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The daemon's diagnostic facts (`phase …`, `node …`, `init: …`, events) as
+/// a selectable list, so a start failure shows where the pod was stuck.
+class KubernetesDiagnosticFacts extends StatelessWidget {
+  const KubernetesDiagnosticFacts({
+    required this.facts,
+    super.key,
+    this.warnings = const [],
+  });
+
+  final List<String> facts;
+
+  /// Recent warning events from the live pod, shown when the failure
+  /// sentence carries none.
+  final List<SessionPodEvent> warnings;
+
+  @override
+  Widget build(BuildContext context) {
+    if (facts.isEmpty && warnings.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final style = AppInlineText.chrome(context);
+    return Padding(
+      key: const Key('kubernetes-startup-diagnostics'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        0,
+        AppSpacing.sm,
+        AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (facts.isNotEmpty) ...[
+            Text(
+              l10n.sessionPodDiagnosticsTitle,
+              style: AppInlineText.chromeStrong(context),
+            ),
+            for (final fact in facts)
+              SelectableText('• $fact', maxLines: 4, style: style),
+          ],
+          if (warnings.isNotEmpty) ...[
+            Text(
+              l10n.sessionPodEventsTitle,
+              style: AppInlineText.chromeStrong(context),
+            ),
+            for (final event in warnings)
+              SelectableText(
+                '• ${event.reason}: ${event.message}'
+                '${event.count > 1 ? ' (×${event.count})' : ''}',
+                maxLines: 3,
+                style: style,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 final _logSectionHeader = RegExp(r'^==> .+ <==$');
 
 /// Drops `==> container <==` sections that hold no output. Daemons before
@@ -262,13 +457,28 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
         ? l10n.sessionPodStageStopped
         : _podFailures >= 3 && pod == null
         ? l10n.sessionPodLoadFailed
-        : kubernetesPodStageLabel(l10n, pod);
+        : [
+            kubernetesPodStageLabel(l10n, pod),
+            if (pod?.deleting == true) l10n.sessionPodTerminating,
+          ].join(' · ');
     final podName = pod?.podName.isNotEmpty == true
         ? pod!.podName
         : widget.session.metadata?.podName;
-    final message =
-        sessionFailureDetail(lifecycleError) ??
-        (failed && !podFailed ? '' : pod?.message ?? '');
+    final detailParts = splitSessionFailureDiagnosis(
+      sessionFailureDetail(lifecycleError) ??
+          (failed && !podFailed ? '' : pod?.message ?? ''),
+    );
+    final message = detailParts.summary;
+    // Facts in the failure sentence describe the pod that died; the live
+    // pod's recent warnings fill in only when the sentence has none.
+    final liveWarnings = detailParts.facts.isEmpty && pod != null
+        ? pod.events
+              .where((e) => e.isWarning)
+              .toList()
+              .reversed
+              .take(3)
+              .toList()
+        : const <SessionPodEvent>[];
     final logs = _logs;
     final fill = widget.fillHeight;
     final expanded = fill || _expanded;
@@ -377,6 +587,12 @@ class _KubernetesStartupPanelState extends State<KubernetesStartupPanel> {
                   ).copyWith(color: failed ? AppColors.error : null),
                 ),
               ),
+            if (pod != null && (!failed || podFailed))
+              KubernetesPodSteps(pod: pod),
+            KubernetesDiagnosticFacts(
+              facts: detailParts.facts,
+              warnings: liveWarnings,
+            ),
             if (fill) Expanded(child: logBox) else logBox,
           ],
         ],

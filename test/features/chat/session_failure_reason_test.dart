@@ -36,6 +36,13 @@ void main() {
       'kubernetes pod p failed to start: NotFound kubernetes pod no longer '
               'exists':
           SessionFailureKind.podGone,
+      'kubernetes pod p failed to start: pod was deleted while starting '
+              '[phase Pending; init: agent-cli-preflight running 1m29s]':
+          SessionFailureKind.podGone,
+      'stop previous Kubernetes runtime before switching provider/model: '
+              'confirm pod agents/p stopped: context deadline exceeded (pod '
+              'still present: phase Pending)':
+          SessionFailureKind.stopTimeout,
       'process exited: signal: killed': SessionFailureKind.agentExited,
       'daemon started without a live local process for this running session':
           null,
@@ -63,5 +70,26 @@ void main() {
     );
     expect(sessionFailureDetail('  '), isNull);
     expect(sessionFailureDetail(null), isNull);
+  });
+
+  test('splits the daemon diagnosis off a start failure', () {
+    final parts = splitSessionFailureDiagnosis(
+      'pod was deleted while starting [phase Pending, terminating for 36s; '
+      'node talos-a; init: agent-cli-preflight running 1m29s, checkout '
+      'waiting (PodInitializing); Initialized=False (ContainersNotInitialized)'
+      ': containers with incomplete status: [agent-cli-preflight]]',
+    );
+    expect(parts.summary, 'pod was deleted while starting');
+    expect(parts.facts, [
+      'phase Pending, terminating for 36s',
+      'node talos-a',
+      'init: agent-cli-preflight running 1m29s, checkout waiting '
+          '(PodInitializing)',
+      'Initialized=False (ContainersNotInitialized): containers with '
+          'incomplete status: [agent-cli-preflight]',
+    ]);
+    final plain = splitSessionFailureDiagnosis('Error: exit code 1');
+    expect(plain.summary, 'Error: exit code 1');
+    expect(plain.facts, isEmpty);
   });
 }

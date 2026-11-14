@@ -444,6 +444,12 @@ class SessionPod {
     this.metricsAvailable = false,
     this.cpuUsageMillicores = 0,
     this.memoryUsageBytes = 0,
+    this.containers = const [],
+    this.conditions = const [],
+    this.events = const [],
+    this.diagnosis = '',
+    this.deleting = false,
+    this.createdAtMs = 0,
   });
 
   factory SessionPod.fromJson(Map<dynamic, dynamic> json) => SessionPod(
@@ -469,7 +475,20 @@ class SessionPod {
     metricsAvailable: json['metricsAvailable'] == true,
     cpuUsageMillicores: _protoInt(json['cpuUsageMillicores']),
     memoryUsageBytes: _protoInt(json['memoryUsageBytes']),
+    containers: _protoList(json['containers'], SessionPodContainer.fromJson),
+    conditions: _protoList(json['conditions'], SessionPodCondition.fromJson),
+    events: _protoList(json['events'], SessionPodEvent.fromJson),
+    diagnosis: json['diagnosis']?.toString() ?? '',
+    deleting: json['deleting'] == true,
+    createdAtMs: _protoInt(json['createdAtMs']),
   );
+
+  static List<T> _protoList<T>(
+    Object? raw,
+    T Function(Map<dynamic, dynamic>) parse,
+  ) => raw is List
+      ? raw.whereType<Map>().map(parse).toList(growable: false)
+      : const [];
 
   /// protojson encodes int64 as a decimal string and int32 as a number.
   static int _protoInt(Object? value) => switch (value) {
@@ -510,6 +529,144 @@ class SessionPod {
   final bool metricsAvailable;
   final int cpuUsageMillicores;
   final int memoryUsageBytes;
+
+  /// Init containers first, then app containers, as the kubelet reports them.
+  /// Empty from an older daemon or when the pod was not observed.
+  final List<SessionPodContainer> containers;
+
+  /// Pod conditions that are not `True` (e.g. `Initialized=False`).
+  final List<SessionPodCondition> conditions;
+
+  /// Recent cluster events about the pod, oldest first.
+  final List<SessionPodEvent> events;
+
+  /// The daemon's one-line picture of where the pod is stuck.
+  final String diagnosis;
+
+  /// The pod has a deletion timestamp: it is terminating.
+  final bool deleting;
+  final int createdAtMs;
+}
+
+/// One init or app container's kubelet-reported state.
+class SessionPodContainer {
+  const SessionPodContainer({
+    required this.name,
+    this.init = false,
+    this.state = '',
+    this.reason = '',
+    this.message = '',
+    this.exitCode,
+    this.startedAtMs = 0,
+    this.finishedAtMs = 0,
+    this.restartCount = 0,
+    this.ready = false,
+  });
+
+  factory SessionPodContainer.fromJson(Map<dynamic, dynamic> json) =>
+      SessionPodContainer(
+        name: json['name']?.toString() ?? '',
+        init: json['init'] == true,
+        state: json['state']?.toString() ?? '',
+        reason: json['reason']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+        exitCode: json['hasExitCode'] == true
+            ? SessionPod._protoInt(json['exitCode'])
+            : null,
+        startedAtMs: SessionPod._protoInt(json['startedAtMs']),
+        finishedAtMs: SessionPod._protoInt(json['finishedAtMs']),
+        restartCount: SessionPod._protoInt(json['restartCount']),
+        ready: json['ready'] == true,
+      );
+
+  final String name;
+  final bool init;
+
+  /// `waiting`, `running`, `terminated`; empty when unreported.
+  final String state;
+  final String reason;
+  final String message;
+
+  /// Null unless the container terminated.
+  final int? exitCode;
+  final int startedAtMs;
+  final int finishedAtMs;
+  final int restartCount;
+  final bool ready;
+
+  bool get succeeded => state == 'terminated' && (exitCode ?? 0) == 0;
+  bool get failed =>
+      state == 'terminated' && (exitCode ?? 0) != 0 ||
+      state == 'waiting' && _failingWaitReasons.contains(reason);
+
+  /// How long the step ran (or has been running at [nowMs]); null before it
+  /// started.
+  Duration? elapsed(int nowMs) {
+    if (startedAtMs <= 0) return null;
+    final end = finishedAtMs > 0 ? finishedAtMs : nowMs;
+    final ms = end - startedAtMs;
+    return Duration(milliseconds: ms < 0 ? 0 : ms);
+  }
+}
+
+const _failingWaitReasons = {
+  'CrashLoopBackOff',
+  'CreateContainerConfigError',
+  'CreateContainerError',
+  'ErrImagePull',
+  'ErrImageNeverPull',
+  'ImagePullBackOff',
+  'InvalidImageName',
+  'RunContainerError',
+};
+
+class SessionPodCondition {
+  const SessionPodCondition({
+    required this.type,
+    required this.status,
+    this.reason = '',
+    this.message = '',
+  });
+
+  factory SessionPodCondition.fromJson(Map<dynamic, dynamic> json) =>
+      SessionPodCondition(
+        type: json['type']?.toString() ?? '',
+        status: json['status']?.toString() ?? '',
+        reason: json['reason']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+      );
+
+  final String type;
+  final String status;
+  final String reason;
+  final String message;
+}
+
+class SessionPodEvent {
+  const SessionPodEvent({
+    required this.type,
+    required this.reason,
+    required this.message,
+    this.count = 0,
+    this.lastSeenMs = 0,
+  });
+
+  factory SessionPodEvent.fromJson(Map<dynamic, dynamic> json) =>
+      SessionPodEvent(
+        type: json['type']?.toString() ?? '',
+        reason: json['reason']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+        count: SessionPod._protoInt(json['count']),
+        lastSeenMs: SessionPod._protoInt(json['lastSeenMs']),
+      );
+
+  final String type;
+  final String reason;
+  final String message;
+  final int count;
+  final int lastSeenMs;
+
+  bool get isWarning => type == 'Warning';
 }
 
 class SessionPodsResponse {

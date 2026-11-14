@@ -437,4 +437,99 @@ void main() {
     expect(kubernetesLogTail('plain line\nsecond\n'), 'plain line\nsecond');
     expect(kubernetesLogTail('==> init: a <==\n\n==> b <==\n'), isEmpty);
   });
+
+  group('startup steps and diagnostics', () {
+    testWidgets('lists each container with its state and duration', (
+      tester,
+    ) async {
+      final pod = SessionPod.fromJson({
+        'sessionId': 's1',
+        'podName': 'happy-s1',
+        'phase': 'Pending',
+        'deleting': true,
+        'containers': [
+          {
+            'name': 'agent-cli-preflight',
+            'init': true,
+            'state': 'running',
+            'startedAtMs': '1000',
+          },
+          {'name': 'checkout', 'init': true, 'state': 'waiting'},
+          {
+            'name': 'runtime-bundle',
+            'init': true,
+            'state': 'terminated',
+            'hasExitCode': true,
+            'exitCode': 0,
+            'startedAtMs': '1000',
+            'finishedAtMs': '4000',
+          },
+          {
+            'name': 'broken',
+            'state': 'terminated',
+            'reason': 'Error',
+            'hasExitCode': true,
+            'exitCode': 2,
+            'message': 'boom',
+          },
+        ],
+      });
+      expect(pod.containers, hasLength(4));
+      expect(pod.deleting, isTrue);
+      await tester.pumpWidget(
+        _wrap(KubernetesPodSteps(pod: pod, nowMs: 90000)),
+      );
+      expect(find.text('agent-cli-preflight'), findsOneWidget);
+      expect(find.textContaining('Running · 1m 29s'), findsOneWidget);
+      expect(find.textContaining('Waiting'), findsOneWidget);
+      expect(find.textContaining('Done · 3s'), findsOneWidget);
+      expect(find.textContaining('Failed · Error · exit 2'), findsOneWidget);
+      expect(find.text('boom'), findsOneWidget);
+    });
+
+    testWidgets('shows the daemon diagnosis of a pod that no longer exists', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          KubernetesStartupPanel(
+            session: _session(
+              lifecycle: 'errored',
+              lifecycleError:
+                  'kubernetes pod happy-s1 failed to start: pod was deleted '
+                  'while starting [phase Pending; init: agent-cli-preflight '
+                  'running 1m29s]',
+            ),
+            loadPod: () async => null,
+            loadLogs: () async => const SessionPodLogsResponse(
+              podName: '',
+              content: '',
+              truncated: false,
+            ),
+            fillHeight: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.textContaining('pod was deleted while starting'),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('init: agent-cli-preflight running 1m29s'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('kubernetes-startup-diagnostics')),
+        findsOneWidget,
+      );
+    });
+
+    test('an older daemon without containers reports none', () {
+      final pod = SessionPod.fromJson({'sessionId': 's1', 'phase': 'Pending'});
+      expect(pod.containers, isEmpty);
+      expect(pod.events, isEmpty);
+      expect(pod.diagnosis, isEmpty);
+    });
+  });
 }
