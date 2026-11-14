@@ -1642,5 +1642,26 @@ void main() {
       await expectLater(outbox.add(entry), completes);
       expect(outbox.contains(entry.localId), isTrue);
     });
+
+    test(
+      'add recovers when existing persisted outbox blob is unreadable',
+      () async {
+        // Simulate a corrupt/undecryptable at-rest blob that previously made
+        // every enqueue fail with "Failed to persist message outbox entry".
+        storage._outboxData =
+            '${AtRestEncryptionService.envelopePrefix}not-a-valid-ciphertext';
+
+        await outbox.add(_makeEntry(localId: 'new-local'));
+
+        expect(outbox.entries.map((e) => e.localId), ['new-local']);
+        expect(storage._outboxData, isNotNull);
+        expect(
+          storage._outboxData,
+          isNot(
+            '${AtRestEncryptionService.envelopePrefix}not-a-valid-ciphertext',
+          ),
+        );
+      },
+    );
   });
 }

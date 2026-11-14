@@ -1078,14 +1078,27 @@ class MessageOutbox {
         }
         final buckets = <String, dynamic>{};
         if (raw != null && raw.isNotEmpty) {
-          final plaintext = _protection.isProtected(raw)
-              ? _protection.unprotectString(
-                  raw,
-                  associatedData: _outboxAssociatedData,
-                )
-              : raw;
-          if (plaintext == null) throw StateError('Outbox cannot be decrypted');
-          buckets.addAll(_decodeBuckets(plaintext));
+          try {
+            final plaintext = _protection.isProtected(raw)
+                ? _protection.unprotectString(
+                    raw,
+                    associatedData: _outboxAssociatedData,
+                  )
+                : raw;
+            if (plaintext == null) {
+              throw StateError('Outbox cannot be decrypted');
+            }
+            buckets.addAll(_decodeBuckets(plaintext));
+          } catch (error) {
+            // A corrupt or undecryptable shared blob must not permanently
+            // block new sends. Preserve nothing we cannot read; write only
+            // the current owner's snapshot so the user's message can be
+            // durably queued and retried.
+            logger.warning(
+              '[MessageOutbox] discarding unreadable outbox blob; '
+              'persisting current owner snapshot only: $error',
+            );
+          }
         }
         // Capture inside the storage lane so a confirmed recovery cannot be
         // overwritten by a snapshot queued while its atomic write was pending.
@@ -1101,8 +1114,9 @@ class MessageOutbox {
           payload,
           associatedData: _outboxAssociatedData,
         );
-        if (protected == null)
+        if (protected == null) {
           throw StateError('Outbox protection unavailable');
+        }
         await _storage.saveOutboxEntries(protected);
         result.complete(generation == _generation);
       } catch (error) {
