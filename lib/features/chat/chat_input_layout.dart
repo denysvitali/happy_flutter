@@ -441,14 +441,12 @@ extension _ChatInputPolishLayout on _ChatInputState {
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => pop(_ComposerSheetAction.profile),
                   ),
-                if (widget.contextSize != null &&
-                    (widget.contextSize! > 0 ||
-                        widget.sessionFlavor == 'prime-agent'))
+                if (_contextVisible)
                   ListTile(
                     leading: const Icon(Icons.data_usage_rounded),
                     title: Text(l10n.chatComposerContext),
                     trailing: ContextSizeIndicator(
-                      contextSize: widget.contextSize!,
+                      contextSize: _contextUsed ? widget.contextSize : null,
                       maxContext: widget.sessionFlavor == 'prime-agent'
                           ? widget.maxContext
                           : widget.maxContext ??

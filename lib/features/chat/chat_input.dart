@@ -207,6 +207,17 @@ class _ChatInputState extends ConsumerState<ChatInput>
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {}),
       _draftStorage = DraftStorage();
 
+  /// A turn has reported context occupancy. Prime keeps the row at zero
+  /// because a cleared snapshot is itself information.
+  bool get _contextUsed =>
+      widget.contextSize != null &&
+      (widget.contextSize! > 0 || widget.sessionFlavor == 'prime-agent');
+
+  /// Measured usage, or a window the profile actually chose. The 190k
+  /// fallback is a guess and stays hidden.
+  bool get _contextVisible =>
+      _contextUsed || (widget.maxContext != null && widget.maxContext! > 0);
+
   final DraftStorage _draftStorage;
   final ImageAttachmentService _attachmentService = ImageAttachmentService();
 

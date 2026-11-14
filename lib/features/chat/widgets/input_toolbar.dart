@@ -167,7 +167,10 @@ class ContextSizeIndicator extends StatelessWidget {
     super.key,
   });
 
-  final int contextSize;
+  /// Tokens currently occupying the window, or null when no turn has
+  /// reported usage yet. A null size still renders [maxContext], so the
+  /// window the session runs in stays visible before the first reply.
+  final int? contextSize;
 
   /// The window the [contextSize] is measured against. Reflects the
   /// selected context window (1M vs. the model's default).
@@ -181,9 +184,27 @@ class ContextSizeIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final used = contextSize;
     final window = maxContext;
+    // No usage yet: the window size is the only thing to show, and it must
+    // not pretend to be a fill level.
+    if (used == null) {
+      final l10n = context.l10n;
+      return Semantics(
+        label: l10n.profilesContextWindowTitle,
+        value: _tokenLabel(window ?? defaultMaxContext),
+        excludeSemantics: true,
+        child: Text(
+          _tokenLabel(window ?? defaultMaxContext),
+          style: AppText.secondary(
+            theme,
+            cs.onSurfaceVariant.withValues(alpha: 0.65),
+          ),
+        ),
+      );
+    }
     final pctUsed = window != null && window > 0
-        ? (contextSize / window * 100).clamp(0.0, 100.0)
+        ? (used / window * 100).clamp(0.0, 100.0)
         : null;
     final pctRemaining = pctUsed == null ? null : (100 - pctUsed).round();
 
@@ -196,13 +217,7 @@ class ContextSizeIndicator extends StatelessWidget {
       indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.65);
     }
 
-    final String label;
-    if (contextSize >= 1000) {
-      final kVal = (contextSize / 1000).toStringAsFixed(0);
-      label = '${kVal}k';
-    } else {
-      label = '$contextSize';
-    }
+    final label = _tokenLabel(used);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -231,6 +246,15 @@ class ContextSizeIndicator extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Compact token count: `950`, `23k`, `1M`.
+  static String _tokenLabel(int tokens) {
+    if (tokens >= 1000000 && tokens % 1000000 == 0) {
+      return '${tokens ~/ 1000000}M';
+    }
+    if (tokens >= 1000) return '${(tokens / 1000).toStringAsFixed(0)}k';
+    return '$tokens';
   }
 }
 
@@ -288,6 +312,17 @@ class InputToolbar extends StatelessWidget {
   /// Opens the composer's full options sheet. When set, the options
   /// button shows on every layout and replaces the built-in sheet.
   final VoidCallback? onShowOptions;
+
+  /// A turn has reported how full the window is. Prime keeps its row even
+  /// at zero, because a cleared snapshot is itself information.
+  bool get _contextUsed =>
+      contextSize != null &&
+      (contextSize! > 0 || sessionFlavor == 'prime-agent');
+
+  /// Something to show: measured usage, or a window the profile actually
+  /// chose. The 190k fallback is a guess and stays hidden.
+  bool get _contextVisible =>
+      _contextUsed || (maxContext != null && maxContext! > 0);
 
   @override
   Widget build(BuildContext context) {
@@ -369,12 +404,10 @@ class InputToolbar extends StatelessWidget {
             const SizedBox(width: _chipGap),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           ],
-          if (!compact &&
-              contextSize != null &&
-              (contextSize! > 0 || sessionFlavor == 'prime-agent')) ...[
+          if (!compact && _contextVisible) ...[
             const SizedBox(width: AppSpacing.sm),
             ContextSizeIndicator(
-              contextSize: contextSize!,
+              contextSize: _contextUsed ? contextSize : null,
               maxContext: sessionFlavor == 'prime-agent'
                   ? maxContext
                   : maxContext ?? ContextSizeIndicator.defaultMaxContext,
@@ -416,9 +449,7 @@ class InputToolbar extends StatelessWidget {
         Theme.of(context).colorScheme.outline,
       ),
     );
-    final showContext =
-        contextSize != null &&
-        (contextSize! > 0 || sessionFlavor == 'prime-agent');
+    final showContext = _contextVisible;
     return Row(
       key: const ValueKey('composer-status-line'),
       children: [
@@ -482,7 +513,7 @@ class InputToolbar extends StatelessWidget {
                   widthFactor: 1,
                   heightFactor: 1,
                   child: ContextSizeIndicator(
-                    contextSize: contextSize!,
+                    contextSize: _contextUsed ? contextSize : null,
                     maxContext: sessionFlavor == 'prime-agent'
                         ? maxContext
                         : maxContext ?? ContextSizeIndicator.defaultMaxContext,
@@ -528,13 +559,12 @@ class InputToolbar extends StatelessWidget {
                   onShowProfilePicker();
                 },
               ),
-              if (contextSize != null &&
-                  (contextSize! > 0 || sessionFlavor == 'prime-agent'))
+              if (_contextVisible)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(l10n.chatComposerContext),
                   trailing: ContextSizeIndicator(
-                    contextSize: contextSize!,
+                    contextSize: _contextUsed ? contextSize : null,
                     maxContext: sessionFlavor == 'prime-agent'
                         ? maxContext
                         : maxContext ?? ContextSizeIndicator.defaultMaxContext,

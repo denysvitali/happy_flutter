@@ -107,6 +107,44 @@ void main() {
     );
   });
 
+  testWidgets('a known window shows before any turn reports usage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          compact: true,
+          maxContext: 1000000,
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    expect(find.text('1M'), findsOneWidget);
+    expect(find.byType(AppLinearProgressIndicator), findsNothing);
+
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          compact: true,
+          contextSize: 23518,
+          maxContext: 1000000,
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    expect(find.text('24k'), findsOneWidget);
+    expect(
+      tester
+          .widget<AppLinearProgressIndicator>(
+            find.byType(AppLinearProgressIndicator),
+          )
+          .value,
+      closeTo(23518 / 1000000, 0.000001),
+    );
+  });
+
   testWidgets('compact status line fits a long model name', (tester) async {
     tester.view.physicalSize = const Size(320, 700);
     tester.view.devicePixelRatio = 1;
