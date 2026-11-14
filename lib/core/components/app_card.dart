@@ -61,6 +61,8 @@ class AppCard extends StatefulWidget {
 class _AppCardState extends State<AppCard> {
   bool _pressed = false;
 
+  bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -71,13 +73,25 @@ class _AppCardState extends State<AppCard> {
     final effectivePadding =
         widget.padding ?? const EdgeInsets.all(AppSpacing.lg);
 
-    final borderColor =
+    final baseBorderColor =
         widget.borderColor ??
         (isDark
             ? cs.outlineVariant.withValues(alpha: 0.72)
             : cs.onSurface.withValues(alpha: 0.08));
-    final backgroundColor =
+    final borderColor = widget.onTap != null && _hovered
+        ? Color.alphaBlend(
+            cs.primary.withValues(alpha: isDark ? 0.22 : 0.12),
+            baseBorderColor,
+          )
+        : baseBorderColor;
+    final baseBackground =
         widget.color ?? (isDark ? cs.surfaceContainerLow : cs.surface);
+    final backgroundColor = widget.onTap != null && _hovered
+        ? Color.alphaBlend(
+            cs.primary.withValues(alpha: isDark ? 0.06 : 0.03),
+            baseBackground,
+          )
+        : baseBackground;
 
     final Widget content = Padding(
       padding: effectivePadding,
@@ -107,8 +121,11 @@ class _AppCardState extends State<AppCard> {
                   onTapDown: (_) => setState(() => _pressed = true),
                   onTapUp: (_) => setState(() => _pressed = false),
                   onTapCancel: () => setState(() => _pressed = false),
+                  onHover: (hovered) => setState(() => _hovered = hovered),
+                  mouseCursor: SystemMouseCursors.click,
                   splashColor: cs.primary.withValues(alpha: 0.08),
                   highlightColor: cs.primary.withValues(alpha: 0.04),
+                  hoverColor: Colors.transparent,
                   splashFactory: InkRipple.splashFactory,
                   child: content,
                 ),
@@ -118,11 +135,15 @@ class _AppCardState extends State<AppCard> {
     );
 
     // Box shadows must live outside ClipRRect to be visible.
-    final card = Container(
+    final card = AnimatedContainer(
+      duration: AppMotion.duration(context, AppDuration.fast),
+      curve: AppCurve.standard,
       margin: widget.margin,
       decoration: BoxDecoration(
         borderRadius: AppCard._radius,
-        boxShadow: AppElevationShadow.card(brightness),
+        boxShadow: widget.onTap != null && _hovered
+            ? AppElevationShadow.floating(brightness)
+            : AppElevationShadow.card(brightness),
       ),
       child: inner,
     );

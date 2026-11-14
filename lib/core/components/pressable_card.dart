@@ -52,24 +52,28 @@ class _PressableCardState extends State<PressableCard> {
 
   @override
   Widget build(BuildContext context) {
-    final card = GestureDetector(
-      onTap: widget.onTap == null
-          ? null
-          : () {
-              if (widget.enableHaptics) {
-                HapticFeedback.lightImpact();
-              }
-              widget.onTap!.call();
-            },
-      onLongPress: widget.onLongPress,
-      onTapDown: (_) => _setPressed(true),
-      onTapUp: (_) => _setPressed(false),
-      onTapCancel: () => _setPressed(false),
-      child: AnimatedScale(
-        scale: _pressed ? widget.pressedScale : 1.0,
-        duration: widget.duration,
-        curve: AppCurve.standard,
-        child: widget.child,
+    final isInteractive = widget.onTap != null || widget.onLongPress != null;
+    final card = MouseRegion(
+      cursor: isInteractive ? SystemMouseCursors.click : MouseCursor.defer,
+      child: GestureDetector(
+        onTap: widget.onTap == null
+            ? null
+            : () {
+                if (widget.enableHaptics) {
+                  HapticFeedback.lightImpact();
+                }
+                widget.onTap!.call();
+              },
+        onLongPress: widget.onLongPress,
+        onTapDown: isInteractive ? (_) => _setPressed(true) : null,
+        onTapUp: isInteractive ? (_) => _setPressed(false) : null,
+        onTapCancel: isInteractive ? () => _setPressed(false) : null,
+        child: AnimatedScale(
+          scale: _pressed ? widget.pressedScale : 1.0,
+          duration: widget.duration,
+          curve: AppCurve.standard,
+          child: widget.child,
+        ),
       ),
     );
     final label = widget.semanticLabel;
