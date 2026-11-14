@@ -12,6 +12,7 @@ import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/ansi_parser.dart';
 import '../../../core/widgets/ansi_log_text.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../session_failure_reason.dart';
 
 /// Container/pod reasons that mean the pod will not become ready on its own.
@@ -151,7 +152,7 @@ class KubernetesPodSteps extends StatelessWidget {
       icon = SizedBox(
         width: 16,
         height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+        child: AppCircularProgressIndicator(strokeWidth: 2, color: cs.primary),
       );
       state = l10n.sessionPodStepRunning;
     } else {
