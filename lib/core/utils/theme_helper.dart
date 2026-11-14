@@ -574,6 +574,9 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({required bool dark}) {
 }
 
 ListTileThemeData _buildListTileTheme({required bool dark}) {
+  final hover = (dark ? Colors.white : Colors.black).withValues(
+    alpha: dark ? 0.04 : 0.03,
+  );
   return ListTileThemeData(
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.lg,
@@ -582,6 +585,17 @@ ListTileThemeData _buildListTileTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
     ),
+    mouseCursor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) {
+        return SystemMouseCursors.basic;
+      }
+      return SystemMouseCursors.click;
+    }),
+    iconColor: dark ? _kDarkTextMuted : _kLightTextMuted,
+    textColor: dark ? _kDarkTextSecondary : _kLightTextSecondary,
+    tileColor: Colors.transparent,
+    selectedTileColor: _kSeedColor.withValues(alpha: dark ? 0.14 : 0.1),
+    hoverColor: hover,
     titleTextStyle: _inter(
       fontSize: AppFontSize.base,
       fontWeight: FontWeight.w500,
