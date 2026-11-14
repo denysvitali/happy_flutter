@@ -9,8 +9,8 @@ import '../../core/providers/pod_operations_notifier.dart';
 import '../../core/rpc/rpc_types.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/session_utils.dart' show formatRelativeTime;
 import '../../core/utils/snack.dart';
+import '../../core/utils/utils.dart' show formatRelativeTime;
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'kubernetes_pod_format.dart';
 import 'kubernetes_pod_operation_view.dart';
@@ -93,6 +93,12 @@ class KubernetesPodTile extends StatelessWidget {
         operation.action == KubernetesPodAction.kill;
     final isSelected = selected ?? false;
     final lastUpdated = lastUpdatedMs;
+    final updatedAt = lastUpdated == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(lastUpdated);
+    final lastUpdatedLabel = updatedAt == null
+        ? null
+        : formatRelativeTime(updatedAt);
 
     final separator = TextSpan(text: ' · ', style: AppText.secondary(theme));
     final meta = <InlineSpan>[
@@ -118,9 +124,9 @@ class KubernetesPodTile extends StatelessWidget {
       if (!entry.live) ...[
         separator,
         TextSpan(
-          text: lastUpdated != null
+          text: lastUpdatedLabel != null
               ? '${l10n.kubernetesLastKnown} · '
-                    '${l10n.kubernetesLastUpdated(formatRelativeTime(lastUpdated))}'
+                    '${l10n.kubernetesLastUpdated(lastUpdatedLabel)}'
               : l10n.kubernetesLastKnown,
         ),
       ],

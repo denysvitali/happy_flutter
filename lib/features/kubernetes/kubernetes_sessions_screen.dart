@@ -11,6 +11,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/session_operations_notifier.dart';
