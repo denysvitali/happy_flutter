@@ -395,7 +395,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       }
     });
     final sel = _sel.value;
-    if (!sel.isActive || sel.isBatchDeleting) return;
+    if (!sel.isActive) return;
     if (_isBoardStyle(_sessionsViewStyle)) {
       final archive = _boardArchiveVisible;
       final ids = _nesting.shownIds(
@@ -435,7 +435,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   }
 
   void _reconcileLegacySelection(SortedSessions sorted) {
-    if (!_sel.value.isActive || _sel.value.isBatchDeleting) return;
+    if (!_sel.value.isActive) return;
     _pendingLegacySelectableIds = _legacySelectionIds(sorted);
     if (_legacyScopeUpdateScheduled ||
         (setEquals(_sel.value.selectableIds, _pendingLegacySelectableIds) &&
@@ -447,10 +447,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _legacyScopeUpdateScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _legacyScopeUpdateScheduled = false;
-      if (!mounted ||
-          !_isVisible ||
-          !_sel.value.isActive ||
-          _sel.value.isBatchDeleting) {
+      if (!mounted || !_isVisible || !_sel.value.isActive) {
         return;
       }
       if (_isBoardStyle(_sessionsViewStyle)) {
@@ -471,7 +468,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   void _onSessionTapInSelectionMode(String sessionId) {
     final current = _sel.value;
-    if (!current.isActive || current.isBatchDeleting) return;
+    if (!current.isActive) return;
     final newIds = Set<String>.from(current.selectedIds);
     if (newIds.contains(sessionId)) {
       newIds.remove(sessionId);
@@ -693,18 +690,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   }
 
   Widget _retainVisibleTree(Widget tree) {
-    final busy = _sel.value.isBatchDeleting;
-    final content = ExcludeFocus(
-      excluding: busy,
-      child: AbsorbPointer(absorbing: busy, child: tree),
-    );
-    _retainedVisibleTree = content;
+    _retainedVisibleTree = tree;
     // Wrap the tree in TickerMode on both the visible and covered
     // build paths so the wrapper element survives the transition; only
     // `enabled` flips. `_isVisible` is always true here (build returns
     // early when covered) but is used for symmetry with the covered
     // branch above.
-    return TickerMode(enabled: _isVisible, child: content);
+    return TickerMode(enabled: _isVisible, child: tree);
   }
 
   Widget _buildSearchEmptyState(BuildContext context) {
@@ -881,7 +873,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           onShowArchived: inactiveSessions.isEmpty
               ? null
               : () {
-                  if (_sel.value.isBatchDeleting) return;
                   _sel.value = const SelectionState();
                   setState(() => _showBoardArchive = true);
                 },
@@ -896,9 +887,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             final ids = _nesting.shownIds(roots, _isSubSessionExpanded);
             _boardSelectableIds = ids;
             final selected = _sel.value;
-            if (selected.isActive &&
-                !selected.isBatchDeleting &&
-                !_boardArchiveVisible) {
+            if (selected.isActive && !_boardArchiveVisible) {
               _sel.value = selected.copyWith(
                 selectedIds: selected.selectedIds.intersection(ids),
                 selectableIds: ids,
@@ -968,7 +957,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         archivedCount: inactiveSessions.length + _nestedCount(inactiveSessions),
         showArchived: showArchived,
         onChanged: (archived) {
-          if (_sel.value.isBatchDeleting || archived == showArchived) return;
+          if (archived == showArchived) return;
           _sel.value = const SelectionState();
           setState(() => _showBoardArchive = archived);
         },

@@ -46,8 +46,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   leave `machinesListProvider`; a permission counts as answered on every
   surface. Failures drop the overlay: pod cards keep them inline with
   Retry/Dismiss; everything else reports through `OperationFailureListener`
-  (Retry except for permissions). Batch select-and-delete/archive keeps its
-  own busy selection flow; goal loops and artifact delete were already
+  (Retry except for permissions). Batch select-and-delete/archive submits
+  one background operation per selected session and closes selection
+  immediately — it never awaits a batch, never gates the list, and a stuck
+  row cannot hold up the others; goal loops and artifact delete were already
   optimistic. Creates, sign-in/verification and form saves stay awaited on
   purpose (they need a server id or validation result). The permission
   `permissionActionDelegate` test seam keeps the awaited path.

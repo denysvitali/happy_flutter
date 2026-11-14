@@ -19,13 +19,11 @@ class SelectionState {
   const SelectionState({
     this.isActive = false,
     this.selectedIds = const {},
-    this.isBatchDeleting = false,
     this.selectableIds,
   });
 
   final bool isActive;
   final Set<String> selectedIds;
-  final bool isBatchDeleting;
 
   /// The filtered collection in which selection started. Null uses the
   /// legacy folder/list scope. Collapsed rows remain part of the collection.
@@ -34,13 +32,11 @@ class SelectionState {
   SelectionState copyWith({
     bool? isActive,
     Set<String>? selectedIds,
-    bool? isBatchDeleting,
     Set<String>? selectableIds,
   }) {
     return SelectionState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
-      isBatchDeleting: isBatchDeleting ?? this.isBatchDeleting,
       selectableIds: selectableIds ?? this.selectableIds,
     );
   }

@@ -6,6 +6,10 @@
 /// failure restores the row and stays recorded until the user retries or
 /// dismisses it (see `OperationFailureListener`). A success needs no
 /// overlay, so its record is dropped immediately.
+///
+/// Batch actions submit one operation per selected session; nothing awaits
+/// them, so a slow row (a stuck stop or Pod pause) never blocks the screen
+/// or the other rows.
 library;
 
 import 'package:flutter/foundation.dart' show immutable;

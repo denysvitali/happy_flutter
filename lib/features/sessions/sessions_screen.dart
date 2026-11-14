@@ -4,7 +4,6 @@ import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/sessions_api.dart';
 import '../../core/components/sidebar/app_sidebar.dart';
 import '../../core/components/tablet/no_session_selected_view.dart';
 import '../../core/components/tablet/resizable_split_view.dart';
@@ -14,8 +13,6 @@ import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/app_visibility_coordinator.dart';
 import '../../core/services/chat_switch_metrics.dart';
-import '../../core/services/logger_service.dart' show logger;
-import '../../core/services/session_archive.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
@@ -53,10 +50,9 @@ enum _NavigationAction {
 /// Sessions list screen with date grouping and enhanced
 /// status display.
 class SessionsScreen extends ConsumerStatefulWidget {
-  const SessionsScreen({super.key, this.initialTab, this.sessionsApi});
+  const SessionsScreen({super.key, this.initialTab});
 
   final String? initialTab;
-  final SessionsApi? sessionsApi;
 
   @override
   ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
@@ -436,7 +432,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return SessionSelectionAppBar(
       count: sel.selectedIds.length,
       allSelected: allSelected,
-      busy: sel.isBatchDeleting,
       hasActive: _hasActiveSessionsInSelection(sel),
       hasPinned: _hasPinnedInSelection(sel),
       actionsHeight: SessionSelectionAppBar.actionsHeightOf(context),
@@ -665,14 +660,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return sel.selectedIds.any((id) => sessions[id]?.pinned ?? false);
   }
 
-  void _exitSelectionMode({bool completed = false}) {
-    if (_selectionNotifier.value.isBatchDeleting && !completed) return;
+  void _exitSelectionMode() {
     _selectionNotifier.value = const SelectionState();
   }
 
   void _toggleSelectAll(Set<String> allIds, bool currentlyAllSelected) {
     final current = _selectionNotifier.value;
-    if (current.isBatchDeleting) return;
     _selectionNotifier.value = current.copyWith(
       selectedIds: currentlyAllSelected ? {} : Set<String>.of(allIds),
     );

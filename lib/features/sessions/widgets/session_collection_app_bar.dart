@@ -9,7 +9,6 @@ import '../../../core/theme/app_button_style.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/widgets/app_linear_progress_indicator.dart';
 import 'connection_status_badge.dart';
 import 'session_headers.dart' show folderBreakdownLabel;
 
@@ -224,12 +223,14 @@ class _SessionSearchFieldState extends State<_SessionSearchField> {
 }
 
 /// Selection context and labeled bulk actions share one compact surface.
+///
+/// Every action dispatches background operations and closes selection at
+/// once, so this surface never has a busy state to wait on.
 class SessionSelectionAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const SessionSelectionAppBar({
     required this.count,
     required this.allSelected,
-    required this.busy,
     required this.hasActive,
     required this.hasPinned,
     required this.actionsHeight,
@@ -243,7 +244,6 @@ class SessionSelectionAppBar extends StatelessWidget
 
   final int count;
   final bool allSelected;
-  final bool busy;
   final bool hasActive;
   final bool hasPinned;
   final double actionsHeight;
@@ -261,7 +261,7 @@ class SessionSelectionAppBar extends StatelessWidget
   );
 
   @override
-  Size get preferredSize => Size.fromHeight(actionsHeight * 2 + AppSpacing.xxs);
+  Size get preferredSize => Size.fromHeight(actionsHeight * 2);
 
   @override
   Widget build(BuildContext context) {
@@ -275,14 +275,14 @@ class SessionSelectionAppBar extends StatelessWidget
       leading: IconButton(
         icon: const Icon(Icons.close),
         tooltip: l10n.commonCancel,
-        onPressed: busy ? null : onCancel,
+        onPressed: onCancel,
       ),
       title: _SelectionControlRow(
         height: actionsHeight,
         children: [
           Text(l10n.sessionsSelectedCount(count)),
           TextButton(
-            onPressed: busy ? null : onSelectAll,
+            onPressed: onSelectAll,
             child: Text(
               allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
             ),
@@ -290,68 +290,44 @@ class SessionSelectionAppBar extends StatelessWidget
         ],
       ),
       bottom: PreferredSize(
-        preferredSize: Size.fromHeight(actionsHeight + AppSpacing.xxs),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        preferredSize: Size.fromHeight(actionsHeight),
+        child: _SelectionControlRow(
+          height: actionsHeight,
           children: [
-            _SelectionControlRow(
-              height: actionsHeight,
-              children: [
-                if (hasActive)
-                  Tooltip(
-                    message: l10n.sessionsArchive,
-                    excludeFromSemantics: true,
-                    child: TextButton.icon(
-                      icon: const Icon(
-                        Icons.archive_outlined,
-                        size: AppIconSize.xl,
-                      ),
-                      label: Text(l10n.sessionsArchive),
-                      onPressed: count == 0 || busy ? null : onArchive,
-                    ),
+            if (hasActive)
+              Tooltip(
+                message: l10n.sessionsArchive,
+                excludeFromSemantics: true,
+                child: TextButton.icon(
+                  icon: const Icon(
+                    Icons.archive_outlined,
+                    size: AppIconSize.xl,
                   ),
-                Tooltip(
-                  message: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
-                  excludeFromSemantics: true,
-                  child: TextButton.icon(
-                    icon: Icon(
-                      hasPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                      size: AppIconSize.xl,
-                    ),
-                    label: Text(
-                      hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
-                    ),
-                    onPressed: count == 0 || busy ? null : onPin,
-                  ),
+                  label: Text(l10n.sessionsArchive),
+                  onPressed: count == 0 ? null : onArchive,
                 ),
-                Tooltip(
-                  message: l10n.commonDelete,
-                  excludeFromSemantics: true,
-                  child: TextButton.icon(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      size: AppIconSize.xl,
-                    ),
-                    label: Text(l10n.commonDelete),
-                    style: count == 0 || busy
-                        ? null
-                        : AppButtonStyle.destructive(cs),
-                    onPressed: count == 0 || busy ? null : onDelete,
-                  ),
+              ),
+            Tooltip(
+              message: hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin,
+              excludeFromSemantics: true,
+              child: TextButton.icon(
+                icon: Icon(
+                  hasPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                  size: AppIconSize.xl,
                 ),
-              ],
+                label: Text(hasPinned ? l10n.sessionsUnpin : l10n.sessionsPin),
+                onPressed: count == 0 ? null : onPin,
+              ),
             ),
-            SizedBox(
-              height: AppSpacing.xxs,
-              child: busy
-                  ? Semantics(
-                      liveRegion: true,
-                      child: AppLinearProgressIndicator(
-                        minHeight: AppSpacing.xxs,
-                        semanticsLabel: l10n.commonLoading,
-                      ),
-                    )
-                  : null,
+            Tooltip(
+              message: l10n.commonDelete,
+              excludeFromSemantics: true,
+              child: TextButton.icon(
+                icon: const Icon(Icons.delete_outline, size: AppIconSize.xl),
+                label: Text(l10n.commonDelete),
+                style: count == 0 ? null : AppButtonStyle.destructive(cs),
+                onPressed: count == 0 ? null : onDelete,
+              ),
             ),
           ],
         ),

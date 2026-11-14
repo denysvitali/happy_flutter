@@ -8,7 +8,6 @@
 // new-session dialog.
 
 import 'dart:async';
-import 'dart:ui' show SemanticsAction;
 
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
@@ -63,15 +62,14 @@ class _StubSettingsNotifier extends SettingsNotifier {
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
-  _StubSessionsNotifier([this._initial = const {}, this.onBatchDelete]);
+  _StubSessionsNotifier(this.initial);
 
-  final Map<String, Session> _initial;
-  final Future<int> Function(List<String>)? onBatchDelete;
+  final Map<String, Session> initial;
   final archivedIds = <String>[];
   int refreshCount = 0;
 
   @override
-  Map<String, Session> build() => SessionCollectionSnapshot(_initial);
+  Map<String, Session> build() => SessionCollectionSnapshot(initial);
 
   void publish(Map<String, Session> sessions) {
     state = SessionCollectionSnapshot(sessions);
@@ -81,10 +79,6 @@ class _StubSessionsNotifier extends SessionsNotifier {
   void loadFromSync() => refreshCount++;
   @override
   Future<void> refreshFromSync({bool includeMachines = false}) async {}
-
-  @override
-  Future<int> optimisticBatchDelete(List<String> ids) =>
-      onBatchDelete?.call(ids) ?? Future<int>.value(0);
 
   @override
   Future<void> markSessionArchived(String id, bool archived) async {
@@ -179,17 +173,13 @@ Widget _app({
   TextScaler textScaler = TextScaler.noScaling,
   String viewStyle = 'mission_control',
   bool? hideInactive,
-  Future<int> Function(List<String>)? onBatchDelete,
-  SessionsApi? sessionsApi,
+  SessionOperationsNotifier? sessionOperations,
 }) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (_, _) => SessionsScreen(sessionsApi: sessionsApi),
-      ),
+      GoRoute(path: '/', builder: (_, _) => const SessionsScreen()),
       GoRoute(
         path: '/link',
         name: 'link',
@@ -209,7 +199,10 @@ Widget _app({
         () => _StubSettingsNotifier(viewStyle, hideInactive: hideInactive),
       ),
       sessionsNotifierProvider.overrideWith(
-        () => _StubSessionsNotifier(sessions, onBatchDelete),
+        () => _StubSessionsNotifier(sessions),
+      ),
+      sessionOperationsNotifierProvider.overrideWith(
+        () => sessionOperations ?? _RecordingSessionOperations(),
       ),
       machinesNotifierProvider.overrideWith(_StubMachinesNotifier.new),
       connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
