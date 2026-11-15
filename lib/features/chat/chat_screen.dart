@@ -2341,6 +2341,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           loadFailed: _loadFailed,
                           onRetry: _retry,
                           onSuggestionTap: _onSuggestionTap,
+                          dockInset: _dockInset,
                           emptyView: _messages.isEmpty
                               ? _buildKubernetesStartupPanel(fillHeight: true)
                               : null,

@@ -30,11 +30,17 @@ class ChatMessagesBody extends StatelessWidget {
     required this.messageList,
     super.key,
     this.emptyView,
+    this.dockInset,
   });
 
   /// Replaces [EmptyChatView] when the conversation has no messages, e.g.
   /// live pod status while a Kubernetes session starts.
   final Widget? emptyView;
+
+  /// Measured height of the frosted bottom dock/composer overlay. Empty-state
+  /// content must reserve this space so it does not render underneath the
+  /// message box (e.g. Kubernetes startup logs).
+  final ValueListenable<double>? dockInset;
 
   /// Whether messages are loading. Cached content stays mounted during
   /// refresh so scroll, selection and expanded tools are preserved.
@@ -58,6 +64,18 @@ class ChatMessagesBody extends StatelessWidget {
   /// the chat screen's `_buildMessageList` helper.
   final Widget messageList;
 
+  Widget _withDockInset(Widget child) {
+    final inset = dockInset;
+    if (inset == null) return child;
+    return ValueListenableBuilder<double>(
+      valueListenable: inset,
+      builder: (context, value, _) => Padding(
+        padding: EdgeInsets.only(bottom: value),
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return isLoading && messages.isEmpty
@@ -68,11 +86,13 @@ class ChatMessagesBody extends StatelessWidget {
                   key: const ValueKey('chat-error'),
                   onRetry: onRetry,
                 )
-              : emptyView ??
-                    EmptyChatView(
-                      key: const ValueKey('chat-empty'),
-                      onSuggestionTap: onSuggestionTap,
-                    ))
+              : _withDockInset(
+                  emptyView ??
+                      EmptyChatView(
+                        key: const ValueKey('chat-empty'),
+                        onSuggestionTap: onSuggestionTap,
+                      ),
+                ))
         : Column(
             children: [
               if (loadFailed)
