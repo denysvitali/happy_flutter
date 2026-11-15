@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/components/app_sheet.dart';
 import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart' show logger;
@@ -208,6 +209,26 @@ void showSessionMenu(
                   },
                 ),
                 ListTile(
+                  leading: Icon(
+                    Icons.archive_outlined,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.sessionsArchiveSession),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    // Read before the pop: it unmounts this sheet's `ref`.
+                    final session = ref.read(sessionByIdProvider(sessionId));
+                    Navigator.pop(sheetContext);
+                    unawaited(
+                      showConfirmArchiveDialog(
+                        outerContext,
+                        sessionId: sessionId,
+                        session: session,
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: Icon(Icons.delete_outline, color: cs.error),
                   title: Text(
                     l10n.chatDeleteSession,
@@ -287,6 +308,35 @@ void showUnsentMessageDialog(
       Navigator.of(context).pop();
     }),
   );
+}
+
+/// Confirms, then archives the session in the background (like the session
+/// info screen): it leaves the list at once and the chat closes.
+Future<void> showConfirmArchiveDialog(
+  BuildContext context, {
+  required String sessionId,
+  Session? session,
+}) async {
+  final l10n = context.l10n;
+  final confirmed = await showConfirmDialog(
+    context,
+    title: l10n.sessionsArchiveSession,
+    content: l10n.sessionsArchiveConfirm,
+    confirmLabel: l10n.sessionsArchive,
+    isDestructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+  final operations = ProviderScope.containerOf(
+    context,
+  ).read(sessionOperationsNotifierProvider.notifier);
+  if (session != null) {
+    operations.archive(session);
+  } else {
+    // Without the row the archive cannot be queued; say so, keep the chat.
+    context.showSnack(l10n.commonError, tone: SnackTone.error);
+    return;
+  }
+  Navigator.of(context).pop();
 }
 
 /// Shows a confirmation dialog for deleting a session.
