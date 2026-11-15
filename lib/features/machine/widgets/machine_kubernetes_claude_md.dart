@@ -237,8 +237,13 @@ class _KubernetesClaudeMdDialogState extends State<KubernetesClaudeMdDialog> {
                     maxLines: 16,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
-                    autocorrect: false,
-                    enableSuggestions: false,
+                    // Keep the IME's suggestion strip, glide typing and
+                    // autocorrect on: this is prose, not a code field.
+                    autocorrect: true,
+                    enableSuggestions: true,
+                    smartDashesType: SmartDashesType.disabled,
+                    smartQuotesType: SmartQuotesType.disabled,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: l10n.kubernetesClaudeMdContent,
                       hintText: l10n.kubernetesClaudeMdHint,

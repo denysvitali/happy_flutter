@@ -54,6 +54,19 @@ void main() {
     expect(kubernetesClaudeMdContentTooLarge('😀' * 16385), isTrue);
   });
 
+  testWidgets('editor keeps autocorrect and suggestions on', (tester) async {
+    sync.testMachineRPCOverride = (_, _, _) async => _instructions('hi');
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    await tester.tap(_row);
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(
+      find.descendant(of: _content, matching: find.byType(TextField)),
+    );
+    expect(field.autocorrect, isTrue);
+    expect(field.enableSuggestions, isTrue);
+  });
+
   testWidgets('offline machines neither load nor edit', (tester) async {
     var calls = 0;
     sync.testMachineRPCOverride = (_, _, _) async {
