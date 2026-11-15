@@ -270,6 +270,44 @@ List<ClaudeModelInfo>? _claudeModelsFromJson(dynamic value) {
 dynamic _claudeModelsToJson(List<ClaudeModelInfo>? models) =>
     models?.map((model) => model.toJson()).toList();
 
+/// Non-secret provider routing the daemon recorded for a session launch.
+///
+/// The session's `providerRoutingEnv` holds the complete routing (credentials
+/// included), so only the base URLs - the part that identifies which provider
+/// is actually serving this conversation - are surfaced here. Parsing
+/// `providerRoutingEnv` upstream is what lets the UI report the launched
+/// provider even when this device has no local profile draft.
+@freezed
+abstract class ProviderRouting with _$ProviderRouting {
+  const factory ProviderRouting({
+    @JsonKey(name: 'ANTHROPIC_BASE_URL', fromJson: _asApiStringNullable)
+    String? anthropicBaseUrl,
+    @JsonKey(name: 'OPENAI_BASE_URL', fromJson: _asApiStringNullable)
+    String? openaiBaseUrl,
+  }) = _ProviderRouting;
+
+  factory ProviderRouting.fromJson(Map<String, dynamic> json) =>
+      _$ProviderRoutingFromJson(json);
+}
+
+ProviderRouting? _providerRoutingFromJson(dynamic value) {
+  if (value is! Map) return null;
+  // The wire/decrypted shape is the daemon's `providerRoutingEnv` map itself.
+  final routing = ProviderRouting.fromJson(Map<String, dynamic>.from(value));
+  return routing.anthropicBaseUrl == null && routing.openaiBaseUrl == null
+      ? null
+      : routing;
+}
+
+Map<String, dynamic>? _providerRoutingToJson(ProviderRouting? routing) {
+  if (routing == null) return null;
+  return {
+    if (routing.anthropicBaseUrl != null)
+      'ANTHROPIC_BASE_URL': routing.anthropicBaseUrl,
+    if (routing.openaiBaseUrl != null) 'OPENAI_BASE_URL': routing.openaiBaseUrl,
+  };
+}
+
 Metadata? _metadataFromJson(dynamic value) {
   if (value is Map<String, dynamic>) return Metadata.fromJson(value);
   return null;
@@ -343,6 +381,25 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
     @JsonKey(fromJson: _asApiStringNullable) String? flavor,
     @JsonKey(fromJson: _asApiStringNullable) String? model,
+
+    /// The app profile (or the explicit `default` marker) the daemon used to
+    /// launch this session. Present means the client chose the routing; see
+    /// `sessionClientProfileId` for the normalized value.
+    @JsonKey(fromJson: _asApiStringNullable) String? clientProfileId,
+
+    /// Routing the daemon launched this session with (base URLs only; see
+    /// [ProviderRouting]). Null when the session recorded none.
+    ///
+    /// The daemon writes the routing as `providerRoutingEnv`; parsing that
+    /// key directly (rather than a synthetic one) is what makes the session's
+    /// own provider identity available, and it round-trips through our cache
+    /// with only the base URLs retained.
+    @JsonKey(
+      name: 'providerRoutingEnv',
+      fromJson: _providerRoutingFromJson,
+      toJson: _providerRoutingToJson,
+    )
+    ProviderRouting? providerRouting,
     @JsonKey(
       name: 'primeagentModels',
       fromJson: _primeAgentModelsFromJson,

@@ -313,6 +313,7 @@ class ChatModelMode {
     List<ChatModelMode>? codexModels,
     String? providerOwnedCodexModel,
     List<String>? profileModels,
+    List<String>? sessionModels,
     List<PrimeAgentModelInfo>? primeAgentModels,
     List<PrimeAgentModelInfo>? opencodeModels,
     List<PrimeAgentModelInfo>? harModels,
@@ -351,23 +352,32 @@ class ChatModelMode {
             ),
         ];
       }
-      return [
-        defaultModel,
-        ...(flavor == 'codex'
-            ? _expandProfileCodexModelFamilies(ids, codexModels: codexModels)
-            : _expandProfileModelFamilies(ids)),
-      ];
+      return _withSessionModels(
+        [
+          defaultModel,
+          ...(flavor == 'codex'
+              ? _expandProfileCodexModelFamilies(ids, codexModels: codexModels)
+              : _expandProfileModelFamilies(ids)),
+        ],
+        sessionModels,
+        flavor,
+      );
     }
     if (flavor == 'codex') {
       final owned = providerOwnedCodexModel?.trim();
       if (owned != null &&
           owned.isNotEmpty &&
           owned != defaultModel.modeString) {
-        return providerOwnedCodexEfforts(owned, codexModels: codexModels);
+        return _withSessionModels(
+          providerOwnedCodexEfforts(owned, codexModels: codexModels),
+          sessionModels,
+          flavor,
+        );
       }
-      return codexModels == null || codexModels.isEmpty
+      final catalogModels = codexModels == null || codexModels.isEmpty
           ? const [defaultModel]
           : codexModels;
+      return _withSessionModels(catalogModels, sessionModels, flavor);
     }
     final baseModels = availableForFlavor(flavor);
     if (flavor == 'grok' || flavor == 'grok-build') return baseModels;
@@ -377,12 +387,46 @@ class ChatModelMode {
       if ((flavor == 'claude' || flavor == null) &&
           claudeCatalog != null &&
           claudeCatalog.isNotEmpty) {
-        return fromClaudeCatalog(claudeCatalog);
+        final catalogModels = fromClaudeCatalog(claudeCatalog);
+        return _withSessionModels(catalogModels, sessionModels, flavor);
       }
-      return baseModels;
+      return _withSessionModels(baseModels, sessionModels, flavor);
     }
-    // Provider-owned model selection uses the selected backend profile.
-    return const [defaultModel];
+    // Provider-owned model selection: the selected backend profile owns the
+    // catalog. Without one, the session's recorded launch is still the
+    // provider's truth (its local draft may be lost), so offer what it runs.
+    final sessionOwned = _withSessionModels(
+      const [defaultModel],
+      sessionModels,
+      flavor,
+    );
+    return sessionOwned.length > 1 ? sessionOwned : const [defaultModel];
+  }
+
+  /// Appends models the session is actually running (recorded by the daemon)
+  /// to the picker without duplicating catalog entries. These are audits of
+  /// the launched model, so they parse verbatim even when unlisted.
+  static List<ChatModelMode> _withSessionModels(
+    List<ChatModelMode> models,
+    List<String>? sessionModels,
+    String? flavor,
+  ) {
+    final extras = <ChatModelMode>[];
+    final seen = {for (final model in models) model.modeString};
+    for (final raw in sessionModels ?? const <String>[]) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty || trimmed == defaultModel.modeString) continue;
+      if (!seen.add(trimmed)) continue;
+      extras.add(
+        ChatModelMode._(
+          label: trimmed,
+          modeString: trimmed,
+          modelSlug: trimmed,
+          flavor: flavor == 'codex' ? 'codex' : 'claude',
+        ),
+      );
+    }
+    return extras.isEmpty ? models : [...models, ...extras];
   }
 
   /// Builds picker options for a provider-owned Codex model.

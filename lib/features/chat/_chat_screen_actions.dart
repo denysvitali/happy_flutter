@@ -87,6 +87,9 @@ extension _ChatScreenActions on _ChatScreenState {
       builtInProfiles: builtInProfiles,
       lastUsedModelMode: settings.lastUsedModelMode,
       favoriteModelsByProfile: settings.favoriteModelsByProfile,
+      // The session's own record of the provider it was launched with. Drafts
+      // are device-local and may be missing on a reinstall or another device.
+      sessionMetadata: session?.metadata,
     );
 
     // Test-only hook (see `testInitialSettingsApplyBarrier` doc comment):
@@ -578,7 +581,8 @@ extension _ChatScreenActions on _ChatScreenState {
           : _selectedProfile?.models,
       preserveProviderOwned:
           profileOwnsRawCodexModel(_selectedProfile) ||
-          profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
+          profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile) ||
+          sessionUsesThirdPartyAnthropicBaseUrl(_session?.metadata),
     );
     setState(() {
       _userOverrodeModelOrProfile = true;
@@ -632,15 +636,16 @@ extension _ChatScreenActions on _ChatScreenState {
     return ChatModelMode.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
-      allowClaudeAliases: !profileUsesThirdPartyAnthropicBaseUrl(
-        _selectedProfile,
-      ),
+      allowClaudeAliases:
+          !profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile) &&
+          !sessionUsesThirdPartyAnthropicBaseUrl(_session?.metadata),
       codexModels:
           _codexModelModesContext == _codexModelCatalogContext(_session)
           ? _codexModelModes
           : const [ChatModelMode.defaultModel],
       providerOwnedCodexModel: providerOwnedCodexModel,
       profileModels: _selectedProfile?.models,
+      sessionModels: sessionRecordedModels(_session?.metadata),
       primeAgentModels: _session?.metadata?.primeAgentModels,
       opencodeModels: _session?.metadata?.opencodeModels,
       harModels: _session?.metadata?.harModels,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/widgets/app_linear_progress_indicator.dart';
@@ -88,6 +89,64 @@ void main() {
       isNull,
     );
     expect(officialUsageFlavor('grok', null), isNull);
+  });
+
+  test('usage is hidden when the session itself is routed to a gateway', () {
+    // The user may have no local profile draft (another device, reinstalled
+    // app, recreated profile) while the daemon keeps launching this session
+    // through llm-proxy. The account windows are then not what the chat
+    // consumes, so the strip must not claim the Anthropic account's limits.
+    const metadata = Metadata(
+      host: '',
+      flavor: 'claude',
+      model: 'opendesign/deepseek-v4.1-flash-eco[1m]',
+      clientProfileId: 'custom_1787554838941',
+      providerRouting: ProviderRouting(
+        anthropicBaseUrl: 'http://llm-proxy.beago-bass.ts.net',
+      ),
+    );
+
+    expect(officialUsageFlavorForSession('claude', null, metadata), isNull);
+    expect(officialUsageFlavorForSession(null, null, metadata), isNull);
+    // A local Anthropic profile must not re-enable it either.
+    expect(
+      officialUsageFlavorForSession(
+        'claude',
+        getBuiltInProfile('anthropic'),
+        metadata,
+      ),
+      isNull,
+    );
+  });
+
+  test('usage stays for a session on the official Anthropic endpoint', () {
+    const metadata = Metadata(
+      host: '',
+      flavor: 'claude',
+      providerRouting: ProviderRouting(
+        anthropicBaseUrl: 'https://api.anthropic.com',
+      ),
+    );
+    expect(officialUsageFlavorForSession('claude', null, metadata), 'claude');
+    expect(officialUsageFlavorForSession('claude', null, null), 'claude');
+  });
+
+  test('Codex usage follows the session-recorded OpenAI endpoint', () {
+    const gateway = Metadata(
+      host: '',
+      flavor: 'codex',
+      providerRouting: ProviderRouting(
+        openaiBaseUrl: 'http://llm-proxy.beago-bass.ts.net/v1',
+      ),
+    );
+    const official = Metadata(
+      host: '',
+      flavor: 'codex',
+      providerRouting: ProviderRouting(openaiBaseUrl: 'https://api.openai.com'),
+    );
+
+    expect(officialUsageFlavorForSession('codex', null, gateway), isNull);
+    expect(officialUsageFlavorForSession('codex', null, official), 'codex');
   });
 
   testWidgets('machine limits fit mobile and open details on tap', (

@@ -6,6 +6,18 @@ part of 'session.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_ProviderRouting _$ProviderRoutingFromJson(Map<String, dynamic> json) =>
+    _ProviderRouting(
+      anthropicBaseUrl: _asApiStringNullable(json['ANTHROPIC_BASE_URL']),
+      openaiBaseUrl: _asApiStringNullable(json['OPENAI_BASE_URL']),
+    );
+
+Map<String, dynamic> _$ProviderRoutingToJson(_ProviderRouting instance) =>
+    <String, dynamic>{
+      'ANTHROPIC_BASE_URL': instance.anthropicBaseUrl,
+      'OPENAI_BASE_URL': instance.openaiBaseUrl,
+    };
+
 _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   path: _asApiStringNullable(json['path']),
   host: json['host'] as String? ?? '',
@@ -24,6 +36,8 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   hostPid: _asApiIntNullable(json['hostPid']),
   flavor: _asApiStringNullable(json['flavor']),
   model: _asApiStringNullable(json['model']),
+  clientProfileId: _asApiStringNullable(json['clientProfileId']),
+  providerRouting: _providerRoutingFromJson(json['providerRoutingEnv']),
   primeAgentModels: _primeAgentModelsFromJson(json['primeagentModels']),
   opencodeModels: _primeAgentModelsFromJson(json['opencodeModels']),
   harModels: _harModelsFromJson(json['harModels']),
@@ -96,6 +110,8 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'hostPid': instance.hostPid,
   'flavor': instance.flavor,
   'model': instance.model,
+  'clientProfileId': instance.clientProfileId,
+  'providerRoutingEnv': _providerRoutingToJson(instance.providerRouting),
   'primeagentModels': _primeAgentModelsToJson(instance.primeAgentModels),
   'opencodeModels': _primeAgentModelsToJson(instance.opencodeModels),
   'harModels': _primeAgentModelsToJson(instance.harModels),

@@ -41,6 +41,7 @@ import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/model_context_window.dart';
 import '../../core/utils/network_errors.dart';
 import '../../core/utils/session_context_usage.dart';
+import '../../core/utils/session_provider.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/desktop_update_banner.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -921,7 +922,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               : _selectedProfile?.models,
           preserveProviderOwned:
               profileOwnsRawCodexModel(_selectedProfile) ||
-              profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
+              profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile) ||
+              sessionUsesThirdPartyAnthropicBaseUrl(latestSession?.metadata),
         );
       }
       if (catalogModelConfirmed && !_isSwitchingHarModel) {
@@ -2286,9 +2288,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ValueListenableBuilder<int>(
           valueListenable: _composerRevision,
           builder: (context, revision, child) {
-            final flavor = officialUsageFlavor(
+            final flavor = officialUsageFlavorForSession(
               _session?.metadata?.flavor,
               _selectedProfile,
+              _session?.metadata,
             );
             final machineId = _session?.metadata?.machineId;
             if (!_usageProfileResolved ||

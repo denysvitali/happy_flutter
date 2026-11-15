@@ -3,6 +3,12 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import '../../core/models/favorite_model.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
+import '../../core/utils/session_provider.dart'
+    show
+        metadataRecordsClientProfile,
+        sessionClientProfileId,
+        sessionRecordedModel,
+        sessionUsesThirdPartyAnthropicBaseUrl;
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart';
 
@@ -61,6 +67,13 @@ class ModelSelectionResolution {
 /// `DraftStorage` / `Settings` / the `Session`, call this, and act on the
 /// flags in the returned [ModelSelectionResolution] (persisting derived
 /// values, clearing ghost references) themselves.
+///
+/// [sessionMetadata] carries the provider identity the daemon recorded on
+/// the session itself (`clientProfileId` and the launch routing). Chat state
+/// is device-local, so a session opened on another device, after app data
+/// was cleared, or after its provider profile was recreated has no matching
+/// local draft; without the session's own record the picker then falls back
+/// to `Default` while the daemon keeps running the gateway model.
 ModelSelectionResolution resolveModelSelection({
   required String? savedPermissionMode,
   required String? savedModelMode,
@@ -76,6 +89,7 @@ ModelSelectionResolution resolveModelSelection({
   List<PrimeAgentModelInfo>? harModels,
   String? syncedSessionPermissionMode,
   String? lastUsedPermissionMode,
+  Metadata? sessionMetadata,
 }) {
   if (flavor == 'har') {
     // The launched process owns its model; stale picker intent must never
@@ -149,6 +163,37 @@ ModelSelectionResolution resolveModelSelection({
     }
     if (selectedProfile == null) hadGhostProfileReference = true;
   }
+  // The daemon records the profile it launched the session with, and that
+  // record outranks local state: a draft belongs to this device's app data
+  // and can vanish (reinstall, app data clear, another device, a recreated
+  // profile) while the running process keeps its routing. A recorded
+  // `default` is an explicit "no profile" choice and must not inherit a
+  // leftover local profile either.
+  final recordedProfileId = sessionClientProfileId(sessionMetadata);
+  final recordedProfileChoice = metadataRecordsClientProfile(sessionMetadata);
+  if (recordedProfileChoice) {
+    selectedProfile = null;
+    hadGhostProfileReference = false;
+    for (final p in availableProfiles) {
+      if (recordedProfileId != null && p.id == recordedProfileId) {
+        selectedProfile = p;
+        break;
+      }
+    }
+    if (recordedProfileId != null && selectedProfile == null) {
+      // The daemon ran a profile this device no longer has: its model and
+      // routing still belong to that session, so keep them verbatim instead
+      // of presenting the wrong provider as "Default".
+      hadGhostProfileReference = true;
+    }
+  }
+  // Routing the session was actually launched with. When the recorded
+  // profile is unknown locally (or the session recorded routing without a
+  // profile), the recorded model belongs to that provider and must survive
+  // normalization verbatim.
+  final sessionUsesThirdParty = sessionUsesThirdPartyAnthropicBaseUrl(
+    sessionMetadata,
+  );
 
   if (flavor == 'opencode') {
     final catalog = ChatModelMode.fromOpenCodeCatalog(
@@ -181,7 +226,10 @@ ModelSelectionResolution resolveModelSelection({
   // normalization verbatim.
   final selectedProfileOwnsRawModels =
       selectedProfileOwnsRawCodexModel ||
-      profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
+      profileUsesThirdPartyAnthropicBaseUrl(selectedProfile) ||
+      // The session itself recorded third-party routing. That outranks the
+      // local profile, which may be missing or belong to another provider.
+      sessionUsesThirdParty;
   // Models configured on the selected profile are provider-owned raw
   // strings (e.g. 'GLM-5', 'GLM-5:high') that would otherwise normalize
   // to 'default' — the pick would silently never take effect, and an
@@ -226,18 +274,40 @@ ModelSelectionResolution resolveModelSelection({
 
   // Priority: saved draft > session model > provider favorite > profile
   // default > settings default.
+  //
+  // A recorded provider choice (`clientProfileId`) scopes local picks to the
+  // running configuration: draft/favorite/global values that normalize to
+  // `default` describe a different provider and are dropped, so the
+  // session's own record (or its Default) decides instead. A draft that
+  // still resolves to a provider-owned model wins - that is the user's
+  // current pick for this launch.
+  void applyPick(String raw) {
+    final normalized = normalizeRaw(raw);
+    final resolved = normalizeModel(normalized);
+    if (recordedProfileChoice) {
+      if (resolved.isDefault) return;
+      // A Claude alias/full id can never be served by the gateway this
+      // session actually runs on (the daemon aborts with
+      // provider_model_mismatch), so a leftover local pick for another
+      // provider is dropped instead of being sent as this session's model.
+      if (sessionUsesThirdParty &&
+          (resolved.isClaude ||
+              resolved.modelSlug?.startsWith('claude-') == true)) {
+        return;
+      }
+    }
+    rawModelModeString = normalized;
+    modelMode = resolved;
+  }
+
   if (savedModelMode != null) {
-    rawModelModeString = normalizeRaw(savedModelMode);
-    modelMode = normalizeModel(rawModelModeString);
+    applyPick(savedModelMode);
   } else if (sessionModelMode != null) {
-    rawModelModeString = normalizeRaw(sessionModelMode);
-    modelMode = normalizeModel(rawModelModeString);
+    applyPick(sessionModelMode);
   } else if (favoriteModel != null) {
-    rawModelModeString = normalizeRaw(favoriteModel);
-    modelMode = normalizeModel(favoriteModel);
+    applyPick(favoriteModel);
   } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
-    rawModelModeString = normalizeRaw(profileModelMode);
-    modelMode = normalizeModel(rawModelModeString);
+    applyPick(profileModelMode);
   } else if (lastUsedModelMode != null) {
     // Fall back to the user's last-used model preference so new sessions
     // inherit the model the user most recently picked. `lastUsedModelMode`
@@ -257,13 +327,31 @@ ModelSelectionResolution resolveModelSelection({
     final aliasOnGateway =
         flavor != 'codex' &&
         candidate.isClaude &&
-        profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
+        (sessionUsesThirdParty ||
+            profileUsesThirdPartyAnthropicBaseUrl(selectedProfile));
     if (!candidate.isDefault &&
         !aliasOnGateway &&
         (available.contains(candidate) ||
             (flavor == 'codex' && candidate.isCodex))) {
       rawModelModeString = rawCandidate;
       modelMode = candidate;
+    }
+  }
+
+  // Last resort: the model the daemon recorded for this running session.
+  // Nothing local explains this session (no draft, no session model column,
+  // no resolvable profile), yet the process is demonstrably on a model -
+  // showing `Default` there misreports the provider. This is an audit of
+  // what is running, so it stays verbatim even when no catalog lists it.
+  if (modelMode.isDefault) {
+    final recordedModel = sessionRecordedModel(sessionMetadata);
+    if (recordedModel != null &&
+        !ChatModelMode.fromString(recordedModel).isDefault) {
+      final preserved = normalizeRaw(recordedModel);
+      if (preserved != ChatModelMode.defaultModel.modeString) {
+        rawModelModeString = preserved;
+        modelMode = ChatModelMode.fromString(preserved);
+      }
     }
   }
 

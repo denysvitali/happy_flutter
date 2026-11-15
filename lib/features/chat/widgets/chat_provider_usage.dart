@@ -7,10 +7,12 @@ import 'package:intl/intl.dart';
 import '../../../core/components/app_inline_row.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/claude_usage_limits.dart';
+import '../../../core/models/session.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_provider.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
 
@@ -25,6 +27,31 @@ String? officialUsageFlavor(String? flavor, AIBackendProfile? profile) {
     return 'claude';
   }
   return null;
+}
+
+/// [officialUsageFlavor] for a session, also reading the routing the daemon
+/// recorded on the session itself.
+///
+/// These strips report the machine's *account* limits. A session launched
+/// through a third-party Anthropic-compatible gateway (for example
+/// llm-proxy) consumes that provider's quota, not the Anthropic account's,
+/// so showing the account's 5-hour/weekly windows next to its chat
+/// misreports what the run is using. The local profile draft is not enough
+/// to decide: the daemon's recorded `clientProfileId` / launch base URL is
+/// authoritative when this device has no draft for the session.
+String? officialUsageFlavorForSession(
+  String? flavor,
+  AIBackendProfile? profile,
+  Metadata? sessionMetadata,
+) {
+  final local = officialUsageFlavor(flavor, profile);
+  if (local == null) return null;
+  final sessionFlavor = flavor ?? 'claude';
+  if (sessionFlavor == 'codex') {
+    return sessionUsesThirdPartyOpenAIBaseUrl(sessionMetadata) ? null : local;
+  }
+  if (sessionUsesThirdPartyAnthropicBaseUrl(sessionMetadata)) return null;
+  return local;
 }
 
 class ChatUsageWindow {

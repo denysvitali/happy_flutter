@@ -744,6 +744,129 @@ void main() {
       },
     );
   });
+
+  group('session-recorded provider identity', () {
+    const gatewayMetadata = Metadata(
+      host: '',
+      flavor: 'claude',
+      model: 'opendesign/deepseek-v4.1-flash-eco[1m]',
+      clientProfileId: 'custom_1787554838941',
+      providerRouting: ProviderRouting(
+        anthropicBaseUrl: 'http://llm-proxy.beago-bass.ts.net',
+      ),
+    );
+
+    test('a lost local draft reports the gateway model, not Default', () {
+      // Production case: the app has no draft/profile for this session
+      // (another device, cleared app data, recreated profile) while the
+      // daemon keeps running it on llm-proxy. Local state alone resolved to
+      // Default, so the composer claimed the account default model.
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+        sessionMetadata: gatewayMetadata,
+      );
+
+      expect(
+        result.resolvedRawModelString,
+        'opendesign/deepseek-v4.1-flash-eco[1m]',
+      );
+      expect(
+        result.resolvedModelMode.modeString,
+        'opendesign/deepseek-v4.1-flash-eco[1m]',
+      );
+      expect(result.resolvedRawModelString, isNot('default'));
+    });
+
+    test('a draft for another provider cannot override the session record', () {
+      // `default` is the wire marker for an explicit no-profile choice: a
+      // leftover local draft belongs to a different launch and must not
+      // claim the session runs the account default.
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'sonnet',
+        savedProfileId: 'anthropic',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+        sessionMetadata: gatewayMetadata.copyWith(clientProfileId: 'default'),
+      );
+
+      expect(
+        result.resolvedRawModelString,
+        'opendesign/deepseek-v4.1-flash-eco[1m]',
+      );
+      expect(result.resolvedModelMode.modeString, isNot('sonnet'));
+    });
+
+    test('the recorded profile wins when this device still has it', () {
+      final profile = _profile(
+        id: 'custom_1787554838941',
+        anthropicConfig: AnthropicConfig(
+          baseUrl: 'http://llm-proxy.beago-bass.ts.net',
+        ),
+        models: const ['opendesign/deepseek-v4.1-flash-eco'],
+      );
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+        sessionMetadata: gatewayMetadata,
+      );
+
+      expect(result.resolvedProfile, same(profile));
+      expect(result.hadGhostProfileReference, isFalse);
+      expect(
+        result.resolvedRawModelString,
+        'opendesign/deepseek-v4.1-flash-eco[1m]',
+      );
+    });
+
+    test('a session on the official endpoint still resolves Default', () {
+      const official = Metadata(
+        host: '',
+        flavor: 'claude',
+        clientProfileId: 'default',
+        providerRouting: ProviderRouting(
+          anthropicBaseUrl: 'https://api.anthropic.com',
+        ),
+      );
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+        sessionMetadata: official,
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      // Nothing was picked and nothing provider-owned was recorded, so the
+      // raw selection stays unset (the daemon keeps its own default).
+      expect(result.resolvedRawModelString, isNull);
+    });
+  });
 }
 
 AIBackendProfile _profile({
