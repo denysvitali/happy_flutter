@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/components/app_sheet.dart';
 import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
@@ -210,6 +211,36 @@ void showSessionMenu(
                 ),
                 ListTile(
                   leading: Icon(
+                    Icons.fork_right_rounded,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: const Text('Continue in new session'),
+                  subtitle: const Text(
+                    'Copy this workspace and conversation into a new '
+                    'Kubernetes session',
+                  ),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    // Read before the pop: it unmounts this sheet's `ref`.
+                    final session = ref.read(sessionByIdProvider(sessionId));
+                    final machines = ref.read(machinesNotifierProvider);
+                    final sessions = ref.read(
+                      sessionsNotifierProvider.notifier,
+                    );
+                    Navigator.pop(sheetContext);
+                    unawaited(
+                      continueInNewSession(
+                        outerContext,
+                        sessionId: sessionId,
+                        session: session,
+                        machines: machines,
+                        sessions: sessions,
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
                     Icons.archive_outlined,
                     color: cs.onSurfaceVariant,
                   ),
@@ -359,4 +390,77 @@ Future<void> showConfirmDeleteDialog(
     context,
   ).read(sessionOperationsNotifierProvider.notifier).delete(sessionId);
   Navigator.of(context).pop();
+}
+
+/// The machine a continued session is spawned on: the source's own machine
+/// when its metadata is readable, else the single online machine offering
+/// the Kubernetes backend.
+@visibleForTesting
+String? continueTargetMachine(Session? session, Map<String, Machine> machines) {
+  final own = session?.metadata?.machineId;
+  if (own != null && own.isNotEmpty) return own;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final candidates = machines.values
+      .where(
+        (m) =>
+            m.isOnlineAt(now) &&
+            (m.metadata?.spawnBackends?.contains('kubernetes') ?? false),
+      )
+      .toList();
+  return candidates.length == 1 ? candidates.single.id : null;
+}
+
+/// Starts a new Kubernetes session that continues [sessionId]: the daemon
+/// copies its workspace (checkout and agent transcripts) into the new
+/// session, whose agent resumes the conversation under a new session key.
+/// The source must be stopped; the daemon refuses otherwise.
+Future<void> continueInNewSession(
+  BuildContext context, {
+  required String sessionId,
+  required Session? session,
+  required Map<String, Machine> machines,
+  required SessionsNotifier sessions,
+}) async {
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'Continue in new session?',
+    content:
+        "A new session starts from a copy of this session's workspace and "
+        'resumes its conversation. This session must be stopped first; it '
+        'is left unchanged.',
+    confirmLabel: 'Continue',
+  );
+  if (!confirmed || !context.mounted) return;
+  final machineId = continueTargetMachine(session, machines);
+  if (machineId == null) {
+    context.showSnack(
+      'Could not tell which machine runs this session.',
+      tone: SnackTone.error,
+    );
+    return;
+  }
+  final meta = session?.metadata;
+  context.showSnack('Starting the continued session…');
+  try {
+    final newId = await sessions.createSession(
+      machineId: machineId,
+      // Empty values let the daemon use the source session's.
+      path: meta?.path ?? '',
+      agent: meta?.flavor ?? 'claude',
+      spawnBackend: 'kubernetes',
+      repoUrl: meta?.repoUrl,
+      repoRef: meta?.repoRef,
+      continueFromSessionId: sessionId,
+    );
+    sessions.loadFromSync();
+    if (!context.mounted) return;
+    context.goNamed('chat', pathParameters: {'sessionId': newId});
+  } catch (error, stack) {
+    logger.warning('Continue session $sessionId failed', error, stack);
+    if (!context.mounted) return;
+    context.showSnack(
+      'Could not continue the session: $error',
+      tone: SnackTone.error,
+    );
+  }
 }

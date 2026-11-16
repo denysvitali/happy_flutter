@@ -140,6 +140,11 @@ extension SyncSessionOperations on Sync {
     /// Default MCP servers for a Kubernetes session; null leaves the choice
     /// to the daemon (all for a new session, the recorded set on restore).
     List<String>? mcpServers,
+
+    /// Continue that stopped Kubernetes session in this new one: the daemon
+    /// seeds the new workspace from the source's and the agent resumes its
+    /// conversation. Empty [path]/[repoUrl] default to the source's.
+    String? continueFromSessionId,
   }) async {
     if (agent == 'har' && spawnBackend == 'kubernetes') {
       throw StateError(
@@ -208,7 +213,12 @@ extension SyncSessionOperations on Sync {
       }
     }
 
-    final resolvedPath = (machine != null && machine.metadata?.homeDir != null)
+    // When continuing a session an empty path means "the source's", which
+    // only the daemon knows; resolving it would turn it into the home dir.
+    final resolvedPath =
+        (path.isEmpty && (continueFromSessionId?.isNotEmpty ?? false))
+        ? ''
+        : (machine != null && machine.metadata?.homeDir != null)
         ? resolveAbsolutePath(path, homeDir: machine.metadata!.homeDir)
         : path;
 
@@ -297,6 +307,7 @@ extension SyncSessionOperations on Sync {
       repoCommit: repoCommit,
       additionalRepos: additionalRepos,
       mcpServers: mcpServers,
+      continueFromSessionId: continueFromSessionId,
       environmentVariables: envVars,
       // The new-session choice is always known: no resolved profile is the
       // explicit Default, which must not inherit the daemon's own profile.

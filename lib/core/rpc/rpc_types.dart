@@ -28,6 +28,7 @@ class SpawnSessionRequest {
     this.isRestore = false,
     this.profileId,
     this.mcpServers,
+    this.continueFromSessionId,
   });
   final String type;
   final String directory;
@@ -60,6 +61,11 @@ class SpawnSessionRequest {
   /// a restore keeps its recorded selection. Empty is an explicit "none".
   final List<String>? mcpServers;
 
+  /// Starts this new Kubernetes session from a copy of that stopped
+  /// session's workspace, so its agent continues the conversation under a new
+  /// session key. Directory, repo and agent default to the source's.
+  final String? continueFromSessionId;
+
   /// This request without [profileId], for daemons that reject the field.
   /// Preserve MCP selection, including an explicit empty list.
   SpawnSessionRequest withoutProfileId() => SpawnSessionRequest(
@@ -79,6 +85,7 @@ class SpawnSessionRequest {
     additionalRepos: additionalRepos,
     isRestore: isRestore,
     mcpServers: mcpServers,
+    continueFromSessionId: continueFromSessionId,
   );
 
   Map<String, dynamic> toJson() => {
@@ -109,6 +116,8 @@ class SpawnSessionRequest {
       'mcpServers': mcpServers,
       'mcpServersSet': true,
     },
+    if (continueFromSessionId != null && continueFromSessionId!.isNotEmpty)
+      'continueFromSessionId': continueFromSessionId,
   };
 }
 

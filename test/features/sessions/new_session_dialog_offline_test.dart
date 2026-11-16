@@ -109,6 +109,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
     String? repoCommit,
     List<String> additionalRepos = const [],
     List<String>? mcpServers,
+    String? continueFromSessionId,
   }) {
     onCreateModelMode?.call(modelMode);
     onCreateSessionArgs?.call(machineId, spawnBackend);
