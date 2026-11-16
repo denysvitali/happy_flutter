@@ -392,22 +392,52 @@ Future<void> showConfirmDeleteDialog(
   Navigator.of(context).pop();
 }
 
-/// The machine a continued session is spawned on: the source's own machine
-/// when its metadata is readable, else the single online machine offering
-/// the Kubernetes backend.
+/// The machines a continued session can be spawned on: the source's own
+/// machine when its metadata is readable, else every online machine offering
+/// the Kubernetes backend, one per daemon. A daemon that serves earlier
+/// machine IDs registers each of them with the same host, so machines that
+/// share a host are one daemon; the most recently active entry represents it.
 @visibleForTesting
-String? continueTargetMachine(Session? session, Map<String, Machine> machines) {
+List<Machine> continueTargetMachines(
+  Session? session,
+  Map<String, Machine> machines,
+) {
   final own = session?.metadata?.machineId;
-  if (own != null && own.isNotEmpty) return own;
+  if (own != null && own.isNotEmpty) {
+    final known = machines[own];
+    if (known != null) return [known];
+  }
   final now = DateTime.now().millisecondsSinceEpoch;
-  final candidates = machines.values
-      .where(
-        (m) =>
-            m.isOnlineAt(now) &&
-            (m.metadata?.spawnBackends?.contains('kubernetes') ?? false),
-      )
-      .toList();
-  return candidates.length == 1 ? candidates.single.id : null;
+  final byDaemon = <String, Machine>{};
+  for (final m in machines.values) {
+    if (!m.isOnlineAt(now) ||
+        !(m.metadata?.spawnBackends?.contains('kubernetes') ?? false)) {
+      continue;
+    }
+    final key = m.metadata?.host ?? m.id;
+    final current = byDaemon[key];
+    if (current == null || m.activeAt > current.activeAt) byDaemon[key] = m;
+  }
+  return byDaemon.values.toList();
+}
+
+Future<String?> _pickContinueMachine(
+  BuildContext context,
+  List<Machine> machines,
+) {
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) => SimpleDialog(
+      title: const Text('Which machine ran this session?'),
+      children: [
+        for (final m in machines)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, m.id),
+            child: Text(m.displayLabel),
+          ),
+      ],
+    ),
+  );
 }
 
 /// Starts a new Kubernetes session that continues [sessionId]: the daemon
@@ -431,10 +461,16 @@ Future<void> continueInNewSession(
     confirmLabel: 'Continue',
   );
   if (!confirmed || !context.mounted) return;
-  final machineId = continueTargetMachine(session, machines);
-  if (machineId == null) {
+  final targets = continueTargetMachines(session, machines);
+  final String? machineId;
+  if (targets.length == 1) {
+    machineId = targets.single.id;
+  } else if (targets.length > 1) {
+    machineId = await _pickContinueMachine(context, targets);
+    if (machineId == null || !context.mounted) return;
+  } else {
     context.showSnack(
-      'Could not tell which machine runs this session.',
+      'No online machine can run Kubernetes sessions.',
       tone: SnackTone.error,
     );
     return;

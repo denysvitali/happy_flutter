@@ -4,17 +4,28 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/chat/helpers/chat_dialogs.dart';
 
-Machine _machine(String id, {bool online = true, bool kube = true}) => Machine(
+Machine _machine(
+  String id, {
+  bool online = true,
+  bool kube = true,
+  String? host,
+  int ageMs = 0,
+}) => Machine(
   id: id,
   seq: 1,
   createdAt: 1,
   updatedAt: 1,
   active: online,
-  activeAt: DateTime.now().millisecondsSinceEpoch,
+  activeAt: DateTime.now().millisecondsSinceEpoch - ageMs,
   metadataVersion: 1,
   daemonStateVersion: 1,
-  metadata: MachineMetadata(spawnBackends: kube ? ['kubernetes'] : ['local']),
+  metadata: MachineMetadata(
+    host: host ?? id,
+    spawnBackends: kube ? ['kubernetes'] : ['local'],
+  ),
 );
+
+List<String> _ids(List<Machine> ms) => ms.map((m) => m.id).toList();
 
 Session _session({Metadata? metadata}) => Session(
   id: 's1',
@@ -31,32 +42,42 @@ Session _session({Metadata? metadata}) => Session(
 );
 
 void main() {
-  group('continueTargetMachine', () {
+  group('continueTargetMachines', () {
     test('uses the source session machine when known', () {
       expect(
-        continueTargetMachine(
-          _session(metadata: const Metadata(machineId: 'own')),
-          {'k': _machine('k')},
+        _ids(
+          continueTargetMachines(
+            _session(metadata: const Metadata(machineId: 'own')),
+            {'own': _machine('own'), 'k': _machine('k')},
+          ),
         ),
-        'own',
+        ['own'],
       );
     });
 
-    test('falls back to the single online Kubernetes machine', () {
+    test('collapses a daemon serving a previous machine ID', () {
       expect(
-        continueTargetMachine(_session(), {
-          'k': _machine('k'),
-          'l': _machine('l', kube: false),
-          'off': _machine('off', online: false),
-        }),
-        'k',
+        _ids(
+          continueTargetMachines(_session(), {
+            'current': _machine('current', host: 'pod-1'),
+            'alias': _machine('alias', host: 'pod-1', ageMs: 5000),
+            'local': _machine('local', kube: false),
+            'off': _machine('off', online: false),
+          }),
+        ),
+        ['current'],
       );
     });
 
-    test('refuses to guess between several Kubernetes machines', () {
+    test('offers every distinct Kubernetes daemon', () {
       expect(
-        continueTargetMachine(null, {'a': _machine('a'), 'b': _machine('b')}),
-        isNull,
+        _ids(
+          continueTargetMachines(null, {
+            'a': _machine('a'),
+            'b': _machine('b'),
+          }),
+        )..sort(),
+        ['a', 'b'],
       );
     });
   });
