@@ -328,7 +328,11 @@ extension SyncSessionOperations on Sync {
       result = await _spawnHappySessionRPC(
         machineId,
         req,
-        timeout: const Duration(seconds: 60),
+        // Continuing first stops the source session's Pod, which can take
+        // up to a minute before the new session is even created.
+        timeout: Duration(
+          seconds: (continueFromSessionId?.isNotEmpty ?? false) ? 150 : 60,
+        ),
       );
       logger.info(
         '[createSession] RPC END type=${result.type} '

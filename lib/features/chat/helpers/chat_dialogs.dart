@@ -443,7 +443,7 @@ Future<String?> _pickContinueMachine(
 /// Starts a new Kubernetes session that continues [sessionId]: the daemon
 /// copies its workspace (checkout and agent transcripts) into the new
 /// session, whose agent resumes the conversation under a new session key.
-/// The source must be stopped; the daemon refuses otherwise.
+/// The daemon stops the source first.
 Future<void> continueInNewSession(
   BuildContext context, {
   required String sessionId,
@@ -456,8 +456,8 @@ Future<void> continueInNewSession(
     title: 'Continue in new session?',
     content:
         "A new session starts from a copy of this session's workspace and "
-        'resumes its conversation. This session must be stopped first; it '
-        'is left unchanged.',
+        'resumes its conversation. This session is stopped first and is '
+        'otherwise left unchanged.',
     confirmLabel: 'Continue',
   );
   if (!confirmed || !context.mounted) return;
