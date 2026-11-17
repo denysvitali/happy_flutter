@@ -94,4 +94,23 @@ void main() {
     expect(req.toJson()['continueFromSessionId'], 'src');
     expect(req.withoutProfileId().toJson()['continueFromSessionId'], 'src');
   });
+
+  test('SpawnSessionRequest sends codexCyberAccessProgram only when set', () {
+    const base = SpawnSessionRequest(type: 'spawn-in-directory', directory: '');
+    expect(base.toJson().containsKey('codexCyberAccessProgram'), isFalse);
+    const req = SpawnSessionRequest(
+      type: 'spawn-in-directory',
+      directory: '',
+      profileId: 'p',
+      codexCyberAccessProgram: 'daybreak_blue',
+    );
+    expect(req.toJson()['codexCyberAccessProgram'], 'daybreak_blue');
+    expect(
+      req.withoutProfileId().toJson()['codexCyberAccessProgram'],
+      'daybreak_blue',
+    );
+    final legacy = req.withoutCodexCyberAccessProgram().toJson();
+    expect(legacy.containsKey('codexCyberAccessProgram'), isFalse);
+    expect(legacy['profileId'], 'p');
+  });
 }

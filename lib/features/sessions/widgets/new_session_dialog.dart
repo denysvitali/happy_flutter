@@ -11,6 +11,7 @@ import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/settings.dart' show AIBackendProfile;
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/codex_daybreak_selection.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/services/repo_history_storage.dart';
@@ -188,6 +189,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   List<String> _additionalRepos = const [];
   Set<String> _mcpServers = {...kDefaultMcpServerIds};
 
+  /// Daybreak for a new Codex session; null follows the settings default.
+  bool? _daybreak;
+
+  bool _daybreakOn(bool settingsDefault) => _daybreak ?? settingsDefault;
+
   /// GitHub (asked through the machine) says the branch does not exist.
   bool _repoRefMissing = false;
 
@@ -247,6 +253,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final connectionStatus = ref.watch(connectionNotifierProvider);
+    final daybreakDefault = ref.watch(
+      settingsNotifierProvider.select((s) => s.codexDaybreak),
+    );
     final allMachines = ref.watch(machinesNotifierProvider);
     final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final allMachinesSorted = allMachines.values.toList()
@@ -346,6 +355,23 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _AgentGrid(
           selectedAgent: _selectedAgent,
           onSelected: (agent) => setState(() => _selectedAgent = agent),
+        ),
+      if (_selectedAgent == 'codex')
+        SwitchListTile(
+          key: const Key('new-session-codex-daybreak'),
+          dense: true,
+          contentPadding: kNewSessionTilePadding,
+          secondary: const Icon(Icons.shield_outlined),
+          title: Text(l10n.daybreakTitle),
+          subtitle: Text(
+            _daybreakOn(daybreakDefault)
+                ? l10n.daybreakActive
+                : l10n.daybreakOff,
+          ),
+          value: _daybreakOn(daybreakDefault),
+          onChanged: _isCreating
+              ? null
+              : (value) => setState(() => _daybreak = value),
         ),
       if (_selectedAgent == 'har')
         Padding(
@@ -757,6 +783,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             ? l10n.newSessionPhaseSchedulingContainer
             : l10n.newSessionPhaseStartingAgent;
       });
+      final daybreakChoice = _selectedAgent == 'codex'
+          ? (_daybreakOn(settings.codexDaybreak)
+                ? CodexDaybreakChoice.blue
+                : CodexDaybreakChoice.off)
+          : null;
       final sessionId = await sessionsNotifier.createSession(
         machineId: machineId,
         path: sessionPath,
@@ -770,7 +801,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         mcpServers: isKubernetes && supportsDefaultMcpServers(_selectedAgent)
             ? mcpServersForSpawn(_mcpServers)
             : null,
+        codexCyberAccessProgram: daybreakChoice?.wire,
       );
+      if (daybreakChoice != null) {
+        // The chat's own selection starts from this choice, not the setting.
+        CodexDaybreakSelection().save(sessionId, daybreakChoice);
+      }
       if (!_canUseRef) return;
       if (isKubernetes) {
         ref

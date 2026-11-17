@@ -110,6 +110,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
     List<String> additionalRepos = const [],
     List<String>? mcpServers,
     String? continueFromSessionId,
+    String? codexCyberAccessProgram,
   }) {
     onCreateModelMode?.call(modelMode);
     onCreateSessionArgs?.call(machineId, spawnBackend);

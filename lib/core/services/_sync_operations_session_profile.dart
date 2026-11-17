@@ -734,6 +734,21 @@ extension SyncSpawnProfileResolution on Sync {
         );
       }
       if (unknownField &&
+          req.codexCyberAccessProgram != null &&
+          error.message.contains('codexCyberAccessProgram')) {
+        // Older daemon: start without the seed; the chat sends the same
+        // choice with its messages, which those daemons already honor.
+        logger.info(
+          '[spawn] daemon on machine=$machineId rejected '
+          'codexCyberAccessProgram; retrying spawn without it',
+        );
+        return _spawnHappySessionRPC(
+          machineId,
+          req.withoutCodexCyberAccessProgram(),
+          timeout: timeout,
+        );
+      }
+      if (unknownField &&
           req.mcpServers != null &&
           error.message.contains('mcpServers')) {
         // Never silently enable defaults the user explicitly deselected.

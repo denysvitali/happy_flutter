@@ -519,6 +519,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     List<String> additionalRepos = const [],
     List<String>? mcpServers,
     String? continueFromSessionId,
+    String? codexCyberAccessProgram,
   }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
@@ -536,6 +537,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       additionalRepos: additionalRepos,
       mcpServers: mcpServers,
       continueFromSessionId: continueFromSessionId,
+      codexCyberAccessProgram: codexCyberAccessProgram,
     );
   }
 

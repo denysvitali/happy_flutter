@@ -29,6 +29,7 @@ class SpawnSessionRequest {
     this.profileId,
     this.mcpServers,
     this.continueFromSessionId,
+    this.codexCyberAccessProgram,
   });
   final String type;
   final String directory;
@@ -66,6 +67,33 @@ class SpawnSessionRequest {
   /// session key. Directory, repo and agent default to the source's.
   final String? continueFromSessionId;
 
+  /// Daybreak program for this new Codex session (the wire value of a
+  /// `CodexDaybreakChoice`). Null leaves the daemon default.
+  final String? codexCyberAccessProgram;
+
+  /// This request without [codexCyberAccessProgram], for daemons that predate
+  /// it. The chat still sends the choice with its messages.
+  SpawnSessionRequest withoutCodexCyberAccessProgram() => SpawnSessionRequest(
+    type: type,
+    directory: directory,
+    sessionId: sessionId,
+    agent: agent,
+    approvedNewDirectoryCreation: approvedNewDirectoryCreation,
+    environmentVariables: environmentVariables,
+    startupBashScript: startupBashScript,
+    permissionMode: permissionMode,
+    model: model,
+    spawnBackend: spawnBackend,
+    repoUrl: repoUrl,
+    repoRef: repoRef,
+    repoCommit: repoCommit,
+    additionalRepos: additionalRepos,
+    isRestore: isRestore,
+    profileId: profileId,
+    mcpServers: mcpServers,
+    continueFromSessionId: continueFromSessionId,
+  );
+
   /// This request without [profileId], for daemons that reject the field.
   /// Preserve MCP selection, including an explicit empty list.
   SpawnSessionRequest withoutProfileId() => SpawnSessionRequest(
@@ -86,6 +114,7 @@ class SpawnSessionRequest {
     isRestore: isRestore,
     mcpServers: mcpServers,
     continueFromSessionId: continueFromSessionId,
+    codexCyberAccessProgram: codexCyberAccessProgram,
   );
 
   Map<String, dynamic> toJson() => {
@@ -118,6 +147,8 @@ class SpawnSessionRequest {
     },
     if (continueFromSessionId != null && continueFromSessionId!.isNotEmpty)
       'continueFromSessionId': continueFromSessionId,
+    if (codexCyberAccessProgram != null && codexCyberAccessProgram!.isNotEmpty)
+      'codexCyberAccessProgram': codexCyberAccessProgram,
   };
 }
 

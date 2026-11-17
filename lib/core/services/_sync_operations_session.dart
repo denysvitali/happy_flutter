@@ -145,6 +145,10 @@ extension SyncSessionOperations on Sync {
     /// seeds the new workspace from the source's and the agent resumes its
     /// conversation. Empty [path]/[repoUrl] default to the source's.
     String? continueFromSessionId,
+
+    /// Daybreak program for a new Codex session (wire value); null leaves
+    /// the daemon default.
+    String? codexCyberAccessProgram,
   }) async {
     if (agent == 'har' && spawnBackend == 'kubernetes') {
       throw StateError(
@@ -308,6 +312,9 @@ extension SyncSessionOperations on Sync {
       additionalRepos: additionalRepos,
       mcpServers: mcpServers,
       continueFromSessionId: continueFromSessionId,
+      codexCyberAccessProgram: agent == 'codex'
+          ? codexCyberAccessProgram
+          : null,
       environmentVariables: envVars,
       // The new-session choice is always known: no resolved profile is the
       // explicit Default, which must not inherit the daemon's own profile.
@@ -482,6 +489,7 @@ extension SyncSessionOperations on Sync {
         repoCommit: repoCommit,
         additionalRepos: additionalRepos,
         mcpServers: mcpServers,
+        codexCyberAccessProgram: codexCyberAccessProgram,
       );
     }
 
