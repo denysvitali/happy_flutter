@@ -4423,6 +4423,58 @@ class AppLocalizationsEn extends AppLocalizations {
       'Applies to this session on the next message. The session restarts to change speed.';
 
   @override
+  String get daybreakTitle => 'Daybreak';
+
+  @override
+  String get daybreakActive => 'Daybreak on';
+
+  @override
+  String get daybreakOff => 'Daybreak off';
+
+  @override
+  String get daybreakRequested => 'Daybreak requested';
+
+  @override
+  String get daybreakUnavailable => 'Daybreak unavailable';
+
+  @override
+  String get daybreakUnsupported => 'Daybreak unsupported';
+
+  @override
+  String get daybreakUnknownState => 'Daybreak status unknown';
+
+  @override
+  String get daybreakNotReported =>
+      'This Codex session has not reported its Daybreak status. Start a new session with the latest Happy CLI to see it.';
+
+  @override
+  String get daybreakLabelStatus => 'Status';
+
+  @override
+  String get daybreakLabelRequested => 'Requested program';
+
+  @override
+  String get daybreakRequestedAutomatic => 'Automatic (none)';
+
+  @override
+  String get daybreakLabelModel => 'Model';
+
+  @override
+  String get daybreakLabelAccepted => 'Accepted for this account';
+
+  @override
+  String get daybreakAcceptedUnknown => 'Not reported';
+
+  @override
+  String get daybreakAcceptedNone => 'None';
+
+  @override
+  String get daybreakLabelLastFlagged => 'Last flagged for cyber risk';
+
+  @override
+  String get daybreakLabelRerouted => 'Last rerouted to';
+
+  @override
   String get featuresCodexFastMode => 'Codex Fast Mode';
 
   @override

@@ -2,6 +2,8 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:happy_flutter/core/models/codex_cyber_access.dart'
+    show CodexCyberAccess;
 import 'package:happy_flutter/core/models/inbox_message.dart' show InboxMessage;
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
@@ -441,6 +443,12 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable)
     String? primeAgentChildStepsRevision,
     @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
+    // Daybreak (Codex cyber access program) status from happy-cli-go.
+    @JsonKey(
+      fromJson: CodexCyberAccess.maybeFromJson,
+      toJson: CodexCyberAccess.maybeToJson,
+    )
+    CodexCyberAccess? codexCyberAccess,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,
     @JsonKey(fromJson: _asApiIntNullable) int? lifecycleStateSince,

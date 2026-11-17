@@ -9,11 +9,13 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/session_utils.dart';
+import 'codex_daybreak_status.dart';
 import 'model_mode.dart';
 
 class ChatAppBarStatusChip {
@@ -385,6 +387,26 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         }
         break;
     }
+  }
+
+  // Daybreak (Codex cyber access program) stays visible for Codex sessions
+  // that report it, so a cyber-policy refusal is explainable at a glance.
+  final daybreak = metadata?.flavor == 'codex'
+      ? metadata?.codexCyberAccess
+      : null;
+  if (daybreak != null) {
+    chips.add(
+      ChatAppBarStatusChip(
+        text: codexDaybreakLabel(l10n, daybreak),
+        color: switch (codexDaybreakTone(daybreak)) {
+          AppBadgeTone.success => AppColors.success,
+          AppBadgeTone.warning => AppColors.warning,
+          AppBadgeTone.info => colorScheme.primary,
+          _ => colorScheme.onSurfaceVariant,
+        },
+        icon: codexDaybreakIcon(daybreak),
+      ),
+    );
   }
 
   if (inputs.modelMode != ChatModelMode.defaultModel) {

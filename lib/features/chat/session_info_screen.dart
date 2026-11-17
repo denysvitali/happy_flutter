@@ -22,6 +22,7 @@ import '../../core/utils/session_utils.dart';
 import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
+import 'widgets/codex_daybreak_status.dart';
 import 'widgets/session_info_widgets.dart';
 import 'widgets/session_pod_section.dart';
 import 'widgets/sub_session_links.dart';
@@ -358,6 +359,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           badges: [
             StatusChip(isActive: session.isOnline),
             if (meta != null) SessionSandboxBadge(metadata: meta),
+            if (meta != null) SessionDaybreakBadge(metadata: meta),
           ],
         ),
 
@@ -414,6 +416,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               }
             },
           ),
+        ],
+
+        if (meta?.flavor == 'codex') ...[
+          gap,
+          SessionDaybreakSection(metadata: meta!),
         ],
 
         SessionNestingSections(session: session),

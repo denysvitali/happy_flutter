@@ -7948,6 +7948,108 @@ abstract class AppLocalizations {
   /// **'Applies to this session on the next message. The session restarts to change speed.'**
   String get codexSpeedApplyHint;
 
+  /// No description provided for @daybreakTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak'**
+  String get daybreakTitle;
+
+  /// No description provided for @daybreakActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak on'**
+  String get daybreakActive;
+
+  /// No description provided for @daybreakOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak off'**
+  String get daybreakOff;
+
+  /// No description provided for @daybreakRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak requested'**
+  String get daybreakRequested;
+
+  /// No description provided for @daybreakUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak unavailable'**
+  String get daybreakUnavailable;
+
+  /// No description provided for @daybreakUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak unsupported'**
+  String get daybreakUnsupported;
+
+  /// No description provided for @daybreakUnknownState.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak status unknown'**
+  String get daybreakUnknownState;
+
+  /// No description provided for @daybreakNotReported.
+  ///
+  /// In en, this message translates to:
+  /// **'This Codex session has not reported its Daybreak status. Start a new session with the latest Happy CLI to see it.'**
+  String get daybreakNotReported;
+
+  /// No description provided for @daybreakLabelStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get daybreakLabelStatus;
+
+  /// No description provided for @daybreakLabelRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested program'**
+  String get daybreakLabelRequested;
+
+  /// No description provided for @daybreakRequestedAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic (none)'**
+  String get daybreakRequestedAutomatic;
+
+  /// No description provided for @daybreakLabelModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get daybreakLabelModel;
+
+  /// No description provided for @daybreakLabelAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted for this account'**
+  String get daybreakLabelAccepted;
+
+  /// No description provided for @daybreakAcceptedUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reported'**
+  String get daybreakAcceptedUnknown;
+
+  /// No description provided for @daybreakAcceptedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get daybreakAcceptedNone;
+
+  /// No description provided for @daybreakLabelLastFlagged.
+  ///
+  /// In en, this message translates to:
+  /// **'Last flagged for cyber risk'**
+  String get daybreakLabelLastFlagged;
+
+  /// No description provided for @daybreakLabelRerouted.
+  ///
+  /// In en, this message translates to:
+  /// **'Last rerouted to'**
+  String get daybreakLabelRerouted;
+
   /// No description provided for @featuresCodexFastMode.
   ///
   /// In en, this message translates to:
