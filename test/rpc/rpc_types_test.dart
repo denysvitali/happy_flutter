@@ -140,5 +140,30 @@ void main() {
       expect(status.success, isTrue);
       expect(status.authenticated, isTrue);
     });
+
+    test('parses Codex device-code sign-in responses', () {
+      final pending = CodexAuthResponse.fromJson({
+        'flowId': 'flow-1',
+        'status': 'waiting_for_user',
+        'verificationUrl': 'https://auth.openai.com/codex/device',
+        'userCode': 'AB-CD',
+        'expiresAt': 1234,
+      });
+      final done = CodexAuthResponse.fromJson({
+        'status': 'authenticated',
+        'authenticated': true,
+        'authMode': 'chatgpt',
+        'email': 'dev@example.com',
+        'planType': 'plus',
+      });
+
+      expect(pending.isPending, isTrue);
+      expect(pending.userCode, 'AB-CD');
+      expect(pending.expiresAt, 1234);
+      expect(done.isPending, isFalse);
+      expect(done.authenticated, isTrue);
+      expect(done.email, 'dev@example.com');
+      expect(done.planType, 'plus');
+    });
   });
 }

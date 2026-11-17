@@ -786,6 +786,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeAuthComplete => 'Complete';
 
   @override
+  String get claudeAuthSignedIn => 'Signed in · shared with every session pod';
+
+  @override
+  String get claudeAuthSignedOut => 'Not signed in';
+
+  @override
+  String get claudeAuthDone =>
+      'Claude Code signed in. New session pods use it.';
+
+  @override
+  String get claudeAuthFailed => 'Claude Code sign-in failed. Start again.';
+
+  @override
+  String get agentSignInTitle => 'Agent sign-in';
+
+  @override
+  String get codexAuthTitle => 'Codex';
+
+  @override
+  String get codexAuthHelp =>
+      'Sign in with ChatGPT for every Codex session on this machine.';
+
+  @override
+  String get codexAuthSignedOut => 'Not signed in';
+
+  @override
+  String get codexAuthApiKey => 'Using an OpenAI API key';
+
+  @override
+  String codexAuthSignedInAs(String account) {
+    return 'Signed in as $account';
+  }
+
+  @override
+  String codexAuthSignedInAsPlan(String account, String plan) {
+    return 'Signed in as $account · $plan';
+  }
+
+  @override
+  String get codexAuthAgainHelp =>
+      'Sign in again to switch accounts or replace an expired login. Sessions pick it up when they next start.';
+
+  @override
+  String get codexAuthBegin => 'Sign in';
+
+  @override
+  String get codexAuthAgain => 'Sign in again';
+
+  @override
+  String get codexAuthStepOpen => '1. Open the ChatGPT sign-in page:';
+
+  @override
+  String get codexAuthStepCode => '2. Enter this one-time code:';
+
+  @override
+  String get codexAuthWaiting =>
+      'Waiting for you to approve… this closes by itself.';
+
+  @override
+  String get codexAuthExpired => 'The code expired. Start again.';
+
+  @override
+  String get codexAuthCancelled => 'Sign-in was cancelled.';
+
+  @override
+  String get codexAuthFailed => 'Codex sign-in failed.';
+
+  @override
+  String get codexAuthDone => 'Codex signed in.';
+
+  @override
+  String codexAuthDoneAs(String account) {
+    return 'Codex signed in as $account.';
+  }
+
+  @override
   String get sessionHistoryTitle => 'Sessions';
 
   @override

@@ -147,6 +147,33 @@ extension SyncMachineRpcOperations on Sync {
     'flowId': flowId,
   }, ClaudeAuthStatusResponse.fromJson);
 
+  /// Start (or resume, unless [force]) Codex's device-code sign-in.
+  Future<CodexAuthResponse> machineBeginCodexAuth({
+    required String machineId,
+    bool force = false,
+  }) => _typedMachineRPC(machineId, 'codex-auth-begin', <String, dynamic>{
+    'force': force,
+  }, CodexAuthResponse.fromJson);
+
+  /// A flow's progress, or with an empty [flowId] the machine's account.
+  Future<CodexAuthResponse> machineCodexAuthStatus({
+    required String machineId,
+    String flowId = '',
+  }) => _typedMachineRPC(
+    machineId,
+    'codex-auth-status',
+    <String, dynamic>{'flowId': flowId},
+    CodexAuthResponse.fromJson,
+    timeout: const Duration(seconds: 15),
+  );
+
+  Future<CodexAuthResponse> machineCancelCodexAuth({
+    required String machineId,
+    required String flowId,
+  }) => _typedMachineRPC(machineId, 'codex-auth-cancel', <String, dynamic>{
+    'flowId': flowId,
+  }, CodexAuthResponse.fromJson);
+
   /// Execute a bash command on a machine.
   Future<BashResponse> machineBash({
     required String machineId,

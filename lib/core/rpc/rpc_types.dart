@@ -797,6 +797,59 @@ class ClaudeAuthStatusResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Codex device-code sign-in (codex-auth-begin / -status / -cancel)
+// ---------------------------------------------------------------------------
+
+/// A machine's Codex sign-in: a pending device-code flow, or (without a
+/// flow) the account the daemon currently uses.
+class CodexAuthResponse {
+  const CodexAuthResponse({
+    this.flowId = '',
+    this.status = '',
+    this.verificationUrl = '',
+    this.userCode = '',
+    this.expiresAt = 0,
+    this.authenticated = false,
+    this.authMode = '',
+    this.email = '',
+    this.planType = '',
+    this.error = '',
+  });
+
+  factory CodexAuthResponse.fromJson(Map<String, dynamic> json) =>
+      CodexAuthResponse(
+        flowId: json['flowId']?.toString() ?? '',
+        status: json['status']?.toString() ?? '',
+        verificationUrl: json['verificationUrl']?.toString() ?? '',
+        userCode: json['userCode']?.toString() ?? '',
+        expiresAt: _parseInt64(json['expiresAt']) ?? 0,
+        authenticated: json['authenticated'] == true,
+        authMode: json['authMode']?.toString() ?? '',
+        email: json['email']?.toString() ?? '',
+        planType: json['planType']?.toString() ?? '',
+        error: json['error']?.toString() ?? '',
+      );
+
+  final String flowId;
+
+  /// `waiting_for_user`, `authenticated`, `failed`, `cancelled`, `expired`,
+  /// `not_found` or (machine status) `signed_out`.
+  final String status;
+  final String verificationUrl;
+  final String userCode;
+  final int expiresAt;
+  final bool authenticated;
+
+  /// `chatgpt` or `apiKey` when signed in.
+  final String authMode;
+  final String email;
+  final String planType;
+  final String error;
+
+  bool get isPending => status == 'waiting_for_user';
+}
+
+// ---------------------------------------------------------------------------
 // git-identity-get / git-identity-set
 // ---------------------------------------------------------------------------
 

@@ -1365,6 +1365,138 @@ abstract class AppLocalizations {
   /// **'Complete'**
   String get claudeAuthComplete;
 
+  /// No description provided for @claudeAuthSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in · shared with every session pod'**
+  String get claudeAuthSignedIn;
+
+  /// No description provided for @claudeAuthSignedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get claudeAuthSignedOut;
+
+  /// No description provided for @claudeAuthDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code signed in. New session pods use it.'**
+  String get claudeAuthDone;
+
+  /// No description provided for @claudeAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code sign-in failed. Start again.'**
+  String get claudeAuthFailed;
+
+  /// No description provided for @agentSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent sign-in'**
+  String get agentSignInTitle;
+
+  /// No description provided for @codexAuthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex'**
+  String get codexAuthTitle;
+
+  /// No description provided for @codexAuthHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with ChatGPT for every Codex session on this machine.'**
+  String get codexAuthHelp;
+
+  /// No description provided for @codexAuthSignedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get codexAuthSignedOut;
+
+  /// No description provided for @codexAuthApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Using an OpenAI API key'**
+  String get codexAuthApiKey;
+
+  /// No description provided for @codexAuthSignedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {account}'**
+  String codexAuthSignedInAs(String account);
+
+  /// No description provided for @codexAuthSignedInAsPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {account} · {plan}'**
+  String codexAuthSignedInAsPlan(String account, String plan);
+
+  /// No description provided for @codexAuthAgainHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in again to switch accounts or replace an expired login. Sessions pick it up when they next start.'**
+  String get codexAuthAgainHelp;
+
+  /// No description provided for @codexAuthBegin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get codexAuthBegin;
+
+  /// No description provided for @codexAuthAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in again'**
+  String get codexAuthAgain;
+
+  /// No description provided for @codexAuthStepOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open the ChatGPT sign-in page:'**
+  String get codexAuthStepOpen;
+
+  /// No description provided for @codexAuthStepCode.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Enter this one-time code:'**
+  String get codexAuthStepCode;
+
+  /// No description provided for @codexAuthWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for you to approve… this closes by itself.'**
+  String get codexAuthWaiting;
+
+  /// No description provided for @codexAuthExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The code expired. Start again.'**
+  String get codexAuthExpired;
+
+  /// No description provided for @codexAuthCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in was cancelled.'**
+  String get codexAuthCancelled;
+
+  /// No description provided for @codexAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex sign-in failed.'**
+  String get codexAuthFailed;
+
+  /// No description provided for @codexAuthDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex signed in.'**
+  String get codexAuthDone;
+
+  /// No description provided for @codexAuthDoneAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex signed in as {account}.'**
+  String codexAuthDoneAs(String account);
+
   /// No description provided for @sessionHistoryTitle.
   ///
   /// In en, this message translates to:
