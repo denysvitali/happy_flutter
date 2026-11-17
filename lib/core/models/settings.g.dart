@@ -49,6 +49,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   )
   ..lastUsedModelMode = json['lastUsedModelMode'] as String?
   ..codexFastMode = json['codexFastMode'] as bool
+  ..codexDaybreak = json['codexDaybreak'] as bool
   ..customModelModes = (json['customModelModes'] as List<dynamic>)
       .map((e) => e as String)
       .toList()
@@ -115,6 +116,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'permissionModesBySession': instance.permissionModesBySession,
   'lastUsedModelMode': instance.lastUsedModelMode,
   'codexFastMode': instance.codexFastMode,
+  'codexDaybreak': instance.codexDaybreak,
   'customModelModes': instance.customModelModes,
   'profiles': instance.profiles.map((e) => e.toJson()).toList(),
   'lastUsedProfile': instance.lastUsedProfile,

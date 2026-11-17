@@ -4475,6 +4475,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String get daybreakLabelRerouted => 'Last rerouted to';
 
   @override
+  String get daybreakSelectorHint =>
+      'Applies from your next message. Codex keeps running; nothing restarts.';
+
+  @override
+  String get daybreakChoiceMachine => 'Machine default';
+
+  @override
+  String get daybreakChoiceMachineNone =>
+      'The daemon requests no program (Daybreak off)';
+
+  @override
+  String get daybreakChoiceOff => 'Off';
+
+  @override
+  String get daybreakChoiceOffDescription =>
+      'Request no program; Codex selects automatically';
+
+  @override
+  String get daybreakChoiceBlue => 'Daybreak Blue';
+
+  @override
+  String get daybreakChoiceBlueDescription => 'Use for gpt-6.1-sol';
+
+  @override
+  String get daybreakChoiceRed => 'Daybreak Red';
+
+  @override
+  String get daybreakChoiceRedDescription =>
+      'Needs Red approval; gpt-6.1-sol rejects it';
+
+  @override
+  String get daybreakChoiceStandard => 'Standard';
+
+  @override
+  String get daybreakChoiceStandardDescription =>
+      'Explicit standard cyber treatment';
+
+  @override
+  String daybreakPendingNextMessage(String choice) {
+    return '$choice · next message';
+  }
+
+  @override
+  String daybreakMachineProgram(String program) {
+    return 'Daemon setting: $program';
+  }
+
+  @override
+  String get featuresCodexDaybreak => 'Codex Daybreak';
+
+  @override
+  String get featuresCodexDaybreakDesc =>
+      'Request Daybreak Blue for Codex sessions unless a chat chooses otherwise. Change it per chat in the composer.';
+
+  @override
   String get featuresCodexFastMode => 'Codex Fast Mode';
 
   @override

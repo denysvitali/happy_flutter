@@ -26,6 +26,7 @@ import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_input_buttons.dart';
+import 'widgets/codex_daybreak_selector.dart';
 import 'widgets/codex_speed_selector.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/fullscreen_composer.dart';
@@ -773,6 +774,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
       onCodexFastModeChanged: widget.isSending
           ? null
           : widget.onCodexFastModeChanged,
+      sessionId: widget.sessionId.isEmpty ? null : widget.sessionId,
+      codexDaybreakEnabled: !widget.isSending,
       maxContext: widget.maxContext,
       onShowOptions: () => _showComposerSheet(context),
     );

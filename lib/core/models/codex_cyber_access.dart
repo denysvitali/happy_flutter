@@ -39,6 +39,8 @@ class CodexCyberAccess {
   const CodexCyberAccess({
     required this.state,
     this.requested = '',
+    this.source = 'machine',
+    this.machine = '',
     this.model,
     this.available,
     this.supported,
@@ -54,6 +56,13 @@ class CodexCyberAccess {
 
   /// The configured program; empty means automatic selection.
   final String requested;
+
+  /// `session` when the app chose the program for this session, otherwise
+  /// `machine` (the daemon's configuration).
+  final String source;
+
+  /// The daemon's configured program; empty means none.
+  final String machine;
   final String? model;
 
   /// Programs the model catalog accepts for [model]; null when unknown.
@@ -90,6 +99,8 @@ class CodexCyberAccess {
     return CodexCyberAccess(
       state: CodexCyberAccessState.parse(value['state']),
       requested: str(value['requested']) ?? '',
+      source: str(value['source']) ?? 'machine',
+      machine: str(value['machine']) ?? '',
       model: str(value['model']),
       available: strings(value['available']),
       supported: supported is bool ? supported : null,
@@ -107,6 +118,8 @@ class CodexCyberAccess {
   Map<String, dynamic> toJson() => {
     'state': state == CodexCyberAccessState.unknown ? 'unknown' : state.name,
     'requested': requested,
+    'source': source,
+    'machine': machine,
     if (model != null) 'model': model,
     if (available != null) 'available': available,
     if (supported != null) 'supported': supported,
@@ -124,6 +137,8 @@ class CodexCyberAccess {
       other is CodexCyberAccess &&
           other.state == state &&
           other.requested == requested &&
+          other.source == source &&
+          other.machine == machine &&
           other.model == model &&
           listEquals(other.available, available) &&
           other.supported == supported &&
@@ -138,6 +153,8 @@ class CodexCyberAccess {
   int get hashCode => Object.hash(
     state,
     requested,
+    source,
+    machine,
     model,
     available == null ? null : Object.hashAll(available!),
     supported,

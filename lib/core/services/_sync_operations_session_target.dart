@@ -766,6 +766,7 @@ extension SyncSendTargetResolution on Sync {
       }
       if (restoredSessionId != sessionId) {
         CodexSpeedSelection().move(sessionId, restoredSessionId);
+        CodexDaybreakSelection().move(sessionId, restoredSessionId);
         configurations.moveCurrent(sessionId, restoredSessionId);
       }
       completer.complete(restored);

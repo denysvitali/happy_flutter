@@ -83,6 +83,10 @@ class Settings {
   /// Whether new Codex sessions should use the higher-cost Fast/Priority tier.
   /// This is intentionally opt-in and defaults to false.
   bool codexFastMode = false;
+
+  /// Whether Codex sessions without their own choice request Daybreak Blue
+  /// (`meta.codexCyberAccessProgram`). Off defers to the daemon's setting.
+  bool codexDaybreak = false;
   List<String> customModelModes = [];
   // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
   List<AIBackendProfile> profiles = [];
@@ -139,6 +143,7 @@ class Settings {
           ) &&
           lastUsedModelMode == other.lastUsedModelMode &&
           codexFastMode == other.codexFastMode &&
+          codexDaybreak == other.codexDaybreak &&
           customModelModes.length == other.customModelModes.length &&
           customModelModes.asMap().entries.every(
             (e) => e.value == other.customModelModes[e.key],
@@ -174,7 +179,7 @@ class Settings {
     ttsEnabled,
     preferredLanguage,
     usagePeriod,
-    Object.hash(codexFastMode, lastUsedProfile),
+    Object.hash(codexFastMode, codexDaybreak, lastUsedProfile),
     Object.hashAll(
       permissionModesBySession.entries.map(
         (entry) => Object.hash(entry.key, entry.value),
@@ -275,6 +280,7 @@ class Settings {
       )
       ..lastUsedModelMode = lastUsedModelMode
       ..codexFastMode = codexFastMode
+      ..codexDaybreak = codexDaybreak
       ..profiles = List<AIBackendProfile>.from(profiles)
       ..lastUsedProfile = lastUsedProfile
       ..lastUsedProfilesByAgent = Map<String, String>.from(
@@ -330,6 +336,7 @@ class Settings {
     Map<String, String>? permissionModesBySession,
     Object? lastUsedModelMode = _unset,
     bool? codexFastMode,
+    bool? codexDaybreak,
     List<String>? customModelModes,
     List<AIBackendProfile>? profiles,
     Object? lastUsedProfile = _unset,
@@ -411,6 +418,7 @@ class Settings {
           ? this.lastUsedModelMode
           : lastUsedModelMode as String?
       ..codexFastMode = codexFastMode ?? this.codexFastMode
+      ..codexDaybreak = codexDaybreak ?? this.codexDaybreak
       ..customModelModes = customModelModes != null
           ? List<String>.from(customModelModes)
           : this.customModelModes

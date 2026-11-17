@@ -427,6 +427,18 @@ extension _ChatInputPolishLayout on _ChatInputState {
                             },
                     ),
                   ),
+                if (widget.sessionFlavor == 'codex' &&
+                    widget.sessionId.isNotEmpty)
+                  ListTile(
+                    key: const ValueKey('composer-sheet-daybreak'),
+                    leading: const Icon(Icons.shield_outlined),
+                    title: Text(l10n.daybreakTitle),
+                    trailing: CodexDaybreakSelector(
+                      sessionId: widget.sessionId,
+                      enabled: !widget.isSending,
+                      onChanged: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ),
                 if (widget.sessionFlavor != 'har')
                   ListTile(
                     leading: const Icon(Icons.swap_horiz),

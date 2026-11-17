@@ -8050,6 +8050,96 @@ abstract class AppLocalizations {
   /// **'Last rerouted to'**
   String get daybreakLabelRerouted;
 
+  /// No description provided for @daybreakSelectorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies from your next message. Codex keeps running; nothing restarts.'**
+  String get daybreakSelectorHint;
+
+  /// No description provided for @daybreakChoiceMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine default'**
+  String get daybreakChoiceMachine;
+
+  /// No description provided for @daybreakChoiceMachineNone.
+  ///
+  /// In en, this message translates to:
+  /// **'The daemon requests no program (Daybreak off)'**
+  String get daybreakChoiceMachineNone;
+
+  /// No description provided for @daybreakChoiceOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get daybreakChoiceOff;
+
+  /// No description provided for @daybreakChoiceOffDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Request no program; Codex selects automatically'**
+  String get daybreakChoiceOffDescription;
+
+  /// No description provided for @daybreakChoiceBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak Blue'**
+  String get daybreakChoiceBlue;
+
+  /// No description provided for @daybreakChoiceBlueDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use for gpt-6.1-sol'**
+  String get daybreakChoiceBlueDescription;
+
+  /// No description provided for @daybreakChoiceRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Daybreak Red'**
+  String get daybreakChoiceRed;
+
+  /// No description provided for @daybreakChoiceRedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs Red approval; gpt-6.1-sol rejects it'**
+  String get daybreakChoiceRedDescription;
+
+  /// No description provided for @daybreakChoiceStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get daybreakChoiceStandard;
+
+  /// No description provided for @daybreakChoiceStandardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Explicit standard cyber treatment'**
+  String get daybreakChoiceStandardDescription;
+
+  /// No description provided for @daybreakPendingNextMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{choice} · next message'**
+  String daybreakPendingNextMessage(String choice);
+
+  /// No description provided for @daybreakMachineProgram.
+  ///
+  /// In en, this message translates to:
+  /// **'Daemon setting: {program}'**
+  String daybreakMachineProgram(String program);
+
+  /// No description provided for @featuresCodexDaybreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex Daybreak'**
+  String get featuresCodexDaybreak;
+
+  /// No description provided for @featuresCodexDaybreakDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Daybreak Blue for Codex sessions unless a chat chooses otherwise. Change it per chat in the composer.'**
+  String get featuresCodexDaybreakDesc;
+
   /// No description provided for @featuresCodexFastMode.
   ///
   /// In en, this message translates to:

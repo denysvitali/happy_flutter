@@ -6,6 +6,8 @@ import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/services/codex_daybreak_selection.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -483,6 +485,54 @@ void main() {
         final localMeta = localRaw['meta'] as Map<String, dynamic>;
         expect(localMeta['codexDeliveryMode'], 'next-turn');
         expect(matching.single['sendStatus'], 'sent');
+      },
+    );
+
+    test(
+      'Codex messages carry the Daybreak choice; other agents never do',
+      () async {
+        instance.testSettingsSnapshot = Settings()..codexDaybreak = true;
+        instance.testSessions['sess-1'] = _readySession(
+          'sess-1',
+          permissionMode: 'team-custom-mode',
+        ).copyWith(metadata: const Metadata(flavor: 'codex'));
+        await instance.sendMessage(
+          'sess-1',
+          'default applies',
+          clientLocalId: 'client-local-daybreak-default',
+        );
+        await instance.lastCompleteSendFuture;
+        var meta =
+            sessionEncryption.lastRawRecord!['meta'] as Map<String, dynamic>;
+        expect(meta['codexCyberAccessProgram'], 'daybreak_blue');
+
+        CodexDaybreakSelection().save('sess-1', CodexDaybreakChoice.off);
+        await instance.sendMessage(
+          'sess-1',
+          'session choice wins',
+          clientLocalId: 'client-local-daybreak-off',
+        );
+        await instance.lastCompleteSendFuture;
+        meta = sessionEncryption.lastRawRecord!['meta'] as Map<String, dynamic>;
+        expect(meta['codexCyberAccessProgram'], 'auto');
+        final matching = instance
+            .testSessionMessages('sess-1')!
+            .where((m) => m['localId'] == 'client-local-daybreak-off');
+        expect(matching, hasLength(1));
+
+        instance.testSessions['sess-1'] = _readySession(
+          'sess-1',
+          permissionMode: 'team-custom-mode',
+        ).copyWith(metadata: const Metadata(flavor: 'claude'));
+        await instance.sendMessage(
+          'sess-1',
+          'not codex',
+          clientLocalId: 'client-local-daybreak-claude',
+        );
+        await instance.lastCompleteSendFuture;
+        meta = sessionEncryption.lastRawRecord!['meta'] as Map<String, dynamic>;
+        expect(meta.containsKey('codexCyberAccessProgram'), isFalse);
+        MMKVStorage().removeKey('codex-daybreak-selection-sess-1');
       },
     );
 

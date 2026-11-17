@@ -160,6 +160,13 @@ extension _HubSectionSpecs on _SettingsScreenState {
           value: settings.codexFastMode,
           onChanged: (value) => _set('codexFastMode', value),
         ),
+        ToggleRowSpec(
+          icon: Icons.shield_outlined,
+          title: l10n.featuresCodexDaybreak,
+          subtitle: l10n.featuresCodexDaybreakDesc,
+          value: settings.codexDaybreak,
+          onChanged: (value) => _set('codexDaybreak', value),
+        ),
         NavRouteRowSpec(
           icon: Icons.extension_outlined,
           title: l10n.settingsMcpServers,

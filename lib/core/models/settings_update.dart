@@ -114,6 +114,7 @@ final class SettingsUpdate {
         lastUsedModelMode: value as String?,
       ),
       'codexFastMode' => settings.copyWith(codexFastMode: value as bool),
+      'codexDaybreak' => settings.copyWith(codexDaybreak: value as bool),
       'customModelModes' => settings.copyWith(
         customModelModes: (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
@@ -209,6 +210,7 @@ final class SettingsUpdate {
       ..permissionModesBySession = updated.permissionModesBySession
       ..lastUsedModelMode = updated.lastUsedModelMode
       ..codexFastMode = updated.codexFastMode
+      ..codexDaybreak = updated.codexDaybreak
       ..customModelModes = updated.customModelModes
       ..profiles = updated.profiles
       ..lastUsedProfile = updated.lastUsedProfile

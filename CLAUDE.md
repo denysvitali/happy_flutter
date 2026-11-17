@@ -54,6 +54,22 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   purpose (they need a server id or validation result). The permission
   `permissionActionDelegate` test seam keeps the awaited path.
 
+- **Codex Daybreak rides on messages, not spawns** — the composer's Daybreak
+  chip saves a per-session `CodexDaybreakSelection` (`machine`, `auto`,
+  `daybreak_blue`, `daybreak_red`, `standard`) and every Codex send carries it
+  as `meta.codexCyberAccessProgram` (the `codexDaybreak` setting sends Blue
+  until the session reports its own choice). happy-cli-go applies it from the
+  next turn without a restart and reports `metadata.codexCyberAccess`; the chip
+  shows "· next message" until that report matches.
+
+- **Codex Daybreak rides on messages, not spawns** — the composer's Daybreak
+  chip saves a per-session `CodexDaybreakSelection` (`machine`, `auto`,
+  `daybreak_blue`, `daybreak_red`, `standard`) and every Codex send carries it
+  as `meta.codexCyberAccessProgram` (the `codexDaybreak` setting sends Blue
+  until the session reports its own choice). happy-cli-go applies it from the
+  next turn without a restart and reports `metadata.codexCyberAccess`; the chip
+  shows "· next message" until that report matches.
+
 - **Kubernetes default MCPs are per-spawn choices** — the new-session dialog
   offers GitHub Actions and Loki for Claude/Codex only. All checked omits the
   selection (daemon defaults); a subset or none sends `mcpServers` plus

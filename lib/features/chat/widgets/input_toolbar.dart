@@ -7,6 +7,7 @@ import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
+import 'codex_daybreak_selector.dart';
 import 'codex_speed_selector.dart';
 import 'composer_selector_chip.dart';
 import 'model_mode.dart';
@@ -283,6 +284,8 @@ class InputToolbar extends StatelessWidget {
     this.resolvedModelLabel,
     this.codexFastMode,
     this.onCodexFastModeChanged,
+    this.sessionId,
+    this.codexDaybreakEnabled = true,
     this.onShowOptions,
   });
 
@@ -308,6 +311,10 @@ class InputToolbar extends StatelessWidget {
   final String? resolvedModelLabel;
   final bool? codexFastMode;
   final ValueChanged<bool>? onCodexFastModeChanged;
+
+  /// Session the Codex Daybreak selector configures; null hides it.
+  final String? sessionId;
+  final bool codexDaybreakEnabled;
 
   /// Opens the composer's full options sheet. When set, the options
   /// button shows on every layout and replaces the built-in sheet.
@@ -399,6 +406,13 @@ class InputToolbar extends StatelessWidget {
               fastMode: codexFastMode,
               onChanged: onCodexFastModeChanged,
             ),
+            if (sessionId != null) ...[
+              const SizedBox(width: _chipGap),
+              CodexDaybreakSelector(
+                sessionId: sessionId!,
+                enabled: codexDaybreakEnabled,
+              ),
+            ],
           ],
           if (!compact) ...[
             const SizedBox(width: _chipGap),

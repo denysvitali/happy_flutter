@@ -41,6 +41,7 @@ typedef _HubSettings = ({
   String sessionsViewStyle,
   bool hideInactiveSessions,
   bool codexFastMode,
+  bool codexDaybreak,
 });
 
 /// Machine summary feeding the Machines & server section.
@@ -116,6 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           sessionsViewStyle: s.sessionsViewStyle,
           hideInactiveSessions: s.hideInactiveSessions,
           codexFastMode: s.codexFastMode,
+          codexDaybreak: s.codexDaybreak,
         ),
       ),
     );

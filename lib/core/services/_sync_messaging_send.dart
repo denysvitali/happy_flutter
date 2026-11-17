@@ -637,6 +637,15 @@ extension SyncMessagingSend on Sync {
             'appendSystemPrompt': Sync._appendSystemPrompt,
             'displayText': ?displayText,
             'codexDeliveryMode': ?codexDeliveryMode,
+            // Daybreak applies per turn inside happy-cli-go, so it rides on
+            // every Codex message instead of forcing a respawn.
+            'codexCyberAccessProgram': ?(session.metadata?.flavor == 'codex'
+                ? CodexDaybreakSelection().wireValueFor(
+                    targetSessionId,
+                    daybreakByDefault: settingsSnapshot.codexDaybreak,
+                    reportedSource: session.metadata?.codexCyberAccess?.source,
+                  )
+                : null),
           },
         };
         return (
