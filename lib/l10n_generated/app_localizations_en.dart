@@ -786,14 +786,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeAuthComplete => 'Complete';
 
   @override
+  String get claudeAuthRowTitle => 'Claude Code';
+
+  @override
+  String get claudeAuthLocalHelp =>
+      'Sign in with your Claude subscription for every Claude session on this machine.';
+
+  @override
+  String get claudeAuthSignedInLocal =>
+      'Signed in · used by every session on this machine';
+
+  @override
+  String get claudeAuthAuthenticatedLocal =>
+      'Claude Code is signed in. Sessions on this machine use it.';
+
+  @override
   String get claudeAuthSignedIn => 'Signed in · shared with every session pod';
 
   @override
   String get claudeAuthSignedOut => 'Not signed in';
 
   @override
-  String get claudeAuthDone =>
-      'Claude Code signed in. New session pods use it.';
+  String get claudeAuthDone => 'Claude Code signed in.';
 
   @override
   String get claudeAuthFailed => 'Claude Code sign-in failed. Start again.';

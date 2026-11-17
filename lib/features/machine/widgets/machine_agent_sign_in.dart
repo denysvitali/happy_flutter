@@ -14,20 +14,21 @@ import '../../../core/widgets/app_linear_progress_indicator.dart';
 
 /// Signs a machine's coding agents in from the app.
 ///
-/// Codex runs its device-code flow on the daemon (the resulting login is
-/// what every Codex session on the machine uses). Claude Code's shared
-/// credentials only exist for Kubernetes machines ([showClaude]).
+/// Both run their own CLI's sign-in on the daemon, and the result is the
+/// login every session on the machine uses: Codex through a device code,
+/// Claude Code through a pasted authorization code. On Kubernetes machines
+/// ([isKubernetes]) the daemon shares it with every session Pod.
 class MachineAgentSignIn extends StatefulWidget {
   const MachineAgentSignIn({
     required this.machineId,
     required this.isOnline,
-    required this.showClaude,
+    required this.isKubernetes,
     super.key,
   });
 
   final String machineId;
   final bool isOnline;
-  final bool showClaude;
+  final bool isKubernetes;
 
   @override
   State<MachineAgentSignIn> createState() => _MachineAgentSignInState();
@@ -35,7 +36,7 @@ class MachineAgentSignIn extends StatefulWidget {
 
 class _MachineAgentSignInState extends State<MachineAgentSignIn> {
   CodexAuthResponse? _codex;
-  bool? _claudeAuthenticated;
+  ClaudeAuthStatusResponse? _claude;
 
   @override
   void initState() {
@@ -64,15 +65,14 @@ class _MachineAgentSignInState extends State<MachineAgentSignIn> {
           })
           // Older daemons lack codex-auth-status; the row stays generic.
           .catchError((Object _) {}),
-      if (widget.showClaude)
-        sync
-            .machineClaudeAuthStatus(machineId: machineId)
-            .then((claude) {
-              if (mounted && machineId == widget.machineId) {
-                setState(() => _claudeAuthenticated = claude.authenticated);
-              }
-            })
-            .catchError((Object _) {}),
+      sync
+          .machineClaudeAuthStatus(machineId: machineId)
+          .then((claude) {
+            if (mounted && machineId == widget.machineId) {
+              setState(() => _claude = claude);
+            }
+          })
+          .catchError((Object _) {}),
     ]);
   }
 
@@ -85,6 +85,24 @@ class _MachineAgentSignInState extends State<MachineAgentSignIn> {
     return codex.planType.isEmpty
         ? l10n.codexAuthSignedInAs(who)
         : l10n.codexAuthSignedInAsPlan(who, _planLabel(codex.planType));
+  }
+
+  String _claudeSubtitle(AppLocalizations l10n) {
+    final claude = _claude;
+    if (claude == null) {
+      return widget.isKubernetes
+          ? l10n.claudeAuthSharedCredentialsHelp
+          : l10n.claudeAuthLocalHelp;
+    }
+    if (claude.authenticated) {
+      return widget.isKubernetes
+          ? l10n.claudeAuthSignedIn
+          : l10n.claudeAuthSignedInLocal;
+    }
+    if (claude.status == 'unsupported' && claude.error.isNotEmpty) {
+      return claude.error;
+    }
+    return l10n.claudeAuthSignedOut;
   }
 
   Future<void> _openCodex() async {
@@ -109,11 +127,13 @@ class _MachineAgentSignInState extends State<MachineAgentSignIn> {
     final signedIn = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ClaudeAuthDialog(machineId: widget.machineId),
+      builder: (_) => _ClaudeAuthDialog(
+        machineId: widget.machineId,
+        isKubernetes: widget.isKubernetes,
+      ),
     );
     if (!mounted) return;
     if (signedIn == true) {
-      setState(() => _claudeAuthenticated = true);
       context.showSnack(context.l10n.claudeAuthDone);
     }
     unawaited(_refresh());
@@ -131,17 +151,15 @@ class _MachineAgentSignInState extends State<MachineAgentSignIn> {
           subtitle: _codexSubtitle(l10n),
           onTap: widget.isOnline ? _openCodex : null,
         ),
-        if (widget.showClaude)
-          SettingsNavRow(
-            icon: Icons.key_outlined,
-            title: l10n.claudeAuthSharedCredentials,
-            subtitle: switch (_claudeAuthenticated) {
-              true => l10n.claudeAuthSignedIn,
-              false => l10n.claudeAuthSignedOut,
-              null => l10n.claudeAuthSharedCredentialsHelp,
-            },
-            onTap: widget.isOnline ? _openClaude : null,
-          ),
+        SettingsNavRow(
+          icon: Icons.key_outlined,
+          title: l10n.claudeAuthRowTitle,
+          subtitle: _claudeSubtitle(l10n),
+          // macOS keeps Claude logins in the Keychain: sign in on the Mac.
+          onTap: widget.isOnline && _claude?.status != 'unsupported'
+              ? _openClaude
+              : null,
+        ),
       ],
     );
   }
@@ -403,8 +421,12 @@ class _CodexAuthDialogState extends State<_CodexAuthDialog> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ClaudeAuthDialog extends StatefulWidget {
-  const _ClaudeAuthDialog({required this.machineId});
+  const _ClaudeAuthDialog({
+    required this.machineId,
+    required this.isKubernetes,
+  });
   final String machineId;
+  final bool isKubernetes;
 
   @override
   State<_ClaudeAuthDialog> createState() => _ClaudeAuthDialogState();
@@ -570,7 +592,9 @@ class _ClaudeAuthDialogState extends State<_ClaudeAuthDialog> {
             children: [
               Text(
                 authenticated && url == null
-                    ? l10n.claudeAuthAuthenticated
+                    ? (widget.isKubernetes
+                          ? l10n.claudeAuthAuthenticated
+                          : l10n.claudeAuthAuthenticatedLocal)
                     : l10n.claudeAuthInstructions,
               ),
               if (url != null) ...[

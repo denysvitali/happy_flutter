@@ -296,7 +296,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               key: ValueKey('agent-sign-in-${widget.machineId}'),
               machineId: widget.machineId,
               isOnline: isOnline,
-              showClaude:
+              isKubernetes:
                   metadata?.spawnBackends?.contains('kubernetes') == true,
             ),
 

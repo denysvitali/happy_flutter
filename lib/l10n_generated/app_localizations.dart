@@ -1365,6 +1365,30 @@ abstract class AppLocalizations {
   /// **'Complete'**
   String get claudeAuthComplete;
 
+  /// No description provided for @claudeAuthRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code'**
+  String get claudeAuthRowTitle;
+
+  /// No description provided for @claudeAuthLocalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your Claude subscription for every Claude session on this machine.'**
+  String get claudeAuthLocalHelp;
+
+  /// No description provided for @claudeAuthSignedInLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in · used by every session on this machine'**
+  String get claudeAuthSignedInLocal;
+
+  /// No description provided for @claudeAuthAuthenticatedLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code is signed in. Sessions on this machine use it.'**
+  String get claudeAuthAuthenticatedLocal;
+
   /// No description provided for @claudeAuthSignedIn.
   ///
   /// In en, this message translates to:
@@ -1380,7 +1404,7 @@ abstract class AppLocalizations {
   /// No description provided for @claudeAuthDone.
   ///
   /// In en, this message translates to:
-  /// **'Claude Code signed in. New session pods use it.'**
+  /// **'Claude Code signed in.'**
   String get claudeAuthDone;
 
   /// No description provided for @claudeAuthFailed.
