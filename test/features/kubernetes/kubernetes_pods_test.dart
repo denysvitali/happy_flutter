@@ -289,6 +289,21 @@ void main() {
       expect(remote.state, SessionPodDisplayState.ready);
     });
 
+    test('lists a session once when several machines report it', () {
+      // m0 is a previous machine ID served by the same daemon as m1.
+      final entries = mergeKubernetesPods(
+        sessions: {
+          'a': _session('a'),
+          'b': _session('b', machineId: 'm0'),
+        },
+        podsByMachine: {
+          'm0': [_pod('a'), _pod('b')],
+          'm1': [_pod('a'), _pod('b')],
+        },
+      );
+      expect(entries.map((e) => e.key).toList()..sort(), ['m0/b', 'm1/a']);
+    });
+
     test('sorts newest pods first and failed pods carry their reason', () {
       final entries = mergeKubernetesPods(
         sessions: {

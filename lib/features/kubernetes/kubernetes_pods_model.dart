@@ -180,19 +180,35 @@ List<KubernetesPodEntry> mergeKubernetesPods({
   required Map<String, List<SessionPod>> podsByMachine,
 }) {
   final entries = <KubernetesPodEntry>[];
-  final seenSessionIds = <String>{};
+  // One daemon can answer for several machine rows (a previous machine ID it
+  // still serves, or HA replicas), and each lists the account's sessions, so
+  // the same session arrives more than once. Keep one entry per session,
+  // preferring the report from the machine that owns it.
+  final bySession = <String, KubernetesPodEntry>{};
   for (final MapEntry(key: machineId, value: pods) in podsByMachine.entries) {
     for (final pod in pods) {
       if (pod.archived) continue;
       final session = pod.sessionId.isEmpty ? null : sessions[pod.sessionId];
-      if (pod.sessionId.isNotEmpty) seenSessionIds.add(pod.sessionId);
-      entries.add(
-        KubernetesPodEntry(machineId: machineId, session: session, pod: pod),
+      final entry = KubernetesPodEntry(
+        machineId: machineId,
+        session: session,
+        pod: pod,
       );
+      if (pod.sessionId.isEmpty) {
+        entries.add(entry);
+        continue;
+      }
+      final previous = bySession[pod.sessionId];
+      if (previous == null ||
+          (previous.machineId != session?.metadata?.machineId &&
+              machineId == session?.metadata?.machineId)) {
+        bySession[pod.sessionId] = entry;
+      }
     }
   }
+  entries.addAll(bySession.values);
   for (final session in sessions.values) {
-    if (seenSessionIds.contains(session.id)) continue;
+    if (bySession.containsKey(session.id)) continue;
     if (!isLiveKubernetesSession(session)) continue;
     final machineId = session.metadata?.machineId;
     if (podsByMachine.containsKey(machineId)) continue;
