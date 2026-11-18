@@ -609,6 +609,49 @@ void main() {
       );
     });
 
+    test('fresh machine heartbeats are coalesced per publish interval', () {
+      final instance = Sync()..testResetDataChangeCounters();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      Machine machine(String id) => Machine(
+        id: id,
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now - 20000,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      instance.testMachines['m1'] = machine('m1');
+      instance.testMachines['m2'] = machine('m2');
+      void beat(String id, int offsetMs) => instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': id,
+        'active': true,
+        'activeAt': now - offsetMs,
+      });
+      final before = instance.domainChangeCounter(SyncDomain.machines);
+
+      // The first fresh heartbeat publishes one snapshot of every machine.
+      beat('m1', 3000);
+      expect(instance.domainChangeCounter(SyncDomain.machines), before + 1);
+
+      // Later heartbeats inside the interval update memory silently.
+      beat('m2', 2000);
+      beat('m1', 1000);
+      expect(instance.domainChangeCounter(SyncDomain.machines), before + 1);
+      expect(instance.testMachines['m1']!.activeAt, now - 1000);
+      expect(instance.testMachines['m2']!.activeAt, now - 2000);
+
+      // An `active` flip is never coalesced.
+      instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': 'm2',
+        'active': false,
+      });
+      expect(instance.domainChangeCounter(SyncDomain.machines), before + 2);
+    });
+
     test('machine-activity with active=false does not synthesise activeAt', () {
       final instance = Sync();
       final originalActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;

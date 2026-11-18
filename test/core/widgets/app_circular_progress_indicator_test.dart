@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/widgets/indeterminate_progress_driver.dart';
 
 void main() {
   testWidgets('owns animation without resolving a theme controller', (
@@ -181,6 +182,48 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long-running spinner drops to stepped low-rate frames', (
+    tester,
+  ) async {
+    Widget tree({required bool enabled}) => MaterialApp(
+      home: TickerMode(
+        enabled: enabled,
+        child: const Center(child: AppCircularProgressIndicator()),
+      ),
+    );
+    await tester.pumpWidget(tree(enabled: true));
+    final controller = tester
+        .widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        )
+        .controller!;
+    expect(controller.isAnimating, isTrue);
+
+    await tester.pump(IndeterminateProgressDriver.smoothPhase);
+    await tester.pump();
+    // The Ticker is released: no frame is requested between steps.
+    expect(controller.isAnimating, isFalse);
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+
+    var ticks = 0;
+    controller.addListener(() => ticks++);
+    await tester.pump(const Duration(seconds: 1));
+    // ~10 steps per second instead of one per vsync.
+    expect(ticks, inInclusiveRange(9, 11));
+
+    await tester.pumpWidget(tree(enabled: false));
+    final mutedTicks = ticks;
+    await tester.pump(const Duration(seconds: 1));
+    expect(ticks, mutedTicks);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+
+    await tester.pumpWidget(tree(enabled: true));
+    expect(controller.isAnimating, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
     expect(tester.takeException(), isNull);
   });
 }

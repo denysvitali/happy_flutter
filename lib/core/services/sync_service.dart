@@ -1039,6 +1039,21 @@ what you have, you must use the options mode.
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
+
+  /// When a heartbeat-only machine change (fresh `activeAt`, same `active`)
+  /// last reached the machines domain. See [machineHeartbeatPublishInterval].
+  int _machineHeartbeatPublishedAtMs = 0;
+
+  /// Heartbeat-only machine changes are published at most this often.
+  ///
+  /// Every daemon heartbeats every 20 s, so with a handful of machines a
+  /// machines-domain notification fired every few seconds: it rebuilt the
+  /// open chat (which watches its machine) and every machine projection, and
+  /// it kept every frame-metrics window classified as Sync-active, so idle
+  /// rendering could never be detected. One snapshot per minute keeps each
+  /// published `activeAt` well inside [machineOnlineThresholdMs]; `active`
+  /// flips and a machine returning from stale still publish at once.
+  static const int machineHeartbeatPublishInterval = 60 * 1000;
   final Map<String, GitStatus> _sessionGitStatus = <String, GitStatus>{};
 
   // Change notification streams

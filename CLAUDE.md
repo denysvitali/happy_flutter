@@ -102,6 +102,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 - **Idle visual work is bounded** — covered/unfocused chats defer projection,
   not delivery. Tool clocks obey visibility; loading motion settles and honors
   reduced motion. CPU telemetry measures the local process, not machine vitals.
+  Indeterminate `App*ProgressIndicator`s run smoothly for 3 s, then step at
+  ~10 fps; never add a raw full-rate repeating animation. `ScreenAwakeService`
+  holds the screen only within 5 min of the last touch/key. Heartbeat-only
+  machine `activeAt` refreshes notify the machines domain at most once a minute.
 
 - **Har is process-scoped** — flavor `har` uses ACP text/tool events and
   cancellation. New sessions use Har's configured default without a model

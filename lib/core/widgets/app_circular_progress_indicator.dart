@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'indeterminate_progress_driver.dart';
+
 /// A circular indicator whose indeterminate animation owns its controller.
 ///
 /// Flutter 3.41 resolves an implicit controller by walking Theme ancestors on
@@ -37,6 +39,8 @@ class _AppCircularProgressIndicatorState
     extends State<AppCircularProgressIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  late final IndeterminateProgressDriver _driver;
+  bool _tickerEnabled = true;
 
   @override
   void initState() {
@@ -45,6 +49,13 @@ class _AppCircularProgressIndicatorState
       vsync: this,
       duration: CircularProgressIndicator.defaultAnimationDuration,
     );
+    _driver = IndeterminateProgressDriver(_controller);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
     _updateAnimation();
   }
 
@@ -55,16 +66,16 @@ class _AppCircularProgressIndicatorState
   }
 
   void _updateAnimation() {
-    if (widget.value == null) {
-      if (!_controller.isAnimating) _controller.repeat();
+    if (widget.value == null && _tickerEnabled) {
+      _driver.start();
     } else {
-      _controller.stop();
+      _driver.stop();
     }
   }
 
   @override
   void deactivate() {
-    _controller.stop();
+    _driver.stop();
     super.deactivate();
   }
 
@@ -76,6 +87,7 @@ class _AppCircularProgressIndicatorState
 
   @override
   void dispose() {
+    _driver.stop();
     _controller.dispose();
     super.dispose();
   }

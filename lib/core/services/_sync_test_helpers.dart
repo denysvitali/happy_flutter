@@ -935,6 +935,7 @@ extension SyncTestHelpers on Sync {
     for (final domain in SyncDomain.values) {
       _domainChangeCounters[domain] = 0;
     }
+    _machineHeartbeatPublishedAtMs = 0;
   }
 
   /// Test helper: clear the inline-message dedup state (recent keys,

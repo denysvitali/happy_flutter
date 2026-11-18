@@ -251,11 +251,20 @@ extension SyncDataMachines on Sync {
           );
         }
         // Heartbeats normally keep `active` true, so checking only the
-        // boolean misses the refreshed activeAt. Without a machines-domain
-        // notification, Riverpod keeps the old timestamp and eventually
-        // renders the still-running machine as offline.
+        // boolean misses the refreshed activeAt: without a machines-domain
+        // notification Riverpod keeps the old timestamp and eventually
+        // renders the still-running machine as offline. The in-memory map is
+        // always current (spawn guards read it directly); only the
+        // Riverpod-facing notification is coalesced, once per
+        // [Sync.machineHeartbeatPublishInterval] across all machines.
+        final heartbeatOnly =
+            updatedMachine.active == machine.active && machine.isOnlineAt(now);
         if (updatedMachine.active != machine.active ||
-            updatedMachine.activeAt != machine.activeAt) {
+            (updatedMachine.activeAt != machine.activeAt &&
+                (!heartbeatOnly ||
+                    now - _machineHeartbeatPublishedAtMs >=
+                        Sync.machineHeartbeatPublishInterval))) {
+          _machineHeartbeatPublishedAtMs = now;
           _notifyDataChanged({SyncDomain.machines});
         }
       }

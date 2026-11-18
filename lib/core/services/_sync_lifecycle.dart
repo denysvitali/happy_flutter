@@ -1316,6 +1316,7 @@ extension SyncLifecycle on Sync {
       timer.cancel();
     }
     _presenceTimers.clear();
+    _machineHeartbeatPublishedAtMs = 0;
 
     _sessionDataKeys.clear();
     _sessionEncryptedDataKeys.clear();
