@@ -92,18 +92,26 @@ class _AppCircularProgressIndicatorState
     super.dispose();
   }
 
+  // Flutter 3.41's indicator also repeats a private controller whenever it
+  // is indeterminate, even when given ours. That ticker paints nothing but
+  // requests a frame every vsync, which alone kept the app rendering at the
+  // display rate. Muting tickers below this point silences it; ours is owned
+  // by this State (vsync above the TickerMode) and still drives the paint.
   @override
-  Widget build(BuildContext context) => CircularProgressIndicator(
-    value: widget.value,
-    // Flutter disallows providing both a determinate value and a controller.
-    // Determinate indicators already skip the animated ancestor lookup.
-    controller: widget.value == null ? _controller : null,
-    backgroundColor: widget.backgroundColor,
-    color: widget.color,
-    valueColor: widget.valueColor,
-    strokeWidth: widget.strokeWidth,
-    strokeCap: widget.strokeCap,
-    semanticsLabel: widget.semanticsLabel,
-    semanticsValue: widget.semanticsValue,
+  Widget build(BuildContext context) => TickerMode(
+    enabled: false,
+    child: CircularProgressIndicator(
+      value: widget.value,
+      // Flutter disallows providing both a determinate value and a controller.
+      // Determinate indicators already skip the animated ancestor lookup.
+      controller: widget.value == null ? _controller : null,
+      backgroundColor: widget.backgroundColor,
+      color: widget.color,
+      valueColor: widget.valueColor,
+      strokeWidth: widget.strokeWidth,
+      strokeCap: widget.strokeCap,
+      semanticsLabel: widget.semanticsLabel,
+      semanticsValue: widget.semanticsValue,
+    ),
   );
 }

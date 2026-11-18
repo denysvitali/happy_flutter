@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/widgets/app_linear_progress_indicator.dart';
+import 'package:happy_flutter/core/widgets/indeterminate_progress_driver.dart';
 
 void main() {
   testWidgets('owns animation without resolving a theme controller', (
@@ -217,6 +218,31 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long-running bar requests no per-vsync frames', (tester) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: SizedBox(width: 100, child: AppLinearProgressIndicator()),
+        ),
+      ),
+    );
+    final controller = tester
+        .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+        .controller!;
+    await tester.pump(IndeterminateProgressDriver.smoothPhase);
+    await tester.pump();
+    // Neither our controller nor Flutter's private one keeps ticking.
+    expect(controller.isAnimating, isFalse);
+    expect(tester.binding.transientCallbackCount, 0);
+    var ticks = 0;
+    controller.addListener(() => ticks++);
+    await tester.pump(const Duration(seconds: 1));
+    expect(ticks, inInclusiveRange(9, 11));
+    await tester.pumpWidget(const SizedBox.shrink());
     expect(tester.takeException(), isNull);
   });
 }

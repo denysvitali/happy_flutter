@@ -96,17 +96,23 @@ class _AppLinearProgressIndicatorState extends State<AppLinearProgressIndicator>
     // A local theme controller avoids walking Theme ancestors there without
     // violating the assertion against supplying both value and controller.
     data: ProgressIndicatorTheme.of(context).copyWith(controller: _controller),
-    child: LinearProgressIndicator(
-      value: widget.value,
-      // A determinate value and widget controller cannot both be provided.
-      controller: widget.value == null ? _controller : null,
-      backgroundColor: widget.backgroundColor,
-      color: widget.color,
-      valueColor: widget.valueColor,
-      minHeight: widget.minHeight,
-      borderRadius: widget.borderRadius,
-      semanticsLabel: widget.semanticsLabel,
-      semanticsValue: widget.semanticsValue,
+    // Flutter also repeats a private controller while indeterminate, even
+    // when given ours; muting tickers here stops its per-vsync frame
+    // requests. Ours (vsync above this TickerMode) still drives the paint.
+    child: TickerMode(
+      enabled: false,
+      child: LinearProgressIndicator(
+        value: widget.value,
+        // A determinate value and widget controller cannot both be provided.
+        controller: widget.value == null ? _controller : null,
+        backgroundColor: widget.backgroundColor,
+        color: widget.color,
+        valueColor: widget.valueColor,
+        minHeight: widget.minHeight,
+        borderRadius: widget.borderRadius,
+        semanticsLabel: widget.semanticsLabel,
+        semanticsValue: widget.semanticsValue,
+      ),
     ),
   );
 }
