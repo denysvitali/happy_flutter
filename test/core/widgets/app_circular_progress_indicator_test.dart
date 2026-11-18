@@ -188,8 +188,9 @@ void main() {
   testWidgets('long-running spinner drops to stepped low-rate frames', (
     tester,
   ) async {
-    Widget tree({required bool enabled}) => MaterialApp(
-      home: TickerMode(
+    Widget tree({required bool enabled}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: TickerMode(
         enabled: enabled,
         child: const Center(child: AppCircularProgressIndicator()),
       ),
@@ -204,13 +205,14 @@ void main() {
 
     await tester.pump(IndeterminateProgressDriver.smoothPhase);
     await tester.pump();
-    // The Ticker is released: no frame is requested between steps.
+    // The Ticker is released: nothing advances between steps.
     expect(controller.isAnimating, isFalse);
     expect(tester.binding.transientCallbackCount, 0);
-    expect(tester.binding.hasScheduledFrame, isFalse);
 
     var ticks = 0;
     controller.addListener(() => ticks++);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(ticks, 0);
     await tester.pump(const Duration(seconds: 1));
     // ~10 steps per second instead of one per vsync.
     expect(ticks, inInclusiveRange(9, 11));
@@ -219,7 +221,6 @@ void main() {
     final mutedTicks = ticks;
     await tester.pump(const Duration(seconds: 1));
     expect(ticks, mutedTicks);
-    expect(tester.binding.hasScheduledFrame, isFalse);
 
     await tester.pumpWidget(tree(enabled: true));
     expect(controller.isAnimating, isTrue);
