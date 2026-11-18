@@ -253,11 +253,25 @@ class ImageAttachmentService {
     }
     if (file == null) return const ImageAttachmentResult.cancelled();
 
-    // Everything past the picker is one guarded unit: a read failure
-    // (file vanished), a codec crash, or a base64 blowup becomes a typed
-    // failure result, never an uncaught async error from the tap.
+    final Uint8List bytes;
     try {
-      final bytes = await file.readAsBytes();
+      bytes = await file.readAsBytes();
+    } catch (e) {
+      logger.warning('[ImageAttachment] failed to read ${file.path}: $e');
+      return const ImageAttachmentResult.failure(ImageAttachmentFailure.read);
+    }
+    return fromBytesResult(bytes, origin: file.path);
+  }
+
+  /// Normalizes raw image bytes from outside the picker (clipboard paste,
+  /// keyboard content insertion) into an attachment.
+  Future<ImageAttachmentResult> fromBytesResult(
+    Uint8List bytes, {
+    String origin = 'clipboard',
+  }) async {
+    // Everything here is one guarded unit: a codec crash or a base64 blowup
+    // becomes a typed failure result, never an uncaught async error.
+    try {
       final normalized = await compute(_normalizeImageWorker, (
         bytes,
         maxImageDimension,
@@ -266,7 +280,7 @@ class ImageAttachmentService {
       ));
       if (normalized == null) {
         logger.warning(
-          '[ImageAttachment] unsupported image bytes from ${file.path}',
+          '[ImageAttachment] unsupported image bytes from $origin',
         );
         return const ImageAttachmentResult.failure(
           ImageAttachmentFailure.invalid,
@@ -293,10 +307,10 @@ class ImageAttachmentService {
         ),
       );
     } catch (e) {
-      logger.warning(
-        '[ImageAttachment] failed to read/normalize ${file.path}: $e',
+      logger.warning('[ImageAttachment] failed to normalize $origin: $e');
+      return const ImageAttachmentResult.failure(
+        ImageAttachmentFailure.invalid,
       );
-      return const ImageAttachmentResult.failure(ImageAttachmentFailure.read);
     }
   }
 }

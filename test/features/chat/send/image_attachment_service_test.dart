@@ -125,4 +125,29 @@ void main() {
       expect(ImageAttachmentService.fitsMessagePayload(images), isFalse);
     });
   });
+
+  group('fromBytesResult', () {
+    test(
+      'turns pasted screenshot bytes into a downscaled attachment',
+      () async {
+        final result = await ImageAttachmentService().fromBytesResult(
+          _png(3000, 1000),
+        );
+
+        expect(result.succeeded, isTrue);
+        expect(result.image!.width, 1568);
+        expect(result.image!.mediaType, 'image/jpeg');
+      },
+    );
+
+    test('reports non-image clipboard bytes as invalid', () async {
+      final result = await ImageAttachmentService().fromBytesResult(
+        Uint8List.fromList(List.filled(64, 0x42)),
+      );
+
+      expect(result.succeeded, isFalse);
+      expect(result.cancelled, isFalse);
+      expect(result.failure, ImageAttachmentFailure.invalid);
+    });
+  });
 }

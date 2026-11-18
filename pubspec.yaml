@@ -97,6 +97,9 @@ dependencies:
   mobile_scanner: ^7.2.0
   image: ^4.9.1
   image_picker: ^1.1.2
+  # Clipboard image paste on desktop. 0.6 needs Flutter 3.44 / Dart 3.12.
+  pasteboard: ^0.5.0
+  web: ^1.1.0
 
   flutter_rust_bridge: 2.13.0
 dependency_overrides:

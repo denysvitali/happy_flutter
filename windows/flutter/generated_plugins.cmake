@@ -9,6 +9,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_secure_storage_windows
   flutter_tts
   mmkv_win32
+  pasteboard
   record_windows
   sentry_flutter
   url_launcher_windows

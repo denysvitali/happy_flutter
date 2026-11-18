@@ -3,15 +3,49 @@ part of 'chat_input.dart';
 extension _ChatInputAttachmentActions on _ChatInputState {
   /// Picks one image from [source] and stages it on the controller.
   Future<void> _attachFrom(_AttachSource source) async {
-    final controller = widget.attachmentController;
-    if (controller == null || widget.isSending) return;
-    final l10n = AppLocalizations.of(context);
+    if (widget.attachmentController == null || widget.isSending) return;
     final result = source == _AttachSource.camera
         ? await _attachmentService.pickFromCameraResult()
         : await _attachmentService.pickFromGalleryResult();
-    // Re-check after the async picker gap in case a send started meanwhile.
+    _stageAttachment(result);
+  }
+
+  /// Stages raw image bytes from a paste or keyboard insertion.
+  Future<void> _attachPastedBytes(Uint8List bytes) async {
+    if (widget.attachmentController == null || widget.isSending) return;
+    _stageAttachment(await _attachmentService.fromBytesResult(bytes));
+  }
+
+  /// Ctrl/Cmd+V companion: the default text paste always runs; when the
+  /// clipboard holds no text, its image (if any) is attached instead.
+  Future<void> _pasteClipboardImageIfNoText() async {
+    if (widget.attachmentController == null || widget.isSending) return;
+    try {
+      final text = await Clipboard.getData(Clipboard.kTextPlain);
+      if (text?.text?.isNotEmpty ?? false) return;
+    } catch (_) {
+      // Unreadable text: still try the image.
+    }
+    final bytes = await readClipboardImage();
+    if (bytes == null || !mounted) return;
+    await _attachPastedBytes(bytes);
+  }
+
+  void _onContentInserted(KeyboardInsertedContent content) {
+    final bytes = content.data;
+    if (bytes == null || bytes.isEmpty) {
+      context.showSnack(AppLocalizations.of(context).chatImageAddFailed);
+      return;
+    }
+    unawaited(_attachPastedBytes(bytes));
+  }
+
+  void _stageAttachment(ImageAttachmentResult result) {
+    // Re-check after the async gap in case a send started meanwhile.
+    final controller = widget.attachmentController;
+    if (!mounted || controller == null || widget.isSending) return;
+    final l10n = AppLocalizations.of(context);
     final image = result.image;
-    if (!mounted || widget.isSending) return;
     if (image == null) {
       if (!result.cancelled) {
         context.showSnack(l10n.chatImageAddFailed);
@@ -19,7 +53,7 @@ extension _ChatInputAttachmentActions on _ChatInputState {
       return;
     }
 
-    if (!controller.add(image) && mounted) {
+    if (!controller.add(image)) {
       context.showSnack(
         l10n.chatAttachmentLimit(ChatAttachmentController.maxAttachments),
       );
@@ -63,6 +97,20 @@ extension _ChatInputAttachmentActions on _ChatInputState {
 }
 
 enum _AttachSource { gallery, camera }
+
+/// Overrides the text field's paste so Ctrl/Cmd+V can also attach images.
+class _ImagePasteAction extends ContextAction<PasteTextIntent> {
+  _ImagePasteAction(this.onPaste);
+
+  final VoidCallback onPaste;
+
+  @override
+  Object? invoke(PasteTextIntent intent, [BuildContext? context]) {
+    final result = callingAction?.invoke(intent);
+    onPaste();
+    return result;
+  }
+}
 
 class _AttachmentThumb extends StatefulWidget {
   const _AttachmentThumb({

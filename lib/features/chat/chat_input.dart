@@ -22,6 +22,7 @@ import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'model_selection_resolver.dart' show profileBackendHost;
 import 'send/chat_attachment_controller.dart';
+import 'send/clipboard_image_source.dart';
 import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_chrome_density.dart';
@@ -221,6 +222,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   final DraftStorage _draftStorage;
   final ImageAttachmentService _attachmentService = ImageAttachmentService();
+  late final VoidCallback _stopWebImagePaste;
+  late final _ImagePasteAction _imagePasteAction = _ImagePasteAction(
+    () => unawaited(_pasteClipboardImageIfNoText()),
+  );
 
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
@@ -308,6 +313,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _focusNode
       ..addListener(_onFocusChanged)
       ..onKeyEvent = _handleFocusKeyEvent;
+    _stopWebImagePaste = listenForPastedImages(
+      () => _focusNode.hasFocus,
+      (bytes) => unawaited(_attachPastedBytes(bytes)),
+    );
   }
 
   @override
@@ -359,6 +368,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _stopDictationWatchers();
     unawaited(_cancelOwnedDictation());
     _isFocused.dispose();
+    _stopWebImagePaste();
     widget.controller.removeListener(_onTextChanged);
     _focusNode
       ..removeListener(_onFocusChanged)
@@ -817,9 +827,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
       (AppTouchTarget.min + AppSpacing.xxs - lineHeight) / 2,
     );
 
-    return TextField(
+    final canAttach = widget.attachmentController != null;
+    final field = TextField(
       controller: widget.controller,
       focusNode: _focusNode,
+      // Android keyboards (e.g. Gboard's clipboard) insert images here.
+      contentInsertionConfiguration: canAttach
+          ? ContentInsertionConfiguration(onContentInserted: _onContentInserted)
+          : null,
       decoration: InputDecoration(
         hintText: _isDownloadingModel
             ? (downloadProgress?.label ?? 'Downloading model…')
@@ -860,6 +875,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
           ? TextInputAction.send
           : TextInputAction.newline,
       onSubmitted: widget.enterToSend ? (_) => _onSendTap() : null,
+    );
+    if (!canAttach || !supportsKeyboardImagePaste) return field;
+    return Actions(
+      actions: <Type, Action<Intent>>{PasteTextIntent: _imagePasteAction},
+      child: field,
     );
   }
 

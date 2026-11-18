@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_linux
   flutter_secure_storage_linux
   mmkv_linux
+  pasteboard
   record_linux
   sentry_flutter
   url_launcher_linux
