@@ -1734,7 +1734,7 @@ what you have, you must use the options mode.
     _sessionMessagesRevision[sessionId] =
         (_sessionMessagesRevision[sessionId] ?? 0) + 1;
     _messagesChangeCounter++;
-    FrameMetricsService.instance.debugRecordMessageChange();
+    FrameMetricsService.instance.recordMessageChange();
   }
 
   /// Invalidate the cached all-sessions snapshot and the per-session

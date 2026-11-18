@@ -1,3 +1,7 @@
+// Benchmarks live outside test/ but, like tests, drive Sync through its
+// @visibleForTesting seams on purpose.
+// ignore_for_file: invalid_use_of_visible_for_testing_member
+
 @Timeout(Duration(minutes: 10))
 library;
 

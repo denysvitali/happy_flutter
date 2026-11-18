@@ -277,7 +277,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
             final labels = !answered
                 ? q.question
                 : hasPersistedAnswer
-                ? persistedAnswer as String
+                ? persistedAnswer
                 : localLabels;
             final annotation = WireParsers.asMap(annotations?[q.question]);
             final persistedNotes = annotation?['notes'];

@@ -846,7 +846,7 @@ _syntheticAssistantError(Map<String, dynamic> data) {
   if (text == null || text.trim().isEmpty) return null;
 
   return (
-    type: hasErrorField ? errorField as String : 'api_error',
+    type: hasErrorField ? errorField : 'api_error',
     text: text,
     debug: <String, dynamic>{
       if (agentMsg?['model'] != null) 'model': agentMsg!['model'],

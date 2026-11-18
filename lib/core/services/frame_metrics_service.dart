@@ -182,11 +182,11 @@ class FrameMetricsService {
   @visibleForTesting
   void debugRecordPointerEvent() => _pointerEvents++;
 
-  @visibleForTesting
-  void debugRecordDataChange() => _windowDataChanges++;
+  /// Sync reports a data change so the current window counts as active.
+  void recordDataChange() => _windowDataChanges++;
 
-  @visibleForTesting
-  void debugRecordMessageChange() => _windowMessageChanges++;
+  /// Sync reports a message-list mutation for the current window.
+  void recordMessageChange() => _windowMessageChanges++;
 
   /// Re-seed the window accounting so a test starts from a clean window
   /// regardless of what earlier tests left on the shared singleton.
@@ -222,7 +222,7 @@ class FrameMetricsService {
     // first frame of the next foreground window.
     _discardPendingWindow();
     _attached = true;
-    _lastAttachMicros = MainIsolateStallTracker.instance.clock();
+    _lastAttachMicros = MainIsolateStallTracker.instance.now();
 
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointerEvent);
