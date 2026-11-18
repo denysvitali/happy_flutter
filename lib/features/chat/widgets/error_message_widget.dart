@@ -19,6 +19,22 @@ class ErrorMessageWidget extends StatelessWidget {
 
   final Map<String, dynamic> messageData;
 
+  /// Card headline. Claude CLI reports `unknown` for upstream failures it
+  /// cannot classify (e.g. a gateway's 400 `upstream_error`); show the HTTP
+  /// status instead of the meaningless word.
+  static String errorTitle(String type, String message, {Object? status}) {
+    final normalized = type.trim().toLowerCase();
+    if (normalized.isNotEmpty && normalized != 'unknown') {
+      return type.replaceAll('_', ' ');
+    }
+    final code =
+        int.tryParse('${status ?? ''}') ??
+        int.tryParse(
+          RegExp(r'API Error:\s*(\d{3})').firstMatch(message)?.group(1) ?? '',
+        );
+    return code == null ? 'Request failed' : 'Provider error ($code)';
+  }
+
   @override
   Widget build(BuildContext context) {
     final errorType = messageData['errorType'] as String? ?? 'unknown';
@@ -34,7 +50,13 @@ class ErrorMessageWidget extends StatelessWidget {
         ),
         child: AppBanner(
           tone: AppBadgeTone.danger,
-          title: errorType.replaceAll('_', ' '),
+          title: errorTitle(
+            errorType,
+            errorMessage,
+            status: messageData['debugData'] is Map
+                ? (messageData['debugData'] as Map)['apiErrorStatus']
+                : null,
+          ),
           message: errorMessage,
           trailing: const Icon(Icons.chevron_right),
         ),
