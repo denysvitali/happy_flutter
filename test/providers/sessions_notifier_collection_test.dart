@@ -378,6 +378,28 @@ void main() {
       expect(deleteRequests, ['a']);
     });
 
+    test(
+      'a failed Kubernetes cleanup never blocks deleting the session',
+      () async {
+        okIds.add('k');
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          throw StateError('kubernetes session k not found');
+        };
+        addTearDown(() => sync.testMachineRPCOverride = null);
+        final notifier = container.read(sessionsNotifierProvider.notifier);
+        final base = buildSession('k');
+        notifier.setSessions([
+          base.copyWith(
+            metadata: base.metadata!.copyWith(podName: 'happy-session-k'),
+          ),
+        ]);
+
+        expect(await notifier.optimisticDelete('k'), isTrue);
+        expect(container.read(sessionsNotifierProvider), isEmpty);
+        expect(deleteRequests, ['k']);
+      },
+    );
+
     test('server rejection restores the exact prior snapshot', () async {
       final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([buildSession('a'), buildSession('b')]);

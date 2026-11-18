@@ -338,10 +338,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       state = snapshot;
     }
 
-    if (session != null && !await _cleanupKubernetesSession(session)) {
-      rollback();
-      return false;
-    }
+    // Best effort: a daemon that is down or refuses the stop must never
+    // make a session undeletable. The server row goes regardless.
+    if (session != null) await _cleanupKubernetesSession(session);
     try {
       final ok = await sync.deleteSession(id);
       if (!ok) {
@@ -367,32 +366,26 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<int> optimisticBatchDelete(List<String> ids) async {
     if (ids.isEmpty) return 0;
     final snapshot = state;
-    final cleanupResults = await Future.wait(
+    // Cleanup is best effort, as in [optimisticDelete].
+    await Future.wait(
       ids.map((id) async {
         final session = snapshot[id];
-        return session == null || await _cleanupKubernetesSession(session);
+        if (session != null) await _cleanupKubernetesSession(session);
       }),
     );
-    final cleanupFailed = <String>{
-      for (var i = 0; i < ids.length; i++)
-        if (!cleanupResults[i]) ids[i],
-    };
-    final deletableIds = ids
-        .where((id) => !cleanupFailed.contains(id))
-        .toList();
     _publish(
       Map<String, Session>.from(state)
-        ..removeWhere((id, _) => deletableIds.contains(id)),
+        ..removeWhere((id, _) => ids.contains(id)),
     );
-    final results = await Future.wait(deletableIds.map(sync.deleteSession));
-    var failCount = cleanupFailed.length;
-    for (var i = 0; i < deletableIds.length; i++) {
+    final results = await Future.wait(ids.map(sync.deleteSession));
+    var failCount = 0;
+    for (var i = 0; i < ids.length; i++) {
       if (!results[i]) failCount++;
     }
     if (failCount > 0) {
       // Restore only the ones that failed.
-      for (var i = 0; i < deletableIds.length; i++) {
-        final id = deletableIds[i];
+      for (var i = 0; i < ids.length; i++) {
+        final id = ids[i];
         if (!results[i] && snapshot.containsKey(id)) {
           _publish({...state, id: snapshot[id]!});
         }
