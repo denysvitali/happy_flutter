@@ -14,7 +14,11 @@ enum SessionsViewStyle {
   kubernetes('kubernetes', Icons.cloud_outlined),
   // Keeps the wire value of the repository overview it replaced.
   projects('repository', Icons.account_tree_outlined),
+  // Working-directory grouping; not the user's folders below.
   folder('folder', Icons.folder_outlined),
+
+  /// The user's synced, nested session folders.
+  userFolders('user_folders', Icons.folder_copy_outlined),
   unreadFocus('unread_focus', Icons.mark_chat_unread_outlined);
 
   const SessionsViewStyle(this.wire, this.icon);
@@ -57,6 +61,7 @@ enum SessionsViewStyle {
     kubernetes => l10n.sessionsViewStyleKubernetes,
     projects => l10n.sessionsViewStyleProjects,
     folder => l10n.sessionsViewStyleFolderCentric,
+    userFolders => l10n.sessionsViewStyleUserFolders,
     unreadFocus => l10n.sessionsViewStyleUnreadFocus,
   };
 
@@ -69,6 +74,7 @@ enum SessionsViewStyle {
     kubernetes => l10n.sessionsViewStyleKubernetesHint,
     projects => l10n.sessionsViewStyleProjectsHint,
     folder => l10n.sessionsViewStyleFolderCentricHint,
+    userFolders => l10n.sessionsViewStyleUserFoldersHint,
     unreadFocus => l10n.sessionsViewStyleUnreadFocusHint,
   };
 }

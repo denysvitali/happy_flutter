@@ -105,6 +105,17 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ## Current UI/UX acceptance
 
+Session folders (2026-11-19): user-defined nested folders synced through the
+encrypted `session-folders` KV document shared with happy-web and the daemon
+(spec: happy-cli-go `docs/operations/session-folders.md`). New **Folders**
+view style (wire `user_folders`; the working-directory layout is now labelled
+"By directory"), folder create/rename/move/delete from the row menu, "Move to
+folder…" from the Mission Control row menu, multi-select and Session Info, and
+an optional folder in the new-session dialog. Replaces the unused local-only
+folder storage and the Settings → Session Folders name list. Doc/tree/CAS
+tests and a Go/Dart interop round trip pass locally; CI and device acceptance
+pending.
+
 Sub-session spawns (2026-11-12): happy-cli-go `happy-session` Agent calls
 render as Sub-session cards with the child's live state, prompt, Markdown
 reply, explicit failed/unknown outcomes, follow-up numbering and an Open
@@ -270,7 +281,7 @@ session) on every surface, matching the project header tile;
 open sessions beyond the five warmed at cold start get their last update
 from the encrypted message cache without keeping a transcript resident; **By machine** shows clean host names with a
 lane summary, lists idle online machines, and starts a session on a machine
-in one tap; **Folders** split active from archived-only workspaces with lane
+in one tap; **By directory** splits active from archived-only workspaces with lane
 summaries; **Unread focus** keeps rich attention cards over compact rows.
 Phone-width rows put the tile's top edge on the title's glyph top, keep the
 title and update lines tight, center the menu with its glyph mirroring the

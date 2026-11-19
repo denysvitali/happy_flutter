@@ -1705,6 +1705,10 @@ what you have, you must use the options mode.
   }
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
+
+  /// Unwrapped data keys of the data-key machines this account can open.
+  Map<String, Uint8List> get machineDataKeys =>
+      Map.unmodifiable(_machineDataKeys);
   Profile? get profile => settingsManager?.profile;
   bool get isReady => _isReady;
   bool get isEncryptionInitialized => _encryptionInitialized;
@@ -2085,6 +2089,14 @@ what you have, you must use the options mode.
 
   /// Stream that emits the specific domain that changed.
   Stream<SyncDomain> get onDomainChanged => _domainChangeController.stream;
+
+  final StreamController<List<Map<String, dynamic>>> _kvChangesController =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
+
+  /// `changes` of every `kv-batch-update` (`{key, value: base64|null,
+  /// version}` entries).
+  Stream<List<Map<String, dynamic>>> get onKvChanges =>
+      _kvChangesController.stream;
 
   /// Monotonic counter incremented on every data change notification.
   /// Providers compare this to skip expensive equality checks.

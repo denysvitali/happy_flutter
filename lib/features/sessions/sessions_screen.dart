@@ -30,6 +30,7 @@ import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/new_session_dialog.dart';
 import 'widgets/session_collection_app_bar.dart';
+import 'widgets/session_folder_actions.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 import '../../core/utils/snack.dart';
@@ -101,6 +102,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _selectionNotifier.addListener(_onSelectionChanged);
     _folderNotifier.addListener(_onFolderChanged);
     _scrollController.addListener(_onScroll);
+    // Starts the folder sync (load, reconnect reloads, reader wraps) for
+    // the signed-in app, whichever layout is shown.
+    ref.read(sessionFoldersProvider);
     _sessionsRouteActive = isSessionsCollectionRoute(
       PerformanceContextService().currentRoute,
     );
@@ -440,6 +444,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       onArchive: () => _confirmBatchArchive(context, sel),
       onPin: () => _pinOrUnpinSelected(sel),
       onDelete: () => _confirmBatchDelete(context, sel),
+      onMoveToFolder:
+          ref.watch(sessionFoldersProvider.select((s) => s.readOnly))
+          ? null
+          : () => _moveSelectedToFolder(context, sel),
     );
   }
 

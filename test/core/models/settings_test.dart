@@ -104,12 +104,12 @@ void main() {
         ..ttsEnabled = true
         ..ttsEngine = 'system'
         ..usagePeriod = 'sevenDays'
-        ..folders = ['Work'];
+        ..favoriteMachines = ['m-1'];
 
       final restored = Settings.fromJsonWithFallback({
         'themeMode': 'light',
         'avatarStyle': null,
-        'folders': 'invalid',
+        'favoriteMachines': 'invalid',
       }, existing);
 
       expect(restored.themeMode, 'light');
@@ -118,7 +118,7 @@ void main() {
       expect(restored.ttsEnabled, isTrue);
       expect(restored.ttsEngine, 'system');
       expect(restored.usagePeriod, 'sevenDays');
-      expect(restored.folders, ['Work']);
+      expect(restored.favoriteMachines, ['m-1']);
     });
 
     test('json storage roundtrip preserves all non-secret settings fields', () {
@@ -129,7 +129,7 @@ void main() {
         ..ttsEngine = 'system'
         ..voiceAssistantLanguage = 'en-US'
         ..usagePeriod = 'sevenDays'
-        ..folders = ['Work', 'Personal'];
+        ..favoriteMachines = ['m-1', 'm-2'];
 
       final restored = Settings.fromJson(settings.toJson());
 
@@ -139,7 +139,7 @@ void main() {
       expect(restored.ttsEngine, 'system');
       expect(restored.voiceAssistantLanguage, 'en-US');
       expect(restored.usagePeriod, 'sevenDays');
-      expect(restored.folders, ['Work', 'Personal']);
+      expect(restored.favoriteMachines, ['m-1', 'm-2']);
     });
 
     test('stale MiniMax-M3 defaultModelMode is normalized to MiniMax-M2.7', () {
@@ -401,7 +401,6 @@ void main() {
         ..lastUsedPermissionMode = 'plan'
         ..lastUsedModelMode = 'fast'
         ..lastUsedProfile = 'openai'
-        ..folders = ['Work', 'Personal']
         ..favoriteDirectories = ['~/dev']
         ..favoriteMachines = ['m-1']
         ..lastUsedProfilesByAgent = {'codex': 'openai', 'claude': 'anth'};
@@ -416,7 +415,6 @@ void main() {
 
     test('detaches collection fields so mutations do not leak back', () {
       final original = Settings()
-        ..folders = ['Work']
         ..favoriteDirectories = ['~/dev']
         ..favoriteMachines = ['m-1']
         ..lastUsedProfilesByAgent = {'codex': 'openai'};
@@ -424,12 +422,10 @@ void main() {
       final clone = original.shallowClone();
 
       // Mutating the clone's collections must not affect the original.
-      clone.folders.add('Personal');
       clone.favoriteDirectories.add('~/projects');
       clone.favoriteMachines.add('m-2');
       clone.lastUsedProfilesByAgent['claude'] = 'anth';
 
-      expect(original.folders, ['Work']);
       expect(original.favoriteDirectories, ['~/dev']);
       expect(original.favoriteMachines, ['m-1']);
       expect(original.lastUsedProfilesByAgent, {'codex': 'openai'});

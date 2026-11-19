@@ -54,6 +54,15 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   purpose (they need a server id or validation result). The permission
   `permissionActionDelegate` test seam keeps the awaited path.
 
+- **Session folders are one synced KV document** — `session-folders`
+  (happy-cli-go `docs/operations/session-folders.md`) is the only folder
+  concept; the working-directory "By directory" layout is unrelated. Edits
+  are pure `FolderEdit`s (`lib/core/folders/`) submitted through
+  `sessionFolderOperationsProvider`: shown at once, written with CAS (≤5
+  re-applies), failures reported app-wide. Loads add missing reader wraps
+  (account, legacy, each openable data-key machine). Never write an
+  undecryptable or higher-`v` document; never fail on a malformed one.
+
 - **Codex Daybreak is per session** — the new-session dialog's Daybreak switch
   (default from the `codexDaybreak` setting) sends `codexCyberAccessProgram`
   (`daybreak_blue`/`auto`) on spawn and saves it as the session's
@@ -80,15 +89,6 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   clears it. New Pods, including replacements, receive the saved instructions;
   running Pods and repository CLAUDE.md files are unchanged. Unsupported daemons
   show an upgrade requirement, never a silent local-only setting.
-
-- **Mermaid renders natively and offline** — ```mermaid fences in chat
-  markdown are parsed and painted in Dart (`features/chat/markdown/mermaid/`):
-  flowchart/graph (shapes, subgraphs, `classDef`/`class`/`:::`/`style`/
-  `linkStyle` colours), sequenceDiagram (notes, blocks, `rect rgb()`,
-  autonumber) and pie. Never send diagram source to a web renderer. Other
-  types, malformed input and oversized diagrams fall back to the code block
-  with a notice. The daemon's Happy MCP instructions advertise exactly this
-  subset to agents; keep them in sync with happy-cli-go `internal/mcp`.
 
 - **Mermaid renders natively and offline** — ```mermaid fences in chat
   markdown are parsed and painted in Dart (`features/chat/markdown/mermaid/`):

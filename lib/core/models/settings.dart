@@ -98,7 +98,6 @@ class Settings {
   Map<String, String> favoriteModelsByProfile = {};
   List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
   List<String> favoriteMachines = [];
-  List<String> folders = [];
   DismissedCLIWarnings dismissedCLIWarnings = DismissedCLIWarnings();
 
   @override
@@ -157,7 +156,6 @@ class Settings {
             favoriteModelsByProfile,
             other.favoriteModelsByProfile,
           ) &&
-          folders == other.folders &&
           profiles.length == other.profiles.length &&
           profiles.asMap().entries.every(
             (e) => identical(e.value, other.profiles[e.key]),
@@ -195,7 +193,6 @@ class Settings {
         (entry) => Object.hash(entry.key, entry.value),
       ),
     ),
-    Object.hashAll(folders),
     Object.hashAll(profiles),
   );
 
@@ -291,7 +288,6 @@ class Settings {
       )
       ..favoriteDirectories = List<String>.from(favoriteDirectories)
       ..favoriteMachines = List<String>.from(favoriteMachines)
-      ..folders = List<String>.from(folders)
       ..dismissedCLIWarnings = dismissedCLIWarnings;
   }
 
@@ -344,7 +340,6 @@ class Settings {
     Map<String, String>? favoriteModelsByProfile,
     List<String>? favoriteDirectories,
     List<String>? favoriteMachines,
-    List<String>? folders,
     DismissedCLIWarnings? dismissedCLIWarnings,
   }) {
     return Settings()
@@ -450,11 +445,6 @@ class Settings {
                 ? this.favoriteMachines
                 : List<String>.from(favoriteMachines))
           : this.favoriteMachines
-      ..folders = folders != null
-          ? (identical(folders, this.folders)
-                ? this.folders
-                : List<String>.from(folders))
-          : this.folders
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
@@ -532,7 +522,6 @@ Map<String, dynamic> _normalizeSettingsJson(
           json['profiles'] is List &&
           json['favoriteDirectories'] is List &&
           json['favoriteMachines'] is List &&
-          json['folders'] is List &&
           json['permissionModesBySession'] is Map &&
           lastUsedProfilesByAgent is Map &&
           favoriteModelsByProfile is Map<String, String> &&
@@ -569,7 +558,6 @@ Map<String, dynamic> _normalizeSettingsJson(
   normalizeListField('profiles');
   normalizeListField('favoriteDirectories');
   normalizeListField('favoriteMachines');
-  normalizeListField('folders');
 
   final permissionModesBySession = normalized['permissionModesBySession'];
   if (permissionModesBySession is Map) {

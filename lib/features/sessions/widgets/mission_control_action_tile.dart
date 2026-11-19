@@ -42,6 +42,7 @@ class MissionActionRow extends StatelessWidget {
     this.onPeek,
     this.onArchive,
     this.onSelect,
+    this.onMoveToFolder,
     this.showTriageMenu = true,
     this.showInlineApproval = false,
     this.inbox = false,
@@ -81,6 +82,9 @@ class MissionActionRow extends StatelessWidget {
   /// Archive and selection are separate from opening the conversation.
   final VoidCallback? onArchive;
   final VoidCallback? onSelect;
+
+  /// "Move to folder…" for this session.
+  final VoidCallback? onMoveToFolder;
 
   /// Mission Control owns pin/snooze/read triage. Preview, selection and
   /// archive remain discoverable on grouped boards when supplied.
@@ -291,6 +295,7 @@ class MissionActionRow extends StatelessWidget {
                         onPeek: onPeek,
                         onArchive: onArchive,
                         onSelect: onSelect,
+                        onMoveToFolder: onMoveToFolder,
                       ),
                     ),
                   );
@@ -612,6 +617,7 @@ class MissionActionRow extends StatelessWidget {
   bool get _hasOverflowMenu =>
       onArchive != null ||
       onSelect != null ||
+      onMoveToFolder != null ||
       onPeek != null ||
       (showTriageMenu &&
           (onTogglePin != null ||

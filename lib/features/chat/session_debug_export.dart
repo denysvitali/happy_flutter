@@ -99,7 +99,6 @@ Map<String, dynamic> _redactedSessionMetadata(Session session) {
     'lastSeq': session.lastSeq,
     'lastMessageAt': session.lastMessageAt,
     'pinned': session.pinned,
-    'hasFolder': _isPresent(session.folder),
     'todoCount': session.todos?.length ?? 0,
     'hasDraft': _isPresent(session.draft),
     'metadata': metadata == null

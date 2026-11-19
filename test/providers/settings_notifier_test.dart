@@ -443,7 +443,6 @@ void main() {
         'profiles': null,
         'favoriteDirectories': null,
         'favoriteMachines': null,
-        'folders': null,
         'dismissedCLIWarnings': null,
       });
 
@@ -456,7 +455,6 @@ void main() {
         equals(['~/src', '~/Desktop', '~/Documents']),
       );
       expect(settings.favoriteMachines, isEmpty);
-      expect(settings.folders, isEmpty);
       expect(settings.dismissedCLIWarnings.perMachine, isEmpty);
     });
 

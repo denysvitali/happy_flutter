@@ -21,6 +21,7 @@ class MissionTriageMenu extends StatelessWidget {
     this.onPeek,
     this.onArchive,
     this.onSelect,
+    this.onMoveToFolder,
   });
 
   final bool isPinned;
@@ -32,6 +33,7 @@ class MissionTriageMenu extends StatelessWidget {
   final VoidCallback? onPeek;
   final VoidCallback? onArchive;
   final VoidCallback? onSelect;
+  final VoidCallback? onMoveToFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +57,8 @@ class MissionTriageMenu extends StatelessWidget {
             onSelect?.call();
           case 'archive':
             onArchive?.call();
+          case 'folder':
+            onMoveToFolder?.call();
           case 'peek':
             onPeek?.call();
           case 'read':
@@ -75,6 +79,8 @@ class MissionTriageMenu extends StatelessWidget {
           ),
         if (onArchive != null)
           PopupMenuItem(value: 'archive', child: Text(l10n.sessionsArchive)),
+        if (onMoveToFolder != null)
+          PopupMenuItem(value: 'folder', child: Text(l10n.foldersMoveToFolder)),
         if (onPeek != null)
           PopupMenuItem(
             value: 'peek',

@@ -829,10 +829,6 @@ abstract class Session with _$Session {
     @JsonKey(includeFromJson: false, includeToJson: false)
     @Default(false)
     bool pinned,
-
-    /// Local-only: the folder this session belongs to.
-    /// Not synced to the server.
-    @JsonKey(includeFromJson: false, includeToJson: false) String? folder,
   }) = _Session;
 
   const Session._();

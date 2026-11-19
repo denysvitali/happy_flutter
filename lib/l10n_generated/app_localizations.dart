@@ -2176,12 +2176,6 @@ abstract class AppLocalizations {
   /// **'Read-aloud off · voices and dictation'**
   String get settingsVoiceSubtitleOff;
 
-  /// No description provided for @settingsSessionFoldersSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Name and organize session folders'**
-  String get settingsSessionFoldersSubtitle;
-
   /// No description provided for @settingsAutoArchiveSubtitle.
   ///
   /// In en, this message translates to:
@@ -3058,42 +3052,6 @@ abstract class AppLocalizations {
   /// **'Unpin'**
   String get sessionsUnpin;
 
-  /// No description provided for @sessionsFolders.
-  ///
-  /// In en, this message translates to:
-  /// **'Session Folders'**
-  String get sessionsFolders;
-
-  /// No description provided for @sessionsFoldersEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No folders yet. Create one to organize your sessions.'**
-  String get sessionsFoldersEmpty;
-
-  /// No description provided for @sessionsFoldersAdd.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Folder'**
-  String get sessionsFoldersAdd;
-
-  /// No description provided for @sessionsFoldersName.
-  ///
-  /// In en, this message translates to:
-  /// **'Folder name'**
-  String get sessionsFoldersName;
-
-  /// No description provided for @sessionsFoldersDeleteConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete folder \"{name}\"? Sessions in this folder will become unfiled.'**
-  String sessionsFoldersDeleteConfirm(String name);
-
-  /// No description provided for @sessionsFoldersRename.
-  ///
-  /// In en, this message translates to:
-  /// **'Rename Folder'**
-  String get sessionsFoldersRename;
-
   /// No description provided for @sessionsFolderActiveCount.
   ///
   /// In en, this message translates to:
@@ -3109,7 +3067,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsViewStyleFolderCentric.
   ///
   /// In en, this message translates to:
-  /// **'Folder-centric'**
+  /// **'By directory'**
   String get sessionsViewStyleFolderCentric;
 
   /// No description provided for @sessionsViewStyleUnreadFocus.
@@ -3175,8 +3133,20 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsViewStyleFolderCentricHint.
   ///
   /// In en, this message translates to:
-  /// **'Browse sessions by project folder'**
+  /// **'Browse sessions by working directory'**
   String get sessionsViewStyleFolderCentricHint;
+
+  /// No description provided for @sessionsViewStyleUserFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders'**
+  String get sessionsViewStyleUserFolders;
+
+  /// No description provided for @sessionsViewStyleUserFoldersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own nested folders, shared across devices'**
+  String get sessionsViewStyleUserFoldersHint;
 
   /// No description provided for @sessionsViewStyleProjectsHint.
   ///
@@ -12014,6 +11984,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unread'**
   String get inboxUnread;
+
+  /// No description provided for @foldersNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get foldersNew;
+
+  /// No description provided for @foldersNewSubfolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New subfolder'**
+  String get foldersNewSubfolder;
+
+  /// No description provided for @foldersRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename folder'**
+  String get foldersRename;
+
+  /// No description provided for @foldersMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move folder…'**
+  String get foldersMove;
+
+  /// No description provided for @foldersDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder'**
+  String get foldersDelete;
+
+  /// No description provided for @foldersDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”? Its subfolders and sessions move up one level. No session is deleted.'**
+  String foldersDeleteConfirm(String name);
+
+  /// No description provided for @foldersName.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get foldersName;
+
+  /// No description provided for @foldersUnfiled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in a folder'**
+  String get foldersUnfiled;
+
+  /// No description provided for @foldersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders yet. Create one to group sessions.'**
+  String get foldersEmpty;
+
+  /// No description provided for @foldersMoveToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder…'**
+  String get foldersMoveToFolder;
+
+  /// No description provided for @foldersNoFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'No folder'**
+  String get foldersNoFolder;
+
+  /// No description provided for @foldersTopLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Top level'**
+  String get foldersTopLevel;
+
+  /// No description provided for @foldersPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder'**
+  String get foldersPickerTitle;
+
+  /// No description provided for @foldersMovePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move “{name}” to'**
+  String foldersMovePickerTitle(String name);
+
+  /// No description provided for @foldersField.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get foldersField;
+
+  /// No description provided for @foldersSessionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0 {Empty} =1 {1 session} other {{count} sessions}}'**
+  String foldersSessionCount(int count);
+
+  /// No description provided for @foldersNeedsApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'A session in this folder needs approval'**
+  String get foldersNeedsApproval;
+
+  /// No description provided for @foldersMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder actions'**
+  String get foldersMenu;
+
+  /// No description provided for @foldersReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'These folders were saved by a newer Happy version. Update the app to change them.'**
+  String get foldersReadOnly;
+
+  /// No description provided for @foldersUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your folders could not be decrypted on this device, so they are hidden.'**
+  String get foldersUnreadable;
+
+  /// No description provided for @foldersSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the folder change'**
+  String get foldersSaveFailed;
+
+  /// No description provided for @foldersErrorEmptyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get foldersErrorEmptyName;
+
+  /// No description provided for @foldersErrorNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at most 64 characters'**
+  String get foldersErrorNameTooLong;
+
+  /// No description provided for @foldersErrorControlCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Names cannot contain control characters'**
+  String get foldersErrorControlCharacters;
+
+  /// No description provided for @foldersErrorDuplicateName.
+  ///
+  /// In en, this message translates to:
+  /// **'A folder with this name already exists here'**
+  String get foldersErrorDuplicateName;
+
+  /// No description provided for @foldersErrorTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'You can have at most 500 folders'**
+  String get foldersErrorTooMany;
+
+  /// No description provided for @foldersErrorTooDeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders can be at most 8 levels deep'**
+  String get foldersErrorTooDeep;
+
+  /// No description provided for @foldersErrorCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'A folder cannot move into itself'**
+  String get foldersErrorCycle;
+
+  /// No description provided for @foldersErrorMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'That folder no longer exists'**
+  String get foldersErrorMissing;
+
+  /// No description provided for @foldersErrorWrongAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'That folder belongs to another session'**
+  String get foldersErrorWrongAnchor;
+
+  /// No description provided for @foldersErrorConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders kept changing on another device. Try again.'**
+  String get foldersErrorConflict;
 }
 
 class _AppLocalizationsDelegate

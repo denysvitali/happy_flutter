@@ -113,12 +113,6 @@ extension _HubSectionSpecs on _SettingsScreenState {
           onChanged: (value) => _set('hideInactiveSessions', value),
         ),
         NavRouteRowSpec(
-          icon: Icons.folder_outlined,
-          title: l10n.sessionsFolders,
-          subtitle: l10n.settingsSessionFoldersSubtitle,
-          route: 'sessions-folders',
-        ),
-        NavRouteRowSpec(
           icon: Icons.inventory_2_outlined,
           title: l10n.autoArchiveTitle,
           subtitle: l10n.settingsAutoArchiveSubtitle,

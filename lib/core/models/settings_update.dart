@@ -141,9 +141,6 @@ final class SettingsUpdate {
       'favoriteMachines' => settings.copyWith(
         favoriteMachines: (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
-      'folders' => settings.copyWith(
-        folders: (value as List<dynamic>?)?.cast<String>() ?? [],
-      ),
       'dismissedCLIWarnings' => settings.copyWith(
         dismissedCLIWarnings: value as DismissedCLIWarnings,
       ),
@@ -218,7 +215,6 @@ final class SettingsUpdate {
       ..favoriteModelsByProfile = updated.favoriteModelsByProfile
       ..favoriteDirectories = updated.favoriteDirectories
       ..favoriteMachines = updated.favoriteMachines
-      ..folders = updated.folders
       ..dismissedCLIWarnings = updated.dismissedCLIWarnings;
   }
 

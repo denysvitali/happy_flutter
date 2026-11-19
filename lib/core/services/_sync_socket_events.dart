@@ -395,6 +395,9 @@ extension SyncSocketEvents on Sync {
           case 'loop-expired':
             _handleLoopExpired(update.data);
             break;
+          case 'kv-batch-update':
+            _handleKvBatchUpdate(update.data);
+            break;
         }
       } catch (error, stack) {
         logger.error('Failed to handle update', error, stack);
@@ -998,6 +1001,21 @@ extension SyncSocketEvents on Sync {
   /// Payload shape (per `docs/LOOPS.md`):
   /// `{t: 'loops-updated', sid: string, loops: Loop[]}`. The list is the
   /// authoritative replacement — we drop whatever we had locally and persist.
+  /// Forwards `kv-batch-update` changes to [onKvChanges]; owners of a key
+  /// (the session folders) decode their own entries.
+  void _handleKvBatchUpdate(dynamic data) {
+    final changes = data is Map ? data['changes'] : null;
+    if (changes is! List) return;
+    final entries = [
+      for (final change in changes)
+        if (change is Map && change['key'] is String)
+          Map<String, dynamic>.from(change),
+    ];
+    if (entries.isNotEmpty && !_kvChangesController.isClosed) {
+      _kvChangesController.add(entries);
+    }
+  }
+
   void _handleLoopsUpdated(Map<String, dynamic> data) {
     final sid = data['sid'] as String?;
     final loops = data['loops'] as List<dynamic>?;

@@ -93,7 +93,6 @@ class SessionCollectionProjection {
             session.activeAt,
             session.updatedAt,
             session.lastMessageAt,
-            session.folder,
             session.lifecycleStateCleartext,
             metadata?.name,
             metadata?.path,

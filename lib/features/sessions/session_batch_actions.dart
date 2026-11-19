@@ -26,6 +26,18 @@ extension _SessionBatchActions on _SessionsScreenState {
     }
   }
 
+  /// Moves the selection into a user folder; the rows move at once and the
+  /// write syncs in the background.
+  Future<void> _moveSelectedToFolder(
+    BuildContext context,
+    SelectionState selection,
+  ) async {
+    final ids = selection.selectedIds.toList();
+    if (ids.isEmpty) return;
+    await moveSessionsToFolderFlow(context, ref, ids);
+    if (mounted) _exitSelectionMode();
+  }
+
   Future<void> _confirmBatchArchive(
     BuildContext context,
     SelectionState selection,

@@ -1254,10 +1254,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Read-aloud off · voices and dictation';
 
   @override
-  String get settingsSessionFoldersSubtitle =>
-      'Name and organize session folders';
-
-  @override
   String get settingsAutoArchiveSubtitle =>
       'Archive idle sessions automatically';
 
@@ -1742,27 +1738,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsUnpin => 'Unpin';
 
   @override
-  String get sessionsFolders => 'Session Folders';
-
-  @override
-  String get sessionsFoldersEmpty =>
-      'No folders yet. Create one to organize your sessions.';
-
-  @override
-  String get sessionsFoldersAdd => 'Add Folder';
-
-  @override
-  String get sessionsFoldersName => 'Folder name';
-
-  @override
-  String sessionsFoldersDeleteConfirm(String name) {
-    return 'Delete folder \"$name\"? Sessions in this folder will become unfiled.';
-  }
-
-  @override
-  String get sessionsFoldersRename => 'Rename Folder';
-
-  @override
   String sessionsFolderActiveCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1785,7 +1760,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sessionsViewStyleFolderCentric => 'Folder-centric';
+  String get sessionsViewStyleFolderCentric => 'By directory';
 
   @override
   String get sessionsViewStyleUnreadFocus => 'Unread Focus';
@@ -1822,7 +1797,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsViewStyleFolderCentricHint =>
-      'Browse sessions by project folder';
+      'Browse sessions by working directory';
+
+  @override
+  String get sessionsViewStyleUserFolders => 'Folders';
+
+  @override
+  String get sessionsViewStyleUserFoldersHint =>
+      'Your own nested folders, shared across devices';
 
   @override
   String get sessionsViewStyleProjectsHint =>
@@ -7009,4 +6991,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inboxUnread => 'Unread';
+
+  @override
+  String get foldersNew => 'New folder';
+
+  @override
+  String get foldersNewSubfolder => 'New subfolder';
+
+  @override
+  String get foldersRename => 'Rename folder';
+
+  @override
+  String get foldersMove => 'Move folder…';
+
+  @override
+  String get foldersDelete => 'Delete folder';
+
+  @override
+  String foldersDeleteConfirm(String name) {
+    return 'Delete “$name”? Its subfolders and sessions move up one level. No session is deleted.';
+  }
+
+  @override
+  String get foldersName => 'Folder name';
+
+  @override
+  String get foldersUnfiled => 'Not in a folder';
+
+  @override
+  String get foldersEmpty => 'No folders yet. Create one to group sessions.';
+
+  @override
+  String get foldersMoveToFolder => 'Move to folder…';
+
+  @override
+  String get foldersNoFolder => 'No folder';
+
+  @override
+  String get foldersTopLevel => 'Top level';
+
+  @override
+  String get foldersPickerTitle => 'Move to folder';
+
+  @override
+  String foldersMovePickerTitle(String name) {
+    return 'Move “$name” to';
+  }
+
+  @override
+  String get foldersField => 'Folder';
+
+  @override
+  String foldersSessionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+      zero: 'Empty',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get foldersNeedsApproval => 'A session in this folder needs approval';
+
+  @override
+  String get foldersMenu => 'Folder actions';
+
+  @override
+  String get foldersReadOnly =>
+      'These folders were saved by a newer Happy version. Update the app to change them.';
+
+  @override
+  String get foldersUnreadable =>
+      'Your folders could not be decrypted on this device, so they are hidden.';
+
+  @override
+  String get foldersSaveFailed => 'Could not save the folder change';
+
+  @override
+  String get foldersErrorEmptyName => 'Enter a name';
+
+  @override
+  String get foldersErrorNameTooLong => 'Use at most 64 characters';
+
+  @override
+  String get foldersErrorControlCharacters =>
+      'Names cannot contain control characters';
+
+  @override
+  String get foldersErrorDuplicateName =>
+      'A folder with this name already exists here';
+
+  @override
+  String get foldersErrorTooMany => 'You can have at most 500 folders';
+
+  @override
+  String get foldersErrorTooDeep => 'Folders can be at most 8 levels deep';
+
+  @override
+  String get foldersErrorCycle => 'A folder cannot move into itself';
+
+  @override
+  String get foldersErrorMissing => 'That folder no longer exists';
+
+  @override
+  String get foldersErrorWrongAnchor =>
+      'That folder belongs to another session';
+
+  @override
+  String get foldersErrorConflict =>
+      'Folders kept changing on another device. Try again.';
 }

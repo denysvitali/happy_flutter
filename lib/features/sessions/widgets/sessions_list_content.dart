@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/folders/session_folders_doc.dart';
+import '../../../core/folders/session_folders_tree.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
@@ -34,6 +36,7 @@ import 'session_board_collection.dart';
 import 'session_board_view.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
+import 'session_folder_actions.dart';
 import 'session_headers.dart';
 import 'session_list_helpers.dart';
 import 'session_peek_sheet.dart';
@@ -41,7 +44,10 @@ import 'session_shimmer.dart';
 import 'sessions_view_style.dart';
 import 'sub_session_group.dart';
 import 'unread_focus_cards.dart';
+import 'user_folder_row.dart';
 import '../../../core/utils/snack.dart';
+
+part 'sessions_list_user_folders.dart';
 
 // ─── Main widget ──────────────────────────────────────
 
@@ -136,6 +142,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
+
+  /// User folders collapsed in the Folders view (expanded by default).
+  final Set<String> _collapsedUserFolders = {};
+
+  /// The resolved user folder tree while the Folders view is shown.
+  FolderTree? _userFolderTree;
   ArchivedGrouping _archivedGrouping = ArchivedGrouping.date;
   SortedSessions? _sortedCache;
   late SessionProjectIndex _projectIndex;
@@ -311,6 +323,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
   }
 
+  void _toggleUserFolder(String folderId) {
+    setState(() {
+      if (!_collapsedUserFolders.remove(folderId)) {
+        _collapsedUserFolders.add(folderId);
+      }
+    });
+  }
+
   void _toggleArchivedFolder(String folderKey) {
     setState(() {
       if (_expandedArchivedFolders.contains(folderKey)) {
@@ -423,10 +443,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   ) {
     final children = _nesting.childrenOf(session.id);
     if (children.isEmpty) return row;
+    final folders = _withUserFolders(session, children, childBuilder);
     return SubSessionGroup(
       parent: session,
       parentRow: row,
-      children: children,
+      leading: folders?.folders ?? const <Widget>[],
+      children: folders?.unfiled ?? children,
       summary: _nesting.summaryOf(session.id),
       expanded: _isSubSessionExpanded(session.id),
       onToggle: () => _toggleSubSessions(session.id),
@@ -509,6 +531,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final sessionsViewStyle = ref.watch(
       settingsNotifierProvider.select((s) => s.sessionsViewStyle),
     );
+    _userFolderTree = sessionsViewStyle == SessionsViewStyle.userFolders.wire
+        ? ref.watch(sessionFolderTreeProvider)
+        : null;
     final usesAggregateRows =
         _isWorkspaceStyle(sessionsViewStyle) ||
         sessionsViewStyle == 'mission_control' ||
@@ -965,6 +990,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       );
     }
 
+    if (sessionsViewStyle == SessionsViewStyle.userFolders.wire) {
+      return _buildUserFoldersView(
+        context,
+        activeSessions,
+        inactiveSessions,
+        machines,
+        orderingProjection,
+        triggerStagger: triggerStagger,
+        hideInactive: hideInactive,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      );
+    }
+
     if (sessionsViewStyle == 'unread_focus') {
       return _buildUnreadFocusView(
         context,
@@ -1146,6 +1185,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           onArchive: sel.isActive
               ? null
               : () => unawaited(confirmSessionArchive(context, ref, session)),
+          onMoveToFolder:
+              sel.isActive || ref.read(sessionFoldersProvider).readOnly
+              ? null
+              : () => unawaited(
+                  moveSessionsToFolderFlow(context, ref, [session.id]),
+                ),
           isPinned: triage.isPinned(session.id),
           isSnoozed: triage.isSnoozed(session.id),
           onMarkRead: sel.isActive

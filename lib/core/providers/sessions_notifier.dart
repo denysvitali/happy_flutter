@@ -7,7 +7,6 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../models/session.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/pinned_sessions_storage.dart';
-import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
 import '../utils/network_errors.dart';
 import '../utils/session_map_patch.dart';
@@ -90,7 +89,6 @@ int _collectionEntryHash(String id, Session session) {
     session.activeAt,
     session.updatedAt,
     session.lastMessageAt,
-    session.folder,
     session.lifecycleStateCleartext,
     metadata?.name,
     metadata?.path,
@@ -127,7 +125,6 @@ int _missionEntryHash(String id, Session session) {
     _missionControlTimestampBucket(session.activeAt),
     _missionControlTimestampBucket(session.updatedAt),
     _missionControlTimestampBucket(session.lastMessageAt),
-    session.folder,
     session.lifecycleStateCleartext,
     metadata?.name,
     metadata?.path,
@@ -152,7 +149,6 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _catalogRevision = -1;
   Future<void>? _refreshInFlight;
   final _pinnedStorage = PinnedSessionsStorage.instance;
-  final _foldersStorage = SessionFoldersStorage.instance;
 
   @override
   Map<String, Session> build() {
@@ -191,10 +187,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
 
   void _mergeLocalState([Iterable<String>? changedIds]) {
     final pinned = _pinnedStorage.getPinned();
-    final folders = _foldersStorage.getAllFolders();
-    if (pinned.isEmpty && folders.isEmpty) return;
+    if (pinned.isEmpty) return;
     final changes = <String, Session?>{};
-    for (final id in changedIds ?? {...pinned, ...folders.keys}) {
+    for (final id in changedIds ?? pinned) {
       final session = state[id];
       if (session == null) continue;
       var updated = session;
@@ -206,10 +201,6 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       try {
         if (pinned.contains(id) && !session.pinned) {
           updated = updated.copyWith(pinned: true);
-        }
-        final folder = folders[id];
-        if (folder != null && session.folder != folder) {
-          updated = updated.copyWith(folder: folder);
         }
       } catch (e, st) {
         logger.warning(
@@ -425,23 +416,6 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       );
     }
     await _pinnedStorage.unpinSession(id);
-  }
-
-  /// Assigns [folder] to [id] locally. No server sync.
-  Future<void> setSessionFolder(String id, String? folder) async {
-    final session = state[id];
-    if (session == null) return;
-    if (session.folder != folder) {
-      _publish(
-        Map<String, Session>.from(state)
-          ..[id] = session.copyWith(folder: folder),
-      );
-    }
-    if (folder != null) {
-      await _foldersStorage.setFolder(id, folder);
-    } else {
-      await _foldersStorage.removeSession(id);
-    }
   }
 
   /// Hides [id] from the active list at once (sync's optimistic archive

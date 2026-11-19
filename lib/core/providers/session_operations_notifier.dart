@@ -20,6 +20,7 @@ import '../models/session.dart';
 import '../operations/operation_store.dart';
 import '../services/session_archive.dart';
 import 'chat_action_notifier.dart';
+import 'session_folders_notifier.dart';
 import 'sessions_notifier.dart';
 
 /// `abort` stops the agent's current turn; the session stays open.
@@ -128,6 +129,10 @@ class SessionOperationsNotifier extends OperationStore<SessionRequest> {
   void onSucceeded(SessionOperation operation) {
     if (operation.request.action != SessionOperationAction.abort) {
       _sessions.loadFromSync();
+    }
+    if (operation.request.action == SessionOperationAction.delete) {
+      // Drops its folder assignment and the folders anchored at it.
+      ref.read(sessionFoldersProvider.notifier).forgetSession(operation.key);
     }
     dismiss(operation.key);
   }

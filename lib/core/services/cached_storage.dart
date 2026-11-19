@@ -8,9 +8,9 @@ import 'mmkv_storage.dart';
 /// and persist it to a single MMKV key with a 500ms debounce.
 ///
 /// Encapsulates the repeated lazy-load + Timer-based debounced-write pattern
-/// found across [PinnedSessionsStorage], [SessionFoldersStorage], and
-/// [RecentCommandsStorage]. Subclasses provide the storage [key], a
-/// [decode]/[encode] pair, and an [empty] value.
+/// found across [PinnedSessionsStorage] and [RecentCommandsStorage].
+/// Subclasses provide the storage [key], a [decode]/[encode] pair, and an
+/// [empty] value.
 abstract class CachedStorage<T> {
   CachedStorage({MMKVStorage? storage}) : _storage = storage ?? MMKVStorage();
 

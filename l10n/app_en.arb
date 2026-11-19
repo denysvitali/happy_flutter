@@ -588,7 +588,6 @@
   "settingsSignOutSubtitle": "Sign out of Happy on this device",
   "settingsVoiceSubtitleOn": "Read-aloud on · voices and dictation",
   "settingsVoiceSubtitleOff": "Read-aloud off · voices and dictation",
-  "settingsSessionFoldersSubtitle": "Name and organize session folders",
   "settingsAutoArchiveSubtitle": "Archive idle sessions automatically",
   "developerToolCallDebug": "Tool call debug",
   "developerToolCallDebugOn": "Tool calls render as raw JSON",
@@ -850,19 +849,6 @@
   "sessionsDeselectAll": "Deselect All",
   "sessionsPin": "Pin",
   "sessionsUnpin": "Unpin",
-  "sessionsFolders": "Session Folders",
-  "sessionsFoldersEmpty": "No folders yet. Create one to organize your sessions.",
-  "sessionsFoldersAdd": "Add Folder",
-  "sessionsFoldersName": "Folder name",
-  "sessionsFoldersDeleteConfirm": "Delete folder \"{name}\"? Sessions in this folder will become unfiled.",
-  "@sessionsFoldersDeleteConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "sessionsFoldersRename": "Rename Folder",
   "sessionsFolderActiveCount": "{count, plural, =1 {1 active} other {{count} active}}",
   "@sessionsFolderActiveCount": {
     "placeholders": {
@@ -879,7 +865,7 @@
       }
     }
   },
-  "sessionsViewStyleFolderCentric": "Folder-centric",
+  "sessionsViewStyleFolderCentric": "By directory",
   "sessionsViewStyleUnreadFocus": "Unread Focus",
   "sessionsViewStyleMissionControl": "Mission Control",
   "sessionsViewStyleStatusBoard": "Inbox",
@@ -890,7 +876,9 @@
   "sessionsViewStyleMissionControlHint": "What needs you, then workspace activity",
   "sessionsViewStyleStatusBoardHint": "Recent conversations, with attention and activity first",
   "sessionsViewStyleMachinesHint": "Sessions grouped by the computer running them",
-  "sessionsViewStyleFolderCentricHint": "Browse sessions by project folder",
+  "sessionsViewStyleFolderCentricHint": "Browse sessions by working directory",
+  "sessionsViewStyleUserFolders": "Folders",
+  "sessionsViewStyleUserFoldersHint": "Your own nested folders, shared across devices",
   "sessionsViewStyleProjectsHint": "One group per project, across machines and Kubernetes pods",
   "sessionsViewStyleAgentHint": "Sessions grouped by Claude, Codex and other agents",
   "sessionsViewStyleRecentHint": "A timeline: today, yesterday, this week and older",
@@ -3849,5 +3837,57 @@
   "inboxUndo": "Undo",
   "@inboxUndo": {"description": "Snack action to undo marking done"},
   "inboxUnread": "Unread",
-  "@inboxUnread": {"description": "Screen-reader prefix for an unread Inbox row"}
+  "@inboxUnread": {"description": "Screen-reader prefix for an unread Inbox row"},
+  "foldersNew": "New folder",
+  "foldersNewSubfolder": "New subfolder",
+  "foldersRename": "Rename folder",
+  "foldersMove": "Move folder…",
+  "foldersDelete": "Delete folder",
+  "foldersDeleteConfirm": "Delete “{name}”? Its subfolders and sessions move up one level. No session is deleted.",
+  "@foldersDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "foldersName": "Folder name",
+  "foldersUnfiled": "Not in a folder",
+  "foldersEmpty": "No folders yet. Create one to group sessions.",
+  "foldersMoveToFolder": "Move to folder…",
+  "foldersNoFolder": "No folder",
+  "foldersTopLevel": "Top level",
+  "foldersPickerTitle": "Move to folder",
+  "foldersMovePickerTitle": "Move “{name}” to",
+  "@foldersMovePickerTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "foldersField": "Folder",
+  "foldersSessionCount": "{count, plural, =0 {Empty} =1 {1 session} other {{count} sessions}}",
+  "@foldersSessionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "foldersNeedsApproval": "A session in this folder needs approval",
+  "foldersMenu": "Folder actions",
+  "foldersReadOnly": "These folders were saved by a newer Happy version. Update the app to change them.",
+  "foldersUnreadable": "Your folders could not be decrypted on this device, so they are hidden.",
+  "foldersSaveFailed": "Could not save the folder change",
+  "foldersErrorEmptyName": "Enter a name",
+  "foldersErrorNameTooLong": "Use at most 64 characters",
+  "foldersErrorControlCharacters": "Names cannot contain control characters",
+  "foldersErrorDuplicateName": "A folder with this name already exists here",
+  "foldersErrorTooMany": "You can have at most 500 folders",
+  "foldersErrorTooDeep": "Folders can be at most 8 levels deep",
+  "foldersErrorCycle": "A folder cannot move into itself",
+  "foldersErrorMissing": "That folder no longer exists",
+  "foldersErrorWrongAnchor": "That folder belongs to another session",
+  "foldersErrorConflict": "Folders kept changing on another device. Try again."
 }

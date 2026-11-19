@@ -9,7 +9,7 @@
   writes for independent consumers. Small catalog events patch collection
   fingerprints and derived rows; resets, lagging cursors and unpaired events
   without catalog writes retain full reconciliation. Immutable map patches
-  compact every 16 layers. Local pin/folder and archive overrides survive.
+  compact every 16 layers. Local pin and archive overrides survive.
 - The retained sessions list now gates callbacks and collection watches on
   app focus as well as tab/route visibility, then catches up on return.
 - Tool headers cache both matched and absent parsed errors against their

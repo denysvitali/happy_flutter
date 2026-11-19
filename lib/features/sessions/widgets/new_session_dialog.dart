@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../../core/folders/session_folders_doc.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
@@ -28,6 +29,7 @@ import '../harness_logo.dart';
 import 'kubernetes_mcp_section.dart';
 import 'kubernetes_repository_section.dart';
 import 'new_session_form_group.dart';
+import 'session_folder_actions.dart';
 
 part 'new_session_fields.dart';
 part 'new_session_resolution.dart';
@@ -205,6 +207,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _createError;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
+
+  /// Account-level user folder the new session joins after spawning.
+  String? _folderId;
 
   /// Machine ('local') or Kubernetes; chosen at the top of the dialog and
   /// limits the machine list to daemons that support it.
@@ -504,6 +509,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         ),
       ],
     ];
+
+    body.add(
+      _NewSessionFolderField(
+        folderId: _folderId,
+        enabled: !_isCreating,
+        onChanged: (id) => setState(() => _folderId = id),
+      ),
+    );
 
     final footer = _NewSessionFooter(
       blocker: createBlocker,
@@ -808,6 +821,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         CodexDaybreakSelection().save(sessionId, daybreakChoice);
       }
       if (!_canUseRef) return;
+      final folderId = _folderId;
+      if (folderId != null) {
+        // The id exists from the spawn on; the write syncs in background.
+        final refused = ref
+            .read(sessionFolderOperationsProvider.notifier)
+            .edit(
+              AssignSessions(parents: {sessionId: null}, folderId: folderId),
+            );
+        if (refused != null) {
+          logger.warning('[NewSessionDialog] folder not assigned: $refused');
+        }
+      }
       if (isKubernetes) {
         ref
             .read(repoHistoryProvider.notifier)

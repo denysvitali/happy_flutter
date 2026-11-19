@@ -63,7 +63,10 @@ ancestor in the same section, appears exactly once, and a child whose parent
 is archived, filtered or searched away stays a top-level row with a
 `Sub-session` badge. Parents show a collapsed "N sub-sessions · needs you ·
 working" disclosure; search expands it. Collapsed children are not selectable,
-so batch actions only touch visible rows. A child chat shows a slim
+so batch actions only touch visible rows. In the Folders layout, folders
+anchored at a session render (collapsible) before its unfiled sub-sessions;
+"Move to folder…" only offers folders anchored at the session's parent.
+A child chat shows a slim
 "Sub-session of <parent>" strip that opens the parent; Session Info lists the
 parent ("Spawned by") and sub-sessions with their state.
 

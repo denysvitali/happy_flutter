@@ -19,6 +19,7 @@ export 'permissions_notifier.dart';
 export 'pod_operations_notifier.dart';
 export 'profile_notifier.dart';
 export 'provider_usage_notifier.dart';
+export 'session_folders_notifier.dart';
 export 'session_git_status_notifier.dart';
 export 'session_operations_notifier.dart';
 export 'session_ui_state_notifier.dart';

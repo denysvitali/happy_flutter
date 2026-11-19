@@ -5,7 +5,6 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/sessions_notifier.dart';
 import 'package:happy_flutter/core/services/pinned_sessions_storage.dart';
-import 'package:happy_flutter/core/services/session_folders_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -151,16 +150,11 @@ void main() {
       expect(second.keys.toSet(), {'a', 'b', 'c'});
     });
 
-    test('catalog deltas retain local pin and folder overrides', () async {
+    test('catalog deltas retain local pin overrides', () async {
       sync.testIsInitialized = true;
       final pins = PinnedSessionsStorage.instance;
-      final folders = SessionFoldersStorage.instance;
-      addTearDown(() {
-        pins.clearAll();
-        folders.clearAll();
-      });
+      addTearDown(pins.clearAll);
       await pins.pinSession('a');
-      await folders.setFolder('a', 'Local');
       sync.testSessions['a'] = buildSession('a');
       final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.loadFromSync();
@@ -170,7 +164,6 @@ void main() {
         notifier.loadFromSync();
         final row = container.read(sessionsNotifierProvider)['a']!;
         expect(row.pinned, isTrue);
-        expect(row.folder, 'Local');
         expect(row.updatedAt, 2000 + i);
       }
       sync.testSessions

@@ -7,15 +7,26 @@ import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
+/// The slice of the KV API a compare-and-set writer needs.
+abstract interface class KvStore {
+  /// The stored item, or null when the key is missing or deleted.
+  Future<KvItem?> get(String key);
+
+  /// Applies [mutations] atomically; a lost version race is an error
+  /// response carrying the current value and version.
+  Future<KvMutateResponse> mutate(List<KvMutation> mutations);
+}
+
 /// KV Store API client
 /// Provides key-value storage operations
 /// Based on React Native's apiKv.ts
-class KvApi {
+class KvApi implements KvStore {
   KvApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Get a single value by key
   /// Returns null if key doesn't exist (404)
+  @override
   Future<KvItem?> get(String key) async {
     final encodedKey = Uri.encodeComponent(key);
     final response = await _client.get(
@@ -102,6 +113,7 @@ class KvApi {
   /// Atomically mutate multiple key-value pairs
   /// Supports create, update, and delete operations
   /// Uses optimistic concurrency control with version numbers
+  @override
   Future<KvMutateResponse> mutate(List<KvMutation> mutations) async {
     if (mutations.isEmpty) {
       return const KvMutateSuccessResponse([]);

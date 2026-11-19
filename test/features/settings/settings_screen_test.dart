@@ -228,7 +228,6 @@ void main() {
     // Only the auto-archive row survives inside Sessions.
     expect(findTextIgnoreCase('SESSIONS'), findsOneWidget);
     expect(find.text('Auto-Archive'), findsOneWidget);
-    expect(find.text('Session Folders'), findsNothing);
     expect(find.text('Session view style'), findsNothing);
     expect(findTextIgnoreCase('STATUS'), findsNothing);
   });

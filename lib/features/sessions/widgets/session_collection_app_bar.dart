@@ -239,6 +239,7 @@ class SessionSelectionAppBar extends StatelessWidget
     required this.onArchive,
     required this.onPin,
     required this.onDelete,
+    this.onMoveToFolder,
     super.key,
   });
 
@@ -252,6 +253,9 @@ class SessionSelectionAppBar extends StatelessWidget
   final VoidCallback onArchive;
   final VoidCallback onPin;
   final VoidCallback onDelete;
+
+  /// "Move to folder…" for the selection; null hides it.
+  final VoidCallback? onMoveToFolder;
 
   static double actionsHeightOf(BuildContext context) => math.max(
     AppTouchTarget.comfortable,
@@ -319,6 +323,19 @@ class SessionSelectionAppBar extends StatelessWidget
                 onPressed: count == 0 ? null : onPin,
               ),
             ),
+            if (onMoveToFolder case final onMove?)
+              Tooltip(
+                message: l10n.foldersMoveToFolder,
+                excludeFromSemantics: true,
+                child: TextButton.icon(
+                  icon: const Icon(
+                    Icons.drive_file_move_outlined,
+                    size: AppIconSize.xl,
+                  ),
+                  label: Text(l10n.foldersField),
+                  onPressed: count == 0 ? null : onMove,
+                ),
+              ),
             Tooltip(
               message: l10n.commonDelete,
               excludeFromSemantics: true,

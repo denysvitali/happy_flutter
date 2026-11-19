@@ -68,3 +68,60 @@ class _NewSessionAdvancedOptions extends StatelessWidget {
     );
   }
 }
+
+/// Optional account-level user folder for the new session. Hidden while
+/// there are no folders (or they cannot be edited).
+class _NewSessionFolderField extends ConsumerWidget {
+  const _NewSessionFolderField({
+    required this.folderId,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String? folderId;
+  final bool enabled;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final tree = ref.watch(sessionFolderTreeProvider);
+    final readOnly = ref.watch(
+      sessionFoldersProvider.select((s) => s.readOnly),
+    );
+    final targets = tree.targetsFor(null);
+    if (targets.isEmpty || readOnly) return const SizedBox.shrink();
+    final current = folderId;
+    final label = current != null && tree.isVisible(current)
+        ? tree.path(current)
+        : l10n.foldersNoFolder;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: NewSessionGroup(
+        children: [
+          ListTile(
+            key: const Key('new-session-folder'),
+            dense: true,
+            contentPadding: kNewSessionTilePadding,
+            leading: const Icon(Icons.folder_outlined),
+            title: Text(l10n.foldersField),
+            subtitle: Text(label, style: AppText.secondary(theme)),
+            trailing: const Icon(Icons.chevron_right),
+            enabled: enabled,
+            onTap: () async {
+              final pick = await showFolderPicker(
+                context,
+                title: l10n.foldersField,
+                targets: targets,
+                current: current,
+                noneLabel: l10n.foldersNoFolder,
+              );
+              if (pick != null) onChanged(pick.folderId);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

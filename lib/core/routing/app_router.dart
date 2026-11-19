@@ -46,7 +46,6 @@ import '../../features/settings/profile_wizard_screen.dart';
 import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/restore_account_screen.dart';
 import '../../features/settings/screens/auto_archive_settings_screen.dart';
-import '../../features/settings/screens/sessions_folders_settings_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/usage_screen.dart';

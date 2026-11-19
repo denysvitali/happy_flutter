@@ -36,6 +36,13 @@ Confirmed bulk archive/delete keeps its selection stable while a shared
 progress bar runs, then restores the controls with any failure feedback.
 Search and folder headers adapt to larger text. Bottom navigation keeps full
 labels visible and supports keyboard activation.
+The Folders layout shows your own nested session folders, synced end-to-end
+encrypted with happy-web and agents (happy-cli-go
+`docs/operations/session-folders.md`): subfolders first, then sessions, with
+unfiled sessions below. A sub-session's folders sit among its parent's
+sub-sessions. Folders are managed from their row menu; sessions move with
+"Move to folder…" (row menu, selection bar, Session Info) or pick a folder in
+the new-session dialog.
 
 The new-session dialog is an inset grouped form: a Cancel/title header, a
 Machine/Kubernetes switch, an evenly sized agent grid (one or two columns of

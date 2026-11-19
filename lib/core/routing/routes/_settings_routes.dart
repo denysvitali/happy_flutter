@@ -61,14 +61,6 @@ List<RouteBase> get settingsRoutes => [
         _slidePage(const AuthGate(child: MachinesScreen()), state),
   ),
   GoRoute(
-    path: '/settings/sessions/folders',
-    name: 'sessions-folders',
-    pageBuilder: (context, state) => _slidePage(
-      const AuthGate(child: SessionsFoldersSettingsScreen()),
-      state,
-    ),
-  ),
-  GoRoute(
     path: '/settings/sessions/auto-archive',
     name: 'sessions-auto-archive',
     pageBuilder: (context, state) =>

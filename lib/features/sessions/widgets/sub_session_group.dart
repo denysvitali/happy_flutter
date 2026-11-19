@@ -29,6 +29,7 @@ class SubSessionGroup extends StatelessWidget {
     required this.expanded,
     required this.onToggle,
     required this.childBuilder,
+    this.leading = const <Widget>[],
     super.key,
   });
 
@@ -40,9 +41,13 @@ class SubSessionGroup extends StatelessWidget {
   final VoidCallback onToggle;
   final Widget Function(Session child) childBuilder;
 
+  /// Rows shown before [children] when expanded (the user folders
+  /// anchored at [parent], holding the rest of its children).
+  final List<Widget> leading;
+
   @override
   Widget build(BuildContext context) {
-    if (children.isEmpty) return parentRow;
+    if (children.isEmpty && leading.isEmpty) return parentRow;
     final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -71,6 +76,7 @@ class SubSessionGroup extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  ...leading,
                   for (final child in children)
                     KeyedSubtree(
                       key: ValueKey('sub-session-${child.id}'),

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../folders/session_folders_doc.dart';
+import '../folders/session_folders_repository.dart';
 import '../i18n/app_localizations.dart';
+import '../i18n/folder_rule_localization.dart';
 import '../i18n/remote_feature_failure_localization.dart';
 import '../operations/operation_store.dart';
 import '../providers/machine_operations_notifier.dart';
 import '../providers/mcp_operations_notifier.dart';
 import '../providers/permission_operations_notifier.dart';
+import '../providers/session_folders_notifier.dart';
 import '../providers/session_operations_notifier.dart';
 import '../utils/permission_failure.dart';
 import '../utils/snack.dart';
@@ -49,6 +53,16 @@ class OperationFailureListener extends ConsumerWidget {
       (l10n, failed) => permissionFailureLabel(l10n, failed.error ?? ''),
       // A permission the session dropped meanwhile cannot be retried.
       retryable: false,
+    );
+    _listen(
+      context,
+      ref,
+      sessionFolderOperationsProvider,
+      (l10n, failed) => switch (failed.cause) {
+        FolderRuleException(:final rule) => folderRuleMessage(l10n, rule),
+        FolderConflictException() => l10n.foldersErrorConflict,
+        _ => l10n.foldersSaveFailed,
+      },
     );
     _listen(
       context,

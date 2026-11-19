@@ -21,6 +21,7 @@ import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import '../sessions/widgets/session_folder_actions.dart';
 import 'session_debug_export.dart';
 import 'widgets/codex_daybreak_status.dart';
 import 'widgets/session_info_widgets.dart';
@@ -298,6 +299,14 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (!widget.embedded) safePop<void>(context);
   }
 
+  /// "Folder: Work / Client" when filed, else "Move to folder…".
+  String _folderLabel(AppLocalizations l10n) {
+    final tree = ref.watch(sessionFolderTreeProvider);
+    final folderId = tree.folderOfSession(widget.session.id);
+    if (folderId == null) return l10n.foldersMoveToFolder;
+    return '${l10n.foldersField}: ${tree.path(folderId)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -524,6 +533,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               color: cs.primary,
               onTap: _exportDebugInfo,
             ),
+            if (!ref.watch(sessionFoldersProvider.select((s) => s.readOnly)))
+              ActionRow(
+                icon: Icons.drive_file_move_outlined,
+                label: _folderLabel(l10n),
+                color: cs.primary,
+                onTap: () => unawaited(
+                  moveSessionsToFolderFlow(context, ref, [session.id]),
+                ),
+              ),
             if (hasMachineAction)
               ActionRow(
                 icon: Icons.dns_outlined,
