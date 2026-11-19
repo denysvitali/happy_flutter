@@ -3,9 +3,11 @@ part of 'sessions_list_content.dart';
 /// One lazily built row of the Folders view.
 typedef _UserFolderRowSpec = ({Key key, Widget Function() build});
 
-/// The "Folders" layout: the user's synced folder tree with its open
-/// sessions, unfiled sessions below, then the archive as in the plain
-/// list. Child sessions stay nested under their parent; folders anchored
+/// The "Folders" layout: the user's synced folder tree, unfiled open
+/// sessions below, then the unfiled archive as in the plain list. Inside a
+/// folder: subfolders by name, then open sessions, then archived ones
+/// (most sessions are archived once their process exits, so folders keep
+/// them; counts include them). Child sessions stay nested under their parent; folders anchored
 /// at a session render among its sub-sessions ([_withUserFolders]).
 extension _UserFoldersView on _SessionsListContentState {
   Widget _buildUserFoldersView(
@@ -25,15 +27,32 @@ extension _UserFoldersView on _SessionsListContentState {
     final searching = widget.searchQuery.isNotEmpty;
 
     final byFolder = <String, List<Session>>{};
+    String? accountFolderOf(Session session) {
+      final folderId = tree.folderOfSession(session.id);
+      return folderId != null && tree.folder(folderId)?.anchor == null
+          ? folderId
+          : null;
+    }
+
     final unfiled = <Session>[];
     for (final session in activeSessions) {
-      final folderId = tree.folderOfSession(session.id);
-      if (folderId != null && tree.folder(folderId)?.anchor == null) {
+      final folderId = accountFolderOf(session);
+      if (folderId != null) {
         (byFolder[folderId] ??= <Session>[]).add(session);
       } else {
         unfiled.add(session);
       }
     }
+    final unfiledArchived = <Session>[];
+    for (final session in inactiveSessions) {
+      final folderId = accountFolderOf(session);
+      if (folderId != null) {
+        (byFolder[folderId] ??= <Session>[]).add(session);
+      } else {
+        unfiledArchived.add(session);
+      }
+    }
+    final archivedIds = {for (final s in inactiveSessions) s.id};
     final stats = _UserFolderStats(
       tree: tree,
       anchor: null,
@@ -44,7 +63,15 @@ extension _UserFoldersView on _SessionsListContentState {
     final rows = <_UserFolderRowSpec>[];
     var stagger = 0;
     Widget sessionRow(Session session, int depth) {
-      final item = ListItem.activeSession(session, stagger++);
+      final item = archivedIds.contains(session.id)
+          ? ListItem.archivedSession(
+              session,
+              stagger++,
+              isFirst: true,
+              isLast: true,
+              isSingle: true,
+            )
+          : ListItem.activeSession(session, stagger++);
       return Padding(
         padding: EdgeInsetsDirectional.only(start: depth * userFolderIndent),
         child: _buildPerSessionItem(
@@ -108,26 +135,27 @@ extension _UserFoldersView on _SessionsListContentState {
         ));
       }
     }
-    if (shouldShowInactiveSessionsSection(
-      hideInactive: hideInactive,
-      activeCount: activeSessions.length,
-      inactiveCount: inactiveSessions.length,
-    )) {
+    if (unfiledArchived.isNotEmpty &&
+        shouldShowInactiveSessionsSection(
+          hideInactive: hideInactive,
+          activeCount: activeSessions.length,
+          inactiveCount: unfiledArchived.length,
+        )) {
       final archived = <ListItem>[
         ListItem.archiveHeader(
-          inactiveSessions.length,
+          unfiledArchived.length,
           _archivedGrouping,
           stagger,
         ),
         ...(_archivedGrouping == ArchivedGrouping.folder
             ? _buildFolderGroupedItems(
-                inactiveSessions,
+                unfiledArchived,
                 machines,
                 orderingProjection,
                 startIndex: stagger,
               )
             : _buildDateGroupedItems(
-                inactiveSessions,
+                unfiledArchived,
                 orderingProjection,
                 startIndex: stagger,
               )),

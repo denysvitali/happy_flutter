@@ -442,14 +442,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     Widget Function(Session child) childBuilder,
   ) {
     final children = _nesting.childrenOf(session.id);
-    if (children.isEmpty) return row;
+    // Folders anchored at a session show under it even without visible
+    // sub-sessions.
     final folders = _withUserFolders(session, children, childBuilder);
+    if (children.isEmpty && folders == null) return row;
     return SubSessionGroup(
       parent: session,
       parentRow: row,
       leading: folders?.folders ?? const <Widget>[],
       children: folders?.unfiled ?? children,
       summary: _nesting.summaryOf(session.id),
+      folderCount: folders?.folders.length ?? 0,
       expanded: _isSubSessionExpanded(session.id),
       onToggle: () => _toggleSubSessions(session.id),
       childBuilder: childBuilder,

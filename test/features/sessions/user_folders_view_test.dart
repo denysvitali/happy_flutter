@@ -44,19 +44,26 @@ class _Folders extends SessionFoldersNotifier {
   SessionFoldersState build() => _state;
 }
 
-Session _s(String id, String name, {String? parent, bool permission = false}) {
-  final at = DateTime.now().millisecondsSinceEpoch;
+Session _s(
+  String id,
+  String name, {
+  String? parent,
+  bool permission = false,
+  bool archived = false,
+}) {
+  final at = DateTime.now().millisecondsSinceEpoch - (archived ? 3600000 : 0);
   return Session(
     id: id,
     seq: 1,
     createdAt: at,
     updatedAt: at,
-    active: true,
+    active: !archived,
+    archived: archived,
     activeAt: at,
     metadataVersion: 1,
     agentStateVersion: 1,
     thinking: false,
-    presence: 'online',
+    presence: archived ? 'offline' : 'online',
     agentState: permission
         ? AgentState(requests: {'r': const RequestInfo(tool: 'Bash')})
         : null,
@@ -76,8 +83,14 @@ const _doc = FolderDoc(
     'fclient': SessionFolder(name: 'Client', parent: 'fwork'),
     'fempty': SessionFolder(name: 'Empty'),
     'fkids': SessionFolder(name: 'Kids', anchor: 'parent'),
+    'fsolo': SessionFolder(name: 'Solo notes', anchor: 'lone'),
   },
-  sessions: {'parent': 'fwork', 'ask': 'fclient', 'kid1': 'fkids'},
+  sessions: {
+    'parent': 'fwork',
+    'ask': 'fclient',
+    'kid1': 'fkids',
+    'old': 'fwork',
+  },
 );
 
 Future<void> _pump(
@@ -96,6 +109,8 @@ Future<void> _pump(
       _s('kid2', 'Kid unfiled', parent: 'parent'),
       _s('ask', 'Needs approval', permission: true),
       _s('lone', 'Lone session'),
+      _s('old', 'Old filed run', archived: true),
+      _s('gone', 'Old unfiled run', archived: true),
     ])
       s.id: s,
   };
@@ -146,11 +161,22 @@ void main() {
     expect(find.text('Not in a folder'), findsOneWidget);
     expect(find.text('Lone session'), findsOneWidget);
     expect(find.text('New folder'), findsOneWidget);
-    // Work holds Parent and (through Client) the approval session.
+    // Work holds Parent, an archived run and (through Client) the approval
+    // session; archived filed sessions stay in their folder, after the
+    // open ones.
     final work = tester.widget<UserFolderRow>(
       find.widgetWithText(UserFolderRow, 'Work'),
     );
-    expect(work.sessionCount, 2);
+    expect(work.sessionCount, 3);
+    expect(find.text('Old filed run'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Parent task')).dy,
+      lessThan(tester.getTopLeft(find.text('Old filed run')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Old filed run')).dy,
+      lessThan(tester.getTopLeft(find.text('Not in a folder')).dy),
+    );
     expect(work.needsApproval, isTrue);
     final empty = tester.widget<UserFolderRow>(
       find.widgetWithText(UserFolderRow, 'Empty'),
@@ -186,6 +212,14 @@ void main() {
       tester.getTopLeft(find.text('Kids')).dy,
       lessThan(tester.getTopLeft(find.text('Kid in folder')).dy),
     );
+  });
+
+  testWidgets('a session folder shows without sub-sessions', (tester) async {
+    await _pump(tester);
+    expect(find.text('Solo notes'), findsNothing);
+    await tester.tap(find.text('1 folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Solo notes'), findsOneWidget);
   });
 
   testWidgets('a newer document is read-only', (tester) async {

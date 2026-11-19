@@ -12170,6 +12170,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Folders kept changing on another device. Try again.'**
   String get foldersErrorConflict;
+
+  /// No description provided for @foldersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 folder} other {{count} folders}}'**
+  String foldersCount(int count);
 }
 
 class _AppLocalizationsDelegate

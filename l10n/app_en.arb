@@ -3889,5 +3889,13 @@
   "foldersErrorCycle": "A folder cannot move into itself",
   "foldersErrorMissing": "That folder no longer exists",
   "foldersErrorWrongAnchor": "That folder belongs to another session",
-  "foldersErrorConflict": "Folders kept changing on another device. Try again."
+  "foldersErrorConflict": "Folders kept changing on another device. Try again.",
+  "foldersCount": "{count, plural, =1 {1 folder} other {{count} folders}}",
+  "@foldersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -7103,4 +7103,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get foldersErrorConflict =>
       'Folders kept changing on another device. Try again.';
+
+  @override
+  String foldersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count folders',
+      one: '1 folder',
+    );
+    return '$_temp0';
+  }
 }

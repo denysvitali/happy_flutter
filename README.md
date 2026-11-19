@@ -38,9 +38,9 @@ Search and folder headers adapt to larger text. Bottom navigation keeps full
 labels visible and supports keyboard activation.
 The Folders layout shows your own nested session folders, synced end-to-end
 encrypted with happy-web and agents (happy-cli-go
-`docs/operations/session-folders.md`): subfolders first, then sessions, with
-unfiled sessions below. A sub-session's folders sit among its parent's
-sub-sessions. Folders are managed from their row menu; sessions move with
+`docs/operations/session-folders.md`): subfolders first, then open and then
+archived sessions (counts include archived), with unfiled sessions below. A
+session's own folders sit under it among its sub-sessions. Folders are managed from their row menu; sessions move with
 "Move to folder…" (row menu, selection bar, Session Info) or pick a folder in
 the new-session dialog.
 

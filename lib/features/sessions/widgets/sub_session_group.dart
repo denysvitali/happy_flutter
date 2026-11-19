@@ -30,6 +30,7 @@ class SubSessionGroup extends StatelessWidget {
     required this.onToggle,
     required this.childBuilder,
     this.leading = const <Widget>[],
+    this.folderCount = 0,
     super.key,
   });
 
@@ -45,6 +46,9 @@ class SubSessionGroup extends StatelessWidget {
   /// anchored at [parent], holding the rest of its children).
   final List<Widget> leading;
 
+  /// User folders anchored at [parent], named in the disclosure.
+  final int folderCount;
+
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty && leading.isEmpty) return parentRow;
@@ -56,6 +60,7 @@ class SubSessionGroup extends StatelessWidget {
         parentRow,
         SubSessionDisclosure(
           summary: summary,
+          folderCount: folderCount,
           expanded: expanded,
           onToggle: onToggle,
         ),
@@ -97,10 +102,12 @@ class SubSessionDisclosure extends StatelessWidget {
     required this.summary,
     required this.expanded,
     required this.onToggle,
+    this.folderCount = 0,
     super.key,
   });
 
   final SubSessionSummary summary;
+  final int folderCount;
   final bool expanded;
   final VoidCallback onToggle;
 
@@ -112,7 +119,12 @@ class SubSessionDisclosure extends StatelessWidget {
     final muted = cs.onSurfaceVariant;
     final style = AppText.secondary(theme, muted);
     final parts = <InlineSpan>[
-      TextSpan(text: l10n.subSessionCount(summary.total)),
+      if (summary.total > 0 || folderCount == 0)
+        TextSpan(text: l10n.subSessionCount(summary.total)),
+      if (folderCount > 0) ...[
+        if (summary.total > 0) const TextSpan(text: ' · '),
+        TextSpan(text: l10n.foldersCount(folderCount)),
+      ],
       if (summary.needsAttention > 0) ...[
         const TextSpan(text: ' · '),
         TextSpan(
